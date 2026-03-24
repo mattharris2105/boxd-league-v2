@@ -99,10 +99,10 @@ export default function App() {
   const getBudgetSpent = (pid) => rosters.filter(r => r.player_id === pid).reduce((s, r) => s + r.bought_price, 0)
   const getBudgetLeft = (pid) => leagueConfig.season_budget - getBudgetSpent(pid)
 
-  const buyFilm = async (film) => {
+const buyFilm = async (film) => {
     if (!profile) return notify('Create a profile first', S.red)
-    if (rosters.find(r => r.player_id === profile.id && r.film_id === film.id)) return notify('Already in your roster', S.red)
-    const myRoster = rosters.filter(r => r.player_id === profile.id)
+    if (rosters.find(r => r.player_id === profile.id && r.film_id === film.id && r.active)) return notify('Already in your roster', S.red)
+    const myRoster = rosters.filter(r => r.player_id === profile.id && r.active)
     if (myRoster.length >= leagueConfig.max_roster) return notify(`Roster full (${leagueConfig.max_roster} max)`, S.red)
     const price = getFilmValue(film)
     const left = getBudgetLeft(profile.id)
