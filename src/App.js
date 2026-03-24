@@ -46,6 +46,33 @@ function calcMarketValue(film, actualM) {
   return Math.round(base)
 }
 
+async function saveResult(filmId, actualM) {
+  const existing = await supabase.from('results').select('film_id').eq('film_id', filmId).single()
+  if (existing.data) {
+    return supabase.from('results').update({ actual_m: actualM }).eq('film_id', filmId)
+  } else {
+    return supabase.from('results').insert({ film_id: filmId, actual_m: actualM })
+  }
+}
+
+async function saveFilmValue(filmId, value) {
+  const existing = await supabase.from('film_values').select('film_id').eq('film_id', filmId).single()
+  if (existing.data) {
+    return supabase.from('film_values').update({ current_value: value }).eq('film_id', filmId)
+  } else {
+    return supabase.from('film_values').insert({ film_id: filmId, current_value: value })
+  }
+}
+
+async function saveWeeklyGross(filmId, weekNum, grossM) {
+  const existing = await supabase.from('weekly_grosses').select('id').eq('film_id', filmId).eq('week_num', weekNum).single()
+  if (existing.data) {
+    return supabase.from('weekly_grosses').update({ gross_m: grossM }).eq('film_id', filmId).eq('week_num', weekNum)
+  } else {
+    return supabase.from('weekly_grosses').insert({ film_id: filmId, week_num: weekNum, gross_m: grossM })
+  }
+}
+
 export default function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -341,8 +368,10 @@ export default function App() {
                         const val = parseFloat(document.getElementById(`res-${film.id}`).value)
                         if (isNaN(val)) return notify('Enter a number', S.red)
                         const newValue = calcMarketValue(film, val)
-                        await supabase.from('results').upsert({ film_id: film.id, actual_m: val })
-                        await supabase.from('film_values').upsert({ film_id: film.id, current_value: newValue })
+                        const { error: e1 } = await saveResult(film.id, val)
+                        if (e1) return notify(e1.message, S.red)
+                        const { error: e2 } = await saveFilmValue(film.id, newValue)
+                        if (e2) return notify(e2.message, S.red)
                         notify(`Saved · ${film.title} now $${newValue}`, S.gold)
                         loadData()
                       }}>Save Opening</button>
@@ -365,7 +394,8 @@ export default function App() {
                                 onClick={async () => {
                                   const val = parseFloat(document.getElementById(`weekly-${film.id}-${wk}`).value)
                                   if (isNaN(val)) return notify('Enter a number', S.red)
-                                  await supabase.from('weekly_grosses').upsert({ film_id: film.id, week_num: wk, gross_m: val })
+                                  const { error } = await saveWeeklyGross(film.id, wk, val)
+                                  if (error) return notify(error.message, S.red)
                                   notify(`W${wk} saved · +${Math.round(val*0.5)}pts`, S.gold)
                                   loadData()
                                 }}>Save</button>
