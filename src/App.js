@@ -18,8 +18,8 @@ const GENRE_COL = {
 }
 
 const FILMS = [
-  {id:'f01',title:'Thunderbolts*',dist:'Marvel',genre:'Action',franchise:'MCU',basePrice:42,estM:88,rt:82,week:1,sleeper:false,trailer:'https://www.youtube.com/embed/HpWFOpDJhis'},
-  {id:'f02',title:'Sinners',dist:'WB',genre:'Horror',franchise:null,basePrice:22,estM:45,rt:94,week:1,sleeper:false,trailer:'https://www.youtube.com/embed/J9G_j8yFOmY'},
+  {id:'f01',title:'Thunderbolts*',dist:'Marvel',genre:'Action',franchise:'MCU',basePrice:42,estM:88,rt:82,week:1,sleeper:false,trailer:'https://www.youtube.com/embed/E3s6nMHGBFI'},
+  {id:'f02',title:'Sinners',dist:'WB',genre:'Horror',franchise:null,basePrice:22,estM:45,rt:94,week:1,sleeper:false,trailer:'https://www.youtube.com/embed/XqvRVJXjSiU'},
   {id:'f03',title:'A Minecraft Movie',dist:'WB',genre:'Family',franchise:'Minecraft',basePrice:34,estM:75,rt:61,week:1,sleeper:false,trailer:'https://www.youtube.com/embed/nwqCHKFMnGI'},
   {id:'f04',title:'Final Destination 6',dist:'WB',genre:'Horror',franchise:'FD',basePrice:14,estM:30,rt:68,week:1,sleeper:false,trailer:'https://www.youtube.com/embed/wWFEFkvxORI'},
   {id:'f05',title:'Heart Eyes',dist:'Sony',genre:'Horror',franchise:null,basePrice:8,estM:14,rt:55,week:1,sleeper:true,trailer:'https://www.youtube.com/embed/aBDKxnLc7_E'},
