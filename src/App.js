@@ -18,7 +18,7 @@ const GENRE_COL = {
 }
 
 const FILMS = [
-  {id:'f01',title:'Thunderbolts*',dist:'Marvel',genre:'Action',franchise:'MCU',basePrice:42,estM:88,rt:82,week:1,sleeper:false,trailer:'https://www.youtube.com/watch?v=-sAOWhvheK8'},
+  {id:'f01',title:'Thunderbolts*',dist:'Marvel',genre:'Action',franchise:'MCU',basePrice:42,estM:88,rt:82,week:1,sleeper:false,trailer:'https://www.youtube.com/embed/-sAOWhvheK8'},
   {id:'f02',title:'Sinners',dist:'WB',genre:'Horror',franchise:null,basePrice:22,estM:45,rt:94,week:1,sleeper:false,trailer:'https://www.youtube.com/watch?v=XqvRVJXjSiU'},
   {id:'f03',title:'A Minecraft Movie',dist:'WB',genre:'Family',franchise:'Minecraft',basePrice:34,estM:75,rt:61,week:1,sleeper:false,trailer:'https://www.youtube.com/watch?v=nwqCHKFMnGI'},
   {id:'f04',title:'Final Destination 6',dist:'WB',genre:'Horror',franchise:'FD',basePrice:14,estM:30,rt:68,week:1,sleeper:false,trailer:'https://www.youtube.com/watch?v=wWFEFkvxORI'},
