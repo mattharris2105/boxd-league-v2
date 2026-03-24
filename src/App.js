@@ -18,21 +18,21 @@ const GENRE_COL = {
 }
 
 const FILMS = [
-  {id:'f01',title:'Thunderbolts*',dist:'Marvel',genre:'Action',franchise:'MCU',basePrice:42,estM:88,rt:82,week:1,sleeper:false,trailer:'https://www.youtube.com/embed/E3s6nMHGBFI'},
-  {id:'f02',title:'Sinners',dist:'WB',genre:'Horror',franchise:null,basePrice:22,estM:45,rt:94,week:1,sleeper:false,trailer:'https://www.youtube.com/embed/XqvRVJXjSiU'},
-  {id:'f03',title:'A Minecraft Movie',dist:'WB',genre:'Family',franchise:'Minecraft',basePrice:34,estM:75,rt:61,week:1,sleeper:false,trailer:'https://www.youtube.com/embed/nwqCHKFMnGI'},
-  {id:'f04',title:'Final Destination 6',dist:'WB',genre:'Horror',franchise:'FD',basePrice:14,estM:30,rt:68,week:1,sleeper:false,trailer:'https://www.youtube.com/embed/wWFEFkvxORI'},
-  {id:'f05',title:'Heart Eyes',dist:'Sony',genre:'Horror',franchise:null,basePrice:8,estM:14,rt:55,week:1,sleeper:true,trailer:'https://www.youtube.com/embed/aBDKxnLc7_E'},
-  {id:'f06',title:'Mission: Impossible 8',dist:'Paramount',genre:'Action',franchise:'MI',basePrice:44,estM:72,rt:91,week:2,sleeper:false,trailer:'https://www.youtube.com/embed/avz_MFnDMwA'},
-  {id:'f07',title:'Lilo & Stitch',dist:'Disney',genre:'Family',franchise:null,basePrice:36,estM:82,rt:78,week:2,sleeper:false,trailer:'https://www.youtube.com/embed/m9r0bP-TxB4'},
-  {id:'f08',title:'28 Years Later',dist:'Sony',genre:'Horror',franchise:'28 Days',basePrice:24,estM:40,rt:88,week:2,sleeper:false,trailer:'https://www.youtube.com/embed/R4yrpnmEkxE'},
-  {id:'f09',title:'Superman',dist:'DC/WB',genre:'Action',franchise:'DCU',basePrice:55,estM:120,rt:83,week:3,sleeper:false,trailer:'https://www.youtube.com/embed/zjgbTCFEfj8'},
-  {id:'f10',title:'F1',dist:'Apple/WB',genre:'Drama',franchise:null,basePrice:28,estM:55,rt:89,week:3,sleeper:false,trailer:'https://www.youtube.com/embed/GFxuJkAR6iE'},
-  {id:'f11',title:'Elio',dist:'Pixar',genre:'Animation',franchise:null,basePrice:26,estM:62,rt:80,week:3,sleeper:false,trailer:'https://www.youtube.com/embed/Ym4o3Gtu6rQ'},
-  {id:'f12',title:'Jurassic World Rebirth',dist:'Universal',genre:'Action',franchise:'JW',basePrice:48,estM:110,rt:74,week:4,sleeper:false,trailer:'https://www.youtube.com/embed/Fnk5UHuHIY8'},
-  {id:'f13',title:'How to Train Your Dragon',dist:'Universal',genre:'Family',franchise:'HTTYD',basePrice:42,estM:95,rt:85,week:4,sleeper:false,trailer:'https://www.youtube.com/embed/S3GBMgTHMtg'},
-  {id:'f14',title:'Avatar: Fire and Ash',dist:'Disney',genre:'Sci-Fi',franchise:'Avatar',basePrice:72,estM:190,rt:null,week:5,sleeper:false,trailer:'https://www.youtube.com/embed/5HCH4tFaLVs'},
-  {id:'f15',title:'The Fantastic Four',dist:'Marvel',genre:'Action',franchise:'MCU',basePrice:62,estM:140,rt:null,week:5,sleeper:false,trailer:'https://www.youtube.com/embed/V2hCMOPFWS0'},
+  {id:'f01',title:'Thunderbolts*',dist:'Marvel',genre:'Action',franchise:'MCU',basePrice:42,estM:88,rt:82,week:1,sleeper:false,trailer:'https://www.youtube.com/watch?v=E3s6nMHGBFI'},
+  {id:'f02',title:'Sinners',dist:'WB',genre:'Horror',franchise:null,basePrice:22,estM:45,rt:94,week:1,sleeper:false,trailer:'https://www.youtube.com/watch?v=XqvRVJXjSiU'},
+  {id:'f03',title:'A Minecraft Movie',dist:'WB',genre:'Family',franchise:'Minecraft',basePrice:34,estM:75,rt:61,week:1,sleeper:false,trailer:'https://www.youtube.com/watch?v=nwqCHKFMnGI'},
+  {id:'f04',title:'Final Destination 6',dist:'WB',genre:'Horror',franchise:'FD',basePrice:14,estM:30,rt:68,week:1,sleeper:false,trailer:'https://www.youtube.com/watch?v=wWFEFkvxORI'},
+  {id:'f05',title:'Heart Eyes',dist:'Sony',genre:'Horror',franchise:null,basePrice:8,estM:14,rt:55,week:1,sleeper:true,trailer:'https://www.youtube.com/watch?v=aBDKxnLc7_E'},
+  {id:'f06',title:'Mission: Impossible 8',dist:'Paramount',genre:'Action',franchise:'MI',basePrice:44,estM:72,rt:91,week:2,sleeper:false,trailer:'https://www.youtube.com/watch?v=avz_MFnDMwA'},
+  {id:'f07',title:'Lilo & Stitch',dist:'Disney',genre:'Family',franchise:null,basePrice:36,estM:82,rt:78,week:2,sleeper:false,trailer:'https://www.youtube.com/watch?v=m9r0bP-TxB4'},
+  {id:'f08',title:'28 Years Later',dist:'Sony',genre:'Horror',franchise:'28 Days',basePrice:24,estM:40,rt:88,week:2,sleeper:false,trailer:'https://www.youtube.com/watch?v=R4yrpnmEkxE'},
+  {id:'f09',title:'Superman',dist:'DC/WB',genre:'Action',franchise:'DCU',basePrice:55,estM:120,rt:83,week:3,sleeper:false,trailer:'https://www.youtube.com/watch?v=zjgbTCFEfj8'},
+  {id:'f10',title:'F1',dist:'Apple/WB',genre:'Drama',franchise:null,basePrice:28,estM:55,rt:89,week:3,sleeper:false,trailer:'https://www.youtube.com/watch?v=GFxuJkAR6iE'},
+  {id:'f11',title:'Elio',dist:'Pixar',genre:'Animation',franchise:null,basePrice:26,estM:62,rt:80,week:3,sleeper:false,trailer:'https://www.youtube.com/watch?v=Ym4o3Gtu6rQ'},
+  {id:'f12',title:'Jurassic World Rebirth',dist:'Universal',genre:'Action',franchise:'JW',basePrice:48,estM:110,rt:74,week:4,sleeper:false,trailer:'https://www.youtube.com/watch?v=Fnk5UHuHIY8'},
+  {id:'f13',title:'How to Train Your Dragon',dist:'Universal',genre:'Family',franchise:'HTTYD',basePrice:42,estM:95,rt:85,week:4,sleeper:false,trailer:'https://www.youtube.com/watch?v=S3GBMgTHMtg'},
+  {id:'f14',title:'Avatar: Fire and Ash',dist:'Disney',genre:'Sci-Fi',franchise:'Avatar',basePrice:72,estM:190,rt:null,week:5,sleeper:false,trailer:'https://www.youtube.com/watch?v=5HCH4tFaLVs'},
+  {id:'f15',title:'The Fantastic Four',dist:'Marvel',genre:'Action',franchise:'MCU',basePrice:62,estM:140,rt:null,week:5,sleeper:false,trailer:'https://www.youtube.com/watch?v=V2hCMOPFWS0'},
 ]
 
 function calcMarketValue(film, actualM) {
