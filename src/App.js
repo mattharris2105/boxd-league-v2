@@ -55,9 +55,11 @@ export default function App() {
   const [rosters, setRosters] = useState([])
   const [results, setResults] = useState({})
   const [filmValues, setFilmValues] = useState({})
+  const [weeklyGrosses, setWeeklyGrosses] = useState({})
   const [leagueConfig, setLeagueConfig] = useState({ current_week:1, season_budget:500, currency:'$', tx_fee:5, late_tax:0.15, max_roster:8 })
   const [notif, setNotif] = useState(null)
-const [trailerFilm, setTrailerFilm] = useState(null)
+  const [trailerFilm, setTrailerFilm] = useState(null)
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
@@ -81,25 +83,39 @@ const [trailerFilm, setTrailerFilm] = useState(null)
   }
 
   const loadData = async () => {
-    const [{ data: ps }, { data: rs }, { data: res }, { data: fv }, { data: cfg }] = await Promise.all([
+    const [{ data: ps }, { data: rs }, { data: res }, { data: fv }, { data: cfg }, { data: wg }] = await Promise.all([
       supabase.from('profiles').select('*'),
       supabase.from('rosters').select('*').eq('active', true),
       supabase.from('results').select('*'),
       supabase.from('film_values').select('*'),
       supabase.from('league_config').select('*').eq('id', 1).single(),
+      supabase.from('weekly_grosses').select('*'),
     ])
     if (ps) setPlayers(ps)
     if (rs) setRosters(rs)
     if (res) { const map = {}; res.forEach(r => map[r.film_id] = r.actual_m); setResults(map) }
     if (fv) { const map = {}; fv.forEach(v => map[v.film_id] = v.current_value); setFilmValues(map) }
     if (cfg) setLeagueConfig(cfg)
+    if (wg) {
+      const map = {}
+      wg.forEach(w => {
+        if (!map[w.film_id]) map[w.film_id] = {}
+        map[w.film_id][w.week_num] = w.gross_m
+      })
+      setWeeklyGrosses(map)
+    }
   }
 
   const getFilmValue = (film) => filmValues[film.id] ?? film.basePrice
   const getBudgetSpent = (pid) => rosters.filter(r => r.player_id === pid).reduce((s, r) => s + r.bought_price, 0)
   const getBudgetLeft = (pid) => leagueConfig.season_budget - getBudgetSpent(pid)
 
-const buyFilm = async (film) => {
+  const getWeeklyPts = (filmId) => {
+    const weeks = weeklyGrosses[filmId] || {}
+    return Object.values(weeks).reduce((s, g) => s + g * 0.5, 0)
+  }
+
+  const buyFilm = async (film) => {
     if (!profile) return notify('Create a profile first', S.red)
     if (rosters.find(r => r.player_id === profile.id && r.film_id === film.id && r.active)) return notify('Already in your roster', S.red)
     const myRoster = rosters.filter(r => r.player_id === profile.id && r.active)
@@ -143,6 +159,7 @@ const buyFilm = async (film) => {
       const ratio = actual / film.estM
       if (ratio >= 1.3) pts *= 1.30
       else if (ratio <= 0.5) pts -= 10
+      pts += getWeeklyPts(film.id)
       total += Math.round(pts)
     })
     return total
@@ -192,6 +209,7 @@ const buyFilm = async (film) => {
                   const actual = results[film.id]
                   const genreCol = GENRE_COL[film.genre] || '#888'
                   const priceDelta = val - film.basePrice
+                  const weeklyPts = getWeeklyPts(film.id)
                   return (
                     <div key={film.id} style={{...S.card, border:`1px solid ${owned ? S.gold+'44' : '#1E222C'}`, background:owned?'#F0B42908':'#0C0E12', position:'relative', overflow:'hidden'}}>
                       <div style={{position:'absolute', top:0, left:0, right:0, height:'2px', background:genreCol}} />
@@ -212,18 +230,19 @@ const buyFilm = async (film) => {
                         {film.franchise && <span style={{fontSize:'8px', padding:'2px 6px', borderRadius:'4px', background:'#A855F718', color:'#A855F7'}}>{film.franchise}</span>}
                         {film.sleeper && <span style={{fontSize:'8px', padding:'2px 6px', borderRadius:'4px', background:'#4D9EFF18', color:'#4D9EFF'}}>💤 Sleeper</span>}
                       </div>
-{actual != null && <div style={{fontSize:'10px', color:S.green, marginBottom:'8px'}}>Actual: ${actual}M</div>}
-{film.trailer && <button style={{...S.btn, background:'#12141A', border:'1px solid #2A2F3C', color:'#4A5168', width:'100%', fontSize:'9px', marginBottom:'8px'}} onClick={e => { e.stopPropagation(); setTrailerFilm(film) }}>▶ Watch Trailer</button>}
-{owned
-  ? <button style={{...S.btn, background:'none', border:`1px solid ${S.red}44`, color:S.red, width:'100%', fontSize:'9px'}} onClick={() => sellFilm(film)}>Drop · get {cur}{Math.max(0,val-leagueConfig.tx_fee)}M</button>
-  : <button style={{...S.btn, background:S.gold, color:'#000', width:'100%', fontSize:'9px'}} onClick={() => buyFilm(film)}>Acquire · {cur}{val}M</button>
-}
-{(() => {
-  const owners = rosters.filter(r => r.film_id === film.id && r.active)
-  return owners.length > 0
-    ? <div style={{fontSize:'9px', color:'#4A5168', marginTop:'6px', textAlign:'center'}}>{owners.length} player{owners.length>1?'s':''} own this</div>
-    : null
-})()}
+                      {actual != null && <div style={{fontSize:'10px', color:S.green, marginBottom:'4px'}}>Actual: ${actual}M</div>}
+                      {weeklyPts > 0 && <div style={{fontSize:'9px', color:'#4D9EFF', marginBottom:'8px'}}>+{Math.round(weeklyPts)} weekly pts</div>}
+                      {film.trailer && <button style={{...S.btn, background:'#12141A', border:'1px solid #2A2F3C', color:'#4A5168', width:'100%', fontSize:'9px', marginBottom:'8px'}} onClick={e => { e.stopPropagation(); setTrailerFilm(film) }}>▶ Watch Trailer</button>}
+                      {owned
+                        ? <button style={{...S.btn, background:'none', border:`1px solid ${S.red}44`, color:S.red, width:'100%', fontSize:'9px'}} onClick={() => sellFilm(film)}>Drop · get {cur}{Math.max(0,val-leagueConfig.tx_fee)}M</button>
+                        : <button style={{...S.btn, background:S.gold, color:'#000', width:'100%', fontSize:'9px'}} onClick={() => buyFilm(film)}>Acquire · {cur}{val}M</button>
+                      }
+                      {(() => {
+                        const owners = rosters.filter(r => r.film_id === film.id && r.active)
+                        return owners.length > 0
+                          ? <div style={{fontSize:'9px', color:'#4A5168', marginTop:'6px', textAlign:'center'}}>{owners.length} player{owners.length>1?'s':''} own this</div>
+                          : null
+                      })()}
                     </div>
                   )
                 })}
@@ -244,17 +263,33 @@ const buyFilm = async (film) => {
                     const actual = results[film.id]
                     const pnl = val - holding.bought_price
                     const genreCol = GENRE_COL[film.genre] || '#888'
+                    const weeklyPts = getWeeklyPts(film.id)
+                    const weeks = weeklyGrosses[film.id] || {}
                     return (
-                      <div key={holding.id} style={{...S.card, display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap'}}>
-                        <div style={{width:'3px', height:'36px', borderRadius:'2px', background:genreCol, flexShrink:0}} />
-                        <div style={{flex:2, minWidth:'120px'}}>
-                          <div style={{fontSize:'13px', fontWeight:600}}>{film.title}</div>
-                          <div style={{fontSize:'9px', color:'#4A5168'}}>{film.dist} · Week {film.week}</div>
+                      <div key={holding.id} style={{...S.card}}>
+                        <div style={{display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap'}}>
+                          <div style={{width:'3px', height:'36px', borderRadius:'2px', background:genreCol, flexShrink:0}} />
+                          <div style={{flex:2, minWidth:'120px'}}>
+                            <div style={{fontSize:'13px', fontWeight:600}}>{film.title}</div>
+                            <div style={{fontSize:'9px', color:'#4A5168'}}>{film.dist} · Week {film.week}</div>
+                          </div>
+                          <div style={{textAlign:'center'}}><div style={{fontSize:'8px', color:'#4A5168'}}>BOUGHT</div><div style={{fontSize:'12px'}}>{cur}{holding.bought_price}</div></div>
+                          <div style={{textAlign:'center'}}><div style={{fontSize:'8px', color:'#4A5168'}}>NOW</div><div style={{fontSize:'12px', color:pnl>=0?S.green:S.red}}>{cur}{val}</div></div>
+                          <div style={{textAlign:'center'}}><div style={{fontSize:'8px', color:'#4A5168'}}>P&L</div><div style={{fontSize:'13px', fontWeight:700, color:pnl>=0?S.green:S.red}}>{pnl>=0?'+':''}{pnl}</div></div>
+                          {actual != null && <div style={{textAlign:'center'}}><div style={{fontSize:'8px', color:'#4A5168'}}>OPENING</div><div style={{fontSize:'12px', color:S.green}}>${actual}M</div></div>}
+                          {weeklyPts > 0 && <div style={{textAlign:'center'}}><div style={{fontSize:'8px', color:'#4A5168'}}>WEEKLY PTS</div><div style={{fontSize:'12px', color:'#4D9EFF'}}>+{Math.round(weeklyPts)}</div></div>}
                         </div>
-                        <div style={{textAlign:'center'}}><div style={{fontSize:'8px', color:'#4A5168'}}>BOUGHT</div><div style={{fontSize:'12px'}}>{cur}{holding.bought_price}</div></div>
-                        <div style={{textAlign:'center'}}><div style={{fontSize:'8px', color:'#4A5168'}}>NOW</div><div style={{fontSize:'12px', color:pnl>=0?S.green:S.red}}>{cur}{val}</div></div>
-                        <div style={{textAlign:'center'}}><div style={{fontSize:'8px', color:'#4A5168'}}>P&L</div><div style={{fontSize:'13px', fontWeight:700, color:pnl>=0?S.green:S.red}}>{pnl>=0?'+':''}{pnl}</div></div>
-                        {actual != null && <div style={{textAlign:'center'}}><div style={{fontSize:'8px', color:'#4A5168'}}>ACTUAL</div><div style={{fontSize:'12px', color:S.green}}>${actual}M</div></div>}
+                        {Object.keys(weeks).length > 0 && (
+                          <div style={{marginTop:'10px', paddingTop:'10px', borderTop:'1px solid #1E222C', display:'flex', gap:'8px', flexWrap:'wrap'}}>
+                            {Object.entries(weeks).sort((a,b)=>a[0]-b[0]).map(([wk, gross]) => (
+                              <div key={wk} style={{background:'#12141A', borderRadius:'6px', padding:'4px 10px', fontSize:'10px'}}>
+                                <span style={{color:'#4A5168'}}>W{wk}: </span>
+                                <span style={{color:'#4D9EFF'}}>${gross}M</span>
+                                <span style={{color:'#4A5168'}}> (+{Math.round(gross*0.5)}pts)</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )
                   })
@@ -270,157 +305,3 @@ const buyFilm = async (film) => {
                 const pts = calcPoints(player.id)
                 const rank = i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`
                 return (
-                  <div key={player.id} style={{...S.card, display:'flex', alignItems:'center', gap:'14px'}}>
-                    <div style={{fontSize:'22px', minWidth:'32px'}}>{rank}</div>
-                    <div style={{width:'9px', height:'9px', borderRadius:'50%', background:player.color||S.gold}} />
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:'14px', fontWeight:600, color:player.color||S.gold}}>{player.name}</div>
-                      <div style={{fontSize:'9px', color:'#4A5168'}}>{rosters.filter(r=>r.player_id===player.id).length} films · {cur}{getBudgetLeft(player.id)} left</div>
-                    </div>
-                    <div style={{textAlign:'right'}}>
-                      <div style={{fontSize:'28px', fontWeight:800, color:i===0?S.gold:'#F2EEE8'}}>{pts}</div>
-                      <div style={{fontSize:'8px', color:'#4A5168'}}>PTS</div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          {page === 'results' && (
-            <div>
-              <div style={{fontSize:'18px', fontWeight:800, marginBottom:'6px'}}>Enter Results</div>
-              <div style={{fontSize:'10px', color:'#4A5168', marginBottom:'20px'}}>Commissioner view · Enter actual opening weekend grosses</div>
-              {FILMS.map(film => {
-                const actual = results[film.id]
-                return (
-                  <div key={film.id} style={{...S.card, display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap'}}>
-                    <div style={{flex:2, minWidth:'130px'}}>
-                      <div style={{fontSize:'13px', fontWeight:500}}>{film.title}</div>
-                      <div style={{fontSize:'9px', color:'#4A5168'}}>Est ${film.estM}M · IPO ${film.basePrice}</div>
-                    </div>
-                    <input type="number" step="0.1" defaultValue={actual||''} placeholder="Actual $M" id={`res-${film.id}`} style={{...S.inp, width:'120px'}} />
-                    <button style={{...S.btn, background:S.green, color:'#000'}} onClick={async () => {
-                      const val = parseFloat(document.getElementById(`res-${film.id}`).value)
-                      if (isNaN(val)) return notify('Enter a number', S.red)
-                      const newValue = calcMarketValue(film, val)
-                      await supabase.from('results').upsert({ film_id: film.id, actual_m: val })
-                      await supabase.from('film_values').upsert({ film_id: film.id, current_value: newValue })
-                      notify(`Saved · ${film.title} now $${newValue}`, S.gold)
-                      loadData()
-                    }}>Save</button>
-                    {actual != null && <div style={{fontSize:'12px', color:S.green}}>${actual}M → now ${getFilmValue(film)}</div>}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {notif && (
-        <div style={{position:'fixed', bottom:'20px', right:'20px', background:'#0C0E12', border:`1px solid ${notif.col}`, borderRadius:'9px', padding:'11px 16px', fontSize:'11px', zIndex:600, maxWidth:'280px'}}>
-          {notif.msg}
-        </div>
-      )}
-      {trailerFilm && (
-        <div style={{position:'fixed', inset:0, background:'#000000EE', display:'flex', alignItems:'center', justifyContent:'center', zIndex:700, padding:'20px'}} onClick={() => setTrailerFilm(null)}>
-          <div style={{width:'100%', maxWidth:'800px'}} onClick={e => e.stopPropagation()}>
-            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px'}}>
-              <div style={{fontSize:'14px', fontWeight:700, color:'#F2EEE8'}}>{trailerFilm.title}</div>
-              <button style={{background:'none', border:'1px solid #2A2F3C', color:'#4A5168', borderRadius:'6px', padding:'4px 12px', cursor:'pointer', fontFamily:'DM Mono, monospace', fontSize:'11px'}} onClick={() => setTrailerFilm(null)}>✕ Close</button>
-            </div>
-            <div style={{position:'relative', paddingBottom:'56.25%', height:0, overflow:'hidden', borderRadius:'10px'}}>
-              <iframe src={`${trailerFilm.trailer}?autoplay=1`} style={{position:'absolute', top:0, left:0, width:'100%', height:'100%', border:'none', borderRadius:'10px'}} allow="autoplay; fullscreen" allowFullScreen />
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function Login() {
-  const [email, setEmail] = useState('')
-  const [sent, setSent] = useState(false)
-  const [loading, setLoading] = useState(false)
-
-  const handleLogin = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: 'https://boxd-league-app.vercel.app' }
-    })
-    if (error) alert(error.message)
-    else setSent(true)
-    setLoading(false)
-  }
-
-  if (sent) return (
-    <div style={{minHeight:'100vh', background:'#07080B', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'monospace'}}>
-      <div style={{textAlign:'center'}}>
-        <div style={{fontSize:'48px', fontWeight:900, color:'#F0B429', marginBottom:'16px'}}>BOXD</div>
-        <div style={{color:'#F2EEE8', marginBottom:'8px'}}>Check your email</div>
-        <div style={{color:'#4A5168', fontSize:'12px'}}>Magic link sent to {email}</div>
-      </div>
-    </div>
-  )
-
-  return (
-    <div style={{minHeight:'100vh', background:'#07080B', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'monospace'}}>
-      <div style={{width:'320px'}}>
-        <div style={{fontSize:'48px', fontWeight:900, color:'#F0B429', marginBottom:'8px'}}>BOXD</div>
-        <div style={{color:'#4A5168', fontSize:'11px', letterSpacing:'3px', marginBottom:'32px'}}>FANTASY BOX OFFICE</div>
-        <form onSubmit={handleLogin}>
-          <input type="email" placeholder="Enter your email" value={email} onChange={e => setEmail(e.target.value)} required
-            style={{width:'100%', background:'#12141A', border:'1px solid #2A2F3C', color:'white', borderRadius:'8px', padding:'12px', fontSize:'13px', fontFamily:'monospace', marginBottom:'10px', outline:'none'}} />
-          <button type="submit" disabled={loading}
-            style={{width:'100%', background:'#F0B429', color:'#000', border:'none', borderRadius:'8px', padding:'12px', fontSize:'12px', fontWeight:700, cursor:'pointer', letterSpacing:'1px', fontFamily:'monospace'}}>
-            {loading ? 'SENDING...' : 'SEND MAGIC LINK'}
-          </button>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-function CreateProfile({ session, onCreated, notify }) {
-  const [name, setName] = useState('')
-  const [loading, setLoading] = useState(false)
-  const COLORS = ['#F0B429','#2DD67A','#FF5C8A','#4D9EFF','#FF8C3D','#A855F7']
-  const [color, setColor] = useState(COLORS[0])
-
-  const handleCreate = async (e) => {
-    e.preventDefault()
-    if (!name.trim()) return
-    setLoading(true)
-    const { error } = await supabase.from('profiles').insert({ id: session.user.id, name: name.trim(), color })
-    if (error) { notify(error.message, '#FF4757'); setLoading(false); return }
-    onCreated()
-  }
-
-  return (
-    <div style={{minHeight:'100vh', background:'#07080B', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'monospace'}}>
-      <div style={{width:'320px'}}>
-        <div style={{fontSize:'48px', fontWeight:900, color:'#F0B429', marginBottom:'8px'}}>BOXD</div>
-        <div style={{color:'#F2EEE8', marginBottom:'6px', fontSize:'14px'}}>Create your player profile</div>
-        <div style={{color:'#4A5168', fontSize:'11px', marginBottom:'24px'}}>{session.user.email}</div>
-        <form onSubmit={handleCreate}>
-          <input placeholder="Your name" value={name} onChange={e => setName(e.target.value)} required
-            style={{width:'100%', background:'#12141A', border:'1px solid #2A2F3C', color:'white', borderRadius:'8px', padding:'12px', fontSize:'13px', fontFamily:'monospace', marginBottom:'14px', outline:'none'}} />
-          <div style={{fontSize:'9px', color:'#4A5168', letterSpacing:'1px', marginBottom:'8px'}}>PICK YOUR COLOUR</div>
-          <div style={{display:'flex', gap:'8px', marginBottom:'20px'}}>
-            {COLORS.map(c => (
-              <div key={c} onClick={() => setColor(c)} style={{width:'28px', height:'28px', borderRadius:'50%', background:c, cursor:'pointer', border:color===c?'2px solid white':'2px solid transparent'}} />
-            ))}
-          </div>
-          <button type="submit" disabled={loading}
-            style={{width:'100%', background:'#F0B429', color:'#000', border:'none', borderRadius:'8px', padding:'12px', fontSize:'12px', fontWeight:700, cursor:'pointer', letterSpacing:'1px', fontFamily:'monospace'}}>
-            {loading ? 'CREATING...' : 'JOIN LEAGUE'}
-          </button>
-        </form>
-      </div>
-    </div>
-  )
-}
