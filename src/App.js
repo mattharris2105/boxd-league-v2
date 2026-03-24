@@ -305,3 +305,187 @@ export default function App() {
                 const pts = calcPoints(player.id)
                 const rank = i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`
                 return (
+                  <div key={player.id} style={{...S.card, display:'flex', alignItems:'center', gap:'14px'}}>
+                    <div style={{fontSize:'22px', minWidth:'32px'}}>{rank}</div>
+                    <div style={{width:'9px', height:'9px', borderRadius:'50%', background:player.color||S.gold}} />
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:'14px', fontWeight:600, color:player.color||S.gold}}>{player.name}</div>
+                      <div style={{fontSize:'9px', color:'#4A5168'}}>{rosters.filter(r=>r.player_id===player.id).length} films · {cur}{getBudgetLeft(player.id)} left</div>
+                    </div>
+                    <div style={{textAlign:'right'}}>
+                      <div style={{fontSize:'28px', fontWeight:800, color:i===0?S.gold:'#F2EEE8'}}>{pts}</div>
+                      <div style={{fontSize:'8px', color:'#4A5168'}}>PTS</div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {page === 'results' && (
+            <div>
+              <div style={{fontSize:'18px', fontWeight:800, marginBottom:'6px'}}>Enter Results</div>
+              <div style={{fontSize:'10px', color:'#4A5168', marginBottom:'20px'}}>Commissioner view · Enter opening weekend + weekly grosses</div>
+              {FILMS.map(film => {
+                const actual = results[film.id]
+                const weeks = weeklyGrosses[film.id] || {}
+                return (
+                  <div key={film.id} style={{...S.card}}>
+                    <div style={{display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap', marginBottom: actual != null ? '12px' : '0'}}>
+                      <div style={{flex:2, minWidth:'130px'}}>
+                        <div style={{fontSize:'13px', fontWeight:500}}>{film.title}</div>
+                        <div style={{fontSize:'9px', color:'#4A5168'}}>Est ${film.estM}M · IPO ${film.basePrice}</div>
+                      </div>
+                      <input type="number" step="0.1" defaultValue={actual||''} placeholder="Opening $M" id={`res-${film.id}`} style={{...S.inp, width:'120px'}} />
+                      <button style={{...S.btn, background:S.green, color:'#000'}} onClick={async () => {
+                        const val = parseFloat(document.getElementById(`res-${film.id}`).value)
+                        if (isNaN(val)) return notify('Enter a number', S.red)
+                        const newValue = calcMarketValue(film, val)
+                        await supabase.from('results').upsert({ film_id: film.id, actual_m: val })
+                        await supabase.from('film_values').upsert({ film_id: film.id, current_value: newValue })
+                        notify(`Saved · ${film.title} now $${newValue}`, S.gold)
+                        loadData()
+                      }}>Save Opening</button>
+                      {actual != null && <div style={{fontSize:'12px', color:S.green}}>${actual}M → $${getFilmValue(film)}</div>}
+                    </div>
+                    {actual != null && (
+                      <div style={{borderTop:'1px solid #1E222C', paddingTop:'10px'}}>
+                        <div style={{fontSize:'9px', color:'#4A5168', letterSpacing:'1px', marginBottom:'8px'}}>WEEKLY GROSSES (Week 2 onwards · 0.5pts per $1M)</div>
+                        <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
+                          {[2,3,4,5,6,7,8].map(wk => (
+                            <div key={wk} style={{display:'flex', flexDirection:'column', gap:'4px', alignItems:'center'}}>
+                              <div style={{fontSize:'9px', color:'#4A5168'}}>W{wk}</div>
+                              <input
+                                type="number" step="0.1" placeholder="$M"
+                                defaultValue={weeks[wk]||''}
+                                id={`weekly-${film.id}-${wk}`}
+                                style={{...S.inp, width:'70px', fontSize:'11px', padding:'6px 8px'}}
+                              />
+                              <button style={{...S.btn, background:'#12141A', border:'1px solid #2A2F3C', color:'#4A5168', fontSize:'8px', padding:'3px 8px'}}
+                                onClick={async () => {
+                                  const val = parseFloat(document.getElementById(`weekly-${film.id}-${wk}`).value)
+                                  if (isNaN(val)) return notify('Enter a number', S.red)
+                                  await supabase.from('weekly_grosses').upsert({ film_id: film.id, week_num: wk, gross_m: val })
+                                  notify(`W${wk} saved · +${Math.round(val*0.5)}pts`, S.gold)
+                                  loadData()
+                                }}>Save</button>
+                              {weeks[wk] && <div style={{fontSize:'9px', color:'#4D9EFF'}}>+{Math.round(weeks[wk]*0.5)}pts</div>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {notif && (
+        <div style={{position:'fixed', bottom:'20px', right:'20px', background:'#0C0E12', border:`1px solid ${notif.col}`, borderRadius:'9px', padding:'11px 16px', fontSize:'11px', zIndex:600, maxWidth:'280px'}}>
+          {notif.msg}
+        </div>
+      )}
+      {trailerFilm && (
+        <div style={{position:'fixed', inset:0, background:'#000000EE', display:'flex', alignItems:'center', justifyContent:'center', zIndex:700, padding:'20px'}} onClick={() => setTrailerFilm(null)}>
+          <div style={{width:'100%', maxWidth:'800px'}} onClick={e => e.stopPropagation()}>
+            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px'}}>
+              <div style={{fontSize:'14px', fontWeight:700, color:'#F2EEE8'}}>{trailerFilm.title}</div>
+              <button style={{background:'none', border:'1px solid #2A2F3C', color:'#4A5168', borderRadius:'6px', padding:'4px 12px', cursor:'pointer', fontFamily:'DM Mono, monospace', fontSize:'11px'}} onClick={() => setTrailerFilm(null)}>✕ Close</button>
+            </div>
+            <div style={{position:'relative', paddingBottom:'56.25%', height:0, overflow:'hidden', borderRadius:'10px'}}>
+              <iframe src={`${trailerFilm.trailer}?autoplay=1`} style={{position:'absolute', top:0, left:0, width:'100%', height:'100%', border:'none', borderRadius:'10px'}} allow="autoplay; fullscreen" allowFullScreen />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Login() {
+  const [email, setEmail] = useState('')
+  const [sent, setSent] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  const handleLogin = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: 'https://boxd-league-v2.vercel.app' }
+    })
+    if (error) alert(error.message)
+    else setSent(true)
+    setLoading(false)
+  }
+
+  if (sent) return (
+    <div style={{minHeight:'100vh', background:'#07080B', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'monospace'}}>
+      <div style={{textAlign:'center'}}>
+        <div style={{fontSize:'48px', fontWeight:900, color:'#F0B429', marginBottom:'16px'}}>BOXD</div>
+        <div style={{color:'#F2EEE8', marginBottom:'8px'}}>Check your email</div>
+        <div style={{color:'#4A5168', fontSize:'12px'}}>Magic link sent to {email}</div>
+      </div>
+    </div>
+  )
+
+  return (
+    <div style={{minHeight:'100vh', background:'#07080B', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'monospace'}}>
+      <div style={{width:'320px'}}>
+        <div style={{fontSize:'48px', fontWeight:900, color:'#F0B429', marginBottom:'8px'}}>BOXD</div>
+        <div style={{color:'#4A5168', fontSize:'11px', letterSpacing:'3px', marginBottom:'32px'}}>FANTASY BOX OFFICE</div>
+        <form onSubmit={handleLogin}>
+          <input type="email" placeholder="Enter your email" value={email} onChange={e => setEmail(e.target.value)} required
+            style={{width:'100%', background:'#12141A', border:'1px solid #2A2F3C', color:'white', borderRadius:'8px', padding:'12px', fontSize:'13px', fontFamily:'monospace', marginBottom:'10px', outline:'none'}} />
+          <button type="submit" disabled={loading}
+            style={{width:'100%', background:'#F0B429', color:'#000', border:'none', borderRadius:'8px', padding:'12px', fontSize:'12px', fontWeight:700, cursor:'pointer', letterSpacing:'1px', fontFamily:'monospace'}}>
+            {loading ? 'SENDING...' : 'SEND MAGIC LINK'}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function CreateProfile({ session, onCreated, notify }) {
+  const [name, setName] = useState('')
+  const [loading, setLoading] = useState(false)
+  const COLORS = ['#F0B429','#2DD67A','#FF5C8A','#4D9EFF','#FF8C3D','#A855F7']
+  const [color, setColor] = useState(COLORS[0])
+
+  const handleCreate = async (e) => {
+    e.preventDefault()
+    if (!name.trim()) return
+    setLoading(true)
+    const { error } = await supabase.from('profiles').insert({ id: session.user.id, name: name.trim(), color })
+    if (error) { notify(error.message, '#FF4757'); setLoading(false); return }
+    onCreated()
+  }
+
+  return (
+    <div style={{minHeight:'100vh', background:'#07080B', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'monospace'}}>
+      <div style={{width:'320px'}}>
+        <div style={{fontSize:'48px', fontWeight:900, color:'#F0B429', marginBottom:'8px'}}>BOXD</div>
+        <div style={{color:'#F2EEE8', marginBottom:'6px', fontSize:'14px'}}>Create your player profile</div>
+        <div style={{color:'#4A5168', fontSize:'11px', marginBottom:'24px'}}>{session.user.email}</div>
+        <form onSubmit={handleCreate}>
+          <input placeholder="Your name" value={name} onChange={e => setName(e.target.value)} required
+            style={{width:'100%', background:'#12141A', border:'1px solid #2A2F3C', color:'white', borderRadius:'8px', padding:'12px', fontSize:'13px', fontFamily:'monospace', marginBottom:'14px', outline:'none'}} />
+          <div style={{fontSize:'9px', color:'#4A5168', letterSpacing:'1px', marginBottom:'8px'}}>PICK YOUR COLOUR</div>
+          <div style={{display:'flex', gap:'8px', marginBottom:'20px'}}>
+            {COLORS.map(c => (
+              <div key={c} onClick={() => setColor(c)} style={{width:'28px', height:'28px', borderRadius:'50%', background:c, cursor:'pointer', border:color===c?'2px solid white':'2px solid transparent'}} />
+            ))}
+          </div>
+          <button type="submit" disabled={loading}
+            style={{width:'100%', background:'#F0B429', color:'#000', border:'none', borderRadius:'8px', padding:'12px', fontSize:'12px', fontWeight:700, cursor:'pointer', letterSpacing:'1px', fontFamily:'monospace'}}>
+            {loading ? 'CREATING...' : 'JOIN LEAGUE'}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
