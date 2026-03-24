@@ -18,21 +18,21 @@ const GENRE_COL = {
 }
 
 const FILMS = [
-  {id:'f01',title:'Thunderbolts*',dist:'Marvel',genre:'Action',franchise:'MCU',basePrice:42,estM:88,rt:82,week:1,sleeper:false},
-  {id:'f02',title:'Sinners',dist:'WB',genre:'Horror',franchise:null,basePrice:22,estM:45,rt:94,week:1,sleeper:false},
-  {id:'f03',title:'A Minecraft Movie',dist:'WB',genre:'Family',franchise:'Minecraft',basePrice:34,estM:75,rt:61,week:1,sleeper:false},
-  {id:'f04',title:'Final Destination 6',dist:'WB',genre:'Horror',franchise:'FD',basePrice:14,estM:30,rt:68,week:1,sleeper:false},
-  {id:'f05',title:'Heart Eyes',dist:'Sony',genre:'Horror',franchise:null,basePrice:8,estM:14,rt:55,week:1,sleeper:true},
-  {id:'f06',title:'Mission: Impossible 8',dist:'Paramount',genre:'Action',franchise:'MI',basePrice:44,estM:72,rt:91,week:2,sleeper:false},
-  {id:'f07',title:'Lilo & Stitch',dist:'Disney',genre:'Family',franchise:null,basePrice:36,estM:82,rt:78,week:2,sleeper:false},
-  {id:'f08',title:'28 Years Later',dist:'Sony',genre:'Horror',franchise:'28 Days',basePrice:24,estM:40,rt:88,week:2,sleeper:false},
-  {id:'f09',title:'Superman',dist:'DC/WB',genre:'Action',franchise:'DCU',basePrice:55,estM:120,rt:83,week:3,sleeper:false},
-  {id:'f10',title:'F1',dist:'Apple/WB',genre:'Drama',franchise:null,basePrice:28,estM:55,rt:89,week:3,sleeper:false},
-  {id:'f11',title:'Elio',dist:'Pixar',genre:'Animation',franchise:null,basePrice:26,estM:62,rt:80,week:3,sleeper:false},
-  {id:'f12',title:'Jurassic World Rebirth',dist:'Universal',genre:'Action',franchise:'JW',basePrice:48,estM:110,rt:74,week:4,sleeper:false},
-  {id:'f13',title:'How to Train Your Dragon',dist:'Universal',genre:'Family',franchise:'HTTYD',basePrice:42,estM:95,rt:85,week:4,sleeper:false},
-  {id:'f14',title:'Avatar: Fire and Ash',dist:'Disney',genre:'Sci-Fi',franchise:'Avatar',basePrice:72,estM:190,rt:null,week:5,sleeper:false},
-  {id:'f15',title:'The Fantastic Four',dist:'Marvel',genre:'Action',franchise:'MCU',basePrice:62,estM:140,rt:null,week:5,sleeper:false},
+  {id:'f01',title:'Thunderbolts*',dist:'Marvel',genre:'Action',franchise:'MCU',basePrice:42,estM:88,rt:82,week:1,sleeper:false,trailer:'https://www.youtube.com/embed/HpWFOpDJhis'},
+  {id:'f02',title:'Sinners',dist:'WB',genre:'Horror',franchise:null,basePrice:22,estM:45,rt:94,week:1,sleeper:false,trailer:'https://www.youtube.com/embed/J9G_j8yFOmY'},
+  {id:'f03',title:'A Minecraft Movie',dist:'WB',genre:'Family',franchise:'Minecraft',basePrice:34,estM:75,rt:61,week:1,sleeper:false,trailer:'https://www.youtube.com/embed/nwqCHKFMnGI'},
+  {id:'f04',title:'Final Destination 6',dist:'WB',genre:'Horror',franchise:'FD',basePrice:14,estM:30,rt:68,week:1,sleeper:false,trailer:'https://www.youtube.com/embed/wWFEFkvxORI'},
+  {id:'f05',title:'Heart Eyes',dist:'Sony',genre:'Horror',franchise:null,basePrice:8,estM:14,rt:55,week:1,sleeper:true,trailer:'https://www.youtube.com/embed/aBDKxnLc7_E'},
+  {id:'f06',title:'Mission: Impossible 8',dist:'Paramount',genre:'Action',franchise:'MI',basePrice:44,estM:72,rt:91,week:2,sleeper:false,trailer:'https://www.youtube.com/embed/avz_MFnDMwA'},
+  {id:'f07',title:'Lilo & Stitch',dist:'Disney',genre:'Family',franchise:null,basePrice:36,estM:82,rt:78,week:2,sleeper:false,trailer:'https://www.youtube.com/embed/m9r0bP-TxB4'},
+  {id:'f08',title:'28 Years Later',dist:'Sony',genre:'Horror',franchise:'28 Days',basePrice:24,estM:40,rt:88,week:2,sleeper:false,trailer:'https://www.youtube.com/embed/R4yrpnmEkxE'},
+  {id:'f09',title:'Superman',dist:'DC/WB',genre:'Action',franchise:'DCU',basePrice:55,estM:120,rt:83,week:3,sleeper:false,trailer:'https://www.youtube.com/embed/zjgbTCFEfj8'},
+  {id:'f10',title:'F1',dist:'Apple/WB',genre:'Drama',franchise:null,basePrice:28,estM:55,rt:89,week:3,sleeper:false,trailer:'https://www.youtube.com/embed/GFxuJkAR6iE'},
+  {id:'f11',title:'Elio',dist:'Pixar',genre:'Animation',franchise:null,basePrice:26,estM:62,rt:80,week:3,sleeper:false,trailer:'https://www.youtube.com/embed/Ym4o3Gtu6rQ'},
+  {id:'f12',title:'Jurassic World Rebirth',dist:'Universal',genre:'Action',franchise:'JW',basePrice:48,estM:110,rt:74,week:4,sleeper:false,trailer:'https://www.youtube.com/embed/Fnk5UHuHIY8'},
+  {id:'f13',title:'How to Train Your Dragon',dist:'Universal',genre:'Family',franchise:'HTTYD',basePrice:42,estM:95,rt:85,week:4,sleeper:false,trailer:'https://www.youtube.com/embed/S3GBMgTHMtg'},
+  {id:'f14',title:'Avatar: Fire and Ash',dist:'Disney',genre:'Sci-Fi',franchise:'Avatar',basePrice:72,estM:190,rt:null,week:5,sleeper:false,trailer:'https://www.youtube.com/embed/5HCH4tFaLVs'},
+  {id:'f15',title:'The Fantastic Four',dist:'Marvel',genre:'Action',franchise:'MCU',basePrice:62,estM:140,rt:null,week:5,sleeper:false,trailer:'https://www.youtube.com/embed/V2hCMOPFWS0'},
 ]
 
 function calcMarketValue(film, actualM) {
@@ -57,7 +57,7 @@ export default function App() {
   const [filmValues, setFilmValues] = useState({})
   const [leagueConfig, setLeagueConfig] = useState({ current_week:1, season_budget:500, currency:'$', tx_fee:5, late_tax:0.15, max_roster:8 })
   const [notif, setNotif] = useState(null)
-
+const [trailerFilm, setTrailerFilm] = useState(null)
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
@@ -213,6 +213,7 @@ const buyFilm = async (film) => {
                         {film.sleeper && <span style={{fontSize:'8px', padding:'2px 6px', borderRadius:'4px', background:'#4D9EFF18', color:'#4D9EFF'}}>💤 Sleeper</span>}
                       </div>
 {actual != null && <div style={{fontSize:'10px', color:S.green, marginBottom:'8px'}}>Actual: ${actual}M</div>}
+{film.trailer && <button style={{...S.btn, background:'#12141A', border:'1px solid #2A2F3C', color:'#4A5168', width:'100%', fontSize:'9px', marginBottom:'8px'}} onClick={e => { e.stopPropagation(); setTrailerFilm(film) }}>▶ Watch Trailer</button>}
 {owned
   ? <button style={{...S.btn, background:'none', border:`1px solid ${S.red}44`, color:S.red, width:'100%', fontSize:'9px'}} onClick={() => sellFilm(film)}>Drop · get {cur}{Math.max(0,val-leagueConfig.tx_fee)}M</button>
   : <button style={{...S.btn, background:S.gold, color:'#000', width:'100%', fontSize:'9px'}} onClick={() => buyFilm(film)}>Acquire · {cur}{val}M</button>
@@ -320,6 +321,19 @@ const buyFilm = async (film) => {
       {notif && (
         <div style={{position:'fixed', bottom:'20px', right:'20px', background:'#0C0E12', border:`1px solid ${notif.col}`, borderRadius:'9px', padding:'11px 16px', fontSize:'11px', zIndex:600, maxWidth:'280px'}}>
           {notif.msg}
+        </div>
+      )}
+      {trailerFilm && (
+        <div style={{position:'fixed', inset:0, background:'#000000EE', display:'flex', alignItems:'center', justifyContent:'center', zIndex:700, padding:'20px'}} onClick={() => setTrailerFilm(null)}>
+          <div style={{width:'100%', maxWidth:'800px'}} onClick={e => e.stopPropagation()}>
+            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px'}}>
+              <div style={{fontSize:'14px', fontWeight:700, color:'#F2EEE8'}}>{trailerFilm.title}</div>
+              <button style={{background:'none', border:'1px solid #2A2F3C', color:'#4A5168', borderRadius:'6px', padding:'4px 12px', cursor:'pointer', fontFamily:'DM Mono, monospace', fontSize:'11px'}} onClick={() => setTrailerFilm(null)}>✕ Close</button>
+            </div>
+            <div style={{position:'relative', paddingBottom:'56.25%', height:0, overflow:'hidden', borderRadius:'10px'}}>
+              <iframe src={`${trailerFilm.trailer}?autoplay=1`} style={{position:'absolute', top:0, left:0, width:'100%', height:'100%', border:'none', borderRadius:'10px'}} allow="autoplay; fullscreen" allowFullScreen />
+            </div>
+          </div>
         </div>
       )}
     </div>
