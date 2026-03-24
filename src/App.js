@@ -187,7 +187,7 @@ const buyFilm = async (film) => {
               <div style={{fontSize:'10px', color:'#4A5168', marginBottom:'20px'}}>Season budget: {cur}{leagueConfig.season_budget}M · Tx fee: {cur}{leagueConfig.tx_fee}M to drop · {myRoster.length}/{leagueConfig.max_roster} slots used</div>
               <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:'10px'}}>
                 {FILMS.map(film => {
-                  const owned = myRoster.find(r => r.film_id === film.id)
+                  const owned = myRoster.find(r => r.film_id === film.id && r.active)
                   const val = getFilmValue(film)
                   const actual = results[film.id]
                   const genreCol = GENRE_COL[film.genre] || '#888'
@@ -212,11 +212,17 @@ const buyFilm = async (film) => {
                         {film.franchise && <span style={{fontSize:'8px', padding:'2px 6px', borderRadius:'4px', background:'#A855F718', color:'#A855F7'}}>{film.franchise}</span>}
                         {film.sleeper && <span style={{fontSize:'8px', padding:'2px 6px', borderRadius:'4px', background:'#4D9EFF18', color:'#4D9EFF'}}>💤 Sleeper</span>}
                       </div>
-                      {actual != null && <div style={{fontSize:'10px', color:S.green, marginBottom:'8px'}}>Actual: ${actual}M</div>}
-                      {owned
-                        ? <button style={{...S.btn, background:'none', border:`1px solid ${S.red}44`, color:S.red, width:'100%', fontSize:'9px'}} onClick={() => sellFilm(film)}>Drop · get {cur}{Math.max(0,val-leagueConfig.tx_fee)}M</button>
-                        : <button style={{...S.btn, background:S.gold, color:'#000', width:'100%', fontSize:'9px'}} onClick={() => buyFilm(film)}>Acquire · {cur}{val}M</button>
-                      }
+{actual != null && <div style={{fontSize:'10px', color:S.green, marginBottom:'8px'}}>Actual: ${actual}M</div>}
+{owned
+  ? <button style={{...S.btn, background:'none', border:`1px solid ${S.red}44`, color:S.red, width:'100%', fontSize:'9px'}} onClick={() => sellFilm(film)}>Drop · get {cur}{Math.max(0,val-leagueConfig.tx_fee)}M</button>
+  : <button style={{...S.btn, background:S.gold, color:'#000', width:'100%', fontSize:'9px'}} onClick={() => buyFilm(film)}>Acquire · {cur}{val}M</button>
+}
+{(() => {
+  const owners = rosters.filter(r => r.film_id === film.id && r.active)
+  return owners.length > 0
+    ? <div style={{fontSize:'9px', color:'#4A5168', marginTop:'6px', textAlign:'center'}}>{owners.length} player{owners.length>1?'s':''} own this</div>
+    : null
+})()}
                     </div>
                   )
                 })}
