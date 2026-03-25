@@ -9,7 +9,7 @@ const S = {
   card: { background:'#0C0E12', border:'1px solid #1E222C', borderRadius:'11px', padding:'16px', marginBottom:'12px' },
   btn: { border:'none', borderRadius:'7px', padding:'8px 16px', fontSize:'11px', letterSpacing:'1px', fontFamily:'DM Mono, monospace', cursor:'pointer', textTransform:'uppercase' },
   inp: { background:'#12141A', border:'1px solid #2A2F3C', color:'#F2EEE8', borderRadius:'7px', padding:'9px 12px', fontSize:'12px', fontFamily:'DM Mono, monospace', width:'100%', outline:'none' },
-  gold: '#F0B429', green: '#2DD67A', red: '#FF4757',
+  gold: '#F0B429', green: '#2DD67A', red: '#FF4757', blue: '#4D9EFF', purple: '#A855F7', orange: '#FF8C3D',
 }
 
 const GENRE_COL = {
@@ -17,22 +17,26 @@ const GENRE_COL = {
   'Sci-Fi':'#4D9EFF', Animation:'#FF9F43', Comedy:'#F5C842', Thriller:'#FF5C8A',
 }
 
-const FILMS = [
-  {id:'f01',title:'Thunderbolts*',dist:'Marvel',genre:'Action',franchise:'MCU',basePrice:42,estM:88,rt:82,week:1,sleeper:false,trailer:'https://www.youtube.com/embed/-sAOWhvheK8'},
-  {id:'f02',title:'Sinners',dist:'WB',genre:'Horror',franchise:null,basePrice:22,estM:45,rt:94,week:1,sleeper:false,trailer:'https://www.youtube.com/watch?v=XqvRVJXjSiU'},
-  {id:'f03',title:'A Minecraft Movie',dist:'WB',genre:'Family',franchise:'Minecraft',basePrice:34,estM:75,rt:61,week:1,sleeper:false,trailer:'https://www.youtube.com/watch?v=nwqCHKFMnGI'},
-  {id:'f04',title:'Final Destination 6',dist:'WB',genre:'Horror',franchise:'FD',basePrice:14,estM:30,rt:68,week:1,sleeper:false,trailer:'https://www.youtube.com/watch?v=wWFEFkvxORI'},
-  {id:'f05',title:'Heart Eyes',dist:'Sony',genre:'Horror',franchise:null,basePrice:8,estM:14,rt:55,week:1,sleeper:true,trailer:'https://www.youtube.com/watch?v=aBDKxnLc7_E'},
-  {id:'f06',title:'Mission: Impossible 8',dist:'Paramount',genre:'Action',franchise:'MI',basePrice:44,estM:72,rt:91,week:2,sleeper:false,trailer:'https://www.youtube.com/watch?v=avz_MFnDMwA'},
-  {id:'f07',title:'Lilo & Stitch',dist:'Disney',genre:'Family',franchise:null,basePrice:36,estM:82,rt:78,week:2,sleeper:false,trailer:'https://www.youtube.com/watch?v=m9r0bP-TxB4'},
-  {id:'f08',title:'28 Years Later',dist:'Sony',genre:'Horror',franchise:'28 Days',basePrice:24,estM:40,rt:88,week:2,sleeper:false,trailer:'https://www.youtube.com/watch?v=R4yrpnmEkxE'},
-  {id:'f09',title:'Superman',dist:'DC/WB',genre:'Action',franchise:'DCU',basePrice:55,estM:120,rt:83,week:3,sleeper:false,trailer:'https://www.youtube.com/watch?v=zjgbTCFEfj8'},
-  {id:'f10',title:'F1',dist:'Apple/WB',genre:'Drama',franchise:null,basePrice:28,estM:55,rt:89,week:3,sleeper:false,trailer:'https://www.youtube.com/watch?v=GFxuJkAR6iE'},
-  {id:'f11',title:'Elio',dist:'Pixar',genre:'Animation',franchise:null,basePrice:26,estM:62,rt:80,week:3,sleeper:false,trailer:'https://www.youtube.com/watch?v=Ym4o3Gtu6rQ'},
-  {id:'f12',title:'Jurassic World Rebirth',dist:'Universal',genre:'Action',franchise:'JW',basePrice:48,estM:110,rt:74,week:4,sleeper:false,trailer:'https://www.youtube.com/watch?v=Fnk5UHuHIY8'},
-  {id:'f13',title:'How to Train Your Dragon',dist:'Universal',genre:'Family',franchise:'HTTYD',basePrice:42,estM:95,rt:85,week:4,sleeper:false,trailer:'https://www.youtube.com/watch?v=S3GBMgTHMtg'},
-  {id:'f14',title:'Avatar: Fire and Ash',dist:'Disney',genre:'Sci-Fi',franchise:'Avatar',basePrice:72,estM:190,rt:null,week:5,sleeper:false,trailer:'https://www.youtube.com/watch?v=5HCH4tFaLVs'},
-  {id:'f15',title:'The Fantastic Four',dist:'Marvel',genre:'Action',franchise:'MCU',basePrice:62,estM:140,rt:null,week:5,sleeper:false,trailer:'https://www.youtube.com/watch?v=V2hCMOPFWS0'},
+const COMMISSIONER_EMAIL = 'mattharris2105@gmail.com'
+const PHASE_BUDGET = 100
+const EARLY_BIRD_WEEKS = 4
+
+const FILMS_DEFAULT = [
+  {id:'f01',title:'Thunderbolts*',dist:'Marvel',genre:'Action',franchise:'MCU',basePrice:42,estM:88,rt:82,week:1,phase:1,sleeper:false,starActor:'Florence Pugh',trailer:'https://www.youtube.com/embed/-sAOWhvheK8'},
+  {id:'f02',title:'Sinners',dist:'WB',genre:'Horror',franchise:null,basePrice:22,estM:45,rt:94,week:1,phase:1,sleeper:false,starActor:'Michael B Jordan',trailer:'https://www.youtube.com/watch?v=XqvRVJXjSiU'},
+  {id:'f03',title:'A Minecraft Movie',dist:'WB',genre:'Family',franchise:'Minecraft',basePrice:34,estM:75,rt:61,week:1,phase:1,sleeper:false,starActor:'Jack Black',trailer:'https://www.youtube.com/watch?v=nwqCHKFMnGI'},
+  {id:'f04',title:'Final Destination 6',dist:'WB',genre:'Horror',franchise:'FD',basePrice:14,estM:30,rt:68,week:1,phase:1,sleeper:false,starActor:null,trailer:'https://www.youtube.com/watch?v=wWFEFkvxORI'},
+  {id:'f05',title:'Heart Eyes',dist:'Sony',genre:'Horror',franchise:null,basePrice:8,estM:14,rt:55,week:1,phase:1,sleeper:true,starActor:null,trailer:'https://www.youtube.com/watch?v=aBDKxnLc7_E'},
+  {id:'f06',title:'Mission: Impossible 8',dist:'Paramount',genre:'Action',franchise:'MI',basePrice:44,estM:72,rt:91,week:2,phase:2,sleeper:false,starActor:'Tom Cruise',trailer:'https://www.youtube.com/watch?v=avz_MFnDMwA'},
+  {id:'f07',title:'Lilo & Stitch',dist:'Disney',genre:'Family',franchise:null,basePrice:36,estM:82,rt:78,week:2,phase:2,sleeper:false,starActor:null,trailer:'https://www.youtube.com/watch?v=m9r0bP-TxB4'},
+  {id:'f08',title:'28 Years Later',dist:'Sony',genre:'Horror',franchise:'28 Days',basePrice:24,estM:40,rt:88,week:2,phase:2,sleeper:false,starActor:'Aaron Taylor-Johnson',trailer:'https://www.youtube.com/watch?v=R4yrpnmEkxE'},
+  {id:'f09',title:'Superman',dist:'DC/WB',genre:'Action',franchise:'DCU',basePrice:55,estM:120,rt:83,week:3,phase:2,sleeper:false,starActor:'David Corenswet',trailer:'https://www.youtube.com/watch?v=zjgbTCFEfj8'},
+  {id:'f10',title:'F1',dist:'Apple/WB',genre:'Drama',franchise:null,basePrice:28,estM:55,rt:89,week:3,phase:2,sleeper:false,starActor:'Brad Pitt',trailer:'https://www.youtube.com/watch?v=GFxuJkAR6iE'},
+  {id:'f11',title:'Elio',dist:'Pixar',genre:'Animation',franchise:null,basePrice:26,estM:62,rt:80,week:3,phase:2,sleeper:false,starActor:null,trailer:'https://www.youtube.com/watch?v=Ym4o3Gtu6rQ'},
+  {id:'f12',title:'Jurassic World Rebirth',dist:'Universal',genre:'Action',franchise:'JW',basePrice:48,estM:110,rt:74,week:4,phase:2,sleeper:false,starActor:'Scarlett Johansson',trailer:'https://www.youtube.com/watch?v=Fnk5UHuHIY8'},
+  {id:'f13',title:'How to Train Your Dragon',dist:'Universal',genre:'Family',franchise:'HTTYD',basePrice:42,estM:95,rt:85,week:4,phase:2,sleeper:false,starActor:'Mason Thames',trailer:'https://www.youtube.com/watch?v=S3GBMgTHMtg'},
+  {id:'f14',title:'Avatar: Fire and Ash',dist:'Disney',genre:'Sci-Fi',franchise:'Avatar',basePrice:72,estM:190,rt:null,week:5,phase:3,sleeper:false,starActor:'Sam Worthington',trailer:'https://www.youtube.com/watch?v=5HCH4tFaLVs'},
+  {id:'f15',title:'The Fantastic Four',dist:'Marvel',genre:'Action',franchise:'MCU',basePrice:62,estM:140,rt:null,week:5,phase:3,sleeper:false,starActor:'Pedro Pascal',trailer:'https://www.youtube.com/watch?v=V2hCMOPFWS0'},
 ]
 
 function calcMarketValue(film, actualM) {
@@ -58,7 +62,7 @@ function calcMarketValue(film, actualM) {
   return Math.round(value)
 }
 
-function calcOpeningPts(film, actualM) {
+function calcOpeningPts(film, actualM, isEarlyBird=false, isAnalyst=false) {
   if (actualM == null) return 0
   const ratio = actualM / film.estM
   let perfMult
@@ -74,34 +78,34 @@ function calcOpeningPts(film, actualM) {
   if (film.rt >= 90)      rtMod = 1.25
   else if (film.rt >= 75) rtMod = 1.10
   else if (film.rt < 50 && film.rt != null) rtMod = 0.85
-  return Math.round(actualM * perfMult * rtMod)
+  let pts = Math.round(actualM * perfMult * rtMod)
+  if (isEarlyBird && ratio >= 1.10) pts = Math.round(pts * 1.10)
+  if (isAnalyst) pts = pts * 3
+  return pts
+}
+
+function calcLegsBonus(actualM, week2M) {
+  if (actualM == null || week2M == null) return 0
+  const dropPct = (actualM - week2M) / actualM
+  return dropPct < 0.30 ? 25 : 0
 }
 
 async function saveResult(filmId, actualM) {
   const existing = await supabase.from('results').select('film_id').eq('film_id', filmId).single()
-  if (existing.data) {
-    return supabase.from('results').update({ actual_m: actualM }).eq('film_id', filmId)
-  } else {
-    return supabase.from('results').insert({ film_id: filmId, actual_m: actualM })
-  }
+  if (existing.data) return supabase.from('results').update({ actual_m: actualM }).eq('film_id', filmId)
+  return supabase.from('results').insert({ film_id: filmId, actual_m: actualM })
 }
 
 async function saveFilmValue(filmId, value) {
   const existing = await supabase.from('film_values').select('film_id').eq('film_id', filmId).single()
-  if (existing.data) {
-    return supabase.from('film_values').update({ current_value: value }).eq('film_id', filmId)
-  } else {
-    return supabase.from('film_values').insert({ film_id: filmId, current_value: value })
-  }
+  if (existing.data) return supabase.from('film_values').update({ current_value: value }).eq('film_id', filmId)
+  return supabase.from('film_values').insert({ film_id: filmId, current_value: value })
 }
 
 async function saveWeeklyGross(filmId, weekNum, grossM) {
   const existing = await supabase.from('weekly_grosses').select('id').eq('film_id', filmId).eq('week_num', weekNum).single()
-  if (existing.data) {
-    return supabase.from('weekly_grosses').update({ gross_m: grossM }).eq('film_id', filmId).eq('week_num', weekNum)
-  } else {
-    return supabase.from('weekly_grosses').insert({ film_id: filmId, week_num: weekNum, gross_m: grossM })
-  }
+  if (existing.data) return supabase.from('weekly_grosses').update({ gross_m: grossM }).eq('film_id', filmId).eq('week_num', weekNum)
+  return supabase.from('weekly_grosses').insert({ film_id: filmId, week_num: weekNum, gross_m: grossM })
 }
 
 export default function App() {
@@ -114,9 +118,22 @@ export default function App() {
   const [results, setResults] = useState({})
   const [filmValues, setFilmValues] = useState({})
   const [weeklyGrosses, setWeeklyGrosses] = useState({})
-  const [leagueConfig, setLeagueConfig] = useState({ current_week:1, season_budget:500, currency:'$', tx_fee:5, late_tax:0.15, max_roster:8 })
+  const [chips, setChips] = useState(null)
+  const [allChips, setAllChips] = useState([])
+  const [films, setFilms] = useState(FILMS_DEFAULT)
+  const [forecasts, setForecasts] = useState({})
+  const [allForecasts, setAllForecasts] = useState([])
+  const [oscarPredictions, setOscarPredictions] = useState([])
+  const [myOscarPick, setMyOscarPick] = useState(null)
+  const [auteurDeclarations, setAuteurDeclarations] = useState([])
+  const [weekendWinners, setWeekendWinners] = useState({})
+  const [phaseBudgets, setPhaseBudgets] = useState([])
+  const [leagueConfig, setLeagueConfig] = useState({ current_week:1, current_phase:1, season_budget:500, currency:'$', tx_fee:5, max_roster:8, phase_window_active:false, best_picture_winner:null })
   const [notif, setNotif] = useState(null)
   const [trailerFilm, setTrailerFilm] = useState(null)
+  const [chipModal, setChipModal] = useState(null)
+  const [addFilmModal, setAddFilmModal] = useState(false)
+  const [newFilm, setNewFilm] = useState({title:'',dist:'',genre:'Action',franchise:'',basePrice:20,estM:30,rt:'',week:1,phase:1,sleeper:false,starActor:'',trailer:''})
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -132,8 +149,10 @@ export default function App() {
 
   const notify = (msg, col=S.gold) => {
     setNotif({ msg, col })
-    setTimeout(() => setNotif(null), 2800)
+    setTimeout(() => setNotif(null), 3000)
   }
+
+  const isCommissioner = session?.user?.email === COMMISSIONER_EMAIL
 
   const loadProfile = async () => {
     const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single()
@@ -141,13 +160,23 @@ export default function App() {
   }
 
   const loadData = async () => {
-    const [{ data: ps }, { data: rs }, { data: res }, { data: fv }, { data: cfg }, { data: wg }] = await Promise.all([
+    const [
+      { data: ps }, { data: rs }, { data: res }, { data: fv }, { data: cfg },
+      { data: wg }, { data: ch }, { data: fc }, { data: op }, { data: ad },
+      { data: ww }, { data: pb }
+    ] = await Promise.all([
       supabase.from('profiles').select('*'),
       supabase.from('rosters').select('*').eq('active', true),
       supabase.from('results').select('*'),
       supabase.from('film_values').select('*'),
       supabase.from('league_config').select('*').eq('id', 1).single(),
       supabase.from('weekly_grosses').select('*'),
+      supabase.from('chips').select('*'),
+      supabase.from('forecasts').select('*'),
+      supabase.from('oscar_predictions').select('*'),
+      supabase.from('auteur_declarations').select('*'),
+      supabase.from('weekend_winners').select('*'),
+      supabase.from('phase_budgets').select('*'),
     ])
     if (ps) setPlayers(ps)
     if (rs) setRosters(rs)
@@ -162,26 +191,163 @@ export default function App() {
       })
       setWeeklyGrosses(map)
     }
+    if (ch) {
+      setAllChips(ch)
+      setChips(ch.find(c => c.player_id === session?.user?.id) || null)
+    }
+    if (fc) {
+      setAllForecasts(fc)
+      const myMap = {}
+      fc.filter(f => f.player_id === session?.user?.id).forEach(f => myMap[f.film_id] = f.predicted_m)
+      setForecasts(myMap)
+    }
+    if (op) {
+      setOscarPredictions(op)
+      setMyOscarPick(op.find(o => o.player_id === session?.user?.id) || null)
+    }
+    if (ad) setAuteurDeclarations(ad)
+    if (ww) {
+      const map = {}
+      ww.forEach(w => map[w.week] = w.film_id)
+      setWeekendWinners(map)
+    }
+    if (pb) setPhaseBudgets(pb)
   }
 
-  const getFilmValue = (film) => filmValues[film.id] ?? film.basePrice
-  const getBudgetSpent = (pid) => rosters.filter(r => r.player_id === pid).reduce((s, r) => s + r.bought_price, 0)
-  const getBudgetLeft = (pid) => leagueConfig.season_budget - getBudgetSpent(pid)
+  // ── BUDGET HELPERS ──
+  const getCurrentPhase = () => leagueConfig.current_phase || 1
+  const getPhaseWindow = () => leagueConfig.phase_window_active || false
 
+  const getPhaseBudgetData = (pid, phase) => {
+    return phaseBudgets.find(pb => pb.player_id === pid && pb.phase === phase)
+  }
+
+  const getPhaseAllocated = (pid, phase) => {
+    const pb = getPhaseBudgetData(pid, phase)
+    if (!pb) {
+      // First phase or not initialised — get banking from previous phase
+      if (phase === 1) return PHASE_BUDGET
+      const prevBanked = getPhaseBudgetData(pid, phase - 1)?.budget_banked || 0
+      return PHASE_BUDGET + prevBanked
+    }
+    return pb.budget_allocated
+  }
+
+  const getPhaseSpent = (pid, phase) => {
+    const phaseRosters = rosters.filter(r => r.player_id === pid && r.phase === phase)
+    return phaseRosters.reduce((s, r) => s + r.bought_price, 0)
+  }
+
+  const getPhaseBudgetLeft = (pid) => {
+    const phase = getCurrentPhase()
+    const allocated = getPhaseAllocated(pid, phase)
+    const spent = getPhaseSpent(pid, phase)
+    return Math.max(0, allocated - spent)
+  }
+
+  const getTotalBudgetLeft = (pid) => getPhaseBudgetLeft(pid)
+
+  // ── FILM VALUE ──
+  const getFilmValue = (film) => filmValues[film.id] ?? film.basePrice
+
+  // ── BONUS HELPERS ──
   const getWeeklyPts = (filmId) => {
     const weeks = weeklyGrosses[filmId] || {}
-    return Object.values(weeks).reduce((s, g) => s + g * 0.5, 0)
+    return Object.values(weeks).reduce((s, g) => s + Number(g) * 0.5, 0)
   }
 
+  const getLegsBonus = (filmId) => {
+    const actual = results[filmId]
+    const week2 = weeklyGrosses[filmId]?.[2]
+    return calcLegsBonus(actual, week2)
+  }
+
+  const getWeekendWinnerBonus = (filmId) => {
+    return Object.values(weekendWinners).includes(filmId) ? 15 : 0
+  }
+
+  const isEarlyBird = (holding) => {
+    const film = films.find(f => f.id === holding.film_id)
+    if (!film) return false
+    const weeksBefore = film.week - (holding.acquired_week || holding.bought_week)
+    return weeksBefore >= EARLY_BIRD_WEEKS
+  }
+
+  const getFlipBonus = (holding) => {
+    if (!holding.sold_price || !holding.sold_week) return 0
+    const weekHeld = (holding.sold_week || 0) - (holding.acquired_week || holding.bought_week || 0)
+    if (weekHeld > 7) return 0
+    const profit = holding.sold_price - holding.bought_price
+    if (profit <= 0) return 0
+    return Math.floor(profit / 10) * 5
+  }
+
+  const getAuteurBonus = (pid, filmId) => {
+    const decl = auteurDeclarations.find(a => a.player_id === pid && a.phase === getCurrentPhase())
+    if (!decl) return false
+    return decl.film_ids.includes(filmId)
+  }
+
+  const getShortBonus = (pid, filmId) => {
+    const playerChip = allChips.find(c => c.player_id === pid)
+    if (!playerChip?.short_film_id || playerChip.short_film_id !== filmId) return 0
+    if (playerChip.short_result === 'win') return 100
+    if (playerChip.short_result === 'lose') return -30
+    return 0
+  }
+
+  const getAnalystActive = (pid, filmId) => {
+    const playerChip = allChips.find(c => c.player_id === pid)
+    if (!playerChip?.analyst_film_id || playerChip.analyst_film_id !== filmId) return false
+    return playerChip.analyst_result === 'win'
+  }
+
+  // ── POINTS ──
+  const calcPoints = (pid) => {
+    let total = 0
+    const activeRosters = rosters.filter(r => r.player_id === pid && r.active)
+    activeRosters.forEach(holding => {
+      const film = films.find(f => f.id === holding.film_id)
+      if (!film) return
+      const actual = results[film.id]
+      if (actual == null) return
+      const earlyBird = isEarlyBird(holding)
+      const analystWin = getAnalystActive(pid, film.id)
+      const auteur = getAuteurBonus(pid, film.id)
+      let openPts = calcOpeningPts(film, actual, earlyBird, analystWin)
+      if (auteur) openPts = Math.round(openPts * 1.10)
+      total += openPts
+      total += Math.round(getWeeklyPts(film.id))
+      total += getLegsBonus(film.id)
+      total += getWeekendWinnerBonus(film.id)
+      total += getShortBonus(pid, film.id)
+    })
+    // Oscar bonus
+    const oscarPick = oscarPredictions.find(o => o.player_id === pid)
+    if (oscarPick?.correct) total += 75
+    return total
+  }
+
+  // ── BUY / SELL ──
   const buyFilm = async (film) => {
     if (!profile) return notify('Create a profile first', S.red)
+    const phase = getCurrentPhase()
+    const isWindow = getPhaseWindow()
     if (rosters.find(r => r.player_id === profile.id && r.film_id === film.id && r.active)) return notify('Already in your roster', S.red)
     const myRoster = rosters.filter(r => r.player_id === profile.id && r.active)
     if (myRoster.length >= leagueConfig.max_roster) return notify(`Roster full (${leagueConfig.max_roster} max)`, S.red)
     const price = getFilmValue(film)
-    const left = getBudgetLeft(profile.id)
-    if (price > left) return notify(`Not enough budget ($${price} needed, $${left} left)`, S.red)
-    const { error } = await supabase.from('rosters').insert({ player_id: profile.id, film_id: film.id, bought_price: price, bought_week: leagueConfig.current_week, active: true })
+    const budgetLeft = getPhaseBudgetLeft(profile.id)
+    if (price > budgetLeft) return notify(`Not enough phase budget ($${price} needed, $${budgetLeft} left)`, S.red)
+    const { error } = await supabase.from('rosters').insert({
+      player_id: profile.id,
+      film_id: film.id,
+      bought_price: price,
+      bought_week: leagueConfig.current_week,
+      acquired_week: leagueConfig.current_week,
+      phase,
+      active: true,
+    })
     if (error) return notify(error.message, S.red)
     await supabase.from('transactions').insert({ player_id: profile.id, film_id: film.id, type: 'buy', price, week: leagueConfig.current_week })
     notify(`Acquired ${film.title} for $${price}M`, S.green)
@@ -189,115 +355,227 @@ export default function App() {
   }
 
   const sellFilm = async (film) => {
-    const holding = rosters.find(r => r.player_id === profile.id && r.film_id === film.id)
+    const holding = rosters.find(r => r.player_id === profile.id && r.film_id === film.id && r.active)
     if (!holding) return
+    const isWindow = getPhaseWindow()
     const currentVal = getFilmValue(film)
-    const fee = leagueConfig.tx_fee
+    const fee = isWindow ? 0 : leagueConfig.tx_fee
     const proceeds = Math.max(0, currentVal - fee)
+    const flipBonus = getFlipBonus({...holding, sold_price: proceeds, sold_week: leagueConfig.current_week})
     await supabase.from('rosters').update({ active: false, sold_price: proceeds, sold_week: leagueConfig.current_week }).eq('id', holding.id)
     await supabase.from('transactions').insert([
       { player_id: profile.id, film_id: film.id, type: 'sell', price: proceeds, week: leagueConfig.current_week },
-      { player_id: profile.id, film_id: film.id, type: 'fee', price: fee, week: leagueConfig.current_week },
+      ...(fee > 0 ? [{ player_id: profile.id, film_id: film.id, type: 'fee', price: fee, week: leagueConfig.current_week }] : []),
     ])
-    notify(`Sold ${film.title} — received $${proceeds}M`, S.gold)
+    notify(`Sold ${film.title} · $${proceeds}M${isWindow?' (free window)':''}${flipBonus>0?` · 🔄 Flip bonus +${flipBonus}pts`:''}`, S.gold)
     loadData()
   }
 
-  const calcPoints = (pid) => {
-    let total = 0
-    rosters.filter(r => r.player_id === pid).forEach(holding => {
-      const film = FILMS.find(f => f.id === holding.film_id)
-      if (!film) return
-      const actual = results[film.id]
-      if (actual == null) return
-      total += calcOpeningPts(film, actual)
-      total += Math.round(getWeeklyPts(film.id))
-    })
-    return total
+  // ── CHIPS ──
+  const activateRecut = async () => {
+    if (chips?.recut_used) return notify('Recut already used this season', S.red)
+    if (!confirm('Activate THE RECUT? Your entire roster clears with zero fees.')) return
+    const myRoster = rosters.filter(r => r.player_id === profile.id && r.active)
+    for (const holding of myRoster) {
+      await supabase.from('rosters').update({ active: false, sold_price: getFilmValue(films.find(f=>f.id===holding.film_id)||{}), sold_week: leagueConfig.current_week }).eq('id', holding.id)
+    }
+    if (chips) await supabase.from('chips').update({ recut_used: true }).eq('player_id', profile.id)
+    else await supabase.from('chips').insert({ player_id: profile.id, recut_used: true })
+    notify('🎬 THE RECUT — roster cleared, zero fees', S.purple)
+    setChipModal(null)
+    loadData()
+  }
+
+  const activateShort = async (filmId, prediction) => {
+    if (chips?.short_film_id) return notify('Short already used this season', S.red)
+    if (allChips.find(c => c.short_film_id === filmId)) return notify('Another player already shorted this film', S.red)
+    if (chips) await supabase.from('chips').update({ short_film_id: filmId, short_phase: getCurrentPhase(), short_prediction: prediction }).eq('player_id', profile.id)
+    else await supabase.from('chips').insert({ player_id: profile.id, short_film_id: filmId, short_phase: getCurrentPhase(), short_prediction: prediction })
+    notify(`📉 SHORT activated — ${films.find(f=>f.id===filmId)?.title}`, S.red)
+    setChipModal(null)
+    loadData()
+  }
+
+  const activateAnalyst = async (filmId, prediction) => {
+    if (chips?.analyst_film_id) return notify('Analyst already used this season', S.red)
+    if (allChips.find(c => c.analyst_film_id === filmId)) return notify('Another player already called Analyst on this film', S.red)
+    if (!rosters.find(r => r.player_id === profile.id && r.film_id === filmId && r.active)) return notify('You must own this film to activate The Analyst', S.red)
+    if (chips) await supabase.from('chips').update({ analyst_film_id: filmId, analyst_phase: getCurrentPhase(), analyst_prediction: prediction }).eq('player_id', profile.id)
+    else await supabase.from('chips').insert({ player_id: profile.id, analyst_film_id: filmId, analyst_phase: getCurrentPhase(), analyst_prediction: prediction })
+    notify(`🎯 ANALYST activated — ${films.find(f=>f.id===filmId)?.title}`, S.blue)
+    setChipModal(null)
+    loadData()
+  }
+
+  const resolveChips = async (filmId, actualM) => {
+    const film = films.find(f => f.id === filmId)
+    if (!film) return
+    for (const playerChip of allChips) {
+      if (playerChip.short_film_id === filmId && !playerChip.short_result) {
+        const result = (actualM / film.estM) < 0.60 ? 'win' : 'lose'
+        await supabase.from('chips').update({ short_result: result }).eq('player_id', playerChip.player_id)
+      }
+      if (playerChip.analyst_film_id === filmId && !playerChip.analyst_result) {
+        const pred = playerChip.analyst_prediction
+        const withinTen = pred && Math.abs(actualM - pred) / pred <= 0.10
+        await supabase.from('chips').update({ analyst_result: withinTen ? 'win' : 'lose' }).eq('player_id', playerChip.player_id)
+      }
+    }
+  }
+
+  // ── OSCAR PREDICTION ──
+  const submitOscarPick = async (filmId) => {
+    if (myOscarPick) return notify('Oscar pick already submitted', S.red)
+    const now = new Date()
+    if (now.getFullYear() > 2026) return notify('Oscar prediction window closed', S.red)
+    await supabase.from('oscar_predictions').insert({ player_id: profile.id, best_picture_film_id: filmId })
+    notify(`🏆 Best Picture pick locked — ${films.find(f=>f.id===filmId)?.title}`, S.gold)
+    loadData()
+  }
+
+  // ── AUTEUR DECLARATION ──
+  const submitAuteur = async (actor, filmIds) => {
+    if (filmIds.length < 2) return notify('Select at least 2 films with the same star actor', S.red)
+    const phase = getCurrentPhase()
+    const existing = auteurDeclarations.find(a => a.player_id === profile.id && a.phase === phase)
+    if (existing) await supabase.from('auteur_declarations').update({ star_actor: actor, film_ids: filmIds }).eq('id', existing.id)
+    else await supabase.from('auteur_declarations').insert({ player_id: profile.id, phase, star_actor: actor, film_ids: filmIds })
+    notify(`🎭 Auteur declared — ${actor} · ${filmIds.length} films · +10% each`, S.orange)
+    setChipModal(null)
+    loadData()
+  }
+
+  // ── FORECAST ──
+  const saveForecast = async (filmId, predicted) => {
+    const existing = allForecasts.find(f => f.player_id === profile.id && f.film_id === filmId)
+    if (existing) await supabase.from('forecasts').update({ predicted_m: predicted }).eq('id', existing.id)
+    else await supabase.from('forecasts').insert({ player_id: profile.id, film_id: filmId, phase: getCurrentPhase(), predicted_m: predicted })
+    notify(`Forecast saved — ${films.find(f=>f.id===filmId)?.title} · $${predicted}M`, S.blue)
+    loadData()
   }
 
   if (loading) return <div style={{...S.app, display:'flex', alignItems:'center', justifyContent:'center'}}><div style={{color:S.gold, fontSize:'24px'}}>Loading...</div></div>
   if (!session) return <Login />
   if (!profile) return <CreateProfile session={session} onCreated={() => { loadProfile(); loadData() }} notify={notify} />
 
-  const myRoster = rosters.filter(r => r.player_id === profile.id)
-  const budgetLeft = getBudgetLeft(profile.id)
+  const myRoster = rosters.filter(r => r.player_id === profile.id && r.active)
+  const budgetLeft = getPhaseBudgetLeft(profile.id)
   const cur = leagueConfig.currency || '$'
+  const phase = getCurrentPhase()
+  const isWindow = getPhaseWindow()
+  const recutUsed = chips?.recut_used || false
+  const shortUsed = !!chips?.short_film_id
+  const analystUsed = !!chips?.analyst_film_id
+
+  const navItems = [
+    ['market','🎬','Market'],
+    ['roster','📁','Roster'],
+    ['chips','⚡','Chips'],
+    ['forecaster','📊','Forecaster'],
+    ['oscar','🏆','Oscars'],
+    ['league','🥇','League'],
+    ['results','📋','Results'],
+    ...(isCommissioner ? [['commissioner','⚙️','Panel']] : []),
+  ]
 
   return (
     <div style={S.app}>
+      {/* TOPBAR */}
       <div style={S.topbar}>
         <div style={{fontFamily:'sans-serif', fontSize:'22px', fontWeight:900, color:S.gold, letterSpacing:'-1px'}}>BOXD</div>
-        <div style={{fontSize:'10px', color:'#4A5168', letterSpacing:'2px'}}>FANTASY BOX OFFICE</div>
-        <div style={{background:'#12141A', border:'1px solid #2A2F3C', borderRadius:'7px', padding:'5px 12px', marginLeft:'8px'}}>
-          <div style={{fontSize:'8px', color:'#4A5168', letterSpacing:'1px'}}>BUDGET LEFT</div>
-          <div style={{fontSize:'16px', fontWeight:700, color:budgetLeft < 50 ? S.red : S.green}}>{cur}{budgetLeft}M</div>
+        <div style={{fontSize:'10px', color:'#4A5168', letterSpacing:'2px', display:'none'}}>FANTASY BOX OFFICE</div>
+        {isWindow && <div style={{background:S.orange+'22', border:`1px solid ${S.orange}44`, borderRadius:'6px', padding:'3px 10px', fontSize:'9px', color:S.orange, letterSpacing:'1px'}}>🔓 FREE WINDOW ACTIVE</div>}
+        <div style={{background:'#12141A', border:'1px solid #2A2F3C', borderRadius:'7px', padding:'4px 10px'}}>
+          <div style={{fontSize:'7px', color:'#4A5168', letterSpacing:'1px'}}>PHASE {phase} BUDGET</div>
+          <div style={{fontSize:'14px', fontWeight:700, color:budgetLeft < 20 ? S.red : S.green}}>{cur}{budgetLeft}M</div>
         </div>
+        <div style={{fontSize:'9px', color:'#4A5168'}}>W{leagueConfig.current_week}</div>
         <div style={{marginLeft:'auto', display:'flex', gap:'6px', alignItems:'center'}}>
-          <div style={{fontSize:'11px', color:'#4A5168'}}>{profile.name}</div>
-          <button style={{...S.btn, background:'#12141A', border:'1px solid #2A2F3C', color:'#4A5168', fontSize:'9px'}} onClick={() => supabase.auth.signOut()}>Sign out</button>
+          <div style={{fontSize:'10px', color:'#4A5168'}}>{profile.name}</div>
+          <button style={{...S.btn, background:'#12141A', border:'1px solid #2A2F3C', color:'#4A5168', fontSize:'8px', padding:'5px 10px'}} onClick={() => supabase.auth.signOut()}>Out</button>
         </div>
       </div>
 
       <div style={{display:'flex'}}>
+        {/* SIDEBAR */}
         <div style={S.sidebar}>
-          {[['market','🎬','Market'],['roster','📁','My Roster'],['league','🏆','League'],['results','📊','Results']].map(([id,ic,lb]) => (
-            <div key={id} onClick={() => setPage(id)} style={{display:'flex', alignItems:'center', gap:'8px', padding:'9px 10px', borderRadius:'7px', cursor:'pointer', fontSize:'11px', marginBottom:'2px', background:page===id?'#F0B42914':'none', color:page===id?S.gold:'#6B7080'}}>
+          {navItems.map(([id,ic,lb]) => (
+            <div key={id} onClick={() => setPage(id)} style={{display:'flex', alignItems:'center', gap:'8px', padding:'8px 10px', borderRadius:'7px', cursor:'pointer', fontSize:'11px', marginBottom:'2px', background:page===id?'#F0B42914':'none', color:page===id?S.gold:'#6B7080'}}>
               <span>{ic}</span>{lb}
             </div>
           ))}
         </div>
 
         <div style={S.main}>
+
+          {/* ── MARKET ── */}
           {page === 'market' && (
             <div>
-              <div style={{fontSize:'18px', fontWeight:800, marginBottom:'6px'}}>Film Market</div>
-              <div style={{fontSize:'10px', color:'#4A5168', marginBottom:'20px'}}>Season budget: {cur}{leagueConfig.season_budget}M · Tx fee: {cur}{leagueConfig.tx_fee}M to drop · {myRoster.length}/{leagueConfig.max_roster} slots used</div>
-              <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:'10px'}}>
-                {FILMS.map(film => {
-                  const owned = myRoster.find(r => r.film_id === film.id && r.active)
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'16px', flexWrap:'wrap', gap:'8px'}}>
+                <div>
+                  <div style={{fontSize:'18px', fontWeight:800}}>Film Market</div>
+                  <div style={{fontSize:'10px', color:'#4A5168', marginTop:'2px'}}>Phase {phase} · {cur}{budgetLeft}M left · {myRoster.length}/{leagueConfig.max_roster} slots{isWindow?' · Free drops active':''}</div>
+                </div>
+              </div>
+              <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(190px, 1fr))', gap:'10px'}}>
+                {films.map(film => {
+                  const owned = myRoster.find(r => r.film_id === film.id)
                   const val = getFilmValue(film)
                   const actual = results[film.id]
                   const genreCol = GENRE_COL[film.genre] || '#888'
                   const priceDelta = val - film.basePrice
                   const weeklyPts = getWeeklyPts(film.id)
-                  const openingPts = calcOpeningPts(film, actual)
+                  const openingPts = actual != null ? calcOpeningPts(film, actual, owned ? isEarlyBird(owned) : false, getAnalystActive(profile.id, film.id)) : 0
+                  const legsBonus = getLegsBonus(film.id)
+                  const wwBonus = getWeekendWinnerBonus(film.id)
+                  const isShorted = chips?.short_film_id === film.id
+                  const isAnalyst = chips?.analyst_film_id === film.id
+                  const isAuteur = getAuteurBonus(profile.id, film.id)
+                  const earlyBirdEligible = owned && isEarlyBird(owned)
                   return (
                     <div key={film.id} style={{...S.card, border:`1px solid ${owned ? S.gold+'44' : '#1E222C'}`, background:owned?'#F0B42908':'#0C0E12', position:'relative', overflow:'hidden'}}>
                       <div style={{position:'absolute', top:0, left:0, right:0, height:'2px', background:genreCol}} />
                       <div style={{fontSize:'12px', fontWeight:700, marginBottom:'2px', marginTop:'4px'}}>{film.title}</div>
-                      <div style={{fontSize:'9px', color:'#4A5168', marginBottom:'10px'}}>{film.dist} · W{film.week}</div>
-                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:'8px'}}>
+                      <div style={{fontSize:'9px', color:'#4A5168', marginBottom:'6px'}}>{film.dist} · W{film.week} · Ph{film.phase||'?'}</div>
+                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:'6px'}}>
                         <div>
-                          <div style={{fontSize:'18px', fontWeight:800, color:owned?S.gold:'#F2EEE8'}}>{cur}{val}M</div>
-                          <div style={{fontSize:'9px', color:priceDelta>0?S.green:priceDelta<0?S.red:'#4A5168'}}>{priceDelta===0?'—':priceDelta>0?'▲':'▼'} IPO {cur}{film.basePrice}</div>
+                          <div style={{fontSize:'17px', fontWeight:800, color:owned?S.gold:'#F2EEE8'}}>{cur}{val}M</div>
+                          <div style={{fontSize:'9px', color:priceDelta>0?S.green:priceDelta<0?S.red:'#4A5168'}}>{priceDelta===0?'—':priceDelta>0?'▲':'▼'} {cur}{film.basePrice}</div>
                         </div>
                         <div style={{textAlign:'right'}}>
-                          {film.rt && <div style={{fontSize:'9px', color:film.rt>=90?S.green:film.rt>=75?S.gold:S.red}}>🍅 {film.rt}%</div>}
+                          {film.rt != null && <div style={{fontSize:'9px', color:film.rt>=90?S.green:film.rt>=75?S.gold:S.red}}>🍅{film.rt}%</div>}
                           <div style={{fontSize:'9px', color:'#4A5168'}}>Est ${film.estM}M</div>
                         </div>
                       </div>
-                      <div style={{display:'flex', gap:'4px', flexWrap:'wrap', marginBottom:'10px'}}>
-                        <span style={{fontSize:'8px', padding:'2px 6px', borderRadius:'4px', background:genreCol+'18', color:genreCol}}>{film.genre}</span>
-                        {film.franchise && <span style={{fontSize:'8px', padding:'2px 6px', borderRadius:'4px', background:'#A855F718', color:'#A855F7'}}>{film.franchise}</span>}
-                        {film.sleeper && <span style={{fontSize:'8px', padding:'2px 6px', borderRadius:'4px', background:'#4D9EFF18', color:'#4D9EFF'}}>💤 Sleeper</span>}
+                      <div style={{display:'flex', gap:'3px', flexWrap:'wrap', marginBottom:'6px'}}>
+                        <span style={{fontSize:'8px', padding:'1px 5px', borderRadius:'4px', background:genreCol+'18', color:genreCol}}>{film.genre}</span>
+                        {film.franchise && <span style={{fontSize:'8px', padding:'1px 5px', borderRadius:'4px', background:'#A855F718', color:'#A855F7'}}>{film.franchise}</span>}
+                        {film.sleeper && <span style={{fontSize:'8px', padding:'1px 5px', borderRadius:'4px', background:'#4D9EFF18', color:'#4D9EFF'}}>💤</span>}
+                        {isShorted && <span style={{fontSize:'8px', padding:'1px 5px', borderRadius:'4px', background:S.red+'18', color:S.red}}>📉</span>}
+                        {isAnalyst && <span style={{fontSize:'8px', padding:'1px 5px', borderRadius:'4px', background:S.blue+'18', color:S.blue}}>🎯</span>}
+                        {isAuteur && <span style={{fontSize:'8px', padding:'1px 5px', borderRadius:'4px', background:S.orange+'18', color:S.orange}}>🎭</span>}
+                        {earlyBirdEligible && <span style={{fontSize:'8px', padding:'1px 5px', borderRadius:'4px', background:S.green+'18', color:S.green}}>🐦</span>}
                       </div>
                       {actual != null && (
-                        <div style={{marginBottom:'8px'}}>
-                          <div style={{fontSize:'10px', color:S.green}}>Actual: ${actual}M</div>
-                          <div style={{fontSize:'9px', color:S.gold}}>{openingPts}pts opening{weeklyPts>0?` · +${Math.round(weeklyPts)} weekly`:''}</div>
+                        <div style={{marginBottom:'6px', background:'#12141A', borderRadius:'6px', padding:'5px 8px'}}>
+                          <div style={{fontSize:'10px', color:S.green}}>${actual}M actual</div>
+                          <div style={{fontSize:'9px', color:S.gold}}>
+                            {openingPts}pts
+                            {weeklyPts>0?` +${Math.round(weeklyPts)}w`:''}
+                            {legsBonus>0?' 🦵+25':''}
+                            {wwBonus>0?' 🥇+15':''}
+                          </div>
                         </div>
                       )}
-                      {film.trailer && <button style={{...S.btn, background:'#12141A', border:'1px solid #2A2F3C', color:'#4A5168', width:'100%', fontSize:'9px', marginBottom:'8px'}} onClick={e => { e.stopPropagation(); setTrailerFilm(film) }}>▶ Watch Trailer</button>}
+                      {film.starActor && <div style={{fontSize:'9px', color:'#4A5168', marginBottom:'6px'}}>⭐ {film.starActor}</div>}
+                      {film.trailer && <button style={{...S.btn, background:'#12141A', border:'1px solid #2A2F3C', color:'#4A5168', width:'100%', fontSize:'9px', marginBottom:'6px', padding:'5px'}} onClick={e => { e.stopPropagation(); setTrailerFilm(film) }}>▶ Trailer</button>}
                       {owned
-                        ? <button style={{...S.btn, background:'none', border:`1px solid ${S.red}44`, color:S.red, width:'100%', fontSize:'9px'}} onClick={() => sellFilm(film)}>Drop · get {cur}{Math.max(0,val-leagueConfig.tx_fee)}M</button>
-                        : <button style={{...S.btn, background:S.gold, color:'#000', width:'100%', fontSize:'9px'}} onClick={() => buyFilm(film)}>Acquire · {cur}{val}M</button>
+                        ? <button style={{...S.btn, background:'none', border:`1px solid ${S.red}44`, color:S.red, width:'100%', fontSize:'9px', padding:'6px'}} onClick={() => sellFilm(film)}>Drop{isWindow?' FREE':` · ${cur}${Math.max(0,val-leagueConfig.tx_fee)}M`}</button>
+                        : <button style={{...S.btn, background:S.gold, color:'#000', width:'100%', fontSize:'9px', padding:'6px'}} onClick={() => buyFilm(film)}>Acquire · {cur}{val}M</button>
                       }
                       {(() => {
                         const owners = rosters.filter(r => r.film_id === film.id && r.active)
-                        return owners.length > 0
-                          ? <div style={{fontSize:'9px', color:'#4A5168', marginTop:'6px', textAlign:'center'}}>{owners.length} player{owners.length>1?'s':''} own this</div>
-                          : null
+                        return owners.length > 0 ? <div style={{fontSize:'9px', color:'#4A5168', marginTop:'4px', textAlign:'center'}}>{owners.length} own this</div> : null
                       })()}
                     </div>
                   )
@@ -306,44 +584,64 @@ export default function App() {
             </div>
           )}
 
+          {/* ── ROSTER ── */}
           {page === 'roster' && (
             <div>
               <div style={{fontSize:'18px', fontWeight:800, marginBottom:'6px'}}>My Roster</div>
-              <div style={{fontSize:'10px', color:'#4A5168', marginBottom:'20px'}}>{myRoster.length} films · {cur}{getBudgetSpent(profile.id)} spent · {cur}{budgetLeft} remaining</div>
+              <div style={{fontSize:'10px', color:'#4A5168', marginBottom:'16px'}}>{myRoster.length} films · Phase {phase} budget: {cur}{budgetLeft}M remaining</div>
               {myRoster.length === 0
-                ? <div style={{...S.card, textAlign:'center', color:'#4A5168', padding:'32px'}}>No films yet. Go to Market to acquire.</div>
+                ? <div style={{...S.card, textAlign:'center', color:'#4A5168', padding:'32px'}}>No films. Go to Market to acquire.</div>
                 : myRoster.map(holding => {
-                    const film = FILMS.find(f => f.id === holding.film_id)
+                    const film = films.find(f => f.id === holding.film_id)
                     if (!film) return null
                     const val = getFilmValue(film)
                     const actual = results[film.id]
                     const pnl = val - holding.bought_price
                     const genreCol = GENRE_COL[film.genre] || '#888'
                     const weeklyPts = getWeeklyPts(film.id)
-                    const openingPts = calcOpeningPts(film, actual)
+                    const earlyBird = isEarlyBird(holding)
+                    const analystWin = getAnalystActive(profile.id, film.id)
+                    const auteur = getAuteurBonus(profile.id, film.id)
+                    const openingPts = calcOpeningPts(film, actual, earlyBird, analystWin)
+                    const finalOpenPts = auteur ? Math.round(openingPts * 1.10) : openingPts
+                    const legsBonus = getLegsBonus(film.id)
+                    const wwBonus = getWeekendWinnerBonus(film.id)
+                    const shortBonus = getShortBonus(profile.id, film.id)
                     const weeks = weeklyGrosses[film.id] || {}
+                    const totalPts = finalOpenPts + Math.round(weeklyPts) + legsBonus + wwBonus + shortBonus
                     return (
                       <div key={holding.id} style={{...S.card}}>
-                        <div style={{display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap'}}>
+                        <div style={{display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap'}}>
                           <div style={{width:'3px', height:'36px', borderRadius:'2px', background:genreCol, flexShrink:0}} />
-                          <div style={{flex:2, minWidth:'120px'}}>
+                          <div style={{flex:2, minWidth:'110px'}}>
                             <div style={{fontSize:'13px', fontWeight:600}}>{film.title}</div>
-                            <div style={{fontSize:'9px', color:'#4A5168'}}>{film.dist} · Week {film.week}</div>
+                            <div style={{fontSize:'9px', color:'#4A5168'}}>{film.dist} · W{film.week} · Ph{holding.phase||1}</div>
+                            <div style={{display:'flex', gap:'4px', marginTop:'2px', flexWrap:'wrap'}}>
+                              {earlyBird && <span style={{fontSize:'7px', color:S.green, padding:'1px 4px', background:S.green+'15', borderRadius:'3px'}}>🐦 EARLY</span>}
+                              {analystWin && <span style={{fontSize:'7px', color:S.blue, padding:'1px 4px', background:S.blue+'15', borderRadius:'3px'}}>🎯 3×</span>}
+                              {auteur && <span style={{fontSize:'7px', color:S.orange, padding:'1px 4px', background:S.orange+'15', borderRadius:'3px'}}>🎭 +10%</span>}
+                            </div>
                           </div>
-                          <div style={{textAlign:'center'}}><div style={{fontSize:'8px', color:'#4A5168'}}>BOUGHT</div><div style={{fontSize:'12px'}}>{cur}{holding.bought_price}</div></div>
-                          <div style={{textAlign:'center'}}><div style={{fontSize:'8px', color:'#4A5168'}}>NOW</div><div style={{fontSize:'12px', color:pnl>=0?S.green:S.red}}>{cur}{val}</div></div>
-                          <div style={{textAlign:'center'}}><div style={{fontSize:'8px', color:'#4A5168'}}>P&L</div><div style={{fontSize:'13px', fontWeight:700, color:pnl>=0?S.green:S.red}}>{pnl>=0?'+':''}{pnl}</div></div>
-                          {actual != null && <div style={{textAlign:'center'}}><div style={{fontSize:'8px', color:'#4A5168'}}>OPENING</div><div style={{fontSize:'12px', color:S.green}}>${actual}M</div></div>}
-                          {actual != null && <div style={{textAlign:'center'}}><div style={{fontSize:'8px', color:'#4A5168'}}>OPEN PTS</div><div style={{fontSize:'12px', color:S.gold}}>{openingPts}</div></div>}
-                          {weeklyPts > 0 && <div style={{textAlign:'center'}}><div style={{fontSize:'8px', color:'#4A5168'}}>WEEKLY PTS</div><div style={{fontSize:'12px', color:'#4D9EFF'}}>+{Math.round(weeklyPts)}</div></div>}
+                          <div style={{textAlign:'center'}}><div style={{fontSize:'7px', color:'#4A5168'}}>PAID</div><div style={{fontSize:'11px'}}>{cur}{holding.bought_price}</div></div>
+                          <div style={{textAlign:'center'}}><div style={{fontSize:'7px', color:'#4A5168'}}>NOW</div><div style={{fontSize:'11px', color:pnl>=0?S.green:S.red}}>{cur}{val}</div></div>
+                          <div style={{textAlign:'center'}}><div style={{fontSize:'7px', color:'#4A5168'}}>P&L</div><div style={{fontSize:'12px', fontWeight:700, color:pnl>=0?S.green:S.red}}>{pnl>=0?'+':''}{pnl}</div></div>
+                          {actual != null && <div style={{textAlign:'center'}}><div style={{fontSize:'7px', color:'#4A5168'}}>OPEN</div><div style={{fontSize:'11px', color:S.gold}}>{finalOpenPts}pts</div></div>}
+                          {weeklyPts > 0 && <div style={{textAlign:'center'}}><div style={{fontSize:'7px', color:'#4A5168'}}>WEEKLY</div><div style={{fontSize:'11px', color:S.blue}}>+{Math.round(weeklyPts)}</div></div>}
+                          {(legsBonus > 0 || wwBonus > 0 || shortBonus !== 0) && (
+                            <div style={{textAlign:'center'}}>
+                              <div style={{fontSize:'7px', color:'#4A5168'}}>BONUS</div>
+                              <div style={{fontSize:'11px', color:S.green}}>+{legsBonus + wwBonus + Math.max(0,shortBonus)}</div>
+                            </div>
+                          )}
+                          {actual != null && <div style={{textAlign:'center'}}><div style={{fontSize:'7px', color:'#4A5168'}}>TOTAL</div><div style={{fontSize:'13px', fontWeight:700, color:S.gold}}>{totalPts}</div></div>}
                         </div>
                         {Object.keys(weeks).length > 0 && (
-                          <div style={{marginTop:'10px', paddingTop:'10px', borderTop:'1px solid #1E222C', display:'flex', gap:'8px', flexWrap:'wrap'}}>
-                            {Object.entries(weeks).sort((a,b)=>a[0]-b[0]).map(([wk, gross]) => (
-                              <div key={wk} style={{background:'#12141A', borderRadius:'6px', padding:'4px 10px', fontSize:'10px'}}>
-                                <span style={{color:'#4A5168'}}>W{wk}: </span>
-                                <span style={{color:'#4D9EFF'}}>${gross}M</span>
-                                <span style={{color:'#4A5168'}}> (+{Math.round(gross*0.5)}pts)</span>
+                          <div style={{marginTop:'8px', paddingTop:'8px', borderTop:'1px solid #1E222C', display:'flex', gap:'6px', flexWrap:'wrap'}}>
+                            {Object.entries(weeks).sort((a,b)=>Number(a[0])-Number(b[0])).map(([wk, gross]) => (
+                              <div key={wk} style={{background:'#12141A', borderRadius:'5px', padding:'3px 7px', fontSize:'9px'}}>
+                                <span style={{color:'#4A5168'}}>W{wk} </span>
+                                <span style={{color:S.blue}}>${gross}M</span>
+                                <span style={{color:'#4A5168'}}> +{Math.round(Number(gross)*0.5)}</span>
                               </div>
                             ))}
                           </div>
@@ -355,23 +653,235 @@ export default function App() {
             </div>
           )}
 
+          {/* ── CHIPS ── */}
+          {page === 'chips' && (
+            <div>
+              <div style={{fontSize:'18px', fontWeight:800, marginBottom:'6px'}}>My Chips</div>
+              <div style={{fontSize:'10px', color:'#4A5168', marginBottom:'20px'}}>One of each per season · Shorts and Analyst are first-come first-served per film</div>
+
+              {/* RECUT */}
+              <div style={{...S.card, border:`1px solid ${recutUsed?'#2A2F3C':S.purple+'44'}`, marginBottom:'10px'}}>
+                <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
+                  <div style={{fontSize:'22px'}}>🎬</div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:'13px', fontWeight:700, color:recutUsed?'#4A5168':S.purple}}>THE RECUT</div>
+                    <div style={{fontSize:'10px', color:'#4A5168'}}>Full free roster rebuild · zero fees · anytime</div>
+                  </div>
+                  {recutUsed ? <span style={{fontSize:'10px', color:'#4A5168', padding:'3px 10px', border:'1px solid #2A2F3C', borderRadius:'6px'}}>USED</span>
+                    : <button style={{...S.btn, background:S.purple, color:'#fff', fontSize:'10px', padding:'6px 14px'}} onClick={activateRecut}>Activate</button>}
+                </div>
+              </div>
+
+              {/* SHORT */}
+              <div style={{...S.card, border:`1px solid ${shortUsed?'#2A2F3C':S.red+'44'}`, marginBottom:'10px'}}>
+                <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
+                  <div style={{fontSize:'22px'}}>📉</div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:'13px', fontWeight:700, color:shortUsed?'#4A5168':S.red}}>THE SHORT</div>
+                    <div style={{fontSize:'10px', color:'#4A5168'}}>Bomb call · under 60% of est = +100pts · hit = −30pts</div>
+                  </div>
+                  {shortUsed
+                    ? <span style={{fontSize:'10px', color:'#4A5168', padding:'3px 10px', border:'1px solid #2A2F3C', borderRadius:'6px'}}>
+                        {chips?.short_result==='win'?'✅ +100':chips?.short_result==='lose'?'❌ -30':`📉 ${films.find(f=>f.id===chips?.short_film_id)?.title||'Active'}`}
+                      </span>
+                    : <button style={{...S.btn, background:S.red, color:'#fff', fontSize:'10px', padding:'6px 14px'}} onClick={() => setChipModal('short')}>Activate</button>}
+                </div>
+              </div>
+
+              {/* ANALYST */}
+              <div style={{...S.card, border:`1px solid ${analystUsed?'#2A2F3C':S.blue+'44'}`, marginBottom:'10px'}}>
+                <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
+                  <div style={{fontSize:'22px'}}>🎯</div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:'13px', fontWeight:700, color:analystUsed?'#4A5168':S.blue}}>THE ANALYST</div>
+                    <div style={{fontSize:'10px', color:'#4A5168'}}>Predict opening ±10% · correct = triple points on that film</div>
+                  </div>
+                  {analystUsed
+                    ? <span style={{fontSize:'10px', color:'#4A5168', padding:'3px 10px', border:'1px solid #2A2F3C', borderRadius:'6px'}}>
+                        {chips?.analyst_result==='win'?'✅ 3×':chips?.analyst_result==='lose'?'❌ Missed':`🎯 ${films.find(f=>f.id===chips?.analyst_film_id)?.title||'Active'}`}
+                      </span>
+                    : <button style={{...S.btn, background:S.blue, color:'#fff', fontSize:'10px', padding:'6px 14px'}} onClick={() => setChipModal('analyst')}>Activate</button>}
+                </div>
+              </div>
+
+              {/* AUTEUR */}
+              {(() => {
+                const myAuteur = auteurDeclarations.find(a => a.player_id === profile.id && a.phase === phase)
+                return (
+                  <div style={{...S.card, border:`1px solid ${myAuteur?'#2A2F3C':S.orange+'44'}`, marginBottom:'10px'}}>
+                    <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
+                      <div style={{fontSize:'22px'}}>🎭</div>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:'13px', fontWeight:700, color:myAuteur?'#4A5168':S.orange}}>THE AUTEUR</div>
+                        <div style={{fontSize:'10px', color:'#4A5168'}}>Declare 2+ films with same star actor · each scores +10% points</div>
+                        {myAuteur && <div style={{fontSize:'10px', color:S.orange, marginTop:'4px'}}>⭐ {myAuteur.star_actor} · {myAuteur.film_ids.length} films</div>}
+                      </div>
+                      <button style={{...S.btn, background:myAuteur?'#12141A':S.orange, border:myAuteur?'1px solid #2A2F3C':'none', color:myAuteur?'#4A5168':'#000', fontSize:'10px', padding:'6px 14px'}} onClick={() => setChipModal('auteur')}>{myAuteur?'Update':'Declare'}</button>
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* OTHER PLAYERS CHIPS */}
+              {allChips.filter(c => c.player_id !== profile.id && (c.short_film_id || c.analyst_film_id)).length > 0 && (
+                <div style={{marginTop:'16px'}}>
+                  <div style={{fontSize:'10px', color:'#4A5168', letterSpacing:'1px', marginBottom:'8px'}}>LEAGUE CHIP ACTIVITY</div>
+                  {allChips.filter(c => c.player_id !== profile.id).map(c => {
+                    const player = players.find(p => p.id === c.player_id)
+                    return (
+                      <div key={c.id} style={{display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'6px'}}>
+                        {c.short_film_id && <div style={{background:'#12141A', borderRadius:'6px', padding:'4px 10px', fontSize:'10px'}}><span style={{color:S.red}}>📉 {player?.name}</span><span style={{color:'#4A5168'}}> → {films.find(f=>f.id===c.short_film_id)?.title}</span>{c.short_result&&<span style={{color:c.short_result==='win'?S.green:S.red}}> {c.short_result==='win'?'✅':' ❌'}</span>}</div>}
+                        {c.analyst_film_id && <div style={{background:'#12141A', borderRadius:'6px', padding:'4px 10px', fontSize:'10px'}}><span style={{color:S.blue}}>🎯 {player?.name}</span><span style={{color:'#4A5168'}}> → {films.find(f=>f.id===c.analyst_film_id)?.title}</span>{c.analyst_result&&<span style={{color:c.analyst_result==='win'?S.green:S.red}}> {c.analyst_result==='win'?'✅':'❌'}</span>}</div>}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── FORECASTER ── */}
+          {page === 'forecaster' && (
+            <div>
+              <div style={{fontSize:'18px', fontWeight:800, marginBottom:'6px'}}>Forecaster</div>
+              <div style={{fontSize:'10px', color:'#4A5168', marginBottom:'20px'}}>Predict opening weekends before each phase. Top accuracy this phase = +15pts. Best season forecaster = +50pts grand league bonus.</div>
+              {films.filter(f => !results[f.id]).length === 0 && <div style={{...S.card, textAlign:'center', color:'#4A5168', padding:'24px'}}>All films have results — no predictions needed right now.</div>}
+              {films.filter(f => !results[f.id]).map(film => {
+                const myForecast = forecasts[film.id]
+                return (
+                  <div key={film.id} style={{...S.card, display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap'}}>
+                    <div style={{flex:2, minWidth:'120px'}}>
+                      <div style={{fontSize:'12px', fontWeight:500}}>{film.title}</div>
+                      <div style={{fontSize:'9px', color:'#4A5168'}}>Est ${film.estM}M · W{film.week} · Ph{film.phase}</div>
+                    </div>
+                    <input type="number" step="0.1" defaultValue={myForecast||''} placeholder="Your prediction $M" id={`fc-${film.id}`} style={{...S.inp, width:'140px'}} />
+                    <button style={{...S.btn, background:S.blue, color:'#fff', fontSize:'10px'}} onClick={() => {
+                      const val = parseFloat(document.getElementById(`fc-${film.id}`).value)
+                      if (isNaN(val)) return notify('Enter a prediction', S.red)
+                      saveForecast(film.id, val)
+                    }}>Lock In</button>
+                    {myForecast && <div style={{fontSize:'11px', color:S.blue}}>Your pick: ${myForecast}M</div>}
+                  </div>
+                )
+              })}
+
+              {/* Forecast accuracy for films with results */}
+              {films.filter(f => results[f.id]).length > 0 && (
+                <div style={{marginTop:'24px'}}>
+                  <div style={{fontSize:'14px', fontWeight:700, marginBottom:'12px'}}>Forecast Results</div>
+                  {films.filter(f => results[f.id]).map(film => {
+                    const actual = results[film.id]
+                    const playerForecasts = allForecasts.filter(f => f.film_id === film.id)
+                    return (
+                      <div key={film.id} style={{...S.card, marginBottom:'8px'}}>
+                        <div style={{fontSize:'12px', fontWeight:600, marginBottom:'8px'}}>{film.title} <span style={{color:S.green, fontWeight:400}}>— Actual: ${actual}M</span></div>
+                        <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
+                          {playerForecasts.map(fc => {
+                            const player = players.find(p => p.id === fc.player_id)
+                            const diff = Math.abs(fc.predicted_m - actual)
+                            const pct = Math.round((diff / actual) * 100)
+                            const isClose = pct <= 10
+                            return (
+                              <div key={fc.id} style={{background:'#12141A', borderRadius:'6px', padding:'4px 10px', fontSize:'10px'}}>
+                                <span style={{color:player?.color||S.gold}}>{player?.name}</span>
+                                <span style={{color:'#4A5168'}}> ${fc.predicted_m}M </span>
+                                <span style={{color:isClose?S.green:S.red}}>{isClose?'✅':''} {pct}% off</span>
+                              </div>
+                            )
+                          })}
+                          {playerForecasts.length === 0 && <div style={{fontSize:'10px', color:'#4A5168'}}>No predictions submitted</div>}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── OSCAR MINI GAME ── */}
+          {page === 'oscar' && (
+            <div>
+              <div style={{fontSize:'18px', fontWeight:800, marginBottom:'6px'}}>🏆 Oscar Mini Game</div>
+              <div style={{fontSize:'10px', color:'#4A5168', marginBottom:'20px'}}>Predict the Best Picture winner before end of 2026. If correct at Oscar night = +75pts added to your Grand League total. Ownership bonus applies if you own the winner in Phase 5.</div>
+
+              {myOscarPick
+                ? (
+                  <div style={{...S.card, border:`1px solid ${S.gold}44`}}>
+                    <div style={{fontSize:'12px', color:'#4A5168', marginBottom:'6px'}}>YOUR BEST PICTURE PICK</div>
+                    <div style={{fontSize:'20px', fontWeight:700, color:S.gold}}>{films.find(f=>f.id===myOscarPick.best_picture_film_id)?.title || 'Unknown film'}</div>
+                    <div style={{fontSize:'10px', color:'#4A5168', marginTop:'4px'}}>Locked in · {myOscarPick.correct===true?'✅ CORRECT — +75pts':myOscarPick.correct===false?'❌ Incorrect':'Awaiting Oscar night'}</div>
+                  </div>
+                )
+                : (
+                  <div style={{...S.card}}>
+                    <div style={{fontSize:'12px', color:'#4A5168', marginBottom:'12px'}}>PICK YOUR BEST PICTURE WINNER</div>
+                    <div style={{fontSize:'10px', color:'#4A5168', marginBottom:'12px', lineHeight:1.6}}>This locks immediately and cannot be changed. Choose wisely.</div>
+                    <select id="oscar-pick" style={{...S.inp, marginBottom:'12px'}}>
+                      <option value="">Select a film...</option>
+                      {films.map(f => <option key={f.id} value={f.id}>{f.title}</option>)}
+                    </select>
+                    <button style={{...S.btn, background:S.gold, color:'#000', fontWeight:700}} onClick={() => {
+                      const filmId = document.getElementById('oscar-pick').value
+                      if (!filmId) return notify('Select a film first', S.red)
+                      if (!confirm(`Lock in ${films.find(f=>f.id===filmId)?.title} as your Best Picture pick? This cannot be changed.`)) return
+                      submitOscarPick(filmId)
+                    }}>🏆 Lock In Pick</button>
+                  </div>
+                )
+              }
+
+              {/* All picks */}
+              {oscarPredictions.length > 0 && (
+                <div style={{marginTop:'20px'}}>
+                  <div style={{fontSize:'12px', color:'#4A5168', letterSpacing:'1px', marginBottom:'10px'}}>ALL PICKS</div>
+                  {oscarPredictions.map(op => {
+                    const player = players.find(p => p.id === op.player_id)
+                    const film = films.find(f => f.id === op.best_picture_film_id)
+                    return (
+                      <div key={op.id} style={{...S.card, display:'flex', alignItems:'center', gap:'12px', padding:'12px 16px'}}>
+                        <div style={{width:'8px', height:'8px', borderRadius:'50%', background:player?.color||S.gold}} />
+                        <div style={{flex:1, fontSize:'12px', color:player?.color||S.gold}}>{player?.name}</div>
+                        <div style={{fontSize:'12px'}}>{film?.title || '—'}</div>
+                        {op.correct===true && <span style={{color:S.green}}>✅ +75pts</span>}
+                        {op.correct===false && <span style={{color:S.red}}>❌</span>}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── LEAGUE ── */}
           {page === 'league' && (
             <div>
-              <div style={{fontSize:'18px', fontWeight:800, marginBottom:'20px'}}>League Standings</div>
+              <div style={{fontSize:'18px', fontWeight:800, marginBottom:'4px'}}>League Standings</div>
+              <div style={{fontSize:'10px', color:'#4A5168', marginBottom:'20px'}}>Phase {phase} · Week {leagueConfig.current_week}</div>
               {players.length === 0 && <div style={{...S.card, textAlign:'center', color:'#4A5168'}}>No players yet.</div>}
               {[...players].sort((a,b) => calcPoints(b.id) - calcPoints(a.id)).map((player, i) => {
                 const pts = calcPoints(player.id)
                 const rank = i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`
+                const playerChip = allChips.find(c => c.player_id === player.id)
+                const playerAuteur = auteurDeclarations.find(a => a.player_id === player.id && a.phase === phase)
+                const playerOscar = oscarPredictions.find(o => o.player_id === player.id)
                 return (
-                  <div key={player.id} style={{...S.card, display:'flex', alignItems:'center', gap:'14px'}}>
-                    <div style={{fontSize:'22px', minWidth:'32px'}}>{rank}</div>
-                    <div style={{width:'9px', height:'9px', borderRadius:'50%', background:player.color||S.gold}} />
+                  <div key={player.id} style={{...S.card, display:'flex', alignItems:'center', gap:'12px'}}>
+                    <div style={{fontSize:'20px', minWidth:'30px'}}>{rank}</div>
+                    <div style={{width:'8px', height:'8px', borderRadius:'50%', background:player.color||S.gold, flexShrink:0}} />
                     <div style={{flex:1}}>
-                      <div style={{fontSize:'14px', fontWeight:600, color:player.color||S.gold}}>{player.name}</div>
-                      <div style={{fontSize:'9px', color:'#4A5168'}}>{rosters.filter(r=>r.player_id===player.id).length} films · {cur}{getBudgetLeft(player.id)} left</div>
+                      <div style={{fontSize:'13px', fontWeight:600, color:player.color||S.gold}}>{player.name}</div>
+                      <div style={{display:'flex', gap:'4px', marginTop:'3px', flexWrap:'wrap'}}>
+                        <span style={{fontSize:'9px', color:'#4A5168'}}>{rosters.filter(r=>r.player_id===player.id&&r.active).length} films · {cur}{getPhaseBudgetLeft(player.id)} left</span>
+                        {playerChip?.short_film_id && <span style={{fontSize:'8px', color:S.red, padding:'1px 4px', background:S.red+'15', borderRadius:'3px'}}>📉</span>}
+                        {playerChip?.analyst_film_id && <span style={{fontSize:'8px', color:S.blue, padding:'1px 4px', background:S.blue+'15', borderRadius:'3px'}}>🎯</span>}
+                        {playerChip?.recut_used && <span style={{fontSize:'8px', color:S.purple, padding:'1px 4px', background:S.purple+'15', borderRadius:'3px'}}>🎬</span>}
+                        {playerAuteur && <span style={{fontSize:'8px', color:S.orange, padding:'1px 4px', background:S.orange+'15', borderRadius:'3px'}}>🎭</span>}
+                        {playerOscar && <span style={{fontSize:'8px', color:S.gold, padding:'1px 4px', background:S.gold+'15', borderRadius:'3px'}}>🏆</span>}
+                      </div>
                     </div>
                     <div style={{textAlign:'right'}}>
-                      <div style={{fontSize:'28px', fontWeight:800, color:i===0?S.gold:'#F2EEE8'}}>{pts}</div>
+                      <div style={{fontSize:'26px', fontWeight:800, color:i===0?S.gold:'#F2EEE8'}}>{pts}</div>
                       <div style={{fontSize:'8px', color:'#4A5168'}}>PTS</div>
                     </div>
                   </div>
@@ -380,22 +890,25 @@ export default function App() {
             </div>
           )}
 
+          {/* ── RESULTS ── */}
           {page === 'results' && (
             <div>
               <div style={{fontSize:'18px', fontWeight:800, marginBottom:'6px'}}>Enter Results</div>
-              <div style={{fontSize:'10px', color:'#4A5168', marginBottom:'20px'}}>Commissioner view · Enter opening weekend + weekly grosses</div>
-              {FILMS.map(film => {
+              <div style={{fontSize:'10px', color:'#4A5168', marginBottom:'20px'}}>Commissioner · Opening weekend + weekly grosses + weekend winner</div>
+              {films.map(film => {
                 const actual = results[film.id]
                 const weeks = weeklyGrosses[film.id] || {}
+                const legsBonus = getLegsBonus(film.id)
+                const isWinner = weekendWinners[film.week] === film.id
                 return (
                   <div key={film.id} style={{...S.card}}>
-                    <div style={{display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap', marginBottom: actual != null ? '12px' : '0'}}>
-                      <div style={{flex:2, minWidth:'130px'}}>
-                        <div style={{fontSize:'13px', fontWeight:500}}>{film.title}</div>
-                        <div style={{fontSize:'9px', color:'#4A5168'}}>Est ${film.estM}M · IPO ${film.basePrice}</div>
+                    <div style={{display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap', marginBottom: actual != null ? '10px' : '0'}}>
+                      <div style={{flex:2, minWidth:'120px'}}>
+                        <div style={{fontSize:'12px', fontWeight:500}}>{film.title} {isWinner && '🥇'}</div>
+                        <div style={{fontSize:'9px', color:'#4A5168'}}>Est ${film.estM}M · IPO ${film.basePrice} · Ph{film.phase}</div>
                       </div>
-                      <input type="number" step="0.1" defaultValue={actual||''} placeholder="Opening $M" id={`res-${film.id}`} style={{...S.inp, width:'120px'}} />
-                      <button style={{...S.btn, background:S.green, color:'#000'}} onClick={async () => {
+                      <input type="number" step="0.1" defaultValue={actual||''} placeholder="Opening $M" id={`res-${film.id}`} style={{...S.inp, width:'100px'}} />
+                      <button style={{...S.btn, background:S.green, color:'#000', fontSize:'10px', padding:'6px 12px'}} onClick={async () => {
                         const val = parseFloat(document.getElementById(`res-${film.id}`).value)
                         if (isNaN(val)) return notify('Enter a number', S.red)
                         const newValue = calcMarketValue(film, val)
@@ -403,34 +916,49 @@ export default function App() {
                         if (e1) return notify(e1.message, S.red)
                         const { error: e2 } = await saveFilmValue(film.id, newValue)
                         if (e2) return notify(e2.message, S.red)
-                        notify(`Saved · ${film.title} now $${newValue} · ${calcOpeningPts(film, val)}pts`, S.gold)
+                        await resolveChips(film.id, val)
+                        notify(`✅ ${film.title} · $${newValue} · ${calcOpeningPts(film, val)}pts`, S.gold)
                         loadData()
-                      }}>Save Opening</button>
-                      {actual != null && <div style={{fontSize:'12px', color:S.green}}>${actual}M → $${getFilmValue(film)} · {calcOpeningPts(film, actual)}pts</div>}
+                      }}>Save</button>
+                      {/* Weekend winner toggle */}
+                      <button style={{...S.btn, background:isWinner?S.gold:'#12141A', border:isWinner?'none':'1px solid #2A2F3C', color:isWinner?'#000':'#4A5168', fontSize:'9px', padding:'6px 10px'}}
+                        onClick={async () => {
+                          if (isWinner) {
+                            await supabase.from('weekend_winners').delete().eq('week', film.week)
+                          } else {
+                            const existing = await supabase.from('weekend_winners').select('id').eq('week', film.week).single()
+                            if (existing.data) await supabase.from('weekend_winners').update({ film_id: film.id, phase }).eq('week', film.week)
+                            else await supabase.from('weekend_winners').insert({ film_id: film.id, week: film.week, phase })
+                          }
+                          notify(isWinner ? 'Winner removed' : `🥇 ${film.title} marked #1 this weekend · +15pts to all owners`, S.gold)
+                          loadData()
+                        }}>
+                        {isWinner ? '🥇 #1' : '#1?'}
+                      </button>
+                      {actual != null && <div style={{fontSize:'11px', color:S.green}}>${actual}M → $${getFilmValue(film)} · {calcOpeningPts(film,actual)}pts</div>}
                     </div>
                     {actual != null && (
-                      <div style={{borderTop:'1px solid #1E222C', paddingTop:'10px'}}>
-                        <div style={{fontSize:'9px', color:'#4A5168', letterSpacing:'1px', marginBottom:'8px'}}>WEEKLY GROSSES (Week 2 onwards · 0.5pts per $1M)</div>
-                        <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
+                      <div style={{borderTop:'1px solid #1E222C', paddingTop:'8px'}}>
+                        <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'8px', flexWrap:'wrap'}}>
+                          <div style={{fontSize:'9px', color:'#4A5168', letterSpacing:'1px'}}>WEEKLY · 0.5pts/$1M</div>
+                          {legsBonus > 0 && <span style={{fontSize:'9px', color:S.green, padding:'1px 6px', background:S.green+'18', borderRadius:'4px'}}>🦵 Legs +25pts</span>}
+                        </div>
+                        <div style={{display:'flex', gap:'6px', flexWrap:'wrap'}}>
                           {[2,3,4,5,6,7,8].map(wk => (
-                            <div key={wk} style={{display:'flex', flexDirection:'column', gap:'4px', alignItems:'center'}}>
-                              <div style={{fontSize:'9px', color:'#4A5168'}}>W{wk}</div>
-                              <input
-                                type="number" step="0.1" placeholder="$M"
-                                defaultValue={weeks[wk]||''}
-                                id={`weekly-${film.id}-${wk}`}
-                                style={{...S.inp, width:'70px', fontSize:'11px', padding:'6px 8px'}}
-                              />
-                              <button style={{...S.btn, background:'#12141A', border:'1px solid #2A2F3C', color:'#4A5168', fontSize:'8px', padding:'3px 8px'}}
+                            <div key={wk} style={{display:'flex', flexDirection:'column', gap:'3px', alignItems:'center'}}>
+                              <div style={{fontSize:'8px', color:'#4A5168'}}>W{wk}</div>
+                              <input type="number" step="0.1" placeholder="$M" defaultValue={weeks[wk]||''} id={`weekly-${film.id}-${wk}`} style={{...S.inp, width:'62px', fontSize:'10px', padding:'4px 6px'}} />
+                              <button style={{...S.btn, background:'#12141A', border:'1px solid #2A2F3C', color:'#4A5168', fontSize:'8px', padding:'2px 6px'}}
                                 onClick={async () => {
                                   const val = parseFloat(document.getElementById(`weekly-${film.id}-${wk}`).value)
                                   if (isNaN(val)) return notify('Enter a number', S.red)
                                   const { error } = await saveWeeklyGross(film.id, wk, val)
                                   if (error) return notify(error.message, S.red)
-                                  notify(`W${wk} saved · +${Math.round(val*0.5)}pts`, S.gold)
+                                  const newLegs = wk === 2 ? calcLegsBonus(actual, val) : legsBonus
+                                  notify(`W${wk} · +${Math.round(val*0.5)}pts${newLegs>0?' · 🦵 Legs!':''}`, S.gold)
                                   loadData()
                                 }}>Save</button>
-                              {weeks[wk] && <div style={{fontSize:'9px', color:'#4D9EFF'}}>+{Math.round(weeks[wk]*0.5)}pts</div>}
+                              {weeks[wk] && <div style={{fontSize:'8px', color:S.blue}}>+{Math.round(Number(weeks[wk])*0.5)}</div>}
                             </div>
                           ))}
                         </div>
@@ -441,20 +969,154 @@ export default function App() {
               })}
             </div>
           )}
+
+          {/* ── COMMISSIONER ── */}
+          {page === 'commissioner' && isCommissioner && (
+            <div>
+              <div style={{fontSize:'18px', fontWeight:800, marginBottom:'20px'}}>⚙️ Commissioner Panel</div>
+
+              {/* League controls */}
+              <div style={{...S.card, marginBottom:'14px'}}>
+                <div style={{fontSize:'11px', fontWeight:600, color:S.gold, marginBottom:'12px', letterSpacing:'1px'}}>LEAGUE CONTROLS</div>
+                <div style={{display:'flex', gap:'10px', flexWrap:'wrap', alignItems:'center'}}>
+                  <div style={{fontSize:'12px'}}>Week <strong>{leagueConfig.current_week}</strong> · Phase <strong>{phase}</strong></div>
+                  <button style={{...S.btn, background:S.gold, color:'#000', fontSize:'10px'}} onClick={async () => {
+                    await supabase.from('league_config').update({ current_week: leagueConfig.current_week + 1 }).eq('id', 1)
+                    notify(`Advanced to Week ${leagueConfig.current_week + 1}`, S.green)
+                    loadData()
+                  }}>Next Week →</button>
+                  <button style={{...S.btn, background:isWindow?S.orange:S.purple, color:'#fff', fontSize:'10px'}} onClick={async () => {
+                    await supabase.from('league_config').update({ phase_window_active: !isWindow }).eq('id', 1)
+                    notify(isWindow ? 'Free window closed' : '🔓 Free window opened — drops are free!', S.orange)
+                    loadData()
+                  }}>{isWindow ? '🔒 Close Window' : '🔓 Open Free Window'}</button>
+                  <button style={{...S.btn, background:'#12141A', border:'1px solid #2A2F3C', color:S.gold, fontSize:'10px'}} onClick={async () => {
+                    const newPhase = phase + 1
+                    await supabase.from('league_config').update({ current_phase: newPhase, phase_window_active: false }).eq('id', 1)
+                    notify(`Advanced to Phase ${newPhase}`, S.green)
+                    loadData()
+                  }}>Next Phase →</button>
+                </div>
+              </div>
+
+              {/* Oscar resolution */}
+              <div style={{...S.card, marginBottom:'14px'}}>
+                <div style={{fontSize:'11px', fontWeight:600, color:S.gold, marginBottom:'12px', letterSpacing:'1px'}}>OSCAR NIGHT</div>
+                <div style={{display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap'}}>
+                  <select id="oscar-winner-select" style={{...S.inp, maxWidth:'250px'}}>
+                    <option value="">Select Best Picture winner...</option>
+                    {films.map(f => <option key={f.id} value={f.id}>{f.title}</option>)}
+                  </select>
+                  <button style={{...S.btn, background:S.gold, color:'#000', fontSize:'10px'}} onClick={async () => {
+                    const winnerId = document.getElementById('oscar-winner-select').value
+                    if (!winnerId) return notify('Select a film', S.red)
+                    await supabase.from('league_config').update({ best_picture_winner: winnerId }).eq('id', 1)
+                    for (const op of oscarPredictions) {
+                      await supabase.from('oscar_predictions').update({ correct: op.best_picture_film_id === winnerId }).eq('player_id', op.player_id)
+                    }
+                    notify(`🏆 Best Picture: ${films.find(f=>f.id===winnerId)?.title} — predictions resolved`, S.gold)
+                    loadData()
+                  }}>Set Winner</button>
+                </div>
+              </div>
+
+              {/* Add film */}
+              <div style={{...S.card, marginBottom:'14px'}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px'}}>
+                  <div style={{fontSize:'11px', fontWeight:600, color:S.gold, letterSpacing:'1px'}}>FILM MANAGEMENT</div>
+                  <button style={{...S.btn, background:S.green, color:'#000', fontSize:'10px'}} onClick={() => setAddFilmModal(true)}>+ Add Film</button>
+                </div>
+                {films.map(film => (
+                  <div key={film.id} style={{display:'flex', alignItems:'center', gap:'10px', padding:'8px 0', borderBottom:'1px solid #1E222C', flexWrap:'wrap'}}>
+                    <div style={{flex:2, minWidth:'110px'}}>
+                      <div style={{fontSize:'12px'}}>{film.title}</div>
+                      <div style={{fontSize:'9px', color:'#4A5168'}}>Ph{film.phase} · W{film.week} · {film.starActor||'no actor'}</div>
+                    </div>
+                    <div style={{display:'flex', gap:'6px', alignItems:'center', flexWrap:'wrap'}}>
+                      <div>
+                        <div style={{fontSize:'8px', color:'#4A5168', marginBottom:'2px'}}>IPO</div>
+                        <input type="number" defaultValue={film.basePrice} id={`ipo-${film.id}`} style={{...S.inp, width:'60px', fontSize:'10px', padding:'4px 6px'}} />
+                      </div>
+                      <div>
+                        <div style={{fontSize:'8px', color:'#4A5168', marginBottom:'2px'}}>EST $M</div>
+                        <input type="number" defaultValue={film.estM} id={`est-${film.id}`} style={{...S.inp, width:'60px', fontSize:'10px', padding:'4px 6px'}} />
+                      </div>
+                      <div>
+                        <div style={{fontSize:'8px', color:'#4A5168', marginBottom:'2px'}}>RT%</div>
+                        <input type="number" defaultValue={film.rt||''} id={`rt-${film.id}`} style={{...S.inp, width:'52px', fontSize:'10px', padding:'4px 6px'}} />
+                      </div>
+                      <button style={{...S.btn, background:'#12141A', border:'1px solid #2A2F3C', color:S.gold, fontSize:'9px', marginTop:'12px', padding:'5px 10px'}}
+                        onClick={() => {
+                          const newIpo = parseInt(document.getElementById(`ipo-${film.id}`).value)
+                          const newEst = parseInt(document.getElementById(`est-${film.id}`).value)
+                          const newRt = parseInt(document.getElementById(`rt-${film.id}`).value) || null
+                          setFilms(prev => prev.map(f => f.id === film.id ? {...f, basePrice: newIpo, estM: newEst, rt: newRt} : f))
+                          notify(`Updated ${film.title}`, S.green)
+                        }}>Update</button>
+                      <button style={{...S.btn, background:'none', border:`1px solid ${S.red}33`, color:S.red, fontSize:'9px', marginTop:'12px', padding:'5px 10px'}}
+                        onClick={() => {
+                          if (!confirm(`Remove ${film.title}?`)) return
+                          setFilms(prev => prev.filter(f => f.id !== film.id))
+                          notify(`Removed ${film.title}`)
+                        }}>Remove</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Chip overrides */}
+              <div style={{...S.card}}>
+                <div style={{fontSize:'11px', fontWeight:600, color:S.gold, marginBottom:'12px', letterSpacing:'1px'}}>CHIP OVERRIDES</div>
+                {allChips.length === 0 && <div style={{fontSize:'11px', color:'#4A5168'}}>No chips activated yet.</div>}
+                {allChips.map(c => {
+                  const player = players.find(p => p.id === c.player_id)
+                  return (
+                    <div key={c.id} style={{padding:'8px 0', borderBottom:'1px solid #1E222C'}}>
+                      <div style={{fontSize:'11px', fontWeight:600, color:player?.color||S.gold, marginBottom:'4px'}}>{player?.name}</div>
+                      {c.short_film_id && (
+                        <div style={{display:'flex', gap:'8px', alignItems:'center', marginBottom:'4px', flexWrap:'wrap'}}>
+                          <span style={{fontSize:'10px', color:S.red}}>📉 Short: {films.find(f=>f.id===c.short_film_id)?.title}</span>
+                          <span style={{fontSize:'10px', color:'#4A5168'}}>→ {c.short_result || 'pending'}</span>
+                          {!c.short_result && <>
+                            <button style={{...S.btn, background:S.green, color:'#000', fontSize:'8px', padding:'2px 8px'}} onClick={async () => { await supabase.from('chips').update({short_result:'win'}).eq('player_id',c.player_id); notify('Short WIN +100pts', S.green); loadData() }}>Win</button>
+                            <button style={{...S.btn, background:S.red, color:'#fff', fontSize:'8px', padding:'2px 8px'}} onClick={async () => { await supabase.from('chips').update({short_result:'lose'}).eq('player_id',c.player_id); notify('Short LOSE -30pts', S.red); loadData() }}>Lose</button>
+                          </>}
+                        </div>
+                      )}
+                      {c.analyst_film_id && (
+                        <div style={{display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap'}}>
+                          <span style={{fontSize:'10px', color:S.blue}}>🎯 Analyst: {films.find(f=>f.id===c.analyst_film_id)?.title} · pred ${c.analyst_prediction}M</span>
+                          <span style={{fontSize:'10px', color:'#4A5168'}}>→ {c.analyst_result || 'pending'}</span>
+                          {!c.analyst_result && <>
+                            <button style={{...S.btn, background:S.green, color:'#000', fontSize:'8px', padding:'2px 8px'}} onClick={async () => { await supabase.from('chips').update({analyst_result:'win'}).eq('player_id',c.player_id); notify('Analyst WIN — triple pts', S.green); loadData() }}>Win</button>
+                            <button style={{...S.btn, background:S.red, color:'#fff', fontSize:'8px', padding:'2px 8px'}} onClick={async () => { await supabase.from('chips').update({analyst_result:'lose'}).eq('player_id',c.player_id); notify('Analyst LOSE', S.red); loadData() }}>Lose</button>
+                          </>}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
 
+      {/* NOTIFICATIONS */}
       {notif && (
-        <div style={{position:'fixed', bottom:'20px', right:'20px', background:'#0C0E12', border:`1px solid ${notif.col}`, borderRadius:'9px', padding:'11px 16px', fontSize:'11px', zIndex:600, maxWidth:'280px'}}>
+        <div style={{position:'fixed', bottom:'20px', right:'20px', background:'#0C0E12', border:`1px solid ${notif.col}`, borderRadius:'9px', padding:'11px 16px', fontSize:'11px', zIndex:600, maxWidth:'300px'}}>
           {notif.msg}
         </div>
       )}
+
+      {/* TRAILER MODAL */}
       {trailerFilm && (
         <div style={{position:'fixed', inset:0, background:'#000000EE', display:'flex', alignItems:'center', justifyContent:'center', zIndex:700, padding:'20px'}} onClick={() => setTrailerFilm(null)}>
           <div style={{width:'100%', maxWidth:'800px'}} onClick={e => e.stopPropagation()}>
             <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px'}}>
-              <div style={{fontSize:'14px', fontWeight:700, color:'#F2EEE8'}}>{trailerFilm.title}</div>
-              <button style={{background:'none', border:'1px solid #2A2F3C', color:'#4A5168', borderRadius:'6px', padding:'4px 12px', cursor:'pointer', fontFamily:'DM Mono, monospace', fontSize:'11px'}} onClick={() => setTrailerFilm(null)}>✕ Close</button>
+              <div style={{fontSize:'14px', fontWeight:700}}>{trailerFilm.title}</div>
+              <button style={{background:'none', border:'1px solid #2A2F3C', color:'#4A5168', borderRadius:'6px', padding:'4px 12px', cursor:'pointer', fontFamily:'DM Mono, monospace', fontSize:'11px'}} onClick={() => setTrailerFilm(null)}>✕</button>
             </div>
             <div style={{position:'relative', paddingBottom:'56.25%', height:0, overflow:'hidden', borderRadius:'10px'}}>
               <iframe src={`${trailerFilm.trailer}?autoplay=1`} style={{position:'absolute', top:0, left:0, width:'100%', height:'100%', border:'none', borderRadius:'10px'}} allow="autoplay; fullscreen" allowFullScreen />
@@ -462,6 +1124,159 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* ADD FILM MODAL */}
+      {addFilmModal && (
+        <div style={{position:'fixed', inset:0, background:'#000000CC', display:'flex', alignItems:'center', justifyContent:'center', zIndex:700, padding:'20px'}} onClick={() => setAddFilmModal(false)}>
+          <div style={{background:'#0C0E12', border:'1px solid #2A2F3C', borderRadius:'14px', padding:'24px', width:'480px', maxWidth:'96vw', maxHeight:'90vh', overflowY:'auto'}} onClick={e => e.stopPropagation()}>
+            <div style={{fontSize:'16px', fontWeight:800, marginBottom:'16px', color:S.green}}>+ Add New Film</div>
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'12px'}}>
+              {[
+                ['Title', 'title', 'text', 'Thunderbolts*'],
+                ['Distributor', 'dist', 'text', 'Marvel'],
+                ['Franchise', 'franchise', 'text', 'MCU'],
+                ['Star Actor', 'starActor', 'text', 'Florence Pugh'],
+                ['IPO Price $M', 'basePrice', 'number', '42'],
+                ['Est Opening $M', 'estM', 'number', '88'],
+                ['RT Score %', 'rt', 'number', '82'],
+                ['Release Week', 'week', 'number', '1'],
+                ['Phase (1-5)', 'phase', 'number', '1'],
+              ].map(([label, field, type, placeholder]) => (
+                <div key={field} style={{gridColumn: field==='title'||field==='dist'?'1/-1':'auto'}}>
+                  <div style={{fontSize:'8px', color:'#4A5168', letterSpacing:'1px', marginBottom:'4px'}}>{label.toUpperCase()}</div>
+                  <input type={type} placeholder={placeholder} value={newFilm[field]||''} style={{...S.inp}} onChange={e => setNewFilm(prev => ({...prev, [field]: type==='number' ? parseFloat(e.target.value)||'' : e.target.value}))} />
+                </div>
+              ))}
+              <div>
+                <div style={{fontSize:'8px', color:'#4A5168', letterSpacing:'1px', marginBottom:'4px'}}>GENRE</div>
+                <select value={newFilm.genre} style={{...S.inp}} onChange={e => setNewFilm(prev => ({...prev, genre: e.target.value}))}>
+                  {Object.keys(GENRE_COL).map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </div>
+              <div style={{display:'flex', alignItems:'center', gap:'8px', paddingTop:'16px'}}>
+                <input type="checkbox" checked={newFilm.sleeper} id="sleeper-check" onChange={e => setNewFilm(prev => ({...prev, sleeper: e.target.checked}))} />
+                <label htmlFor="sleeper-check" style={{fontSize:'11px', color:'#4A5168', cursor:'pointer'}}>Sleeper pick</label>
+              </div>
+              <div style={{gridColumn:'1/-1'}}>
+                <div style={{fontSize:'8px', color:'#4A5168', letterSpacing:'1px', marginBottom:'4px'}}>TRAILER URL (YouTube embed)</div>
+                <input type="text" placeholder="https://www.youtube.com/embed/..." value={newFilm.trailer} style={{...S.inp}} onChange={e => setNewFilm(prev => ({...prev, trailer: e.target.value}))} />
+              </div>
+            </div>
+            <div style={{display:'flex', gap:'8px'}}>
+              <button style={{...S.btn, background:'#12141A', border:'1px solid #2A2F3C', color:'#4A5168', flex:1}} onClick={() => setAddFilmModal(false)}>Cancel</button>
+              <button style={{...S.btn, background:S.green, color:'#000', flex:1, fontWeight:700}} onClick={() => {
+                if (!newFilm.title || !newFilm.dist) return notify('Title and distributor required', S.red)
+                const id = 'f' + Date.now().toString(36)
+                const film = { ...newFilm, id, basePrice: Number(newFilm.basePrice)||20, estM: Number(newFilm.estM)||30, rt: newFilm.rt!==''?Number(newFilm.rt):null, week: Number(newFilm.week)||1, phase: Number(newFilm.phase)||1, franchise: newFilm.franchise||null, starActor: newFilm.starActor||null }
+                setFilms(prev => [...prev, film])
+                setNewFilm({title:'',dist:'',genre:'Action',franchise:'',basePrice:20,estM:30,rt:'',week:1,phase:1,sleeper:false,starActor:'',trailer:''})
+                setAddFilmModal(false)
+                notify(`✅ ${film.title} added to the market`, S.green)
+              }}>Add Film</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CHIP MODALS */}
+      {chipModal && (
+        <div style={{position:'fixed', inset:0, background:'#000000CC', display:'flex', alignItems:'center', justifyContent:'center', zIndex:700, padding:'20px'}} onClick={() => setChipModal(null)}>
+          <div style={{background:'#0C0E12', border:'1px solid #2A2F3C', borderRadius:'14px', padding:'24px', width:'420px', maxWidth:'96vw', maxHeight:'90vh', overflowY:'auto'}} onClick={e => e.stopPropagation()}>
+
+            {chipModal === 'short' && (
+              <div>
+                <div style={{fontSize:'16px', fontWeight:800, color:S.red, marginBottom:'6px'}}>📉 The Short</div>
+                <div style={{fontSize:'10px', color:'#4A5168', marginBottom:'16px', lineHeight:1.6}}>Pick a film to bomb. Under 60% of estimate = +100pts. Hits number = −30pts. First come, first served per film.</div>
+                <div style={{marginBottom:'10px'}}>
+                  <div style={{fontSize:'8px', color:'#4A5168', letterSpacing:'1px', marginBottom:'5px'}}>SELECT FILM (unreleased only)</div>
+                  <select id="short-film" style={{...S.inp}}>
+                    {films.filter(f => !results[f.id] && !allChips.find(c => c.short_film_id === f.id)).map(f => <option key={f.id} value={f.id}>{f.title} (Est ${f.estM}M)</option>)}
+                  </select>
+                </div>
+                <div style={{marginBottom:'16px'}}>
+                  <div style={{fontSize:'8px', color:'#4A5168', letterSpacing:'1px', marginBottom:'5px'}}>YOUR OPENING PREDICTION ($M)</div>
+                  <input type="number" id="short-pred" placeholder="e.g. 18" style={{...S.inp}} />
+                </div>
+                <div style={{display:'flex', gap:'8px'}}>
+                  <button style={{...S.btn, background:'#12141A', border:'1px solid #2A2F3C', color:'#4A5168', flex:1}} onClick={() => setChipModal(null)}>Cancel</button>
+                  <button style={{...S.btn, background:S.red, color:'#fff', flex:1}} onClick={() => {
+                    const filmId = document.getElementById('short-film').value
+                    const pred = parseFloat(document.getElementById('short-pred').value)
+                    activateShort(filmId, pred)
+                  }}>Confirm Short</button>
+                </div>
+              </div>
+            )}
+
+            {chipModal === 'analyst' && (
+              <div>
+                <div style={{fontSize:'16px', fontWeight:800, color:S.blue, marginBottom:'6px'}}>🎯 The Analyst</div>
+                <div style={{fontSize:'10px', color:'#4A5168', marginBottom:'16px', lineHeight:1.6}}>Predict opening within 10%. Correct = triple points on that film. Must own the film. First come, first served.</div>
+                <div style={{marginBottom:'10px'}}>
+                  <div style={{fontSize:'8px', color:'#4A5168', letterSpacing:'1px', marginBottom:'5px'}}>SELECT FILM (owned, unreleased)</div>
+                  <select id="analyst-film" style={{...S.inp}}>
+                    {myRoster.filter(r => !results[r.film_id] && !allChips.find(c => c.analyst_film_id === r.film_id)).map(r => {
+                      const film = films.find(f => f.id === r.film_id)
+                      return film ? <option key={film.id} value={film.id}>{film.title} (Est ${film.estM}M)</option> : null
+                    })}
+                  </select>
+                </div>
+                <div style={{marginBottom:'16px'}}>
+                  <div style={{fontSize:'8px', color:'#4A5168', letterSpacing:'1px', marginBottom:'5px'}}>YOUR PREDICTION ($M)</div>
+                  <input type="number" id="analyst-pred" placeholder="e.g. 92" style={{...S.inp}} />
+                </div>
+                <div style={{display:'flex', gap:'8px'}}>
+                  <button style={{...S.btn, background:'#12141A', border:'1px solid #2A2F3C', color:'#4A5168', flex:1}} onClick={() => setChipModal(null)}>Cancel</button>
+                  <button style={{...S.btn, background:S.blue, color:'#fff', flex:1}} onClick={() => {
+                    const filmId = document.getElementById('analyst-film').value
+                    const pred = parseFloat(document.getElementById('analyst-pred').value)
+                    if (isNaN(pred)) return notify('Enter a prediction', S.red)
+                    activateAnalyst(filmId, pred)
+                  }}>Confirm</button>
+                </div>
+              </div>
+            )}
+
+            {chipModal === 'auteur' && (
+              <div>
+                <div style={{fontSize:'16px', fontWeight:800, color:S.orange, marginBottom:'6px'}}>🎭 The Auteur</div>
+                <div style={{fontSize:'10px', color:'#4A5168', marginBottom:'16px', lineHeight:1.6}}>Declare 2 or more films featuring the same star actor in your current roster. Each film earns +10% on opening points.</div>
+                <div style={{marginBottom:'10px'}}>
+                  <div style={{fontSize:'8px', color:'#4A5168', letterSpacing:'1px', marginBottom:'5px'}}>STAR ACTOR NAME</div>
+                  <input type="text" id="auteur-actor" placeholder="e.g. Tom Cruise" style={{...S.inp}} />
+                </div>
+                <div style={{marginBottom:'16px'}}>
+                  <div style={{fontSize:'8px', color:'#4A5168', letterSpacing:'1px', marginBottom:'8px'}}>SELECT FILMS (minimum 2)</div>
+                  <div style={{display:'flex', flexDirection:'column', gap:'6px'}}>
+                    {myRoster.map(r => {
+                      const film = films.find(f => f.id === r.film_id)
+                      if (!film) return null
+                      return (
+                        <label key={r.film_id} style={{display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', fontSize:'11px'}}>
+                          <input type="checkbox" value={film.id} name="auteur-film" style={{cursor:'pointer'}} />
+                          {film.title} {film.starActor ? `(${film.starActor})` : ''}
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+                <div style={{display:'flex', gap:'8px'}}>
+                  <button style={{...S.btn, background:'#12141A', border:'1px solid #2A2F3C', color:'#4A5168', flex:1}} onClick={() => setChipModal(null)}>Cancel</button>
+                  <button style={{...S.btn, background:S.orange, color:'#000', flex:1, fontWeight:700}} onClick={() => {
+                    const actor = document.getElementById('auteur-actor').value.trim()
+                    if (!actor) return notify('Enter a star actor name', S.red)
+                    const checked = [...document.querySelectorAll('input[name="auteur-film"]:checked')].map(el => el.value)
+                    if (checked.length < 2) return notify('Select at least 2 films', S.red)
+                    submitAuteur(actor, checked)
+                  }}>Declare Auteur</button>
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
@@ -470,19 +1285,14 @@ function Login() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
-
   const handleLogin = async (e) => {
     e.preventDefault()
     setLoading(true)
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: 'https://boxd-league-v2.vercel.app' }
-    })
+    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: 'https://boxd-league-v2.vercel.app' } })
     if (error) alert(error.message)
     else setSent(true)
     setLoading(false)
   }
-
   if (sent) return (
     <div style={{minHeight:'100vh', background:'#07080B', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'monospace'}}>
       <div style={{textAlign:'center'}}>
@@ -492,19 +1302,14 @@ function Login() {
       </div>
     </div>
   )
-
   return (
     <div style={{minHeight:'100vh', background:'#07080B', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'monospace'}}>
       <div style={{width:'320px'}}>
         <div style={{fontSize:'48px', fontWeight:900, color:'#F0B429', marginBottom:'8px'}}>BOXD</div>
         <div style={{color:'#4A5168', fontSize:'11px', letterSpacing:'3px', marginBottom:'32px'}}>FANTASY BOX OFFICE</div>
         <form onSubmit={handleLogin}>
-          <input type="email" placeholder="Enter your email" value={email} onChange={e => setEmail(e.target.value)} required
-            style={{width:'100%', background:'#12141A', border:'1px solid #2A2F3C', color:'white', borderRadius:'8px', padding:'12px', fontSize:'13px', fontFamily:'monospace', marginBottom:'10px', outline:'none'}} />
-          <button type="submit" disabled={loading}
-            style={{width:'100%', background:'#F0B429', color:'#000', border:'none', borderRadius:'8px', padding:'12px', fontSize:'12px', fontWeight:700, cursor:'pointer', letterSpacing:'1px', fontFamily:'monospace'}}>
-            {loading ? 'SENDING...' : 'SEND MAGIC LINK'}
-          </button>
+          <input type="email" placeholder="Enter your email" value={email} onChange={e => setEmail(e.target.value)} required style={{width:'100%', background:'#12141A', border:'1px solid #2A2F3C', color:'white', borderRadius:'8px', padding:'12px', fontSize:'13px', fontFamily:'monospace', marginBottom:'10px', outline:'none'}} />
+          <button type="submit" disabled={loading} style={{width:'100%', background:'#F0B429', color:'#000', border:'none', borderRadius:'8px', padding:'12px', fontSize:'12px', fontWeight:700, cursor:'pointer', letterSpacing:'1px', fontFamily:'monospace'}}>{loading ? 'SENDING...' : 'SEND MAGIC LINK'}</button>
         </form>
       </div>
     </div>
@@ -516,7 +1321,6 @@ function CreateProfile({ session, onCreated, notify }) {
   const [loading, setLoading] = useState(false)
   const COLORS = ['#F0B429','#2DD67A','#FF5C8A','#4D9EFF','#FF8C3D','#A855F7']
   const [color, setColor] = useState(COLORS[0])
-
   const handleCreate = async (e) => {
     e.preventDefault()
     if (!name.trim()) return
@@ -525,7 +1329,6 @@ function CreateProfile({ session, onCreated, notify }) {
     if (error) { notify(error.message, '#FF4757'); setLoading(false); return }
     onCreated()
   }
-
   return (
     <div style={{minHeight:'100vh', background:'#07080B', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'monospace'}}>
       <div style={{width:'320px'}}>
@@ -533,18 +1336,12 @@ function CreateProfile({ session, onCreated, notify }) {
         <div style={{color:'#F2EEE8', marginBottom:'6px', fontSize:'14px'}}>Create your player profile</div>
         <div style={{color:'#4A5168', fontSize:'11px', marginBottom:'24px'}}>{session.user.email}</div>
         <form onSubmit={handleCreate}>
-          <input placeholder="Your name" value={name} onChange={e => setName(e.target.value)} required
-            style={{width:'100%', background:'#12141A', border:'1px solid #2A2F3C', color:'white', borderRadius:'8px', padding:'12px', fontSize:'13px', fontFamily:'monospace', marginBottom:'14px', outline:'none'}} />
+          <input placeholder="Your name" value={name} onChange={e => setName(e.target.value)} required style={{width:'100%', background:'#12141A', border:'1px solid #2A2F3C', color:'white', borderRadius:'8px', padding:'12px', fontSize:'13px', fontFamily:'monospace', marginBottom:'14px', outline:'none'}} />
           <div style={{fontSize:'9px', color:'#4A5168', letterSpacing:'1px', marginBottom:'8px'}}>PICK YOUR COLOUR</div>
           <div style={{display:'flex', gap:'8px', marginBottom:'20px'}}>
-            {COLORS.map(c => (
-              <div key={c} onClick={() => setColor(c)} style={{width:'28px', height:'28px', borderRadius:'50%', background:c, cursor:'pointer', border:color===c?'2px solid white':'2px solid transparent'}} />
-            ))}
+            {COLORS.map(c => <div key={c} onClick={() => setColor(c)} style={{width:'28px', height:'28px', borderRadius:'50%', background:c, cursor:'pointer', border:color===c?'2px solid white':'2px solid transparent'}} />)}
           </div>
-          <button type="submit" disabled={loading}
-            style={{width:'100%', background:'#F0B429', color:'#000', border:'none', borderRadius:'8px', padding:'12px', fontSize:'12px', fontWeight:700, cursor:'pointer', letterSpacing:'1px', fontFamily:'monospace'}}>
-            {loading ? 'CREATING...' : 'JOIN LEAGUE'}
-          </button>
+          <button type="submit" disabled={loading} style={{width:'100%', background:'#F0B429', color:'#000', border:'none', borderRadius:'8px', padding:'12px', fontSize:'12px', fontWeight:700, cursor:'pointer', letterSpacing:'1px', fontFamily:'monospace'}}>{loading ? 'CREATING...' : 'JOIN LEAGUE'}</button>
         </form>
       </div>
     </div>
