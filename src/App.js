@@ -37,7 +37,7 @@ const FILMS = [
 
 function calcMarketValue(film, actualM) {
   if (actualM == null) return film.basePrice
-  let base = actualM * 0.35
+  let base = actualM * 0.55
   if (film.rt >= 90) base *= 1.20
   else if (film.rt >= 75) base *= 1.08
   else if (film.rt < 50 && film.rt != null) base *= 0.85
