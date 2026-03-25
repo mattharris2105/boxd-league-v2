@@ -37,13 +37,33 @@ const FILMS = [
 
 function calcMarketValue(film, actualM) {
   if (actualM == null) return film.basePrice
-  let base = actualM * 0.55
-  if (film.rt >= 90) base *= 1.20
-  else if (film.rt >= 75) base *= 1.08
-  else if (film.rt < 50 && film.rt != null) base *= 0.85
-  base = Math.max(film.basePrice * 0.2, base)
-  base = Math.min(film.basePrice * 3.5, base)
-  return Math.round(base)
+
+  const ratio = actualM / film.estM  // performance vs estimate
+
+  let multiplier
+  if (ratio >= 2.0)      multiplier = 2.00      // doubled estimate
+  else if (ratio >= 1.5) multiplier = 1.60      // 50%+ over
+  else if (ratio >= 1.3) multiplier = 1.35      // 30%+ over
+  else if (ratio >= 1.1) multiplier = 1.15      // 10%+ over
+  else if (ratio >= 0.95) multiplier = 1.00     // roughly hit — holds value
+  else if (ratio >= 0.80) multiplier = 0.85     // slight miss
+  else if (ratio >= 0.60) multiplier = 0.65     // clear miss
+  else if (ratio >= 0.40) multiplier = 0.45     // bad miss
+  else multiplier = 0.25                         // bomb
+
+  // RT quality adjustment on top (±10-20%)
+  let rtMod = 1.0
+  if (film.rt >= 90)      rtMod = 1.15
+  else if (film.rt >= 75) rtMod = 1.08
+  else if (film.rt < 50 && film.rt != null) rtMod = 0.90
+
+  let value = film.basePrice * multiplier * rtMod
+
+  // Floor and ceiling
+  value = Math.max(film.basePrice * 0.15, value)
+  value = Math.min(film.basePrice * 3.0, value)
+
+  return Math.round(value)
 }
 
 async function saveResult(filmId, actualM) {
