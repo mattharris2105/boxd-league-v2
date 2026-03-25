@@ -37,33 +37,44 @@ const FILMS = [
 
 function calcMarketValue(film, actualM) {
   if (actualM == null) return film.basePrice
-
-  const ratio = actualM / film.estM  // performance vs estimate
-
+  const ratio = actualM / film.estM
   let multiplier
-  if (ratio >= 2.0)      multiplier = 2.00      // doubled estimate
-  else if (ratio >= 1.5) multiplier = 1.60      // 50%+ over
-  else if (ratio >= 1.3) multiplier = 1.35      // 30%+ over
-  else if (ratio >= 1.1) multiplier = 1.15      // 10%+ over
-  else if (ratio >= 0.95) multiplier = 1.00     // roughly hit — holds value
-  else if (ratio >= 0.80) multiplier = 0.85     // slight miss
-  else if (ratio >= 0.60) multiplier = 0.65     // clear miss
-  else if (ratio >= 0.40) multiplier = 0.45     // bad miss
-  else multiplier = 0.25                         // bomb
-
-  // RT quality adjustment on top (±10-20%)
+  if (ratio >= 2.0)       multiplier = 2.00
+  else if (ratio >= 1.5)  multiplier = 1.60
+  else if (ratio >= 1.3)  multiplier = 1.35
+  else if (ratio >= 1.1)  multiplier = 1.15
+  else if (ratio >= 0.95) multiplier = 1.00
+  else if (ratio >= 0.80) multiplier = 0.85
+  else if (ratio >= 0.60) multiplier = 0.65
+  else if (ratio >= 0.40) multiplier = 0.45
+  else multiplier = 0.25
   let rtMod = 1.0
   if (film.rt >= 90)      rtMod = 1.15
   else if (film.rt >= 75) rtMod = 1.08
   else if (film.rt < 50 && film.rt != null) rtMod = 0.90
-
   let value = film.basePrice * multiplier * rtMod
-
-  // Floor and ceiling
   value = Math.max(film.basePrice * 0.15, value)
   value = Math.min(film.basePrice * 3.0, value)
-
   return Math.round(value)
+}
+
+function calcOpeningPts(film, actualM) {
+  if (actualM == null) return 0
+  const ratio = actualM / film.estM
+  let perfMult
+  if (ratio >= 2.0)       perfMult = 2.00
+  else if (ratio >= 1.5)  perfMult = 1.60
+  else if (ratio >= 1.3)  perfMult = 1.35
+  else if (ratio >= 1.1)  perfMult = 1.15
+  else if (ratio >= 0.95) perfMult = 1.00
+  else if (ratio >= 0.80) perfMult = 0.85
+  else if (ratio >= 0.60) perfMult = 0.65
+  else perfMult = 0.45
+  let rtMod = 1.0
+  if (film.rt >= 90)      rtMod = 1.25
+  else if (film.rt >= 75) rtMod = 1.10
+  else if (film.rt < 50 && film.rt != null) rtMod = 0.85
+  return Math.round(actualM * perfMult * rtMod)
 }
 
 async function saveResult(filmId, actualM) {
@@ -199,15 +210,8 @@ export default function App() {
       if (!film) return
       const actual = results[film.id]
       if (actual == null) return
-      let pts = actual
-      if (film.rt >= 90) pts *= 1.25
-      else if (film.rt >= 75) pts *= 1.10
-      else if (film.rt < 50 && film.rt != null) pts *= 0.85
-      const ratio = actual / film.estM
-      if (ratio >= 1.3) pts *= 1.30
-      else if (ratio <= 0.5) pts -= 10
-      pts += getWeeklyPts(film.id)
-      total += Math.round(pts)
+      total += calcOpeningPts(film, actual)
+      total += Math.round(getWeeklyPts(film.id))
     })
     return total
   }
@@ -257,6 +261,7 @@ export default function App() {
                   const genreCol = GENRE_COL[film.genre] || '#888'
                   const priceDelta = val - film.basePrice
                   const weeklyPts = getWeeklyPts(film.id)
+                  const openingPts = calcOpeningPts(film, actual)
                   return (
                     <div key={film.id} style={{...S.card, border:`1px solid ${owned ? S.gold+'44' : '#1E222C'}`, background:owned?'#F0B42908':'#0C0E12', position:'relative', overflow:'hidden'}}>
                       <div style={{position:'absolute', top:0, left:0, right:0, height:'2px', background:genreCol}} />
@@ -277,8 +282,12 @@ export default function App() {
                         {film.franchise && <span style={{fontSize:'8px', padding:'2px 6px', borderRadius:'4px', background:'#A855F718', color:'#A855F7'}}>{film.franchise}</span>}
                         {film.sleeper && <span style={{fontSize:'8px', padding:'2px 6px', borderRadius:'4px', background:'#4D9EFF18', color:'#4D9EFF'}}>💤 Sleeper</span>}
                       </div>
-                      {actual != null && <div style={{fontSize:'10px', color:S.green, marginBottom:'4px'}}>Actual: ${actual}M</div>}
-                      {weeklyPts > 0 && <div style={{fontSize:'9px', color:'#4D9EFF', marginBottom:'8px'}}>+{Math.round(weeklyPts)} weekly pts</div>}
+                      {actual != null && (
+                        <div style={{marginBottom:'8px'}}>
+                          <div style={{fontSize:'10px', color:S.green}}>Actual: ${actual}M</div>
+                          <div style={{fontSize:'9px', color:S.gold}}>{openingPts}pts opening{weeklyPts>0?` · +${Math.round(weeklyPts)} weekly`:''}</div>
+                        </div>
+                      )}
                       {film.trailer && <button style={{...S.btn, background:'#12141A', border:'1px solid #2A2F3C', color:'#4A5168', width:'100%', fontSize:'9px', marginBottom:'8px'}} onClick={e => { e.stopPropagation(); setTrailerFilm(film) }}>▶ Watch Trailer</button>}
                       {owned
                         ? <button style={{...S.btn, background:'none', border:`1px solid ${S.red}44`, color:S.red, width:'100%', fontSize:'9px'}} onClick={() => sellFilm(film)}>Drop · get {cur}{Math.max(0,val-leagueConfig.tx_fee)}M</button>
@@ -311,6 +320,7 @@ export default function App() {
                     const pnl = val - holding.bought_price
                     const genreCol = GENRE_COL[film.genre] || '#888'
                     const weeklyPts = getWeeklyPts(film.id)
+                    const openingPts = calcOpeningPts(film, actual)
                     const weeks = weeklyGrosses[film.id] || {}
                     return (
                       <div key={holding.id} style={{...S.card}}>
@@ -324,6 +334,7 @@ export default function App() {
                           <div style={{textAlign:'center'}}><div style={{fontSize:'8px', color:'#4A5168'}}>NOW</div><div style={{fontSize:'12px', color:pnl>=0?S.green:S.red}}>{cur}{val}</div></div>
                           <div style={{textAlign:'center'}}><div style={{fontSize:'8px', color:'#4A5168'}}>P&L</div><div style={{fontSize:'13px', fontWeight:700, color:pnl>=0?S.green:S.red}}>{pnl>=0?'+':''}{pnl}</div></div>
                           {actual != null && <div style={{textAlign:'center'}}><div style={{fontSize:'8px', color:'#4A5168'}}>OPENING</div><div style={{fontSize:'12px', color:S.green}}>${actual}M</div></div>}
+                          {actual != null && <div style={{textAlign:'center'}}><div style={{fontSize:'8px', color:'#4A5168'}}>OPEN PTS</div><div style={{fontSize:'12px', color:S.gold}}>{openingPts}</div></div>}
                           {weeklyPts > 0 && <div style={{textAlign:'center'}}><div style={{fontSize:'8px', color:'#4A5168'}}>WEEKLY PTS</div><div style={{fontSize:'12px', color:'#4D9EFF'}}>+{Math.round(weeklyPts)}</div></div>}
                         </div>
                         {Object.keys(weeks).length > 0 && (
@@ -392,10 +403,10 @@ export default function App() {
                         if (e1) return notify(e1.message, S.red)
                         const { error: e2 } = await saveFilmValue(film.id, newValue)
                         if (e2) return notify(e2.message, S.red)
-                        notify(`Saved · ${film.title} now $${newValue}`, S.gold)
+                        notify(`Saved · ${film.title} now $${newValue} · ${calcOpeningPts(film, val)}pts`, S.gold)
                         loadData()
                       }}>Save Opening</button>
-                      {actual != null && <div style={{fontSize:'12px', color:S.green}}>${actual}M → $${getFilmValue(film)}</div>}
+                      {actual != null && <div style={{fontSize:'12px', color:S.green}}>${actual}M → $${getFilmValue(film)} · {calcOpeningPts(film, actual)}pts</div>}
                     </div>
                     {actual != null && (
                       <div style={{borderTop:'1px solid #1E222C', paddingTop:'10px'}}>
