@@ -1172,28 +1172,27 @@ export default function App() {
                 </div>
               </div>
             )}
-            {chipModal==='auteur'&&(
+          {chipModal==='auteur'&&(()=>{
+              const [auteurActor,setAuteurActor]=useState('')
+              const [auteurFilms,setAuteurFilms]=useState([])
+              const toggleFilm=(id)=>setAuteurFilms(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id])
+              return(
               <div>
                 <div style={{fontSize:'16px',fontWeight:800,color:S.orange,marginBottom:'6px'}}>🎭 The Auteur</div>
                 <div style={{fontSize:'10px',color:'#4A5168',marginBottom:'16px',lineHeight:1.6}}>Declare 2+ films with the same star actor. Each earns +10% opening points.</div>
-                <div style={{marginBottom:'10px'}}><div style={{fontSize:'8px',color:'#4A5168',letterSpacing:'1px',marginBottom:'5px'}}>STAR ACTOR</div><input type="text" id="auteur-actor" placeholder="e.g. Tom Cruise" style={{...S.inp}}/></div>
+                <div style={{marginBottom:'10px'}}><div style={{fontSize:'8px',color:'#4A5168',letterSpacing:'1px',marginBottom:'5px'}}>STAR ACTOR</div><input type="text" value={auteurActor} onChange={e=>setAuteurActor(e.target.value)} placeholder="e.g. Tom Cruise" style={{...S.inp}}/></div>
                 <div style={{marginBottom:'16px'}}><div style={{fontSize:'8px',color:'#4A5168',letterSpacing:'1px',marginBottom:'8px'}}>SELECT FILMS (min 2)</div>
                   <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
-                    {myPhaseRoster.map(r=>{const f=films.find(fl=>fl.id===r.film_id);if(!f)return null;return(<label key={r.film_id} style={{display:'flex',alignItems:'center',gap:'10px',cursor:'pointer',fontSize:'12px',padding:'8px',background:'#12141A',borderRadius:'7px'}}><input type="checkbox" value={f.id} name="auteur-film" style={{cursor:'pointer',width:'16px',height:'16px'}}/>{f.title} {f.starActor?`(${f.starActor})`:''}</label>)})}
+                    {myPhaseRoster.map(r=>{const f=films.find(fl=>fl.id===r.film_id);if(!f)return null;const checked=auteurFilms.includes(f.id);return(<div key={r.film_id} onClick={()=>toggleFilm(f.id)} style={{display:'flex',alignItems:'center',gap:'10px',cursor:'pointer',fontSize:'12px',padding:'10px',background:checked?S.orange+'22':'#12141A',borderRadius:'7px',border:`1px solid ${checked?S.orange+'66':'#2A2F3C'}`}}><div style={{width:'18px',height:'18px',borderRadius:'4px',background:checked?S.orange:'transparent',border:`2px solid ${checked?S.orange:'#4A5168'}`,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>{checked&&<span style={{color:'#000',fontSize:'11px',fontWeight:900}}>✓</span>}</div>{f.title} {f.starActor?`(${f.starActor})`:''}</div>)})}
                   </div>
                 </div>
                 <div style={{display:'flex',gap:'8px'}}>
                   <button style={{...S.btn,background:'#12141A',border:'1px solid #2A2F3C',color:'#4A5168',flex:1,padding:'12px'}} onClick={()=>setChipModal(null)}>Cancel</button>
-                  <button style={{...S.btn,background:S.orange,color:'#000',flex:1,fontWeight:700,padding:'12px'}} onClick={()=>{const actor=document.getElementById('auteur-actor').value.trim();if(!actor)return notify('Enter actor name',S.red);const checked=[...document.querySelectorAll('input[name="auteur-film"]:checked')].map(el=>el.value);if(checked.length<2)return notify('Select at least 2 films',S.red);submitAuteur(actor,checked)}}>Declare</button>
+                  <button style={{...S.btn,background:S.orange,color:'#000',flex:1,fontWeight:700,padding:'12px'}} onClick={()=>{if(!auteurActor.trim())return notify('Enter actor name',S.red);if(auteurFilms.length<2)return notify('Select at least 2 films',S.red);submitAuteur(auteurActor.trim(),auteurFilms)}}>Declare</button>
                 </div>
               </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
+              )
+            })()}
 
 function Login() {
   const [email,setEmail]=useState('')
