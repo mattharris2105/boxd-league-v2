@@ -904,7 +904,7 @@ export default function App() {
         <div style={{...S.card}}>
           <div style={{fontSize:'12px',color:'#4A5168',marginBottom:'12px'}}>PICK YOUR BEST PICTURE WINNER — locks immediately, cannot be changed</div>
           <select id="oscar-pick" style={{...S.inp,marginBottom:'12px'}}><option value="">Select a film...</option>{films.map(f=><option key={f.id} value={f.id}>{f.title}</option>)}</select>
-          <button style={{...S.btn,background:S.gold,color:'#000',fontWeight:700,width:'100%',padding:'12px'}} onClick={()=>{const id=document.getElementById('oscar-pick').value;if(!id)return notify('Select a film',S.red);if(!confirm(`Lock in ${films.find(f=>f.id===id)?.title}?`))return;submitOscarPick(id)}}>🏆 Lock In</button>
+          <button style={{...S.btn,background:S.gold,color:'#000',fontWeight:700,width:'100%',padding:'12px'}} onClick={()=>{const id=document.getElementById('oscar-pick').value;if(!id)return notify('Select a film',S.red);submitOscarPick(id)}}>🏆 Lock In</button>
         </div>
       )}
       {oscarPredictions.length>0&&(
