@@ -211,19 +211,19 @@ function calcWeeklyPtsFromMap(weeksMap) {
 }
 
 async function dbUpsertResult(filmId, actualM) {
-  const e = await supabase.from('results').select('film_id').eq('film_id',filmId).single()
-  if (e.data) return supabase.from('results').update({actual_m:actualM}).eq('film_id',filmId)
-  return supabase.from('results').insert({film_id:filmId,actual_m:actualM})
+  const { data } = await supabase.from('results').select('film_id').eq('film_id', filmId)
+  if (data && data.length > 0) return supabase.from('results').update({ actual_m: actualM }).eq('film_id', filmId)
+  return supabase.from('results').insert({ film_id: filmId, actual_m: actualM })
 }
 async function dbUpsertFilmValue(filmId, value) {
-  const e = await supabase.from('film_values').select('film_id').eq('film_id',filmId).single()
-  if (e.data) return supabase.from('film_values').update({current_value:value}).eq('film_id',filmId)
-  return supabase.from('film_values').insert({film_id:filmId,current_value:value})
+  const { data } = await supabase.from('film_values').select('film_id').eq('film_id', filmId)
+  if (data && data.length > 0) return supabase.from('film_values').update({ current_value: value }).eq('film_id', filmId)
+  return supabase.from('film_values').insert({ film_id: filmId, current_value: value })
 }
 async function dbUpsertWeekly(filmId, weekNum, grossM) {
-  const e = await supabase.from('weekly_grosses').select('id').eq('film_id',filmId).eq('week_num',weekNum).single()
-  if (e.data) return supabase.from('weekly_grosses').update({gross_m:grossM}).eq('film_id',filmId).eq('week_num',weekNum)
-  return supabase.from('weekly_grosses').insert({film_id:filmId,week_num:weekNum,gross_m:grossM})
+  const { data } = await supabase.from('weekly_grosses').select('id').eq('film_id', filmId).eq('week_num', weekNum)
+  if (data && data.length > 0) return supabase.from('weekly_grosses').update({ gross_m: grossM }).eq('film_id', filmId).eq('week_num', weekNum)
+  return supabase.from('weekly_grosses').insert({ film_id: filmId, week_num: weekNum, gross_m: grossM })
 }
 
 // ── SCORE BREAKDOWN MODAL ──
