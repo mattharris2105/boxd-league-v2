@@ -211,19 +211,19 @@ function calcWeeklyPtsFromMap(weeksMap) {
 }
 
 async function dbUpsertResult(filmId, actualM) {
-  const { data } = await supabase.from('results').select('film_id').eq('film_id', filmId)
-  if (data && data.length > 0) return supabase.from('results').update({ actual_m: actualM }).eq('film_id', filmId)
-  return supabase.from('results').insert({ film_id: filmId, actual_m: actualM })
+  const { data } = await supabase.from('results').select('film_id').eq('film_id',filmId)
+  if (data && data.length > 0) return supabase.from('results').update({actual_m:actualM}).eq('film_id',filmId)
+  return supabase.from('results').insert({film_id:filmId,actual_m:actualM})
 }
 async function dbUpsertFilmValue(filmId, value) {
-  const { data } = await supabase.from('film_values').select('film_id').eq('film_id', filmId)
-  if (data && data.length > 0) return supabase.from('film_values').update({ current_value: value }).eq('film_id', filmId)
-  return supabase.from('film_values').insert({ film_id: filmId, current_value: value })
+  const { data } = await supabase.from('film_values').select('film_id').eq('film_id',filmId)
+  if (data && data.length > 0) return supabase.from('film_values').update({current_value:value}).eq('film_id',filmId)
+  return supabase.from('film_values').insert({film_id:filmId,current_value:value})
 }
 async function dbUpsertWeekly(filmId, weekNum, grossM) {
-  const { data } = await supabase.from('weekly_grosses').select('id').eq('film_id', filmId).eq('week_num', weekNum)
-  if (data && data.length > 0) return supabase.from('weekly_grosses').update({ gross_m: grossM }).eq('film_id', filmId).eq('week_num', weekNum)
-  return supabase.from('weekly_grosses').insert({ film_id: filmId, week_num: weekNum, gross_m: grossM })
+  const { data } = await supabase.from('weekly_grosses').select('id').eq('film_id',filmId).eq('week_num',weekNum)
+  if (data && data.length > 0) return supabase.from('weekly_grosses').update({gross_m:grossM}).eq('film_id',filmId).eq('week_num',weekNum)
+  return supabase.from('weekly_grosses').insert({film_id:filmId,week_num:weekNum,gross_m:grossM})
 }
 
 // ── SCORE BREAKDOWN MODAL ──
@@ -381,6 +381,8 @@ export default function App() {
   const [now,setNow]=useState(Date.now())
   const [scoreModal,setScoreModal]=useState(null)
   const [showMore,setShowMore]=useState(false)
+  const [auteurActor,setAuteurActor]=useState('')
+  const [auteurFilms,setAuteurFilms]=useState([])
   const [isMobile,setIsMobile]=useState(window.innerWidth<700)
 
   useEffect(()=>{
@@ -596,7 +598,7 @@ export default function App() {
     if(ex)await supabase.from('auteur_declarations').update({star_actor:actor,film_ids:filmIds}).eq('id',ex.id)
     else await supabase.from('auteur_declarations').insert({player_id:profile.id,phase:ph,star_actor:actor,film_ids:filmIds})
     notify(`🎭 Auteur — ${actor} · ${filmIds.length} films · +10%`,S.orange)
-    setChipModal(null);loadData()
+    setChipModal(null);setAuteurActor('');setAuteurFilms([]);loadData()
   }
   const saveForecast=async(filmId,predicted)=>{
     const ex=allForecasts.find(f=>f.player_id===profile.id&&f.film_id===filmId)
@@ -1172,27 +1174,44 @@ export default function App() {
                 </div>
               </div>
             )}
-          {chipModal==='auteur'&&(()=>{
-              const [auteurActor,setAuteurActor]=useState('')
-              const [auteurFilms,setAuteurFilms]=useState([])
-              const toggleFilm=(id)=>setAuteurFilms(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id])
-              return(
+            {chipModal==='auteur'&&(
               <div>
                 <div style={{fontSize:'16px',fontWeight:800,color:S.orange,marginBottom:'6px'}}>🎭 The Auteur</div>
                 <div style={{fontSize:'10px',color:'#4A5168',marginBottom:'16px',lineHeight:1.6}}>Declare 2+ films with the same star actor. Each earns +10% opening points.</div>
-                <div style={{marginBottom:'10px'}}><div style={{fontSize:'8px',color:'#4A5168',letterSpacing:'1px',marginBottom:'5px'}}>STAR ACTOR</div><input type="text" value={auteurActor} onChange={e=>setAuteurActor(e.target.value)} placeholder="e.g. Tom Cruise" style={{...S.inp}}/></div>
-                <div style={{marginBottom:'16px'}}><div style={{fontSize:'8px',color:'#4A5168',letterSpacing:'1px',marginBottom:'8px'}}>SELECT FILMS (min 2)</div>
+                <div style={{marginBottom:'10px'}}>
+                  <div style={{fontSize:'8px',color:'#4A5168',letterSpacing:'1px',marginBottom:'5px'}}>STAR ACTOR</div>
+                  <input type="text" value={auteurActor} onChange={e=>setAuteurActor(e.target.value)} placeholder="e.g. Tom Cruise" style={{...S.inp}}/>
+                </div>
+                <div style={{marginBottom:'16px'}}>
+                  <div style={{fontSize:'8px',color:'#4A5168',letterSpacing:'1px',marginBottom:'8px'}}>SELECT FILMS (min 2)</div>
                   <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
-                    {myPhaseRoster.map(r=>{const f=films.find(fl=>fl.id===r.film_id);if(!f)return null;const checked=auteurFilms.includes(f.id);return(<div key={r.film_id} onClick={()=>toggleFilm(f.id)} style={{display:'flex',alignItems:'center',gap:'10px',cursor:'pointer',fontSize:'12px',padding:'10px',background:checked?S.orange+'22':'#12141A',borderRadius:'7px',border:`1px solid ${checked?S.orange+'66':'#2A2F3C'}`}}><div style={{width:'18px',height:'18px',borderRadius:'4px',background:checked?S.orange:'transparent',border:`2px solid ${checked?S.orange:'#4A5168'}`,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>{checked&&<span style={{color:'#000',fontSize:'11px',fontWeight:900}}>✓</span>}</div>{f.title} {f.starActor?`(${f.starActor})`:''}</div>)})}
+                    {myPhaseRoster.map(r=>{
+                      const f=films.find(fl=>fl.id===r.film_id);if(!f)return null
+                      const checked=auteurFilms.includes(f.id)
+                      return(
+                        <div key={r.film_id} onClick={()=>setAuteurFilms(prev=>prev.includes(f.id)?prev.filter(x=>x!==f.id):[...prev,f.id])}
+                          style={{display:'flex',alignItems:'center',gap:'10px',cursor:'pointer',fontSize:'12px',padding:'10px',background:checked?S.orange+'22':'#12141A',borderRadius:'7px',border:`1px solid ${checked?S.orange+'66':'#2A2F3C'}`}}>
+                          <div style={{width:'18px',height:'18px',borderRadius:'4px',background:checked?S.orange:'transparent',border:`2px solid ${checked?S.orange:'#4A5168'}`,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                            {checked&&<span style={{color:'#000',fontSize:'11px',fontWeight:900}}>✓</span>}
+                          </div>
+                          {f.title} {f.starActor?`(${f.starActor})`:''}
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
                 <div style={{display:'flex',gap:'8px'}}>
-                  <button style={{...S.btn,background:'#12141A',border:'1px solid #2A2F3C',color:'#4A5168',flex:1,padding:'12px'}} onClick={()=>setChipModal(null)}>Cancel</button>
+                  <button style={{...S.btn,background:'#12141A',border:'1px solid #2A2F3C',color:'#4A5168',flex:1,padding:'12px'}} onClick={()=>{setChipModal(null);setAuteurActor('');setAuteurFilms([])}}>Cancel</button>
                   <button style={{...S.btn,background:S.orange,color:'#000',flex:1,fontWeight:700,padding:'12px'}} onClick={()=>{if(!auteurActor.trim())return notify('Enter actor name',S.red);if(auteurFilms.length<2)return notify('Select at least 2 films',S.red);submitAuteur(auteurActor.trim(),auteurFilms)}}>Declare</button>
                 </div>
               </div>
-              )
-            })()}
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 function Login() {
   const [email,setEmail]=useState('')
