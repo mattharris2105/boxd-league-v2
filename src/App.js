@@ -24,159 +24,157 @@ const PHASE_BUDGETS = { 1:80, 2:150, 3:80, 4:100, 5:120 }
 const PHASE_NAMES = { 1:'Dead Zone', 2:'Summer Slate', 3:'Horror Window', 4:'Awards Season', 5:'Oscar Sprint' }
 
 const FILMS_DEFAULT = [
-  {id:'f001',title:'We Bury the Dead',dist:'Lionsgate',genre:'Horror',franchise:null,starActor:null,phase:1,week:1,basePrice:8,estM:14,rt:null,sleeper:false,trailer:''},
-  {id:'f002',title:'Greenland 2: Migration',dist:'Lionsgate',genre:'Action',franchise:'Greenland',starActor:'Gerard Butler',phase:1,week:1,basePrice:16,estM:30,rt:null,sleeper:false,trailer:''},
-  {id:'f003',title:'Primate',dist:'Universal',genre:'Thriller',franchise:null,starActor:null,phase:1,week:1,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f004',title:'28 Years Later: The Bone Temple',dist:'Sony',genre:'Horror',franchise:'28 Days',starActor:"Jack O'Connell",phase:1,week:2,basePrice:24,estM:45,rt:null,sleeper:false,trailer:''},
-  {id:'f005',title:"Dead Man's Wire",dist:'WB',genre:'Thriller',franchise:null,starActor:null,phase:1,week:2,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f006',title:'Killer Whale',dist:'Paramount',genre:'Thriller',franchise:null,starActor:null,phase:1,week:2,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f007',title:'Night Patrol',dist:'Sony',genre:'Action',franchise:null,starActor:null,phase:1,week:2,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f008',title:'Return to Silent Hill',dist:'Sony',genre:'Horror',franchise:'Silent Hill',starActor:null,phase:1,week:3,basePrice:12,estM:22,rt:null,sleeper:false,trailer:''},
-  {id:'f009',title:'Mercy',dist:'Netflix',genre:'Thriller',franchise:null,starActor:null,phase:1,week:3,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f010',title:'Send Help',dist:'Universal',genre:'Horror',franchise:null,starActor:'Rachel McAdams',phase:1,week:3,basePrice:14,estM:26,rt:null,sleeper:true,trailer:''},
-  {id:'f011',title:'Iron Lung',dist:'A24',genre:'Horror',franchise:null,starActor:null,phase:1,week:3,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f012',title:'The Strangers: Chapter 3',dist:'Lionsgate',genre:'Horror',franchise:'The Strangers',starActor:null,phase:1,week:5,basePrice:12,estM:22,rt:null,sleeper:false,trailer:''},
-  {id:'f013',title:'Dracula: A Love Tale',dist:'Universal',genre:'Horror',franchise:null,starActor:null,phase:1,week:5,basePrice:18,estM:34,rt:null,sleeper:false,trailer:''},
-  {id:'f014',title:'Whistle',dist:'Sony',genre:'Thriller',franchise:null,starActor:null,phase:1,week:5,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f015',title:"Good Luck Have Fun Don't Die",dist:'Amazon MGM',genre:'Sci-Fi',franchise:null,starActor:null,phase:1,week:5,basePrice:12,estM:22,rt:null,sleeper:true,trailer:''},
-  {id:'f016',title:'Cold Storage',dist:'Lionsgate',genre:'Thriller',franchise:null,starActor:null,phase:1,week:5,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f017',title:'GOAT',dist:'Sony Animation',genre:'Animation',franchise:null,starActor:null,phase:1,week:5,basePrice:14,estM:26,rt:null,sleeper:true,trailer:''},
-  {id:'f018',title:'Wuthering Heights',dist:'WB',genre:'Drama',franchise:null,starActor:'Margot Robbie',phase:1,week:6,basePrice:32,estM:58,rt:null,sleeper:false,trailer:''},
-  {id:'f019',title:'Crime 101',dist:'A24',genre:'Thriller',franchise:null,starActor:'Glen Powell',phase:1,week:6,basePrice:12,estM:22,rt:null,sleeper:true,trailer:''},
-  {id:'f020',title:'Psycho Killer',dist:'Universal',genre:'Horror',franchise:null,starActor:null,phase:1,week:7,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f021',title:'I Can Only Imagine 2',dist:'Lionsgate',genre:'Drama',franchise:null,starActor:null,phase:1,week:7,basePrice:10,estM:18,rt:null,sleeper:true,trailer:''},
-  {id:'f022',title:'Dreams',dist:'Universal',genre:'Drama',franchise:null,starActor:'Glen Powell',phase:1,week:7,basePrice:18,estM:34,rt:null,sleeper:true,trailer:''},
-  {id:'f023',title:'Scream 7',dist:'Paramount',genre:'Horror',franchise:'Scream',starActor:'Neve Campbell',phase:1,week:8,basePrice:24,estM:45,rt:null,sleeper:false,trailer:''},
-  {id:'f024',title:"Dr Seuss' The Cat in the Hat",dist:'WB',genre:'Animation',franchise:null,starActor:'Bill Hader',phase:1,week:8,basePrice:18,estM:34,rt:null,sleeper:false,trailer:''},
-  {id:'f025',title:'Hoppers',dist:'Disney/Pixar',genre:'Animation',franchise:null,starActor:null,phase:1,week:9,basePrice:26,estM:50,rt:97,sleeper:false,trailer:''},
-  {id:'f026',title:'The Bride!',dist:'Universal',genre:'Horror',franchise:null,starActor:'Christian Bale',phase:1,week:9,basePrice:16,estM:30,rt:null,sleeper:false,trailer:''},
-  {id:'f027',title:'Peaky Blinders: The Immortal Man',dist:'Netflix',genre:'Drama',franchise:'Peaky Blinders',starActor:'Cillian Murphy',phase:1,week:9,basePrice:14,estM:26,rt:null,sleeper:false,trailer:''},
-  {id:'f028',title:'The Breadwinner',dist:'GKIDS',genre:'Animation',franchise:null,starActor:null,phase:1,week:10,basePrice:7,estM:12,rt:null,sleeper:true,trailer:''},
-  {id:'f029',title:'Reminders of Him',dist:'Sony',genre:'Drama',franchise:null,starActor:null,phase:1,week:10,basePrice:12,estM:22,rt:null,sleeper:true,trailer:''},
-  {id:'f030',title:'Project Hail Mary',dist:'Amazon MGM',genre:'Sci-Fi',franchise:null,starActor:'Ryan Gosling',phase:1,week:11,basePrice:55,estM:80,rt:95,sleeper:false,trailer:''},
-  {id:'f031',title:'They Will Kill You',dist:'Amazon MGM',genre:'Horror',franchise:null,starActor:'Zazie Beetz',phase:1,week:11,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f032',title:'Romeo + Juliet (30th Anniversary)',dist:'Paramount',genre:'Drama',franchise:null,starActor:null,phase:1,week:11,basePrice:8,estM:16,rt:null,sleeper:false,trailer:''},
-  {id:'f033',title:'Splittsville',dist:'Lionsgate',genre:'Comedy',franchise:null,starActor:null,phase:1,week:11,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f034',title:'The Magic Faraway Tree',dist:'StudioCanal',genre:'Family',franchise:null,starActor:null,phase:1,week:11,basePrice:12,estM:22,rt:null,sleeper:false,trailer:''},
-  {id:'f035',title:'Bluey At The Cinema',dist:'Lionsgate',genre:'Family',franchise:'Bluey',starActor:null,phase:1,week:11,basePrice:8,estM:16,rt:null,sleeper:false,trailer:''},
-  {id:'f036',title:'Ready or Not 2: Here I Come',dist:'Searchlight',genre:'Horror',franchise:null,starActor:'Samara Weaving',phase:1,week:11,basePrice:10,estM:18,rt:null,sleeper:true,trailer:''},
-  {id:'f037',title:'Forbidden Fruits',dist:'Lionsgate',genre:'Thriller',franchise:null,starActor:'Lola Tung',phase:1,week:11,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f038',title:'The Super Mario Galaxy Movie',dist:'Universal/Illumination',genre:'Animation',franchise:'Mario',starActor:'Jack Black',phase:1,week:13,basePrice:52,estM:100,rt:null,sleeper:false,trailer:''},
-  {id:'f039',title:'The Drama',dist:'A24',genre:'Drama',franchise:null,starActor:null,phase:1,week:13,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f040',title:'Fuze',dist:'Lionsgate',genre:'Thriller',franchise:null,starActor:null,phase:1,week:13,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f041',title:'Amelie (25th Anniversary)',dist:'Lionsgate',genre:'Drama',franchise:null,starActor:null,phase:1,week:13,basePrice:6,estM:10,rt:null,sleeper:false,trailer:''},
-  {id:'f042',title:'You Me & Tuscany',dist:'Universal',genre:'Comedy',franchise:null,starActor:null,phase:1,week:14,basePrice:10,estM:18,rt:null,sleeper:true,trailer:''},
-  {id:'f043',title:'Undertone',dist:'Sony',genre:'Thriller',franchise:null,starActor:null,phase:1,week:14,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f044',title:"California Schemin'",dist:'A24',genre:'Drama',franchise:null,starActor:null,phase:1,week:14,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f045',title:'Father Mother Sister Brother',dist:'Lionsgate',genre:'Drama',franchise:null,starActor:null,phase:1,week:14,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f046',title:"Lee Cronin's The Mummy",dist:'Universal',genre:'Horror',franchise:'Mummy',starActor:'Jack Reynor',phase:1,week:15,basePrice:20,estM:38,rt:null,sleeper:false,trailer:''},
-  {id:'f047',title:'Glenorchy',dist:'Focus',genre:'Drama',franchise:null,starActor:null,phase:1,week:15,basePrice:7,estM:12,rt:null,sleeper:true,trailer:''},
-  {id:'f048',title:'Michael',dist:'Universal',genre:'Drama',franchise:null,starActor:'Jaafar Jackson',phase:1,week:16,basePrice:26,estM:48,rt:null,sleeper:false,trailer:''},
-  {id:'f049',title:'Exit 8',dist:'A24',genre:'Thriller',franchise:null,starActor:null,phase:1,week:16,basePrice:7,estM:12,rt:null,sleeper:true,trailer:''},
-  {id:'f050',title:'Mother Mary',dist:'Lionsgate',genre:'Drama',franchise:null,starActor:null,phase:1,week:16,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f051',title:'Hiroyuki',dist:'Sony',genre:'Family',franchise:null,starActor:null,phase:1,week:16,basePrice:7,estM:12,rt:null,sleeper:true,trailer:''},
-  {id:'f052',title:'The Devil Wears Prada 2',dist:'Disney/20th',genre:'Comedy',franchise:'Prada',starActor:'Meryl Streep',phase:2,week:17,basePrice:50,estM:80,rt:null,sleeper:false,trailer:''},
-  {id:'f053',title:'Hokum',dist:'Universal',genre:'Comedy',franchise:null,starActor:null,phase:2,week:17,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f054',title:'Iron Maiden: Burning Ambition',dist:'Paramount',genre:'Concert',franchise:null,starActor:'Iron Maiden',phase:2,week:17,basePrice:12,estM:22,rt:null,sleeper:false,trailer:''},
-  {id:'f055',title:'Mortal Kombat II',dist:'WB/New Line',genre:'Action',franchise:'Mortal Kombat',starActor:'Lewis Tan',phase:2,week:18,basePrice:28,estM:52,rt:null,sleeper:false,trailer:''},
-  {id:'f056',title:'The Sheep Detectives',dist:'Lionsgate',genre:'Family',franchise:null,starActor:null,phase:2,week:18,basePrice:10,estM:18,rt:null,sleeper:false,trailer:''},
-  {id:'f057',title:'Billie Eilish: Hit Me Hard And Soft Tour',dist:'Paramount',genre:'Concert',franchise:null,starActor:'Billie Eilish',phase:2,week:18,basePrice:12,estM:22,rt:null,sleeper:false,trailer:''},
-  {id:'f058',title:'Top Gun (40th Anniversary)',dist:'Paramount',genre:'Action',franchise:'Top Gun',starActor:'Tom Cruise',phase:2,week:19,basePrice:14,estM:26,rt:null,sleeper:false,trailer:''},
-  {id:'f059',title:'Obsession',dist:'Focus',genre:'Thriller',franchise:null,starActor:null,phase:2,week:19,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f060',title:'Normal',dist:'Focus',genre:'Drama',franchise:null,starActor:null,phase:2,week:19,basePrice:7,estM:12,rt:null,sleeper:true,trailer:''},
-  {id:'f061',title:'The Christophers',dist:'Lionsgate',genre:'Drama',franchise:null,starActor:null,phase:2,week:19,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f062',title:'500 Miles (Ireland)',dist:'Lionsgate',genre:'Drama',franchise:null,starActor:null,phase:2,week:19,basePrice:6,estM:10,rt:null,sleeper:true,trailer:''},
-  {id:'f063',title:'Charlie The Wonderdog',dist:'Universal',genre:'Family',franchise:null,starActor:null,phase:2,week:20,basePrice:8,estM:14,rt:null,sleeper:false,trailer:''},
-  {id:'f064',title:'The Mandalorian & Grogu',dist:'Disney/Lucasfilm',genre:'Action',franchise:'Star Wars',starActor:'Pedro Pascal',phase:2,week:20,basePrice:70,estM:135,rt:null,sleeper:false,trailer:''},
-  {id:'f065',title:'Finding Emily',dist:'Paramount',genre:'Comedy',franchise:null,starActor:null,phase:2,week:20,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f066',title:'Passenger',dist:'Sony',genre:'Thriller',franchise:null,starActor:null,phase:2,week:20,basePrice:10,estM:18,rt:null,sleeper:true,trailer:''},
-  {id:'f067',title:'Tom & Jerry: Forbidden Compass HFSS',dist:'WB',genre:'Animation',franchise:'Tom & Jerry',starActor:null,phase:2,week:20,basePrice:16,estM:30,rt:null,sleeper:false,trailer:''},
-  {id:'f068',title:'Power Ballad',dist:'Universal',genre:'Comedy',franchise:null,starActor:null,phase:2,week:21,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f069',title:'Tuner',dist:'Sony',genre:'Thriller',franchise:null,starActor:null,phase:2,week:21,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f070',title:'Savage House',dist:'Blumhouse',genre:'Horror',franchise:null,starActor:null,phase:2,week:22,basePrice:10,estM:18,rt:null,sleeper:true,trailer:''},
-  {id:'f071',title:'Masters of the Universe',dist:'Amazon MGM',genre:'Action',franchise:'MOTU',starActor:'Nicholas Galitzine',phase:2,week:22,basePrice:35,estM:65,rt:null,sleeper:false,trailer:''},
-  {id:'f072',title:'Scary Movie 6',dist:'Paramount',genre:'Comedy',franchise:'Scary Movie',starActor:null,phase:2,week:22,basePrice:12,estM:22,rt:null,sleeper:false,trailer:''},
-  {id:'f073',title:'Animal Friends',dist:'Universal',genre:'Animation',franchise:null,starActor:null,phase:2,week:22,basePrice:14,estM:26,rt:null,sleeper:true,trailer:''},
-  {id:'f074',title:'Disclosure Day',dist:'Sony',genre:'Sci-Fi',franchise:null,starActor:null,phase:2,week:23,basePrice:20,estM:38,rt:null,sleeper:true,trailer:''},
-  {id:'f075',title:'Toy Story 5',dist:'Disney/Pixar',genre:'Animation',franchise:'Toy Story',starActor:'Tom Hanks',phase:2,week:24,basePrice:75,estM:145,rt:null,sleeper:false,trailer:''},
-  {id:'f076',title:'Supergirl',dist:'DC/WB',genre:'Action',franchise:'DCU',starActor:'Milly Alcock',phase:2,week:25,basePrice:52,estM:98,rt:null,sleeper:false,trailer:''},
-  {id:'f077',title:'Untitled Jackass Event Film',dist:'Paramount',genre:'Comedy',franchise:'Jackass',starActor:null,phase:2,week:25,basePrice:18,estM:34,rt:null,sleeper:false,trailer:''},
-  {id:'f078',title:'500 Miles (England/Scotland/Wales)',dist:'Lionsgate',genre:'Drama',franchise:null,starActor:null,phase:2,week:25,basePrice:8,estM:16,rt:null,sleeper:false,trailer:''},
-  {id:'f079',title:'Minions & Monsters',dist:'Universal/Illumination',genre:'Animation',franchise:'Despicable Me',starActor:'Steve Carell',phase:2,week:26,basePrice:58,estM:110,rt:null,sleeper:false,trailer:''},
-  {id:'f080',title:'The Movie',dist:'TBC',genre:'Action',franchise:null,starActor:null,phase:2,week:27,basePrice:10,estM:18,rt:null,sleeper:true,trailer:''},
-  {id:'f081',title:'Moana (Live Action)',dist:'Disney',genre:'Family',franchise:'Moana',starActor:'Dwayne Johnson',phase:2,week:27,basePrice:62,estM:118,rt:null,sleeper:false,trailer:''},
-  {id:'f082',title:'Alpha',dist:'Sony',genre:'Action',franchise:null,starActor:'Michael B Jordan',phase:2,week:27,basePrice:18,estM:32,rt:null,sleeper:false,trailer:''},
-  {id:'f083',title:'The Odyssey',dist:'Universal/Nolan',genre:'Drama',franchise:null,starActor:'Matt Damon',phase:2,week:27,basePrice:60,estM:115,rt:null,sleeper:false,trailer:''},
-  {id:'f084',title:'Cut Off',dist:'A24',genre:'Thriller',franchise:null,starActor:null,phase:2,week:27,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f085',title:'Evil Dead Burn',dist:'Sony',genre:'Horror',franchise:'Evil Dead',starActor:null,phase:2,week:27,basePrice:16,estM:30,rt:null,sleeper:false,trailer:''},
-  {id:'f086',title:'Spider-Man: Brand New Day',dist:'Sony/Marvel',genre:'Action',franchise:'Spider-Man',starActor:'Tom Holland',phase:2,week:27,basePrice:85,estM:165,rt:null,sleeper:false,trailer:''},
-  {id:'f087',title:'Super Troopers 3',dist:'Fox',genre:'Comedy',franchise:'Super Troopers',starActor:null,phase:2,week:31,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f088',title:'Fall 2',dist:'Lionsgate',genre:'Thriller',franchise:null,starActor:null,phase:2,week:31,basePrice:10,estM:18,rt:null,sleeper:true,trailer:''},
-  {id:'f089',title:'Paw Patrol: The Dino Movie HFSS',dist:'Paramount',genre:'Family',franchise:'Paw Patrol',starActor:null,phase:2,week:32,basePrice:16,estM:30,rt:null,sleeper:false,trailer:''},
-  {id:'f090',title:'Flowervale Street',dist:'Focus',genre:'Drama',franchise:null,starActor:null,phase:2,week:32,basePrice:7,estM:12,rt:null,sleeper:true,trailer:''},
-  {id:'f091',title:'The End of Oak Street',dist:'Universal',genre:'Adventure',franchise:null,starActor:null,phase:2,week:33,basePrice:10,estM:18,rt:null,sleeper:true,trailer:''},
-  {id:'f092',title:'Insidious: The Bleeding World',dist:'Sony/Blumhouse',genre:'Horror',franchise:'Insidious',starActor:'Lin Shaye',phase:2,week:33,basePrice:14,estM:28,rt:null,sleeper:false,trailer:''},
-  {id:'f093',title:'Mutiny',dist:'Sony',genre:'Thriller',franchise:null,starActor:null,phase:2,week:33,basePrice:12,estM:22,rt:null,sleeper:true,trailer:''},
-  {id:'f094',title:'Spa Weekend',dist:'Sony',genre:'Comedy',franchise:null,starActor:null,phase:2,week:33,basePrice:10,estM:18,rt:null,sleeper:true,trailer:''},
-  {id:'f095',title:'Teenage Sex and Death at Camp Miasma',dist:'A24',genre:'Horror',franchise:null,starActor:null,phase:2,week:33,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f096',title:'The Dog Stars',dist:'20th Century',genre:'Sci-Fi',franchise:null,starActor:'Jacob Elordi',phase:2,week:33,basePrice:18,estM:34,rt:null,sleeper:true,trailer:''},
-  {id:'f097',title:'Cliffhanger',dist:'Sony',genre:'Action',franchise:null,starActor:null,phase:2,week:33,basePrice:18,estM:34,rt:null,sleeper:false,trailer:''},
-  {id:'f098',title:'One Night Only',dist:'Lionsgate',genre:'Thriller',franchise:null,starActor:null,phase:2,week:33,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f099',title:'How to Rob a Bank',dist:'Netflix',genre:'Comedy',franchise:null,starActor:null,phase:3,week:35,basePrice:10,estM:18,rt:null,sleeper:true,trailer:''},
-  {id:'f100',title:'Pressure',dist:'Sony',genre:'Thriller',franchise:null,starActor:null,phase:3,week:36,basePrice:10,estM:18,rt:null,sleeper:true,trailer:''},
-  {id:'f101',title:'A Practical Magic Film',dist:'WB',genre:'Horror',franchise:'Practical Magic',starActor:'Sandra Bullock',phase:3,week:36,basePrice:22,estM:42,rt:null,sleeper:false,trailer:''},
-  {id:'f102',title:'Clayface',dist:'DC/WB',genre:'Action',franchise:'DCU',starActor:'Tom Rhys Harries',phase:3,week:36,basePrice:30,estM:55,rt:null,sleeper:false,trailer:''},
-  {id:'f103',title:'Resident Evil',dist:'Sony',genre:'Horror',franchise:'Resident Evil',starActor:null,phase:3,week:37,basePrice:22,estM:42,rt:null,sleeper:false,trailer:''},
-  {id:'f104',title:'Bad Apples',dist:'Paramount',genre:'Horror',franchise:null,starActor:null,phase:3,week:37,basePrice:8,estM:16,rt:null,sleeper:true,trailer:''},
-  {id:'f105',title:'Sense and Sensibility',dist:'Sony',genre:'Drama',franchise:null,starActor:null,phase:3,week:38,basePrice:12,estM:22,rt:null,sleeper:true,trailer:''},
-  {id:'f106',title:'Avengers: Endgame (Re-release)',dist:'Disney',genre:'Action',franchise:'MCU',starActor:'Robert Downey Jr',phase:3,week:38,basePrice:15,estM:28,rt:96,sleeper:false,trailer:''},
-  {id:'f107',title:'Verity',dist:'Amazon MGM',genre:'Thriller',franchise:null,starActor:'Blake Lively',phase:3,week:39,basePrice:16,estM:30,rt:null,sleeper:false,trailer:''},
-  {id:'f108',title:'Digger',dist:'Paramount',genre:'Comedy',franchise:null,starActor:'Tom Cruise',phase:3,week:39,basePrice:20,estM:38,rt:null,sleeper:false,trailer:''},
-  {id:'f109',title:'The Social Reckoning',dist:'Universal',genre:'Drama',franchise:null,starActor:'Jeremy Strong',phase:3,week:40,basePrice:22,estM:42,rt:null,sleeper:false,trailer:''},
-  {id:'f110',title:'Other Mommy',dist:'Blumhouse',genre:'Horror',franchise:null,starActor:null,phase:3,week:40,basePrice:8,estM:16,rt:null,sleeper:true,trailer:''},
-  {id:'f111',title:'The Legend of Aang',dist:'Paramount',genre:'Animation',franchise:'Avatar: TLA',starActor:'Eric Nam',phase:3,week:40,basePrice:35,estM:65,rt:null,sleeper:false,trailer:''},
-  {id:'f112',title:'Street Fighter',dist:'Paramount',genre:'Action',franchise:'Street Fighter',starActor:'Andrew Koji',phase:3,week:41,basePrice:22,estM:42,rt:null,sleeper:false,trailer:''},
-  {id:'f113',title:'Whalefall',dist:'Sony',genre:'Drama',franchise:null,starActor:null,phase:3,week:41,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f114',title:'Wildwood',dist:'Focus',genre:'Adventure',franchise:null,starActor:null,phase:3,week:41,basePrice:12,estM:22,rt:null,sleeper:true,trailer:''},
-  {id:'f115',title:'Forgotten Island',dist:'Universal',genre:'Family',franchise:null,starActor:null,phase:3,week:42,basePrice:16,estM:28,rt:null,sleeper:true,trailer:''},
-  {id:'f116',title:'Wife & Dog',dist:'Universal',genre:'Comedy',franchise:null,starActor:null,phase:3,week:42,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f117',title:'Clayface (Wide)',dist:'DC/WB',genre:'Action',franchise:'DCU',starActor:'Naomi Ackie',phase:3,week:42,basePrice:28,estM:52,rt:null,sleeper:false,trailer:''},
-  {id:'f118',title:'Ghosts: The Possession of Button House',dist:'Lionsgate',genre:'Horror',franchise:'Ghosts',starActor:null,phase:3,week:42,basePrice:10,estM:18,rt:null,sleeper:false,trailer:''},
-  {id:'f119',title:'Animal',dist:'Sony',genre:'Thriller',franchise:null,starActor:null,phase:3,week:42,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f120',title:'Tad and the Magic Lamp',dist:'Paramount',genre:'Animation',franchise:'Tad',starActor:null,phase:3,week:42,basePrice:8,estM:14,rt:null,sleeper:false,trailer:''},
-  {id:'f121',title:'Remain',dist:'A24',genre:'Horror',franchise:null,starActor:null,phase:3,week:42,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f122',title:'Terrifier 4',dist:'Cineverse',genre:'Horror',franchise:'Terrifier',starActor:null,phase:3,week:42,basePrice:10,estM:20,rt:null,sleeper:false,trailer:''},
-  {id:'f123',title:'Wild Horse Nine',dist:'WDi',genre:'Drama',franchise:null,starActor:null,phase:4,week:43,basePrice:10,estM:18,rt:null,sleeper:true,trailer:''},
-  {id:'f124',title:'The Cat in the Hat HFSS',dist:'WB',genre:'Animation',franchise:null,starActor:'Bill Hader',phase:4,week:43,basePrice:20,estM:38,rt:null,sleeper:false,trailer:''},
-  {id:'f125',title:'The Great Beyond',dist:'Searchlight',genre:'Drama',franchise:null,starActor:null,phase:4,week:45,basePrice:10,estM:18,rt:null,sleeper:true,trailer:''},
-  {id:'f126',title:'Ebenezer: A Christmas Carol',dist:'Disney',genre:'Animation',franchise:null,starActor:null,phase:4,week:45,basePrice:14,estM:26,rt:null,sleeper:false,trailer:''},
-  {id:'f127',title:'The Hunger Games: Sunrise on the Reaping',dist:'Lionsgate',genre:'Action',franchise:'Hunger Games',starActor:'Joseph Zada',phase:4,week:46,basePrice:58,estM:110,rt:null,sleeper:false,trailer:''},
-  {id:'f128',title:'I Play Rocky',dist:'Universal',genre:'Drama',franchise:null,starActor:null,phase:4,week:46,basePrice:10,estM:18,rt:null,sleeper:true,trailer:''},
-  {id:'f129',title:'Focker In-Law',dist:'Paramount',genre:'Comedy',franchise:'Fockers',starActor:'Ben Stiller',phase:4,week:46,basePrice:24,estM:45,rt:null,sleeper:false,trailer:''},
-  {id:'f130',title:"Disney's Hexed HFSS",dist:'Disney',genre:'Horror',franchise:null,starActor:null,phase:4,week:47,basePrice:14,estM:26,rt:null,sleeper:true,trailer:''},
-  {id:'f131',title:"Narnia: The Magician's Nephew",dist:'Netflix/Sony',genre:'Adventure',franchise:'Narnia',starActor:'Daniel Craig',phase:4,week:47,basePrice:50,estM:95,rt:null,sleeper:false,trailer:''},
-  {id:'f132',title:'Violent Night 2',dist:'Universal',genre:'Action',franchise:'Violent Night',starActor:'David Harbour',phase:4,week:48,basePrice:22,estM:42,rt:null,sleeper:false,trailer:''},
-  {id:'f133',title:'Jumanji 3',dist:'Sony',genre:'Action',franchise:'Jumanji',starActor:'Dwayne Johnson',phase:4,week:49,basePrice:44,estM:82,rt:null,sleeper:false,trailer:''},
-  {id:'f134',title:'Dune: Part Three',dist:'WB',genre:'Sci-Fi',franchise:'Dune',starActor:'Timothée Chalamet',phase:4,week:49,basePrice:80,estM:155,rt:null,sleeper:false,trailer:''},
-  {id:'f135',title:'Avengers: Doomsday',dist:'Marvel/Disney',genre:'Action',franchise:'MCU',starActor:'Robert Downey Jr',phase:4,week:50,basePrice:98,estM:210,rt:null,sleeper:false,trailer:''},
-  {id:'f136',title:'The Angry Birds Movie 3 HFSS',dist:'Paramount',genre:'Animation',franchise:'Angry Birds',starActor:null,phase:4,week:51,basePrice:14,estM:28,rt:null,sleeper:false,trailer:''},
-  {id:'f137',title:'King',dist:'Fox',genre:'Drama',franchise:null,starActor:null,phase:4,week:51,basePrice:10,estM:18,rt:null,sleeper:true,trailer:''},
-  {id:'f138',title:'Werwulf',dist:'Lionsgate',genre:'Horror',franchise:null,starActor:null,phase:4,week:52,basePrice:8,estM:14,rt:null,sleeper:true,trailer:''},
-  {id:'f139',title:'The Beekeeper 2',dist:'Amazon MGM',genre:'Action',franchise:null,starActor:'Jason Statham',phase:4,week:53,basePrice:18,estM:35,rt:null,sleeper:false,trailer:''},
-  {id:'f140',title:'Children of Blood and Bone',dist:'Paramount',genre:'Action',franchise:null,starActor:null,phase:4,week:54,basePrice:22,estM:42,rt:null,sleeper:true,trailer:''},
-  {id:'f141',title:'The Rescue',dist:'Disney',genre:'Drama',franchise:null,starActor:null,phase:4,week:55,basePrice:12,estM:22,rt:null,sleeper:true,trailer:''},
-  {id:'f142',title:'The Thomas Crown Affair',dist:'Sony',genre:'Thriller',franchise:null,starActor:null,phase:5,week:57,basePrice:24,estM:45,rt:null,sleeper:false,trailer:''},
-  {id:'f143',title:'Ice Age: Boiling Point HFSS',dist:'Disney/20th',genre:'Animation',franchise:'Ice Age',starActor:null,phase:5,week:58,basePrice:30,estM:58,rt:null,sleeper:false,trailer:''},
-  {id:'f144',title:'The Nightingale',dist:'Universal',genre:'Drama',franchise:null,starActor:null,phase:5,week:58,basePrice:14,estM:26,rt:null,sleeper:true,trailer:''},
-  {id:'f145',title:'Star Wars: A New Hope (50th Anniversary)',dist:'Disney',genre:'Action',franchise:'Star Wars',starActor:null,phase:5,week:59,basePrice:22,estM:42,rt:99,sleeper:false,trailer:''},
-  {id:'f146',title:'Sonic the Hedgehog 4 HFSS',dist:'Paramount',genre:'Family',franchise:'Sonic',starActor:'Jim Carrey',phase:5,week:60,basePrice:34,estM:65,rt:null,sleeper:false,trailer:''},
-  {id:'f147',title:'Untitled Mike Flanagan Exorcist Film',dist:'Lionsgate',genre:'Horror',franchise:'Exorcist',starActor:null,phase:5,week:61,basePrice:20,estM:38,rt:null,sleeper:false,trailer:''},
-  {id:'f148',title:'The Resurrection of The Christ: Part One',dist:'Lionsgate',genre:'Drama',franchise:null,starActor:null,phase:5,week:62,basePrice:22,estM:42,rt:null,sleeper:false,trailer:''},
+  {id:'f001',title:'We Bury the Dead',dist:'Lionsgate',genre:'Horror',franchise:null,starActor:null,phase:1,week:1,basePrice:8,estM:14,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f002',title:'Greenland 2: Migration',dist:'Lionsgate',genre:'Action',franchise:'Greenland',starActor:'Gerard Butler',phase:1,week:1,basePrice:16,estM:30,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f003',title:'Primate',dist:'Universal',genre:'Thriller',franchise:null,starActor:null,phase:1,week:1,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f004',title:'28 Years Later: The Bone Temple',dist:'Sony',genre:'Horror',franchise:'28 Days',starActor:"Jack O'Connell",phase:1,week:2,basePrice:24,estM:45,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f005',title:"Dead Man's Wire",dist:'WB',genre:'Thriller',franchise:null,starActor:null,phase:1,week:2,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f006',title:'Killer Whale',dist:'Paramount',genre:'Thriller',franchise:null,starActor:null,phase:1,week:2,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f007',title:'Night Patrol',dist:'Sony',genre:'Action',franchise:null,starActor:null,phase:1,week:2,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f008',title:'Return to Silent Hill',dist:'Sony',genre:'Horror',franchise:'Silent Hill',starActor:null,phase:1,week:3,basePrice:12,estM:22,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f009',title:'Mercy',dist:'Netflix',genre:'Thriller',franchise:null,starActor:null,phase:1,week:3,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f010',title:'Send Help',dist:'Universal',genre:'Horror',franchise:null,starActor:'Rachel McAdams',phase:1,week:3,basePrice:14,estM:26,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f011',title:'Iron Lung',dist:'A24',genre:'Horror',franchise:null,starActor:null,phase:1,week:3,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f012',title:'The Strangers: Chapter 3',dist:'Lionsgate',genre:'Horror',franchise:'The Strangers',starActor:null,phase:1,week:5,basePrice:12,estM:22,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f013',title:'Dracula: A Love Tale',dist:'Universal',genre:'Horror',franchise:null,starActor:null,phase:1,week:5,basePrice:18,estM:34,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f014',title:'Whistle',dist:'Sony',genre:'Thriller',franchise:null,starActor:null,phase:1,week:5,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f015',title:"Good Luck Have Fun Don't Die",dist:'Amazon MGM',genre:'Sci-Fi',franchise:null,starActor:null,phase:1,week:5,basePrice:12,estM:22,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f016',title:'Cold Storage',dist:'Lionsgate',genre:'Thriller',franchise:null,starActor:null,phase:1,week:5,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f017',title:'GOAT',dist:'Sony Animation',genre:'Animation',franchise:null,starActor:null,phase:1,week:5,basePrice:14,estM:26,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f018',title:'Wuthering Heights',dist:'WB',genre:'Drama',franchise:null,starActor:'Margot Robbie',phase:1,week:6,basePrice:32,estM:58,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f019',title:'Crime 101',dist:'A24',genre:'Thriller',franchise:null,starActor:'Glen Powell',phase:1,week:6,basePrice:12,estM:22,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f020',title:'Psycho Killer',dist:'Universal',genre:'Horror',franchise:null,starActor:null,phase:1,week:7,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f021',title:'I Can Only Imagine 2',dist:'Lionsgate',genre:'Drama',franchise:null,starActor:null,phase:1,week:7,basePrice:10,estM:18,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f022',title:'Dreams',dist:'Universal',genre:'Drama',franchise:null,starActor:'Glen Powell',phase:1,week:7,basePrice:18,estM:34,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f023',title:'Scream 7',dist:'Paramount',genre:'Horror',franchise:'Scream',starActor:'Neve Campbell',phase:1,week:8,basePrice:24,estM:45,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f024',title:"Dr Seuss' The Cat in the Hat",dist:'WB',genre:'Animation',franchise:null,starActor:'Bill Hader',phase:1,week:8,basePrice:18,estM:34,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f025',title:'Hoppers',dist:'Disney/Pixar',genre:'Animation',franchise:null,starActor:null,phase:1,week:9,basePrice:26,estM:50,rt:97,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f026',title:'The Bride!',dist:'Universal',genre:'Horror',franchise:null,starActor:'Christian Bale',phase:1,week:9,basePrice:16,estM:30,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f027',title:'Peaky Blinders: The Immortal Man',dist:'Netflix',genre:'Drama',franchise:'Peaky Blinders',starActor:'Cillian Murphy',phase:1,week:9,basePrice:14,estM:26,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f028',title:'The Breadwinner',dist:'GKIDS',genre:'Animation',franchise:null,starActor:null,phase:1,week:10,basePrice:7,estM:12,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f029',title:'Reminders of Him',dist:'Sony',genre:'Drama',franchise:null,starActor:null,phase:1,week:10,basePrice:12,estM:22,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f030',title:'Project Hail Mary',dist:'Amazon MGM',genre:'Sci-Fi',franchise:null,starActor:'Ryan Gosling',phase:1,week:11,basePrice:55,estM:80,rt:95,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f031',title:'They Will Kill You',dist:'Amazon MGM',genre:'Horror',franchise:null,starActor:'Zazie Beetz',phase:1,week:11,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f032',title:'Romeo + Juliet (30th Anniversary)',dist:'Paramount',genre:'Drama',franchise:null,starActor:null,phase:1,week:11,basePrice:8,estM:16,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f033',title:'Splittsville',dist:'Lionsgate',genre:'Comedy',franchise:null,starActor:null,phase:1,week:11,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f034',title:'The Magic Faraway Tree',dist:'StudioCanal',genre:'Family',franchise:null,starActor:null,phase:1,week:11,basePrice:12,estM:22,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f035',title:'Bluey At The Cinema',dist:'Lionsgate',genre:'Family',franchise:'Bluey',starActor:null,phase:1,week:11,basePrice:8,estM:16,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f036',title:'Ready or Not 2: Here I Come',dist:'Searchlight',genre:'Horror',franchise:null,starActor:'Samara Weaving',phase:1,week:11,basePrice:10,estM:18,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f037',title:'Forbidden Fruits',dist:'Lionsgate',genre:'Thriller',franchise:null,starActor:'Lola Tung',phase:1,week:11,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f038',title:'The Super Mario Galaxy Movie',dist:'Universal/Illumination',genre:'Animation',franchise:'Mario',starActor:'Jack Black',phase:1,week:13,basePrice:52,estM:100,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f039',title:'The Drama',dist:'A24',genre:'Drama',franchise:null,starActor:null,phase:1,week:13,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f040',title:'Fuze',dist:'Lionsgate',genre:'Thriller',franchise:null,starActor:null,phase:1,week:13,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f041',title:'Amelie (25th Anniversary)',dist:'Lionsgate',genre:'Drama',franchise:null,starActor:null,phase:1,week:13,basePrice:6,estM:10,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f042',title:'You Me & Tuscany',dist:'Universal',genre:'Comedy',franchise:null,starActor:null,phase:1,week:14,basePrice:10,estM:18,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f043',title:'Undertone',dist:'Sony',genre:'Thriller',franchise:null,starActor:null,phase:1,week:14,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f044',title:"California Schemin'",dist:'A24',genre:'Drama',franchise:null,starActor:null,phase:1,week:14,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f045',title:'Father Mother Sister Brother',dist:'Lionsgate',genre:'Drama',franchise:null,starActor:null,phase:1,week:14,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f046',title:"Lee Cronin's The Mummy",dist:'Universal',genre:'Horror',franchise:'Mummy',starActor:'Jack Reynor',phase:1,week:15,basePrice:20,estM:38,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f047',title:'Glenorchy',dist:'Focus',genre:'Drama',franchise:null,starActor:null,phase:1,week:15,basePrice:7,estM:12,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f048',title:'Michael',dist:'Universal',genre:'Drama',franchise:null,starActor:'Jaafar Jackson',phase:1,week:16,basePrice:26,estM:48,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f049',title:'Exit 8',dist:'A24',genre:'Thriller',franchise:null,starActor:null,phase:1,week:16,basePrice:7,estM:12,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f050',title:'Mother Mary',dist:'Lionsgate',genre:'Drama',franchise:null,starActor:null,phase:1,week:16,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f051',title:'Hiroyuki',dist:'Sony',genre:'Family',franchise:null,starActor:null,phase:1,week:16,basePrice:7,estM:12,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f052',title:'The Devil Wears Prada 2',dist:'Disney/20th',genre:'Comedy',franchise:'Prada',starActor:'Meryl Streep',phase:2,week:17,basePrice:50,estM:80,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f053',title:'Hokum',dist:'Universal',genre:'Comedy',franchise:null,starActor:null,phase:2,week:17,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f054',title:'Iron Maiden: Burning Ambition',dist:'Paramount',genre:'Concert',franchise:null,starActor:'Iron Maiden',phase:2,week:17,basePrice:12,estM:22,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f055',title:'Mortal Kombat II',dist:'WB/New Line',genre:'Action',franchise:'Mortal Kombat',starActor:'Lewis Tan',phase:2,week:18,basePrice:28,estM:52,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f056',title:'The Sheep Detectives',dist:'Lionsgate',genre:'Family',franchise:null,starActor:null,phase:2,week:18,basePrice:10,estM:18,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f057',title:'Billie Eilish: Hit Me Hard And Soft Tour',dist:'Paramount',genre:'Concert',franchise:null,starActor:'Billie Eilish',phase:2,week:18,basePrice:12,estM:22,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f058',title:'Top Gun (40th Anniversary)',dist:'Paramount',genre:'Action',franchise:'Top Gun',starActor:'Tom Cruise',phase:2,week:19,basePrice:14,estM:26,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f059',title:'Obsession',dist:'Focus',genre:'Thriller',franchise:null,starActor:null,phase:2,week:19,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f060',title:'Normal',dist:'Focus',genre:'Drama',franchise:null,starActor:null,phase:2,week:19,basePrice:7,estM:12,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f061',title:'The Christophers',dist:'Lionsgate',genre:'Drama',franchise:null,starActor:null,phase:2,week:19,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f062',title:'500 Miles (Ireland)',dist:'Lionsgate',genre:'Drama',franchise:null,starActor:null,phase:2,week:19,basePrice:6,estM:10,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f063',title:'Charlie The Wonderdog',dist:'Universal',genre:'Family',franchise:null,starActor:null,phase:2,week:20,basePrice:8,estM:14,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f064',title:'The Mandalorian & Grogu',dist:'Disney/Lucasfilm',genre:'Action',franchise:'Star Wars',starActor:'Pedro Pascal',phase:2,week:20,basePrice:70,estM:135,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f065',title:'Finding Emily',dist:'Paramount',genre:'Comedy',franchise:null,starActor:null,phase:2,week:20,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f066',title:'Passenger',dist:'Sony',genre:'Thriller',franchise:null,starActor:null,phase:2,week:20,basePrice:10,estM:18,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f067',title:'Tom & Jerry: Forbidden Compass HFSS',dist:'WB',genre:'Animation',franchise:'Tom & Jerry',starActor:null,phase:2,week:20,basePrice:16,estM:30,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f068',title:'Power Ballad',dist:'Universal',genre:'Comedy',franchise:null,starActor:null,phase:2,week:21,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f069',title:'Tuner',dist:'Sony',genre:'Thriller',franchise:null,starActor:null,phase:2,week:21,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f070',title:'Savage House',dist:'Blumhouse',genre:'Horror',franchise:null,starActor:null,phase:2,week:22,basePrice:10,estM:18,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f071',title:'Masters of the Universe',dist:'Amazon MGM',genre:'Action',franchise:'MOTU',starActor:'Nicholas Galitzine',phase:2,week:22,basePrice:35,estM:65,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f072',title:'Scary Movie 6',dist:'Paramount',genre:'Comedy',franchise:'Scary Movie',starActor:null,phase:2,week:22,basePrice:12,estM:22,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f073',title:'Animal Friends',dist:'Universal',genre:'Animation',franchise:null,starActor:null,phase:2,week:22,basePrice:14,estM:26,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f074',title:'Disclosure Day',dist:'Sony',genre:'Sci-Fi',franchise:null,starActor:null,phase:2,week:23,basePrice:20,estM:38,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f075',title:'Toy Story 5',dist:'Disney/Pixar',genre:'Animation',franchise:'Toy Story',starActor:'Tom Hanks',phase:2,week:24,basePrice:75,estM:145,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f076',title:'Supergirl',dist:'DC/WB',genre:'Action',franchise:'DCU',starActor:'Milly Alcock',phase:2,week:25,basePrice:52,estM:98,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f077',title:'Untitled Jackass Event Film',dist:'Paramount',genre:'Comedy',franchise:'Jackass',starActor:null,phase:2,week:25,basePrice:18,estM:34,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f078',title:'500 Miles (England/Scotland/Wales)',dist:'Lionsgate',genre:'Drama',franchise:null,starActor:null,phase:2,week:25,basePrice:8,estM:16,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f079',title:'Minions & Monsters',dist:'Universal/Illumination',genre:'Animation',franchise:'Despicable Me',starActor:'Steve Carell',phase:2,week:26,basePrice:58,estM:110,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f080',title:'The Movie',dist:'TBC',genre:'Action',franchise:null,starActor:null,phase:2,week:27,basePrice:10,estM:18,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f081',title:'Moana (Live Action)',dist:'Disney',genre:'Family',franchise:'Moana',starActor:'Dwayne Johnson',phase:2,week:27,basePrice:62,estM:118,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f082',title:'Alpha',dist:'Sony',genre:'Action',franchise:null,starActor:'Michael B Jordan',phase:2,week:27,basePrice:18,estM:32,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f083',title:'The Odyssey',dist:'Universal/Nolan',genre:'Drama',franchise:null,starActor:'Matt Damon',phase:2,week:27,basePrice:60,estM:115,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f084',title:'Cut Off',dist:'A24',genre:'Thriller',franchise:null,starActor:null,phase:2,week:27,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f085',title:'Evil Dead Burn',dist:'Sony',genre:'Horror',franchise:'Evil Dead',starActor:null,phase:2,week:27,basePrice:16,estM:30,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f086',title:'Spider-Man: Brand New Day',dist:'Sony/Marvel',genre:'Action',franchise:'Spider-Man',starActor:'Tom Holland',phase:2,week:27,basePrice:85,estM:165,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f087',title:'Super Troopers 3',dist:'Fox',genre:'Comedy',franchise:'Super Troopers',starActor:null,phase:2,week:31,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f088',title:'Fall 2',dist:'Lionsgate',genre:'Thriller',franchise:null,starActor:null,phase:2,week:31,basePrice:10,estM:18,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f089',title:'Paw Patrol: The Dino Movie HFSS',dist:'Paramount',genre:'Family',franchise:'Paw Patrol',starActor:null,phase:2,week:32,basePrice:16,estM:30,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f090',title:'Flowervale Street',dist:'Focus',genre:'Drama',franchise:null,starActor:null,phase:2,week:32,basePrice:7,estM:12,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f091',title:'The End of Oak Street',dist:'Universal',genre:'Adventure',franchise:null,starActor:null,phase:2,week:33,basePrice:10,estM:18,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f092',title:'Insidious: The Bleeding World',dist:'Sony/Blumhouse',genre:'Horror',franchise:'Insidious',starActor:'Lin Shaye',phase:2,week:33,basePrice:14,estM:28,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f093',title:'Mutiny',dist:'Sony',genre:'Thriller',franchise:null,starActor:null,phase:2,week:33,basePrice:12,estM:22,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f094',title:'Spa Weekend',dist:'Sony',genre:'Comedy',franchise:null,starActor:null,phase:2,week:33,basePrice:10,estM:18,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f095',title:'Teenage Sex and Death at Camp Miasma',dist:'A24',genre:'Horror',franchise:null,starActor:null,phase:2,week:33,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f096',title:'The Dog Stars',dist:'20th Century',genre:'Sci-Fi',franchise:null,starActor:'Jacob Elordi',phase:2,week:33,basePrice:18,estM:34,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f097',title:'Cliffhanger',dist:'Sony',genre:'Action',franchise:null,starActor:null,phase:2,week:33,basePrice:18,estM:34,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f098',title:'One Night Only',dist:'Lionsgate',genre:'Thriller',franchise:null,starActor:null,phase:2,week:33,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f099',title:'How to Rob a Bank',dist:'Netflix',genre:'Comedy',franchise:null,starActor:null,phase:3,week:35,basePrice:10,estM:18,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f100',title:'Pressure',dist:'Sony',genre:'Thriller',franchise:null,starActor:null,phase:3,week:36,basePrice:10,estM:18,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f101',title:'A Practical Magic Film',dist:'WB',genre:'Horror',franchise:'Practical Magic',starActor:'Sandra Bullock',phase:3,week:36,basePrice:22,estM:42,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f102',title:'Clayface',dist:'DC/WB',genre:'Action',franchise:'DCU',starActor:'Tom Rhys Harries',phase:3,week:36,basePrice:30,estM:55,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f103',title:'Resident Evil',dist:'Sony',genre:'Horror',franchise:'Resident Evil',starActor:null,phase:3,week:37,basePrice:22,estM:42,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f104',title:'Bad Apples',dist:'Paramount',genre:'Horror',franchise:null,starActor:null,phase:3,week:37,basePrice:8,estM:16,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f105',title:'Sense and Sensibility',dist:'Sony',genre:'Drama',franchise:null,starActor:null,phase:3,week:38,basePrice:12,estM:22,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f106',title:'Avengers: Endgame (Re-release)',dist:'Disney',genre:'Action',franchise:'MCU',starActor:'Robert Downey Jr',phase:3,week:38,basePrice:15,estM:28,rt:96,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f107',title:'Verity',dist:'Amazon MGM',genre:'Thriller',franchise:null,starActor:'Blake Lively',phase:3,week:39,basePrice:16,estM:30,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f108',title:'Digger',dist:'Paramount',genre:'Comedy',franchise:null,starActor:'Tom Cruise',phase:3,week:39,basePrice:20,estM:38,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f109',title:'The Social Reckoning',dist:'Universal',genre:'Drama',franchise:null,starActor:'Jeremy Strong',phase:3,week:40,basePrice:22,estM:42,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f110',title:'Other Mommy',dist:'Blumhouse',genre:'Horror',franchise:null,starActor:null,phase:3,week:40,basePrice:8,estM:16,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f111',title:'The Legend of Aang',dist:'Paramount',genre:'Animation',franchise:'Avatar: TLA',starActor:'Eric Nam',phase:3,week:40,basePrice:35,estM:65,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f112',title:'Street Fighter',dist:'Paramount',genre:'Action',franchise:'Street Fighter',starActor:'Andrew Koji',phase:3,week:41,basePrice:22,estM:42,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f113',title:'Whalefall',dist:'Sony',genre:'Drama',franchise:null,starActor:null,phase:3,week:41,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f114',title:'Wildwood',dist:'Focus',genre:'Adventure',franchise:null,starActor:null,phase:3,week:41,basePrice:12,estM:22,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f115',title:'Forgotten Island',dist:'Universal',genre:'Family',franchise:null,starActor:null,phase:3,week:42,basePrice:16,estM:28,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f116',title:'Wife & Dog',dist:'Universal',genre:'Comedy',franchise:null,starActor:null,phase:3,week:42,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f117',title:'Clayface (Wide)',dist:'DC/WB',genre:'Action',franchise:'DCU',starActor:'Naomi Ackie',phase:3,week:42,basePrice:28,estM:52,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f118',title:'Ghosts: The Possession of Button House',dist:'Lionsgate',genre:'Horror',franchise:'Ghosts',starActor:null,phase:3,week:42,basePrice:10,estM:18,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f119',title:'Animal',dist:'Sony',genre:'Thriller',franchise:null,starActor:null,phase:3,week:42,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f120',title:'Tad and the Magic Lamp',dist:'Paramount',genre:'Animation',franchise:'Tad',starActor:null,phase:3,week:42,basePrice:8,estM:14,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f121',title:'Remain',dist:'A24',genre:'Horror',franchise:null,starActor:null,phase:3,week:42,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f122',title:'Terrifier 4',dist:'Cineverse',genre:'Horror',franchise:'Terrifier',starActor:null,phase:3,week:42,basePrice:10,estM:20,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f123',title:'Wild Horse Nine',dist:'WDi',genre:'Drama',franchise:null,starActor:null,phase:4,week:43,basePrice:10,estM:18,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f124',title:'The Cat in the Hat HFSS',dist:'WB',genre:'Animation',franchise:null,starActor:'Bill Hader',phase:4,week:43,basePrice:20,estM:38,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f125',title:'The Great Beyond',dist:'Searchlight',genre:'Drama',franchise:null,starActor:null,phase:4,week:45,basePrice:10,estM:18,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f126',title:'Ebenezer: A Christmas Carol',dist:'Disney',genre:'Animation',franchise:null,starActor:null,phase:4,week:45,basePrice:14,estM:26,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f127',title:'The Hunger Games: Sunrise on the Reaping',dist:'Lionsgate',genre:'Action',franchise:'Hunger Games',starActor:'Joseph Zada',phase:4,week:46,basePrice:58,estM:110,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f128',title:'I Play Rocky',dist:'Universal',genre:'Drama',franchise:null,starActor:null,phase:4,week:46,basePrice:10,estM:18,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f129',title:'Focker In-Law',dist:'Paramount',genre:'Comedy',franchise:'Fockers',starActor:'Ben Stiller',phase:4,week:46,basePrice:24,estM:45,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f130',title:"Disney's Hexed HFSS",dist:'Disney',genre:'Horror',franchise:null,starActor:null,phase:4,week:47,basePrice:14,estM:26,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f131',title:"Narnia: The Magician's Nephew",dist:'Netflix/Sony',genre:'Adventure',franchise:'Narnia',starActor:'Daniel Craig',phase:4,week:47,basePrice:50,estM:95,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f132',title:'Violent Night 2',dist:'Universal',genre:'Action',franchise:'Violent Night',starActor:'David Harbour',phase:4,week:48,basePrice:22,estM:42,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f133',title:'Jumanji 3',dist:'Sony',genre:'Action',franchise:'Jumanji',starActor:'Dwayne Johnson',phase:4,week:49,basePrice:44,estM:82,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f134',title:'Dune: Part Three',dist:'WB',genre:'Sci-Fi',franchise:'Dune',starActor:'Timothée Chalamet',phase:4,week:49,basePrice:80,estM:155,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f135',title:'Avengers: Doomsday',dist:'Marvel/Disney',genre:'Action',franchise:'MCU',starActor:'Robert Downey Jr',phase:4,week:50,basePrice:98,estM:210,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f136',title:'The Angry Birds Movie 3 HFSS',dist:'Paramount',genre:'Animation',franchise:'Angry Birds',starActor:null,phase:4,week:51,basePrice:14,estM:28,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f137',title:'King',dist:'Fox',genre:'Drama',franchise:null,starActor:null,phase:4,week:51,basePrice:10,estM:18,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f138',title:'Werwulf',dist:'Lionsgate',genre:'Horror',franchise:null,starActor:null,phase:4,week:52,basePrice:8,estM:14,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f139',title:'The Beekeeper 2',dist:'Amazon MGM',genre:'Action',franchise:null,starActor:'Jason Statham',phase:4,week:53,basePrice:18,estM:35,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f140',title:'Children of Blood and Bone',dist:'Paramount',genre:'Action',franchise:null,starActor:null,phase:4,week:54,basePrice:22,estM:42,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f141',title:'The Rescue',dist:'Disney',genre:'Drama',franchise:null,starActor:null,phase:4,week:55,basePrice:12,estM:22,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f142',title:'The Thomas Crown Affair',dist:'Sony',genre:'Thriller',franchise:null,starActor:null,phase:5,week:57,basePrice:24,estM:45,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f143',title:'Ice Age: Boiling Point HFSS',dist:'Disney/20th',genre:'Animation',franchise:'Ice Age',starActor:null,phase:5,week:58,basePrice:30,estM:58,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f144',title:'The Nightingale',dist:'Universal',genre:'Drama',franchise:null,starActor:null,phase:5,week:58,basePrice:14,estM:26,rt:null,sleeper:true,trailer:'',affiliateUrl:''},
+  {id:'f145',title:'Star Wars: A New Hope (50th Anniversary)',dist:'Disney',genre:'Action',franchise:'Star Wars',starActor:null,phase:5,week:59,basePrice:22,estM:42,rt:99,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f146',title:'Sonic the Hedgehog 4 HFSS',dist:'Paramount',genre:'Family',franchise:'Sonic',starActor:'Jim Carrey',phase:5,week:60,basePrice:34,estM:65,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f147',title:'Untitled Mike Flanagan Exorcist Film',dist:'Lionsgate',genre:'Horror',franchise:'Exorcist',starActor:null,phase:5,week:61,basePrice:20,estM:38,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
+  {id:'f148',title:'The Resurrection of The Christ: Part One',dist:'Lionsgate',genre:'Drama',franchise:null,starActor:null,phase:5,week:62,basePrice:22,estM:42,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
 ]
 
 // ── SCORING FUNCTIONS ──
-// UPDATED: Analyst = +60pts flat. Weekly W1-3=1pt/$1M, W4+=1.1pts/$1M
-
 function calcMarketValue(film, actualM) {
   if (actualM == null) return film.basePrice
   const ratio = actualM / film.estM
@@ -193,7 +191,7 @@ function calcOpeningPts(film, actualM, isEarlyBird=false, isAnalyst=false) {
   let rtMod = film.rt>=90?1.25:film.rt>=75?1.10:(film.rt<50&&film.rt!=null)?0.85:1.0
   let pts = Math.round(actualM * perfMult * rtMod)
   if (isEarlyBird && ratio>=1.10) pts = Math.round(pts * 1.10)
-  if (isAnalyst) pts = pts + 60  // UPDATED: flat +60 not triple
+  if (isAnalyst) pts = pts + 60
   return pts
 }
 
@@ -202,12 +200,23 @@ function calcLegsBonus(actualM, week2M) {
   return ((actualM-week2M)/actualM)<0.30?25:0
 }
 
-// UPDATED: W1-3=1pt/$1M, W4+=1.1pts/$1M
 function calcWeeklyPtsFromMap(weeksMap) {
   return Object.entries(weeksMap).reduce((s,[wk,g])=>{
     const rate = Number(wk)>=4?1.1:1.0
     return s + Number(g)*rate
   },0)
+}
+
+// NEW: Demand multiplier — price rises as more players own a film
+function calcDemandMultiplier(film, rosters, phase, totalPlayers) {
+  if (!totalPlayers) return 1.0
+  const owners = rosters.filter(r=>r.film_id===film.id&&r.phase===phase&&r.active).length
+  const pct = owners / totalPlayers
+  if (pct > 0.40) return 1.4
+  if (pct > 0.25) return 1.25
+  if (pct > 0.15) return 1.10
+  if (pct < 0.05 && owners > 0) return 0.90
+  return 1.0
 }
 
 async function dbUpsertResult(filmId, actualM) {
@@ -261,7 +270,6 @@ function ScoreBreakdownModal({film,holding,results,weeklyGrosses,allChips,auteur
     <div style={{position:'fixed',inset:0,background:'#000000DD',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:800}} onClick={onClose}>
       <div style={{background:'#0C0E12',border:'1px solid #1E222C',borderRadius:'16px 16px 0 0',width:'100%',maxWidth:'520px',maxHeight:'88vh',overflowY:'auto',padding:'20px',paddingBottom:'calc(24px + env(safe-area-inset-bottom))'}} onClick={e=>e.stopPropagation()}>
         <div style={{width:'36px',height:'4px',background:'#2A2F3C',borderRadius:'2px',margin:'0 auto 16px'}}/>
-        {/* Film header */}
         <div style={{position:'relative',overflow:'hidden',borderRadius:'10px',background:'#12141A',padding:'14px',marginBottom:'16px'}}>
           <div style={{position:'absolute',top:0,left:0,right:0,height:'3px',background:genreCol}}/>
           <div style={{fontSize:'15px',fontWeight:700,marginTop:'4px'}}>{film.title}</div>
@@ -319,38 +327,6 @@ function ScoreBreakdownModal({film,holding,results,weeklyGrosses,allChips,auteur
   )
 }
 
-// ── MOBILE BOTTOM NAV ──
-function BottomNav({page,setPage,isCommissioner,onMore}) {
-  const items=[['market','🎬','Market'],['roster','📁','Roster'],['chips','⚡','Chips'],['league','🥇','League'],['more','···','More']]
-  return (
-    <div style={{position:'fixed',bottom:0,left:0,right:0,background:'#0C0E12',borderTop:'1px solid #1E222C',display:'flex',zIndex:200,paddingBottom:'env(safe-area-inset-bottom)'}}>
-      {items.map(([id,ic,lb])=>(
-        <div key={id} onClick={()=>id==='more'?onMore():setPage(id)} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',padding:'8px 0 6px',cursor:'pointer',color:page===id?'#F0B429':'#4A5168'}}>
-          <div style={{fontSize:'18px',lineHeight:1}}>{ic}</div>
-          <div style={{fontSize:'9px',marginTop:'2px'}}>{lb}</div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// ── MORE DRAWER ──
-function MoreDrawer({page,setPage,isCommissioner,onClose}) {
-  const extras=[['forecaster','📊','Forecaster'],['oscar','🏆','Oscars'],['results','📋','Results'],...(isCommissioner?[['commissioner','⚙️','Panel']]:[])]
-  return (
-    <div style={{position:'fixed',inset:0,background:'#000000CC',zIndex:300}} onClick={onClose}>
-      <div style={{position:'absolute',bottom:0,left:0,right:0,background:'#0C0E12',borderTop:'1px solid #1E222C',borderRadius:'16px 16px 0 0',padding:'16px',paddingBottom:'calc(16px + env(safe-area-inset-bottom))'}} onClick={e=>e.stopPropagation()}>
-        <div style={{width:'36px',height:'4px',background:'#2A2F3C',borderRadius:'2px',margin:'0 auto 14px'}}/>
-        {extras.map(([id,ic,lb])=>(
-          <div key={id} onClick={()=>{setPage(id);onClose()}} style={{display:'flex',alignItems:'center',gap:'12px',padding:'13px 10px',borderRadius:'8px',cursor:'pointer',marginBottom:'4px',background:page===id?'#F0B42914':'none',color:page===id?'#F0B429':'#F2EEE8'}}>
-            <span style={{fontSize:'20px'}}>{ic}</span><span style={{fontSize:'13px'}}>{lb}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 // ── MAIN APP ──
 export default function App() {
   const [session,setSession]=useState(null)
@@ -377,19 +353,16 @@ export default function App() {
   const [trailerFilm,setTrailerFilm]=useState(null)
   const [chipModal,setChipModal]=useState(null)
   const [addFilmModal,setAddFilmModal]=useState(false)
-  const [newFilm,setNewFilm]=useState({title:'',dist:'',genre:'Action',franchise:'',basePrice:20,estM:30,rt:'',week:1,phase:1,sleeper:false,starActor:'',trailer:''})
+  const [newFilm,setNewFilm]=useState({title:'',dist:'',genre:'Action',franchise:'',basePrice:20,estM:30,rt:'',week:1,phase:1,sleeper:false,starActor:'',trailer:'',affiliateUrl:''})
   const [now,setNow]=useState(Date.now())
   const [scoreModal,setScoreModal]=useState(null)
-  const [showMore,setShowMore]=useState(false)
   const [auteurActor,setAuteurActor]=useState('')
   const [auteurFilms,setAuteurFilms]=useState([])
-  const [isMobile,setIsMobile]=useState(window.innerWidth<700)
+  const [sidebarOpen,setSidebarOpen]=useState(false)
+  const [isMobile,setIsMobile]=useState(()=>/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent))
+  const [marketSearch,setMarketSearch]=useState('')
+  const [marketGenre,setMarketGenre]=useState('All')
 
-  useEffect(()=>{
-    const h=()=>setIsMobile(window.innerWidth<700)
-    window.addEventListener('resize',h)
-    return()=>window.removeEventListener('resize',h)
-  },[])
   useEffect(()=>{
     supabase.auth.getSession().then(({data:{session}})=>{setSession(session);setLoading(false)})
     supabase.auth.onAuthStateChange((_e,session)=>setSession(session))
@@ -456,7 +429,12 @@ export default function App() {
   }
 
   // ── HELPERS ──
-  const filmVal=(film)=>filmValues[film.id]??film.basePrice
+  const filmVal=(film)=>{
+    const perfVal=filmValues[film.id]??film.basePrice
+    const ph=curPhase()
+    const dm=calcDemandMultiplier(film,rosters,ph,players.length)
+    return Math.round(perfVal*dm)
+  }
   const weeklyPts=(filmId)=>calcWeeklyPtsFromMap(weeklyGrosses[filmId]||{})
   const legsBonus=(filmId)=>calcLegsBonus(results[filmId],weeklyGrosses[filmId]?.[2])
   const wwBonus=(filmId)=>Object.values(weekendWinners).includes(filmId)?15:0
@@ -623,23 +601,41 @@ export default function App() {
   const wMs=leagueConfig.phase_window_opened_at?Math.max(0,72*3600000-(now-new Date(leagueConfig.phase_window_opened_at).getTime())):0
   const wH=Math.floor(wMs/3600000),wM=Math.floor((wMs%3600000)/60000),wS=Math.floor((wMs%60000)/1000)
 
-  const desktopNav=[['market','🎬','Market'],['roster','📁','Roster'],['chips','⚡','Chips'],['forecaster','📊','Forecaster'],['oscar','🏆','Oscars'],['league','🥇','League'],['results','📋','Results'],...(isCommissioner?[['commissioner','⚙️','Panel']]:[])]
+  const allNav=[['market','🎬','Market'],['roster','📁','Roster'],['chips','⚡','Chips'],['league','🥇','League'],['forecaster','📊','Forecaster'],['oscar','🏆','Oscars'],['results','📋','Results'],...(isCommissioner?[['commissioner','⚙️','Panel']]:[])]
 
   // ── MARKET PAGE ──
-  const MarketPage=()=>(
+  const MarketPage=()=>{
+    const genres=['All',...Object.keys(GENRE_COL)]
+    const visibleFilms=phaseFilms.filter(f=>{
+      const matchSearch=!marketSearch||f.title.toLowerCase().includes(marketSearch.toLowerCase())||f.dist.toLowerCase().includes(marketSearch.toLowerCase())
+      const matchGenre=marketGenre==='All'||f.genre===marketGenre
+      return matchSearch&&matchGenre
+    })
+    return(
     <div>
-      <div style={{marginBottom:'14px'}}>
+      <div style={{marginBottom:'12px'}}>
         <div style={{fontSize:'17px',fontWeight:800}}>Phase {ph} · {PHASE_NAMES[ph]}</div>
         <div style={{fontSize:'10px',color:'#4A5168',marginTop:'2px'}}>{cur}{myBudgetLeft}M left · {myPhaseRoster.length}/{MAX_ROSTER} slots · {phaseFilms.length} films{win?' · 🔓 Free drops':''}</div>
       </div>
+      {/* Search + filter */}
+      <div style={{display:'flex',gap:'8px',marginBottom:'12px',flexWrap:'wrap'}}>
+        <input value={marketSearch} onChange={e=>setMarketSearch(e.target.value)} placeholder="Search films…" style={{...S.inp,flex:2,minWidth:'140px',fontSize:'11px',padding:'7px 10px'}}/>
+        <select value={marketGenre} onChange={e=>setMarketGenre(e.target.value)} style={{...S.inp,flex:1,minWidth:'100px',fontSize:'11px',padding:'7px 10px'}}>
+          {genres.map(g=><option key={g} value={g}>{g}</option>)}
+        </select>
+      </div>
       <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(auto-fill,minmax(155px,1fr))':'repeat(auto-fill,minmax(185px,1fr))',gap:'10px'}}>
-        {phaseFilms.map(film=>{
+        {visibleFilms.map(film=>{
           const owned=myPhaseRoster.find(r=>r.film_id===film.id)
           const val=filmVal(film),actual=results[film.id],genreCol=GENRE_COL[film.genre]||'#888'
-          const pd=val-film.basePrice,wp=weeklyPts(film.id),op=actual!=null?calcOpeningPts(film,actual,owned?isEarlyBird(owned):false,analystActive(profile.id,film.id)):0
+          const pd=(filmValues[film.id]??film.basePrice)-film.basePrice
+          const wp=weeklyPts(film.id),op=actual!=null?calcOpeningPts(film,actual,owned?isEarlyBird(owned):false,analystActive(profile.id,film.id)):0
           const lb=legsBonus(film.id),wb=wwBonus(film.id)
           const isShorted=chips?.short_film_id===film.id,isAnalyst=chips?.analyst_film_id===film.id
           const isAuteur=auteurBonus(profile.id,film.id),isEB=owned&&isEarlyBird(owned)
+          const ownerCount=rosters.filter(r=>r.film_id===film.id&&r.phase===ph&&r.active).length
+          const demandPct=players.length?Math.round(ownerCount/players.length*100):0
+          const isReleased=film.week<=leagueConfig.current_week
           return (
             <div key={film.id} style={{...S.card,border:`1px solid ${owned?S.gold+'44':'#1E222C'}`,background:owned?'#F0B42908':'#0C0E12',position:'relative',overflow:'hidden',padding:'12px'}}>
               <div style={{position:'absolute',top:0,left:0,right:0,height:'2px',background:genreCol}}/>
@@ -673,18 +669,20 @@ export default function App() {
                 </div>
               )}
               {film.starActor&&<div style={{fontSize:'9px',color:'#4A5168',marginBottom:'5px'}}>⭐ {film.starActor}</div>}
+              {ownerCount>0&&<div style={{fontSize:'9px',color:demandPct>=40?S.red:demandPct>=25?S.orange:'#4A5168',marginBottom:'4px'}}>{demandPct>=40?'🔥':demandPct>=15?'📈':''} {ownerCount} own · {demandPct}%</div>}
               {film.trailer&&film.trailer.length>5&&<button style={{...S.btn,background:'#12141A',border:'1px solid #2A2F3C',color:'#4A5168',width:'100%',fontSize:'9px',marginBottom:'5px',padding:'5px'}} onClick={e=>{e.stopPropagation();setTrailerFilm(film)}}>▶ Trailer</button>}
+              {isReleased&&film.affiliateUrl&&<a href={film.affiliateUrl} target="_blank" rel="noopener noreferrer" style={{display:'block',textAlign:'center',background:'#1E222C',borderRadius:'6px',padding:'5px',fontSize:'9px',color:S.gold,marginBottom:'5px',textDecoration:'none'}}>🎟 Book Tickets</a>}
               {owned
                 ?<button style={{...S.btn,background:'none',border:`1px solid ${S.red}44`,color:S.red,width:'100%',fontSize:'9px',padding:'6px'}} onClick={()=>sellFilm(film)}>Drop{win?' FREE':` · ${cur}${Math.max(0,val-leagueConfig.tx_fee)}M`}</button>
                 :<button style={{...S.btn,background:S.gold,color:'#000',width:'100%',fontSize:'9px',padding:'6px'}} onClick={()=>buyFilm(film)}>Acquire · {cur}{val}M</button>
               }
-              {(()=>{const n=rosters.filter(r=>r.film_id===film.id&&r.phase===ph&&r.active).length;return n>0?<div style={{fontSize:'9px',color:'#4A5168',marginTop:'4px',textAlign:'center'}}>{n} own this</div>:null})()}
             </div>
           )
         })}
+        {visibleFilms.length===0&&<div style={{...S.card,gridColumn:'1/-1',textAlign:'center',color:'#4A5168',padding:'32px'}}>No films match your search.</div>}
       </div>
     </div>
-  )
+  )}
 
   // ── ROSTER PAGE ──
   const RosterPage=()=>(
@@ -758,7 +756,6 @@ export default function App() {
       <div>
         <div style={{fontSize:'17px',fontWeight:800,marginBottom:'6px'}}>My Chips</div>
         <div style={{fontSize:'10px',color:'#4A5168',marginBottom:'16px'}}>One of each per season · Shorts and Analyst first-come first-served per film</div>
-        {/* RECUT */}
         <div style={{...S.card,border:`1px solid ${recutUsed?'#2A2F3C':S.purple+'44'}`,marginBottom:'10px'}}>
           <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
             <div style={{fontSize:'22px'}}>🎬</div>
@@ -767,7 +764,6 @@ export default function App() {
               :<button style={{...S.btn,background:S.purple,color:'#fff',fontSize:'10px',padding:'6px 14px'}} onClick={activateRecut}>Activate</button>}
           </div>
         </div>
-        {/* SHORT */}
         <div style={{...S.card,border:`1px solid ${shortUsed?'#2A2F3C':S.red+'44'}`,marginBottom:'10px'}}>
           <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
             <div style={{fontSize:'22px'}}>📉</div>
@@ -776,7 +772,6 @@ export default function App() {
               :<button style={{...S.btn,background:S.red,color:'#fff',fontSize:'10px',padding:'6px 14px'}} onClick={()=>setChipModal('short')}>Activate</button>}
           </div>
         </div>
-        {/* ANALYST */}
         <div style={{...S.card,border:`1px solid ${analystUsed?'#2A2F3C':S.blue+'44'}`,marginBottom:'10px'}}>
           <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
             <div style={{fontSize:'22px'}}>🎯</div>
@@ -785,7 +780,6 @@ export default function App() {
               :<button style={{...S.btn,background:S.blue,color:'#fff',fontSize:'10px',padding:'6px 14px'}} onClick={()=>setChipModal('analyst')}>Activate</button>}
           </div>
         </div>
-        {/* AUTEUR */}
         <div style={{...S.card,border:`1px solid ${myAuteur?'#2A2F3C':S.orange+'44'}`,marginBottom:'10px'}}>
           <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
             <div style={{fontSize:'22px'}}>🎭</div>
@@ -947,7 +941,7 @@ export default function App() {
                 else{const ex=await supabase.from('weekend_winners').select('id').eq('week',film.week).single();if(ex.data)await supabase.from('weekend_winners').update({film_id:film.id,phase:ph}).eq('week',film.week);else await supabase.from('weekend_winners').insert({film_id:film.id,week:film.week,phase:ph})}
                 notify(isWinner?'Winner removed':`🥇 ${film.title} · +15pts all owners`,S.gold);loadData()
               }}>{isWinner?'🥇 #1':'#1?'}</button>
-            {actual!=null&&<div style={{fontSize:'10px',color:S.green}}>${actual}M → $${filmVal(film)} · {calcOpeningPts(film,actual)}pts</div>}
+            {actual!=null&&<div style={{fontSize:'10px',color:S.green}}>${actual}M → ${filmVal(film)} · {calcOpeningPts(film,actual)}pts</div>}
           </div>
           {actual!=null&&(
             <div style={{borderTop:'1px solid #1E222C',paddingTop:'8px'}}>
@@ -1018,7 +1012,8 @@ export default function App() {
                 <div><div style={{fontSize:'7px',color:'#4A5168',marginBottom:'2px'}}>IPO</div><input type="number" defaultValue={film.basePrice} id={`ipo-${film.id}`} style={{...S.inp,width:'52px',fontSize:'10px',padding:'3px 5px'}}/></div>
                 <div><div style={{fontSize:'7px',color:'#4A5168',marginBottom:'2px'}}>EST</div><input type="number" defaultValue={film.estM} id={`est-${film.id}`} style={{...S.inp,width:'52px',fontSize:'10px',padding:'3px 5px'}}/></div>
                 <div><div style={{fontSize:'7px',color:'#4A5168',marginBottom:'2px'}}>RT%</div><input type="number" defaultValue={film.rt||''} id={`rt-${film.id}`} style={{...S.inp,width:'45px',fontSize:'10px',padding:'3px 5px'}}/></div>
-                <button style={{...S.btn,background:'#12141A',border:'1px solid #2A2F3C',color:S.gold,fontSize:'8px',marginTop:'10px',padding:'4px 8px'}} onClick={()=>{const ni=parseInt(document.getElementById(`ipo-${film.id}`).value),ne=parseInt(document.getElementById(`est-${film.id}`).value),nr=parseInt(document.getElementById(`rt-${film.id}`).value)||null;setFilms(prev=>prev.map(f=>f.id===film.id?{...f,basePrice:ni,estM:ne,rt:nr}:f));notify(`Updated ${film.title}`,S.green)}}>Update</button>
+                <div><div style={{fontSize:'7px',color:'#4A5168',marginBottom:'2px'}}>AFF URL</div><input type="text" defaultValue={film.affiliateUrl||''} id={`aff-${film.id}`} placeholder="https://…" style={{...S.inp,width:'90px',fontSize:'9px',padding:'3px 5px'}}/></div>
+                <button style={{...S.btn,background:'#12141A',border:'1px solid #2A2F3C',color:S.gold,fontSize:'8px',marginTop:'10px',padding:'4px 8px'}} onClick={()=>{const ni=parseInt(document.getElementById(`ipo-${film.id}`).value),ne=parseInt(document.getElementById(`est-${film.id}`).value),nr=parseInt(document.getElementById(`rt-${film.id}`).value)||null,na=document.getElementById(`aff-${film.id}`).value.trim();setFilms(prev=>prev.map(f=>f.id===film.id?{...f,basePrice:ni,estM:ne,rt:nr,affiliateUrl:na}:f));notify(`Updated ${film.title}`,S.green)}}>Update</button>
                 <button style={{...S.btn,background:'none',border:`1px solid ${S.red}33`,color:S.red,fontSize:'8px',marginTop:'10px',padding:'4px 8px'}} onClick={()=>{if(!confirm(`Remove ${film.title}?`))return;setFilms(prev=>prev.filter(f=>f.id!==film.id));notify(`Removed ${film.title}`)}}>Remove</button>
               </div>
             </div>))}
@@ -1049,7 +1044,7 @@ export default function App() {
     <div style={S.app}>
       {/* TOPBAR */}
       <div style={S.topbar}>
-        <div style={{fontFamily:'sans-serif',fontSize:'20px',fontWeight:900,color:S.gold,letterSpacing:'-1px'}}>BOXD</div>
+        <div onClick={()=>setSidebarOpen(o=>!o)} style={{fontFamily:'sans-serif',fontSize:'20px',fontWeight:900,color:S.gold,letterSpacing:'-1px',cursor:'pointer',userSelect:'none',padding:'4px 6px',borderRadius:'6px',background:sidebarOpen?'#F0B42918':'none'}}>BOXD</div>
         {win&&wMs>0&&<div style={{background:S.orange+'22',border:`1px solid ${S.orange}44`,borderRadius:'6px',padding:'2px 8px',fontSize:'9px',color:S.orange}}>🔓 {wH}h {wM}m {wS}s</div>}
         <div style={{background:'#12141A',border:'1px solid #2A2F3C',borderRadius:'7px',padding:'3px 9px'}}>
           <div style={{fontSize:'7px',color:'#4A5168'}}>Ph{ph} BUDGET</div>
@@ -1064,35 +1059,34 @@ export default function App() {
       </div>
 
       <div style={{display:'flex',minHeight:'calc(100vh - 52px)'}}>
-        {/* DESKTOP SIDEBAR */}
-        {!isMobile&&(
-          <div style={{width:'180px',background:'#0C0E12',borderRight:'1px solid #1E222C',padding:'8px',flexShrink:0}}>
-            {desktopNav.map(([id,ic,lb])=>(
-              <div key={id} onClick={()=>setPage(id)} style={{display:'flex',alignItems:'center',gap:'8px',padding:'8px 10px',borderRadius:'7px',cursor:'pointer',fontSize:'11px',marginBottom:'2px',background:page===id?'#F0B42914':'none',color:page===id?S.gold:'#6B7080'}}>
+        {/* SIDEBAR — always visible on desktop, toggles on mobile */}
+        {(sidebarOpen||!isMobile)&&(
+          <div style={{width:'180px',background:'#0C0E12',borderRight:'1px solid #1E222C',padding:'8px',flexShrink:0,zIndex:150,position:isMobile?'fixed':'relative',top:isMobile?'52px':'0',left:0,bottom:0,overflowY:'auto'}}>
+            {isMobile&&<div style={{fontSize:'8px',color:'#4A5168',letterSpacing:'1px',padding:'8px 10px 4px'}}>MENU</div>}
+            {allNav.map(([id,ic,lb])=>(
+              <div key={id} onClick={()=>{setPage(id);if(isMobile)setSidebarOpen(false)}} style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 10px',borderRadius:'7px',cursor:'pointer',fontSize:'11px',marginBottom:'2px',background:page===id?'#F0B42914':'none',color:page===id?S.gold:'#6B7080'}}>
                 <span>{ic}</span>{lb}
               </div>
             ))}
           </div>
         )}
+        {/* Mobile backdrop */}
+        {isMobile&&sidebarOpen&&<div onClick={()=>setSidebarOpen(false)} style={{position:'fixed',inset:0,top:'52px',background:'#00000088',zIndex:140}}/>}
 
-        <div style={{...S.main,paddingBottom:isMobile?'80px':'24px'}}>
+        <div style={{...S.main,paddingBottom:'24px'}}>
           {page==='market'&&<MarketPage/>}
           {page==='roster'&&<RosterPage/>}
           {page==='chips'&&<ChipsPage/>}
+          {page==='league'&&<LeaguePage/>}
           {page==='forecaster'&&<ForecasterPage/>}
           {page==='oscar'&&<OscarPage/>}
-          {page==='league'&&<LeaguePage/>}
           {page==='results'&&<ResultsPage/>}
           {page==='commissioner'&&isCommissioner&&<CommissionerPage/>}
         </div>
       </div>
 
-      {/* MOBILE BOTTOM NAV */}
-      {isMobile&&<BottomNav page={page} setPage={setPage} isCommissioner={isCommissioner} onMore={()=>setShowMore(true)}/>}
-      {isMobile&&showMore&&<MoreDrawer page={page} setPage={setPage} isCommissioner={isCommissioner} onClose={()=>setShowMore(false)}/>}
-
       {/* NOTIFICATIONS */}
-      {notif&&<div style={{position:'fixed',bottom:isMobile?'72px':'20px',right:'16px',background:'#0C0E12',border:`1px solid ${notif.col}`,borderRadius:'9px',padding:'10px 14px',fontSize:'11px',zIndex:600,maxWidth:'280px'}}>{notif.msg}</div>}
+      {notif&&<div style={{position:'fixed',bottom:'20px',right:'16px',background:'#0C0E12',border:`1px solid ${notif.col}`,borderRadius:'9px',padding:'10px 14px',fontSize:'11px',zIndex:600,maxWidth:'280px'}}>{notif.msg}</div>}
 
       {/* SCORE BREAKDOWN MODAL */}
       {scoreModal&&<ScoreBreakdownModal film={scoreModal.film} holding={scoreModal.holding} results={results} weeklyGrosses={weeklyGrosses} allChips={allChips} auteurDeclarations={auteurDeclarations} weekendWinners={weekendWinners} isEarlyBird={isEarlyBird} onClose={()=>setScoreModal(null)}/>}
@@ -1127,15 +1121,16 @@ export default function App() {
               <div><div style={{fontSize:'8px',color:'#4A5168',letterSpacing:'1px',marginBottom:'4px'}}>GENRE</div><select value={newFilm.genre} style={{...S.inp}} onChange={e=>setNewFilm(prev=>({...prev,genre:e.target.value}))}>{Object.keys(GENRE_COL).map(g=><option key={g} value={g}>{g}</option>)}</select></div>
               <div style={{display:'flex',alignItems:'center',gap:'8px',paddingTop:'16px'}}><input type="checkbox" checked={newFilm.sleeper} id="sleeper-check" onChange={e=>setNewFilm(prev=>({...prev,sleeper:e.target.checked}))}/><label htmlFor="sleeper-check" style={{fontSize:'11px',color:'#4A5168',cursor:'pointer'}}>Sleeper pick</label></div>
               <div style={{gridColumn:'1/-1'}}><div style={{fontSize:'8px',color:'#4A5168',letterSpacing:'1px',marginBottom:'4px'}}>TRAILER URL</div><input type="text" placeholder="https://www.youtube.com/embed/..." value={newFilm.trailer} style={{...S.inp}} onChange={e=>setNewFilm(prev=>({...prev,trailer:e.target.value}))}/></div>
+              <div style={{gridColumn:'1/-1'}}><div style={{fontSize:'8px',color:'#4A5168',letterSpacing:'1px',marginBottom:'4px'}}>AFFILIATE BOOKING URL</div><input type="text" placeholder="https://www.odeon.co.uk/..." value={newFilm.affiliateUrl} style={{...S.inp}} onChange={e=>setNewFilm(prev=>({...prev,affiliateUrl:e.target.value}))}/></div>
             </div>
             <div style={{display:'flex',gap:'8px'}}>
               <button style={{...S.btn,background:'#12141A',border:'1px solid #2A2F3C',color:'#4A5168',flex:1}} onClick={()=>setAddFilmModal(false)}>Cancel</button>
               <button style={{...S.btn,background:S.green,color:'#000',flex:1,fontWeight:700}} onClick={()=>{
                 if(!newFilm.title||!newFilm.dist)return notify('Title and distributor required',S.red)
                 const id='f'+Date.now().toString(36)
-                const film={...newFilm,id,basePrice:Number(newFilm.basePrice)||20,estM:Number(newFilm.estM)||30,rt:newFilm.rt!==''?Number(newFilm.rt):null,week:Number(newFilm.week)||1,phase:Number(newFilm.phase)||1,franchise:newFilm.franchise||null,starActor:newFilm.starActor||null}
+                const film={...newFilm,id,basePrice:Number(newFilm.basePrice)||20,estM:Number(newFilm.estM)||30,rt:newFilm.rt!==''?Number(newFilm.rt):null,week:Number(newFilm.week)||1,phase:Number(newFilm.phase)||1,franchise:newFilm.franchise||null,starActor:newFilm.starActor||null,affiliateUrl:newFilm.affiliateUrl||''}
                 setFilms(prev=>[...prev,film])
-                setNewFilm({title:'',dist:'',genre:'Action',franchise:'',basePrice:20,estM:30,rt:'',week:1,phase:1,sleeper:false,starActor:'',trailer:''})
+                setNewFilm({title:'',dist:'',genre:'Action',franchise:'',basePrice:20,estM:30,rt:'',week:1,phase:1,sleeper:false,starActor:'',trailer:'',affiliateUrl:''})
                 setAddFilmModal(false);notify(`✅ ${film.title} added`,S.green)
               }}>Add Film</button>
             </div>
