@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabase'
 
 const S = {
@@ -22,6 +22,11 @@ const EARLY_BIRD_WEEKS = 4
 const MAX_ROSTER = 6
 const PHASE_BUDGETS = { 1:80, 2:150, 3:80, 4:100, 5:120 }
 const PHASE_NAMES = { 1:'Dead Zone', 2:'Summer Slate', 3:'Horror Window', 4:'Awards Season', 5:'Oscar Sprint' }
+
+const ACTIVITY_ICONS = {
+  buy: '🎬', sell: '💸', chip_recut: '🎬', chip_short: '📉', chip_analyst: '🎯',
+  auteur: '🎭', forecast: '📊', oscar: '🏆', result: '✅', weekend_winner: '🥇',
+}
 
 const FILMS_DEFAULT = [
   {id:'f001',title:'We Bury the Dead',dist:'Lionsgate',genre:'Horror',franchise:null,starActor:null,phase:1,week:1,basePrice:8,estM:14,rt:null,sleeper:false,trailer:'',affiliateUrl:''},
@@ -207,7 +212,6 @@ function calcWeeklyPtsFromMap(weeksMap) {
   },0)
 }
 
-// NEW: Demand multiplier — price rises as more players own a film
 function calcDemandMultiplier(film, rosters, phase, totalPlayers) {
   if (!totalPlayers) return 1.0
   const owners = rosters.filter(r=>r.film_id===film.id&&r.phase===phase&&r.active).length
@@ -217,6 +221,15 @@ function calcDemandMultiplier(film, rosters, phase, totalPlayers) {
   if (pct > 0.15) return 1.10
   if (pct < 0.05 && owners > 0) return 0.90
   return 1.0
+}
+
+function timeAgo(ts) {
+  const diff = Date.now() - new Date(ts).getTime()
+  const m = Math.floor(diff/60000), h = Math.floor(diff/3600000), d = Math.floor(diff/86400000)
+  if (diff < 60000) return 'just now'
+  if (m < 60) return `${m}m ago`
+  if (h < 24) return `${h}h ago`
+  return `${d}d ago`
 }
 
 async function dbUpsertResult(filmId, actualM) {
@@ -233,6 +246,12 @@ async function dbUpsertWeekly(filmId, weekNum, grossM) {
   const { data } = await supabase.from('weekly_grosses').select('id').eq('film_id',filmId).eq('week_num',weekNum)
   if (data && data.length > 0) return supabase.from('weekly_grosses').update({gross_m:grossM}).eq('film_id',filmId).eq('week_num',weekNum)
   return supabase.from('weekly_grosses').insert({film_id:filmId,week_num:weekNum,gross_m:grossM})
+}
+
+async function logActivity(userId, type, payload) {
+  try {
+    await supabase.from('activity_feed').insert({ user_id: userId, type, payload })
+  } catch(e) { /* non-blocking */ }
 }
 
 // ── SCORE BREAKDOWN MODAL ──
@@ -284,12 +303,11 @@ function ScoreBreakdownModal({film,holding,results,weeklyGrosses,allChips,auteur
           )}
         </div>
         {actual==null?(
-          <div style={{textAlign:'center',color:'#4A5168',padding:'28px',fontSize:'12px'}}>No results yet — check back after opening weekend is entered.</div>
+          <div style={{textAlign:'center',color:'#4A5168',padding:'28px',fontSize:'12px'}}>No results yet — check back after opening weekend.</div>
         ):(
           <>
             <div style={{fontSize:'9px',color:'#4A5168',letterSpacing:'1px',marginBottom:'6px'}}>POINTS BREAKDOWN</div>
-            <Row label="Base opening pts" value={`+${baseOpen}`}
-              sub={`$${actual}M × ${(actual/film.estM).toFixed(2)}× perf · RT ×${film.rt>=90?'1.25':film.rt>=75?'1.10':'1.00'}`}/>
+            <Row label="Base opening pts" value={`+${baseOpen}`} sub={`$${actual}M × ${(actual/film.estM).toFixed(2)}× perf · RT ×${film.rt>=90?'1.25':film.rt>=75?'1.10':'1.00'}`}/>
             {earlyBird&&ebBonus>0&&<Row label="🐦 Early Bird +10%" value={`+${ebBonus}`} col="#2DD67A" sub="Bought 4+ weeks before release and overperformed"/>}
             {analystWin&&<Row label="🎯 Analyst chip bonus" value="+60" col="#4D9EFF" sub="Predicted opening within 10% — flat +60pts"/>}
             {auteur&&auteurBonus>0&&<Row label="🎭 Auteur +10%" value={`+${auteurBonus}`} col="#FF8C3D" sub="Declared same star actor across 2+ films"/>}
@@ -312,7 +330,7 @@ function ScoreBreakdownModal({film,holding,results,weeklyGrosses,allChips,auteur
                 <div style={{fontSize:'9px',color:'#4A5168'}}>W1–W3: 1pt/$1M · W4+: 1.1pts/$1M</div>
               </div>
             )}
-            {legsBonus>0&&<Row label="🦵 Legs bonus" value="+25" col="#2DD67A" sub={`W2 drop under 30% · $${weeks[2]}M from $${actual}M opening`}/>}
+            {legsBonus>0&&<Row label="🦵 Legs bonus" value="+25" col="#2DD67A" sub={`W2 drop under 30%`}/>}
             {isWW&&<Row label="🥇 Weekend winner" value="+15" col="#F0B429" sub="#1 film at the box office"/>}
             {shortBonus!==0&&<Row label={shortBonus>0?'📉 Short — WIN':'📉 Short — LOSE'} value={shortBonus>0?'+100':'-30'} col={shortBonus>0?'#2DD67A':'#FF4757'}/>}
             <div style={{marginTop:'14px',background:'#12141A',borderRadius:'10px',padding:'16px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
@@ -362,13 +380,25 @@ export default function App() {
   const [isMobile,setIsMobile]=useState(()=>/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent))
   const [marketSearch,setMarketSearch]=useState('')
   const [marketGenre,setMarketGenre]=useState('All')
+  // Activity feed state
+  const [activityFeed,setActivityFeed]=useState([])
+  const [feedLoading,setFeedLoading]=useState(false)
 
   useEffect(()=>{
     supabase.auth.getSession().then(({data:{session}})=>{setSession(session);setLoading(false)})
     supabase.auth.onAuthStateChange((_e,session)=>setSession(session))
   },[])
-  useEffect(()=>{if(session){loadProfile();loadData()}},[session])
+  useEffect(()=>{if(session){loadProfile();loadData();loadFeed()}},[session])
   useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t)},[])
+
+  // Real-time subscription for activity feed
+  useEffect(()=>{
+    if(!session)return
+    const channel=supabase.channel('activity-feed')
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'activity_feed'},()=>loadFeed())
+      .subscribe()
+    return()=>supabase.removeChannel(channel)
+  },[session])
 
   const notify=(msg,col=S.gold)=>{setNotif({msg,col});setTimeout(()=>setNotif(null),3000)}
   const isCommissioner=session?.user?.email===COMMISSIONER_EMAIL
@@ -376,6 +406,13 @@ export default function App() {
   const loadProfile=async()=>{
     const{data}=await supabase.from('profiles').select('*').eq('id',session.user.id).single()
     if(data)setProfile(data)
+  }
+
+  const loadFeed=async()=>{
+    setFeedLoading(true)
+    const{data}=await supabase.from('activity_feed').select('*').order('created_at',{ascending:false}).limit(50)
+    if(data)setActivityFeed(data)
+    setFeedLoading(false)
   }
 
   const loadData=async()=>{
@@ -419,7 +456,7 @@ export default function App() {
     if(s)return s.budget_allocated
     return (PHASE_BUDGETS[ph]||100)+phaseBanked(pid,ph)
   }
-  const phaseSpent=(pid,ph)=>rosters.filter(r=>r.player_id===pid&&r.phase===ph&&r.active).reduce((s,r)=>s+r.bought_price,0)
+  const phaseSpent=(pid,ph)=>rosters.filter(r=>r.player_id===pid&&r.phase===ph&&r.active&&films.find(f=>f.id===r.film_id)).reduce((s,r)=>s+r.bought_price,0)
   const budgetLeft=(pid)=>Math.max(0,phaseAllocated(pid,curPhase())-phaseSpent(pid,curPhase()))
   const bankBudget=async(pid,ph)=>{
     const alloc=phaseAllocated(pid,ph),spent=phaseSpent(pid,ph),banked=Math.max(0,alloc-spent)
@@ -482,7 +519,7 @@ export default function App() {
 
   const calcPhasePoints=(pid,ph)=>{
     let total=0
-    rosters.filter(r=>r.player_id===pid&&r.phase===ph).forEach(h=>{
+    rosters.filter(r=>r.player_id===pid&&r.phase===ph&&films.find(f=>f.id===r.film_id)).forEach(h=>{
       const film=films.find(f=>f.id===h.film_id);if(!film)return
       const actual=results[film.id];if(actual==null)return
       const eb=isEarlyBird(h),aw=analystActive(pid,film.id),au=auteurBonus(pid,film.id)
@@ -504,15 +541,18 @@ export default function App() {
     const ph=curPhase()
     if(film.phase!==ph)return notify(`Film is Phase ${film.phase} — you are in Phase ${ph}`,S.red)
     if(rosters.find(r=>r.player_id===profile.id&&r.film_id===film.id&&r.active))return notify('Already in your roster',S.red)
-    if(rosters.filter(r=>r.player_id===profile.id&&r.phase===ph&&r.active).length>=MAX_ROSTER)return notify(`Phase roster full (${MAX_ROSTER} max)`,S.red)
+    // BUG FIX: only count active roster entries where the film still exists
+    if(rosters.filter(r=>r.player_id===profile.id&&r.phase===ph&&r.active&&films.find(f=>f.id===r.film_id)).length>=MAX_ROSTER)return notify(`Phase roster full (${MAX_ROSTER} max)`,S.red)
     const price=filmVal(film),left=budgetLeft(profile.id)
     if(price>left)return notify(`Not enough budget ($${price}M needed, $${left}M left)`,S.red)
     const{error}=await supabase.from('rosters').insert({player_id:profile.id,film_id:film.id,bought_price:price,bought_week:leagueConfig.current_week,acquired_week:leagueConfig.current_week,phase:ph,active:true})
     if(error)return notify(error.message,S.red)
     await supabase.from('transactions').insert({player_id:profile.id,film_id:film.id,type:'buy',price,week:leagueConfig.current_week})
+    await logActivity(profile.id,'buy',{film_id:film.id,film_title:film.title,price,player_name:profile.name})
     notify(`Acquired ${film.title} for $${price}M`,S.green)
     loadData()
   }
+
   const sellFilm=async(film)=>{
     const h=rosters.find(r=>r.player_id===profile.id&&r.film_id===film.id&&r.active)
     if(!h)return
@@ -522,6 +562,7 @@ export default function App() {
       {player_id:profile.id,film_id:film.id,type:'sell',price:proceeds,week:leagueConfig.current_week},
       ...(fee>0?[{player_id:profile.id,film_id:film.id,type:'fee',price:fee,week:leagueConfig.current_week}]:[]),
     ])
+    await logActivity(profile.id,'sell',{film_id:film.id,film_title:film.title,proceeds,player_name:profile.name})
     notify(`Sold ${film.title} · $${proceeds}M${win?' (free)':''}`,S.gold)
     loadData()
   }
@@ -534,6 +575,7 @@ export default function App() {
       await supabase.from('rosters').update({active:false,sold_price:filmVal(films.find(f=>f.id===h.film_id)||{}),sold_week:leagueConfig.current_week}).eq('id',h.id)
     if(chips)await supabase.from('chips').update({recut_used:true}).eq('player_id',profile.id)
     else await supabase.from('chips').insert({player_id:profile.id,recut_used:true})
+    await logActivity(profile.id,'chip_recut',{player_name:profile.name})
     notify('🎬 THE RECUT — roster cleared, zero fees',S.purple)
     setChipModal(null);loadData()
   }
@@ -542,7 +584,9 @@ export default function App() {
     if(allChips.find(c=>c.short_film_id===filmId))return notify('Film already shorted by another player',S.red)
     if(chips)await supabase.from('chips').update({short_film_id:filmId,short_phase:curPhase(),short_prediction:pred}).eq('player_id',profile.id)
     else await supabase.from('chips').insert({player_id:profile.id,short_film_id:filmId,short_phase:curPhase(),short_prediction:pred})
-    notify(`📉 SHORT — ${films.find(f=>f.id===filmId)?.title}`,S.red)
+    const ft=films.find(f=>f.id===filmId)?.title||filmId
+    await logActivity(profile.id,'chip_short',{film_id:filmId,film_title:ft,prediction:pred,player_name:profile.name})
+    notify(`📉 SHORT — ${ft}`,S.red)
     setChipModal(null);loadData()
   }
   const activateAnalyst=async(filmId,pred)=>{
@@ -551,7 +595,9 @@ export default function App() {
     if(!rosters.find(r=>r.player_id===profile.id&&r.film_id===filmId&&r.active))return notify('You must own this film',S.red)
     if(chips)await supabase.from('chips').update({analyst_film_id:filmId,analyst_phase:curPhase(),analyst_prediction:pred}).eq('player_id',profile.id)
     else await supabase.from('chips').insert({player_id:profile.id,analyst_film_id:filmId,analyst_phase:curPhase(),analyst_prediction:pred})
-    notify(`🎯 ANALYST — ${films.find(f=>f.id===filmId)?.title}`,S.blue)
+    const ft=films.find(f=>f.id===filmId)?.title||filmId
+    await logActivity(profile.id,'chip_analyst',{film_id:filmId,film_title:ft,prediction:pred,player_name:profile.name})
+    notify(`🎯 ANALYST — ${ft}`,S.blue)
     setChipModal(null);loadData()
   }
   const resolveChips=async(filmId,actualM)=>{
@@ -568,13 +614,16 @@ export default function App() {
   const submitOscarPick=async(filmId)=>{
     if(myOscarPick)return notify('Oscar pick already submitted',S.red)
     await supabase.from('oscar_predictions').insert({player_id:profile.id,best_picture_film_id:filmId})
-    notify(`🏆 Best Picture locked — ${films.find(f=>f.id===filmId)?.title}`,S.gold);loadData()
+    const ft=films.find(f=>f.id===filmId)?.title||filmId
+    await logActivity(profile.id,'oscar',{film_id:filmId,film_title:ft,player_name:profile.name})
+    notify(`🏆 Best Picture locked — ${ft}`,S.gold);loadData()
   }
   const submitAuteur=async(actor,filmIds)=>{
     if(filmIds.length<2)return notify('Select at least 2 films',S.red)
     const ph=curPhase(),ex=auteurDeclarations.find(a=>a.player_id===profile.id&&a.phase===ph)
     if(ex)await supabase.from('auteur_declarations').update({star_actor:actor,film_ids:filmIds}).eq('id',ex.id)
     else await supabase.from('auteur_declarations').insert({player_id:profile.id,phase:ph,star_actor:actor,film_ids:filmIds})
+    await logActivity(profile.id,'auteur',{actor,film_count:filmIds.length,player_name:profile.name})
     notify(`🎭 Auteur — ${actor} · ${filmIds.length} films · +10%`,S.orange)
     setChipModal(null);setAuteurActor('');setAuteurFilms([]);loadData()
   }
@@ -582,7 +631,9 @@ export default function App() {
     const ex=allForecasts.find(f=>f.player_id===profile.id&&f.film_id===filmId)
     if(ex)await supabase.from('forecasts').update({predicted_m:predicted}).eq('id',ex.id)
     else await supabase.from('forecasts').insert({player_id:profile.id,film_id:filmId,phase:curPhase(),predicted_m:predicted})
-    notify(`Forecast saved — ${films.find(f=>f.id===filmId)?.title} $${predicted}M`,S.blue);loadData()
+    const ft=films.find(f=>f.id===filmId)?.title||filmId
+    await logActivity(profile.id,'forecast',{film_id:filmId,film_title:ft,predicted_m:predicted,player_name:profile.name})
+    notify(`Forecast saved — ${ft} $${predicted}M`,S.blue);loadData()
   }
 
   if(loading)return <div style={{...S.app,display:'flex',alignItems:'center',justifyContent:'center'}}><div style={{color:S.gold,fontSize:'24px'}}>Loading...</div></div>
@@ -590,7 +641,8 @@ export default function App() {
   if(!profile)return <CreateProfile session={session} onCreated={()=>{loadProfile();loadData()}} notify={notify}/>
 
   const ph=curPhase(),win=isWindow(),cur=leagueConfig.currency||'$'
-  const myPhaseRoster=rosters.filter(r=>r.player_id===profile.id&&r.phase===ph&&r.active)
+  // BUG FIX: only count active roster entries where the film still exists in the current slate
+  const myPhaseRoster=rosters.filter(r=>r.player_id===profile.id&&r.phase===ph&&r.active&&films.find(f=>f.id===r.film_id))
   const myBudgetLeft=budgetLeft(profile.id)
   const banked=phaseBanked(profile.id,ph)
   const recutUsed=chips?.recut_used||false
@@ -601,7 +653,78 @@ export default function App() {
   const wMs=leagueConfig.phase_window_opened_at?Math.max(0,72*3600000-(now-new Date(leagueConfig.phase_window_opened_at).getTime())):0
   const wH=Math.floor(wMs/3600000),wM=Math.floor((wMs%3600000)/60000),wS=Math.floor((wMs%60000)/1000)
 
-  const allNav=[['market','🎬','Market'],['roster','📁','Roster'],['chips','⚡','Chips'],['league','🥇','League'],['forecaster','📊','Forecaster'],['oscar','🏆','Oscars'],['results','📋','Results'],...(isCommissioner?[['commissioner','⚙️','Panel']]:[])]
+  const allNav=[
+    ['market','🎬','Market'],
+    ['roster','📁','Roster'],
+    ['chips','⚡','Chips'],
+    ['league','🥇','League'],
+    ['feed','📡','Feed'],
+    ['forecaster','📊','Forecaster'],
+    ['oscar','🏆','Oscars'],
+    ['results','📋','Results'],
+    ...(isCommissioner?[['commissioner','⚙️','Panel']]:[])
+  ]
+
+  // ── ACTIVITY FEED PAGE ──
+  const FeedPage=()=>{
+    const getActivityText=(item)=>{
+      const p=item.payload||{}
+      const playerName=p.player_name||players.find(pl=>pl.id===item.user_id)?.name||'Someone'
+      const playerColor=players.find(pl=>pl.id===item.user_id)?.color||S.gold
+      switch(item.type){
+        case 'buy': return {icon:'🎬',text:<><span style={{color:playerColor,fontWeight:700}}>{playerName}</span> acquired <span style={{color:'#F2EEE8',fontWeight:600}}>{p.film_title}</span> for <span style={{color:S.green}}>${p.price}M</span></>,col:S.green}
+        case 'sell': return {icon:'💸',text:<><span style={{color:playerColor,fontWeight:700}}>{playerName}</span> dropped <span style={{color:'#F2EEE8',fontWeight:600}}>{p.film_title}</span> for <span style={{color:S.gold}}>${p.proceeds}M</span></>,col:S.gold}
+        case 'chip_recut': return {icon:'🎬',text:<><span style={{color:playerColor,fontWeight:700}}>{playerName}</span> activated <span style={{color:S.purple,fontWeight:700}}>THE RECUT</span> — roster cleared</>,col:S.purple}
+        case 'chip_short': return {icon:'📉',text:<><span style={{color:playerColor,fontWeight:700}}>{playerName}</span> shorted <span style={{color:'#F2EEE8',fontWeight:600}}>{p.film_title}</span> at <span style={{color:S.red}}>${p.prediction}M</span></>,col:S.red}
+        case 'chip_analyst': return {icon:'🎯',text:<><span style={{color:playerColor,fontWeight:700}}>{playerName}</span> went Analyst on <span style={{color:'#F2EEE8',fontWeight:600}}>{p.film_title}</span> at <span style={{color:S.blue}}>${p.prediction}M</span></>,col:S.blue}
+        case 'auteur': return {icon:'🎭',text:<><span style={{color:playerColor,fontWeight:700}}>{playerName}</span> declared Auteur — <span style={{color:S.orange,fontWeight:600}}>{p.actor}</span> across {p.film_count} films</>,col:S.orange}
+        case 'forecast': return {icon:'📊',text:<><span style={{color:playerColor,fontWeight:700}}>{playerName}</span> forecast <span style={{color:'#F2EEE8',fontWeight:600}}>{p.film_title}</span> at <span style={{color:S.blue}}>${p.predicted_m}M</span></>,col:S.blue}
+        case 'oscar': return {icon:'🏆',text:<><span style={{color:playerColor,fontWeight:700}}>{playerName}</span> locked Best Picture pick — <span style={{color:S.gold,fontWeight:600}}>{p.film_title}</span></>,col:S.gold}
+        default: return {icon:'📡',text:<><span style={{color:playerColor,fontWeight:700}}>{playerName}</span> did something</>,col:'#9AA0B2'}
+      }
+    }
+
+    // Group by day
+    const grouped=activityFeed.reduce((acc,item)=>{
+      const day=new Date(item.created_at).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short'})
+      if(!acc[day])acc[day]=[]
+      acc[day].push(item)
+      return acc
+    },{})
+
+    return(
+      <div>
+        <div style={{fontSize:'17px',fontWeight:800,marginBottom:'4px'}}>League Feed</div>
+        <div style={{fontSize:'10px',color:'#4A5168',marginBottom:'16px'}}>Real-time activity · updates live</div>
+        {feedLoading&&activityFeed.length===0&&(
+          <div style={{...S.card,textAlign:'center',color:'#4A5168',padding:'32px'}}>Loading feed...</div>
+        )}
+        {!feedLoading&&activityFeed.length===0&&(
+          <div style={{...S.card,textAlign:'center',padding:'40px'}}>
+            <div style={{fontSize:'28px',marginBottom:'10px'}}>📡</div>
+            <div style={{fontSize:'12px',color:'#4A5168'}}>No activity yet — be the first to make a move!</div>
+          </div>
+        )}
+        {Object.entries(grouped).map(([day,items])=>(
+          <div key={day}>
+            <div style={{fontSize:'9px',color:'#4A5168',letterSpacing:'1px',marginBottom:'8px',marginTop:'16px',paddingLeft:'2px'}}>{day.toUpperCase()}</div>
+            {items.map(item=>{
+              const {icon,text,col}=getActivityText(item)
+              return(
+                <div key={item.id} style={{...S.card,padding:'11px 14px',marginBottom:'6px',borderLeft:`3px solid ${col}44`,display:'flex',gap:'12px',alignItems:'flex-start'}}>
+                  <div style={{fontSize:'16px',flexShrink:0,marginTop:'1px'}}>{icon}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:'12px',lineHeight:1.5,color:'#C8C4BE'}}>{text}</div>
+                    <div style={{fontSize:'9px',color:'#4A5168',marginTop:'4px'}}>{timeAgo(item.created_at)}</div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   // ── MARKET PAGE ──
   const MarketPage=()=>{
@@ -617,7 +740,6 @@ export default function App() {
         <div style={{fontSize:'17px',fontWeight:800}}>Phase {ph} · {PHASE_NAMES[ph]}</div>
         <div style={{fontSize:'10px',color:'#4A5168',marginTop:'2px'}}>{cur}{myBudgetLeft}M left · {myPhaseRoster.length}/{MAX_ROSTER} slots · {phaseFilms.length} films{win?' · 🔓 Free drops':''}</div>
       </div>
-      {/* Search + filter */}
       <div style={{display:'flex',gap:'8px',marginBottom:'12px',flexWrap:'wrap'}}>
         <input value={marketSearch} onChange={e=>setMarketSearch(e.target.value)} placeholder="Search films…" style={{...S.inp,flex:2,minWidth:'140px',fontSize:'11px',padding:'7px 10px'}}/>
         <select value={marketGenre} onChange={e=>setMarketGenre(e.target.value)} style={{...S.inp,flex:1,minWidth:'100px',fontSize:'11px',padding:'7px 10px'}}>
@@ -691,7 +813,7 @@ export default function App() {
       <div style={{fontSize:'10px',color:'#4A5168',marginBottom:'4px'}}>{myPhaseRoster.length}/{MAX_ROSTER} films · {cur}{myBudgetLeft}M remaining{banked>0?` (incl. ${cur}${banked}M banked)`:''}</div>
       <div style={{display:'flex',gap:'6px',marginBottom:'12px',overflowX:'auto',paddingBottom:'4px'}}>
         {[1,2,3,4,5].map(p=>{
-          const pts=calcPhasePoints(profile.id,p),nr=rosters.filter(r=>r.player_id===profile.id&&r.phase===p)
+          const pts=calcPhasePoints(profile.id,p),nr=rosters.filter(r=>r.player_id===profile.id&&r.phase===p&&films.find(f=>f.id===r.film_id))
           return(<div key={p} style={{background:p===ph?S.gold+'22':'#12141A',border:`1px solid ${p===ph?S.gold+'44':'#2A2F3C'}`,borderRadius:'7px',padding:'5px 10px',textAlign:'center',flexShrink:0}}>
             <div style={{fontSize:'8px',color:p===ph?S.gold:'#4A5168'}}>PH{p}</div>
             <div style={{fontSize:'12px',fontWeight:700,color:p===ph?S.gold:'#F2EEE8'}}>{pts}pts</div>
@@ -933,6 +1055,7 @@ export default function App() {
               const{error:e1}=await dbUpsertResult(film.id,v);if(e1)return notify(e1.message,S.red)
               const{error:e2}=await dbUpsertFilmValue(film.id,nv);if(e2)return notify(e2.message,S.red)
               await resolveChips(film.id,v)
+              await logActivity(session.user.id,'result',{film_id:film.id,film_title:film.title,actual_m:v,market_value:nv})
               notify(`✅ ${film.title} · $${nv} · ${calcOpeningPts(film,v)}pts`,S.gold);loadData()
             }}>Save</button>
             <button style={{...S.btn,background:isWinner?S.gold:'#12141A',border:isWinner?'none':'1px solid #2A2F3C',color:isWinner?'#000':'#4A5168',fontSize:'9px',padding:'6px 8px'}}
@@ -990,6 +1113,20 @@ export default function App() {
           ))}
         </div>
       </div>
+
+      {/* Orphan roster cleaner */}
+      <div style={{...S.card,marginBottom:'12px',border:`1px solid ${S.red}33`}}>
+        <div style={{fontSize:'11px',fontWeight:600,color:S.red,marginBottom:'8px',letterSpacing:'1px'}}>ROSTER MAINTENANCE</div>
+        <div style={{fontSize:'10px',color:'#4A5168',marginBottom:'10px'}}>Deactivate orphaned roster rows (active entries pointing to deleted films). Run this if anyone has a wrong slot count.</div>
+        <button style={{...S.btn,background:'#12141A',border:`1px solid ${S.red}44`,color:S.red,fontSize:'10px'}} onClick={async()=>{
+          const filmIds=new Set(films.map(f=>f.id))
+          const orphans=rosters.filter(r=>r.active&&!filmIds.has(r.film_id))
+          if(!orphans.length)return notify('No orphaned rows found ✅',S.green)
+          for(const o of orphans)await supabase.from('rosters').update({active:false}).eq('id',o.id)
+          notify(`Fixed ${orphans.length} orphaned row${orphans.length>1?'s':''}`,S.green);loadData()
+        }}>Scan & Fix Orphans ({rosters.filter(r=>r.active&&!films.find(f=>f.id===r.film_id)).length} found)</button>
+      </div>
+
       <div style={{...S.card,marginBottom:'12px'}}>
         <div style={{fontSize:'11px',fontWeight:600,color:S.gold,marginBottom:'12px',letterSpacing:'1px'}}>OSCAR NIGHT</div>
         <div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}>
@@ -1059,18 +1196,18 @@ export default function App() {
       </div>
 
       <div style={{display:'flex',minHeight:'calc(100vh - 52px)'}}>
-        {/* SIDEBAR — always visible on desktop, toggles on mobile */}
+        {/* SIDEBAR */}
         {(sidebarOpen||!isMobile)&&(
           <div style={{width:'180px',background:'#0C0E12',borderRight:'1px solid #1E222C',padding:'8px',flexShrink:0,zIndex:150,position:isMobile?'fixed':'relative',top:isMobile?'52px':'0',left:0,bottom:0,overflowY:'auto'}}>
             {isMobile&&<div style={{fontSize:'8px',color:'#4A5168',letterSpacing:'1px',padding:'8px 10px 4px'}}>MENU</div>}
             {allNav.map(([id,ic,lb])=>(
               <div key={id} onClick={()=>{setPage(id);if(isMobile)setSidebarOpen(false)}} style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 10px',borderRadius:'7px',cursor:'pointer',fontSize:'11px',marginBottom:'2px',background:page===id?'#F0B42914':'none',color:page===id?S.gold:'#6B7080'}}>
                 <span>{ic}</span>{lb}
+                {id==='feed'&&activityFeed.length>0&&<span style={{marginLeft:'auto',background:S.blue+'33',color:S.blue,fontSize:'8px',padding:'1px 5px',borderRadius:'4px'}}>{activityFeed.length}</span>}
               </div>
             ))}
           </div>
         )}
-        {/* Mobile backdrop */}
         {isMobile&&sidebarOpen&&<div onClick={()=>setSidebarOpen(false)} style={{position:'fixed',inset:0,top:'52px',background:'#00000088',zIndex:140}}/>}
 
         <div style={{...S.main,paddingBottom:'24px'}}>
@@ -1078,6 +1215,7 @@ export default function App() {
           {page==='roster'&&<RosterPage/>}
           {page==='chips'&&<ChipsPage/>}
           {page==='league'&&<LeaguePage/>}
+          {page==='feed'&&<FeedPage/>}
           {page==='forecaster'&&<ForecasterPage/>}
           {page==='oscar'&&<OscarPage/>}
           {page==='results'&&<ResultsPage/>}
