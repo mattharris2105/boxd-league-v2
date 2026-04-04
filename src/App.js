@@ -918,6 +918,21 @@ function TradeModal({ profile, players, rosters, films, filmVal, curPhase, onClo
   )
 }
 
+// ── WINDOW TIMER — isolated so ticking never re-renders App ───────────────────
+function WindowTimer({ openedAt, short }) {
+  const [, tick] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => tick(n => n+1), 1000)
+    return () => clearInterval(t)
+  }, [])
+  if (!openedAt) return null
+  const ms = Math.max(0, 72*3600000 - (Date.now() - new Date(openedAt).getTime()))
+  const h = Math.floor(ms/3600000)
+  const m = Math.floor((ms%3600000)/60000)
+  const s = Math.floor((ms%60000)/1000)
+  return <span>{short ? `${h}h ${m}m` : `${h}h ${m}m ${s}s`}</span>
+}
+
 // ── APP ROOT ───────────────────────────────────────────────────────────────────
 export default function App() {
   const [session,    setSession]    = useState(null)
@@ -958,7 +973,7 @@ export default function App() {
   const [sidebarOpen,  setSidebarOpen]  = useState(true)
   const [marketSearch, setMarketSearch] = useState('')
   const [marketGenre,  setMarketGenre]  = useState('All')
-  const [now,          setNow]          = useState(Date.now())
+  const nowRef = useRef(Date.now())
 
   const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
 
@@ -978,7 +993,7 @@ export default function App() {
   useEffect(() => { if (session) { loadProfile(); loadData(); loadFeed() } }, [session])
 
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000)
+    const t = setInterval(() => { nowRef.current = Date.now() }, 1000)
     return () => clearInterval(t)
   }, [])
 
@@ -1233,7 +1248,7 @@ export default function App() {
   const analystUsed  = !!chips?.analyst_film_id
 
   // Window timer
-  const wMs = cfg.phase_window_opened_at ? Math.max(0, 72*3600000-(now-new Date(cfg.phase_window_opened_at).getTime())) : 0
+  const wMs = cfg.phase_window_opened_at ? Math.max(0, 72*3600000-(nowRef.current-new Date(cfg.phase_window_opened_at).getTime())) : 0
   const wH=Math.floor(wMs/3600000), wMin=Math.floor((wMs%3600000)/60000), wS=Math.floor((wMs%60000)/1000)
 
   const ALL_PAGES = [
@@ -1267,7 +1282,7 @@ export default function App() {
           </div>
           <div style={{ display:'flex', gap:'16px', alignItems:'center', flexWrap:'wrap' }}>
             <span style={{ fontSize:'13px', color:T.textSub }}>{cur}{myBudget}M budget · {myRoster.length}/{MAX_ROSTER} slots</span>
-            {win && <Pill color={T.orange}>🔓 Free drops · {wH}h {wMin}m</Pill>}
+            {win && <Pill color={T.orange}>🔓 Free drops · <WindowTimer openedAt={cfg.phase_window_opened_at} short /></Pill>}
           </div>
         </div>
 
@@ -2015,7 +2030,7 @@ export default function App() {
 
         {win && wMs>0 && (
           <div style={{ background:`${T.orange}18`, border:`1px solid ${T.orange}44`, borderRadius:'9px', padding:'5px 14px', fontSize:'12px', color:T.orange, letterSpacing:'0.5px' }}>
-            🔓 {wH}h {wMin}m {wS}s
+            🔓 <WindowTimer openedAt={cfg.phase_window_opened_at} />
           </div>
         )}
 
