@@ -955,6 +955,7 @@ export default function App() {
   const [auteurActor,  setAuteurActor]  = useState('')
   const [auteurFilms,  setAuteurFilms]  = useState([])
   const [moreOpen,     setMoreOpen]     = useState(false)
+  const [sidebarOpen,  setSidebarOpen]  = useState(true)
   const [marketSearch, setMarketSearch] = useState('')
   const [marketGenre,  setMarketGenre]  = useState('All')
   const [now,          setNow]          = useState(Date.now())
