@@ -946,7 +946,7 @@ export default function App() {
   const [weeklyG,    setWeeklyG]    = useState({})
   const [chips,      setChips]      = useState(null)
   const [allChips,   setAllChips]   = useState([])
-  const [films,      setFilms]      = useState(FILMS_DEFAULT)
+  const [films,      setFilms]      = useState([])
   const [forecasts,  setForecasts]  = useState({})
   const [allForecasts, setAllForecasts] = useState([])
   const [oscarPreds, setOscarPreds] = useState([])
@@ -1034,7 +1034,7 @@ export default function App() {
   const loadData = async () => {
     const [
       {data:ps},{data:rs},{data:res},{data:fv},{data:cf},{data:wg},
-      {data:ch},{data:fc},{data:op},{data:ad},{data:ww},{data:pb}
+      {data:ch},{data:fc},{data:op},{data:ad},{data:ww},{data:pb},{data:fl}
     ] = await Promise.all([
       supabase.from('profiles').select('*'),
       supabase.from('rosters').select('*'),
@@ -1048,6 +1048,7 @@ export default function App() {
       supabase.from('auteur_declarations').select('*'),
       supabase.from('weekend_winners').select('*'),
       supabase.from('phase_budgets').select('*'),
+      supabase.from('films').select('*').eq('active', true).order('phase').order('week'),
     ])
     if (ps) setPlayers(ps)
     if (rs) setRosters(rs)
@@ -1061,6 +1062,14 @@ export default function App() {
     if (ad)  setAuteurDecl(ad)
     if (ww)  { const m={}; ww.forEach(w=>m[w.week]=w.film_id); setWwWinners(m) }
     if (pb)  setPhaseBudgets(pb)
+    // Map DB snake_case → app camelCase
+    if (fl)  setFilms(fl.map(f => ({
+      id: f.id, title: f.title, dist: f.dist, genre: f.genre,
+      franchise: f.franchise, starActor: f.star_actor,
+      phase: f.phase, week: f.week, basePrice: f.base_price,
+      estM: f.est_m, rt: f.rt, sleeper: f.sleeper,
+      trailer: f.trailer || '', affiliateUrl: f.affiliate_url || '',
+    })))
     loadTrades()
   }
 
@@ -1234,6 +1243,15 @@ export default function App() {
   )
   if (!session)  return <Login />
   if (!profile)  return <CreateProfile session={session} onCreated={() => { loadProfile(); loadData() }} notify={notify} />
+  if (!films.length) return (
+    <div style={{ minHeight:'100vh', background:T.bg, display:'flex', alignItems:'center', justifyContent:'center', fontFamily:T.mono }}>
+      <div style={{ textAlign:'center' }}>
+        <div style={{ fontSize:'52px', fontWeight:900, color:T.gold, letterSpacing:'-2px', marginBottom:'16px' }}>BOXD</div>
+        <div style={{ fontSize:'13px', color:T.textSub, marginBottom:'16px' }}>Loading slate…</div>
+        <div style={{ width:'40px', height:'3px', background:T.gold, borderRadius:'2px', margin:'0 auto', animation:'pulse 1.2s ease-in-out infinite' }}/>
+      </div>
+    </div>
+  )
 
   // ── DERIVED STATE ───────────────────────────────────────────────────────────
   const ph           = curPhase()
@@ -1972,8 +1990,24 @@ export default function App() {
                     <div style={{ fontSize:'9px', color:T.textDim, marginBottom:'2px' }}>AFF</div>
                     <input type="text" defaultValue={film.affiliateUrl||''} id={`aff-${film.id}`} style={{ ...S.inp, width:'80px', fontSize:'10px', padding:'4px 6px' }}/>
                   </div>
-                  <Btn size="sm" variant="outline" color={T.gold} onClick={()=>{const ni=parseInt(document.getElementById(`basePrice-${film.id}`).value),ne=parseInt(document.getElementById(`estM-${film.id}`).value),nr=parseInt(document.getElementById(`rt-${film.id}`).value)||null,na=document.getElementById(`aff-${film.id}`).value.trim();setFilms(prev=>prev.map(f=>f.id===film.id?{...f,basePrice:ni,estM:ne,rt:nr,affiliateUrl:na}:f));notify(`Updated ${film.title}`,T.green)}}>Save</Btn>
-                  <Btn size="sm" variant="outline" color={T.red} onClick={()=>{if(!confirm(`Remove ${film.title}?`)) return; setFilms(prev=>prev.filter(f=>f.id!==film.id)); notify(`Removed ${film.title}`,T.red)}}>✕</Btn>
+                  <div>
+                    <div style={{ fontSize:'9px', color:T.textDim, marginBottom:'2px' }}>Trailer</div>
+                    <input type="text" defaultValue={film.trailer||''} id={`trailer-${film.id}`} style={{ ...S.inp, width:'80px', fontSize:'10px', padding:'4px 6px' }}/>
+                  </div>
+                  <Btn size="sm" variant="outline" color={T.gold} onClick={async()=>{
+                    const ni=parseInt(document.getElementById(`basePrice-${film.id}`).value)
+                    const ne=parseInt(document.getElementById(`estM-${film.id}`).value)
+                    const nr=parseInt(document.getElementById(`rt-${film.id}`).value)||null
+                    const na=document.getElementById(`aff-${film.id}`).value.trim()
+                    const nt=document.getElementById(`trailer-${film.id}`).value.trim()
+                    await supabase.from('films').update({base_price:ni,est_m:ne,rt:nr,affiliate_url:na,trailer:nt}).eq('id',film.id)
+                    notify(`Updated ${film.title}`,T.green); loadData()
+                  }}>Save</Btn>
+                  <Btn size="sm" variant="outline" color={T.red} onClick={async()=>{
+                    if(!confirm(`Remove ${film.title}?`)) return
+                    await supabase.from('films').update({active:false}).eq('id',film.id)
+                    notify(`Removed ${film.title}`,T.red); loadData()
+                  }}>✕</Btn>
                 </div>
               ))}
             </div>
@@ -2232,11 +2266,21 @@ export default function App() {
             </div>
             <div style={{ display:'flex', gap:'10px' }}>
               <Btn onClick={() => setAddFilm(false)} variant="outline" color={T.textSub} sx={{ flex:1 }} size="lg">Cancel</Btn>
-              <Btn onClick={() => {
+              <Btn onClick={async () => {
                 if(!newFilm.title||!newFilm.dist) return notify('Title and distributor required',T.red)
-                const film={...newFilm,id:'f'+Date.now().toString(36),basePrice:Number(newFilm.basePrice)||20,estM:Number(newFilm.estM)||30,rt:newFilm.rt!==''?Number(newFilm.rt):null,week:Number(newFilm.week)||1,phase:Number(newFilm.phase)||1,franchise:newFilm.franchise||null,starActor:newFilm.starActor||null,affiliateUrl:''}
-                setFilms(prev=>[...prev,film]); setAddFilm(false); notify(`✅ ${film.title} added`,T.green)
+                const id = 'f'+Date.now().toString(36)
+                const {error} = await supabase.from('films').insert({
+                  id, title:newFilm.title, dist:newFilm.dist, genre:newFilm.genre,
+                  franchise:newFilm.franchise||null, star_actor:newFilm.starActor||null,
+                  phase:Number(newFilm.phase)||1, week:Number(newFilm.week)||1,
+                  base_price:Number(newFilm.basePrice)||20, est_m:Number(newFilm.estM)||30,
+                  rt:newFilm.rt!==''?Number(newFilm.rt):null, sleeper:newFilm.sleeper,
+                  trailer:newFilm.trailer||'', affiliate_url:newFilm.affiliateUrl||'', active:true,
+                })
+                if(error) return notify(error.message, T.red)
+                setAddFilm(false); notify(`✅ ${newFilm.title} added`,T.green)
                 setNewFilm({title:'',dist:'',genre:'Action',franchise:'',basePrice:20,estM:30,rt:'',week:1,phase:1,sleeper:false,starActor:'',trailer:'',affiliateUrl:''})
+                loadData()
               }} color={T.green} textColor="#0D0A08" sx={{ flex:2 }} size="lg">Add Film</Btn>
             </div>
           </div>
