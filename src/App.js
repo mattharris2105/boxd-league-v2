@@ -35,6 +35,23 @@ const PHASE_NAMES        = { 1:'Dead Zone', 2:'Summer Slate', 3:'Horror Window',
 const TMDB_TOKEN         = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI4ZjA0OTBiOGU0OWQxNjFmYmIzMjBmYjg5NGJhOTQ1MyIsIm5iZiI6MTc3NTA4Mjg0Mi4xNzcsInN1YiI6IjY5Y2Q5ZDVhZGE4ZjEwZmZmNTJmNmE3MiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.fxBTZG1YMdHkUUgz55l2TUWGa7YKsDUz8JbuFgr84q0'
 const EMOJI_OPTIONS      = ['🔥','💀','😂','🎯','📈','📉','👑','💸','🍿','😬']
 
+const BOOKING_CHAINS = [
+  { id:'odeon',        label:'Odeon',        url:'https://www.odeon.co.uk/films/',         color:'#E8003D' },
+  { id:'vue',          label:'Vue',          url:'https://www.myvue.com/cinema/',          color:'#FF6B00' },
+  { id:'cineworld',    label:'Cineworld',    url:'https://www.cineworld.co.uk/',           color:'#1D3C6E' },
+  { id:'curzon',       label:'Curzon',       url:'https://www.curzoncinemas.com/',         color:'#C8A96E' },
+  { id:'picturehouse', label:'Picturehouse', url:'https://www.picturehouses.com/',         color:'#E63A2E' },
+]
+
+const MARKETING_EVENT_TYPES = [
+  { id:'trailer',   label:'Trailer Drop',      icon:'🎬' },
+  { id:'poster',    label:'Poster Release',    icon:'🖼️' },
+  { id:'premiere',  label:'Festival Premiere', icon:'🎭' },
+  { id:'cast_post', label:'Cast Social Post',  icon:'📱' },
+  { id:'press',     label:'Press Screening',   icon:'🎥' },
+  { id:'other',     label:'Other',             icon:'📌' },
+]
+
 const BOTTOM_TABS = [
   { id:'market',  icon:'🎬', label:'Market'  },
   { id:'roster',  icon:'📁', label:'Roster'  },
@@ -68,6 +85,11 @@ const GLOBAL_CSS = `
   @keyframes slideUp {
     from { transform:translateY(100%); }
     to   { transform:translateY(0);    }
+  }
+  @keyframes pickPop {
+    0%   { transform:scale(1); }
+    40%  { transform:scale(1.4); }
+    100% { transform:scale(1); }
   }
   .hoverable { transition:border-color .15s, transform .15s, background .15s; }
   .hoverable:active { transform:scale(0.985); opacity:0.9; }
@@ -292,6 +314,11 @@ function timeAgo(ts) {
   return d<60000 ? 'just now' : m<60 ? `${m}m` : h<24 ? `${h}h` : `${dy}d`
 }
 
+function pickVelocity(filmId, allPicks, days=7) {
+  const cutoff = Date.now() - days * 86400000
+  return allPicks.filter(p => p.film_id === filmId && new Date(p.picked_at).getTime() > cutoff).length
+}
+
 // ── DB HELPERS ─────────────────────────────────────────────────────────────────
 async function dbUpsert(table, col, val, data) {
   const { data:ex } = await supabase.from(table).select(col).eq(col, val)
@@ -469,12 +496,17 @@ function ScoreBreakdownModal({ film, holding, results, weeklyGrosses, allChips, 
 }
 
 // ── FILM DETAIL MODAL ──────────────────────────────────────────────────────────
-function FilmDetailModal({ film, profile, players, results, onClose }) {
-  const [comments, setComments] = useState([])
+function FilmDetailModal({ film, profile, players, results, allPicks=[], marketingEvents=[], onTogglePick, onBookingClick, onClose }) {
+  const [comments,  setComments]  = useState([])
   const [reactions, setReactions] = useState([])
-  const [text, setText] = useState('')
-  const actual = results[film.id]
-  const gc = GENRE_COL[film.genre] || T.textSub
+  const [text,      setText]      = useState('')
+  const [tab,       setTab]       = useState('info')
+  const actual  = results[film.id]
+  const gc      = GENRE_COL[film.genre] || T.textSub
+  const pickCount = allPicks.filter(p => p.film_id===film.id).length
+  const vel7      = pickVelocity(film.id, allPicks, 7)
+  const vel1      = pickVelocity(film.id, allPicks, 1)
+  const eventsForFilm = (marketingEvents||[]).filter(e => e.film_id===film.id).sort((a,b)=>new Date(a.event_date)-new Date(b.event_date))
 
   useEffect(() => {
     loadComments(); loadReactions()
@@ -493,7 +525,6 @@ function FilmDetailModal({ film, profile, players, results, onClose }) {
     await supabase.from('film_comments').insert({ user_id:profile.id, film_id:film.id, comment:text.trim() })
     setText('')
   }
-
   const toggleReaction = async (emoji) => {
     const mine = reactions.find(r => r.user_id===profile.id && r.emoji===emoji)
     if (mine) await supabase.from('reactions').delete().eq('id', mine.id)
@@ -501,81 +532,163 @@ function FilmDetailModal({ film, profile, players, results, onClose }) {
     loadReactions()
   }
 
-  const counts = EMOJI_OPTIONS.reduce((a,e) => ({...a,[e]:reactions.filter(r=>r.emoji===e).length}), {})
+  const counts   = EMOJI_OPTIONS.reduce((a,e) => ({...a,[e]:reactions.filter(r=>r.emoji===e).length}), {})
   const myEmojis = reactions.filter(r => r.user_id===profile.id).map(r => r.emoji)
+
+  const TabBtn = ({id,label}) => (
+    <button onClick={()=>setTab(id)} style={{ ...S.btn, background:'none', border:'none', fontSize:'13px', fontWeight:tab===id?700:400, color:tab===id?T.gold:T.textSub, padding:'10px 16px', borderBottom:`2px solid ${tab===id?T.gold:'transparent'}`, borderRadius:0, textTransform:'none', letterSpacing:0 }}>{label}</button>
+  )
 
   return (
     <div style={{ position:'fixed', inset:0, background:'#000000CC', display:'flex', alignItems:'center', justifyContent:'center', zIndex:800, padding:'12px' }} onClick={onClose}>
-      <div style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:'20px', width:'100%', maxWidth:'700px', height:'min(92vh, 840px)', display:'flex', flexDirection:'column', animation:'fadeUp .2s ease' }} onClick={e => e.stopPropagation()}>
-        <div style={{ padding:'28px 28px 0', flexShrink:0 }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'18px' }}>
-            <div style={{ fontSize:'20px', fontWeight:800, color:T.text }}>Film Details</div>
-            <button onClick={onClose} style={{ background:'none', border:`1px solid ${T.border}`, color:T.textSub, borderRadius:'8px', padding:'6px 14px', cursor:'pointer', fontFamily:T.mono, fontSize:'12px' }}>✕ Close</button>
+      <div style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:'20px', width:'100%', maxWidth:'700px', height:'min(92vh, 860px)', display:'flex', flexDirection:'column', animation:'fadeUp .2s ease' }} onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ padding:'24px 24px 0', flexShrink:0 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px' }}>
+            <div style={{ height:'3px', background:gc, borderRadius:'2px', flex:1, marginRight:'16px' }}/>
+            <button onClick={onClose} style={{ background:'none', border:`1px solid ${T.border}`, color:T.textSub, borderRadius:'8px', padding:'6px 14px', cursor:'pointer', fontFamily:T.mono, fontSize:'12px', flexShrink:0 }}>✕</button>
           </div>
-          <div style={{ height:'3px', background:gc, borderRadius:'2px', marginBottom:'20px' }}/>
-          <div style={{ display:'flex', gap:'20px', alignItems:'flex-start', marginBottom:'24px' }}>
-            <FilmPoster film={film} width={100} height={150} radius={10} />
-            <div style={{ flex:1 }}>
-              <div style={{ fontSize:'22px', fontWeight:800, lineHeight:1.25, letterSpacing:'-0.5px' }}>{film.title}</div>
-              <div style={{ fontSize:'14px', color:T.textSub, marginTop:'6px' }}>{film.dist} · {film.genre} · Week {film.week} · Phase {film.phase}</div>
-              {film.starActor && <div style={{ fontSize:'14px', color:T.textSub, marginTop:'4px' }}>⭐ {film.starActor}</div>}
-              {film.franchise && <div style={{ fontSize:'13px', color:T.textDim, marginTop:'4px' }}>📽 {film.franchise}</div>}
-              <div style={{ display:'flex', gap:'14px', marginTop:'14px', flexWrap:'wrap' }}>
-                <div><div style={{ ...S.label, marginBottom:'4px' }}>Est</div><div style={{ fontSize:'17px', fontWeight:700 }}>${film.estM}M</div></div>
-                <div><div style={{ ...S.label, marginBottom:'4px' }}>IPO</div><div style={{ fontSize:'17px', fontWeight:700 }}>${film.basePrice}M</div></div>
-                {actual != null && <div><div style={{ ...S.label, marginBottom:'4px' }}>Actual</div><div style={{ fontSize:'17px', fontWeight:700, color:T.green }}>${actual}M</div></div>}
-                {film.rt != null && <div><div style={{ ...S.label, marginBottom:'4px' }}>RT</div><div style={{ fontSize:'17px', fontWeight:700, color:film.rt>=75?T.green:T.red }}>{film.rt}%</div></div>}
+          <div style={{ display:'flex', gap:'18px', alignItems:'flex-start', marginBottom:'16px' }}>
+            <FilmPoster film={film} width={88} height={132} radius={10} />
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:'20px', fontWeight:800, lineHeight:1.25, letterSpacing:'-0.5px', marginBottom:'4px' }}>{film.title}</div>
+              <div style={{ fontSize:'13px', color:T.textSub }}>{film.dist} · {film.genre} · W{film.week} · Ph{film.phase}</div>
+              {film.starActor && <div style={{ fontSize:'13px', color:T.textSub, marginTop:'2px' }}>⭐ {film.starActor}</div>}
+              <div style={{ display:'flex', gap:'12px', marginTop:'10px', flexWrap:'wrap' }}>
+                <div><div style={S.label}>Est</div><div style={{ fontSize:'15px', fontWeight:700, marginTop:'2px' }}>${film.estM}M</div></div>
+                <div><div style={S.label}>IPO</div><div style={{ fontSize:'15px', fontWeight:700, marginTop:'2px' }}>${film.basePrice}M</div></div>
+                {actual!=null && <div><div style={S.label}>Actual</div><div style={{ fontSize:'15px', fontWeight:700, color:T.green, marginTop:'2px' }}>${actual}M</div></div>}
+                {film.rt!=null && <div><div style={S.label}>RT</div><div style={{ fontSize:'15px', fontWeight:700, color:film.rt>=75?T.green:T.red, marginTop:'2px' }}>{film.rt}%</div></div>}
+              </div>
+              <div style={{ display:'flex', gap:'8px', marginTop:'10px', alignItems:'center', flexWrap:'wrap' }}>
+                {onTogglePick && <PickButton filmId={film.id} userId={profile.id} allPicks={allPicks} onToggle={onTogglePick} size="sm"/>}
+                {vel7>0 && <Badge color={vel7>=5?T.red:vel7>=2?T.orange:T.textSub}>+{vel7} this week</Badge>}
+                {vel1>0 && <Badge color={T.green}>🔥 +{vel1} today</Badge>}
               </div>
             </div>
           </div>
-          <div style={{ ...S.label, marginBottom:'12px' }}>Reactions</div>
-          <div style={{ display:'flex', gap:'6px', flexWrap:'wrap', marginBottom:'16px' }}>
-            {EMOJI_OPTIONS.map(emoji => {
-              const count = counts[emoji], ismine = myEmojis.includes(emoji)
-              return (
-                <button key={emoji} onClick={() => toggleReaction(emoji)} style={{
-                  background: ismine ? `${T.gold}22` : T.surfaceUp,
-                  border:`1px solid ${ismine ? T.gold+'66' : T.border}`,
-                  borderRadius:'20px', padding:'6px 12px', cursor:'pointer',
-                  fontSize:'14px', display:'flex', alignItems:'center', gap:'5px',
-                  fontFamily:T.mono, color: count>0 ? (ismine?T.gold:T.text) : T.textSub,
-                  transition:'all .15s',
-                }}>
-                  {emoji}{count>0 && <span style={{ fontSize:'11px' }}>{count}</span>}
-                </button>
-              )
-            })}
+          <div style={{ display:'flex', borderBottom:`1px solid ${T.border}` }}>
+            <TabBtn id="info"     label="Info"/>
+            <TabBtn id="intent"   label={`Intent · ${pickCount}`}/>
+            <TabBtn id="comments" label={`Comments · ${comments.length}`}/>
           </div>
-          <Divider my={0} />
-          <div style={{ ...S.label, margin:'14px 0 4px' }}>Comments ({comments.length})</div>
         </div>
 
-        <div style={{ flex:1, overflowY:'auto', padding:'12px 28px' }}>
-          {comments.length === 0 && <div style={{ fontSize:'14px', color:T.textSub, padding:'20px 0' }}>No comments yet — be first!</div>}
-          {comments.map(c => {
-            const p = players.find(pl => pl.id===c.user_id)
-            return (
-              <div key={c.id} style={{ display:'flex', gap:'12px', marginBottom:'18px' }}>
-                <div style={{ width:'32px', height:'32px', borderRadius:'50%', background:p?.color||T.gold, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'13px', fontWeight:700, color:'#0D0A08' }}>{p?.name?.[0]||'?'}</div>
-                <div style={{ flex:1 }}>
-                  <div style={{ display:'flex', gap:'8px', alignItems:'baseline', marginBottom:'4px' }}>
-                    <span style={{ fontSize:'13px', fontWeight:600, color:p?.color||T.gold }}>{p?.name}</span>
-                    <span style={{ fontSize:'11px', color:T.textDim }}>{timeAgo(c.created_at)}</span>
-                  </div>
-                  <div style={{ fontSize:'14px', color:T.text, lineHeight:1.55 }}>{c.comment}</div>
+        {/* Info tab */}
+        {tab==='info' && (
+          <div style={{ flex:1, overflowY:'auto', padding:'16px 24px 24px' }}>
+            <div style={{ ...S.label, marginBottom:'10px' }}>Reactions</div>
+            <div style={{ display:'flex', gap:'6px', flexWrap:'wrap', marginBottom:'20px' }}>
+              {EMOJI_OPTIONS.map(emoji => {
+                const count=counts[emoji], ismine=myEmojis.includes(emoji)
+                return (
+                  <button key={emoji} onClick={()=>toggleReaction(emoji)} style={{ background:ismine?`${T.gold}22`:T.surfaceUp, border:`1px solid ${ismine?T.gold+'66':T.border}`, borderRadius:'20px', padding:'6px 12px', cursor:'pointer', fontSize:'14px', display:'flex', alignItems:'center', gap:'5px', fontFamily:T.mono, color:count>0?(ismine?T.gold:T.text):T.textSub, transition:'all .15s' }}>
+                    {emoji}{count>0&&<span style={{ fontSize:'11px' }}>{count}</span>}
+                  </button>
+                )
+              })}
+            </div>
+
+            <div style={{ ...S.label, marginBottom:'10px' }}>Book Tickets · UK Cinemas</div>
+            <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'20px' }}>
+              {BOOKING_CHAINS.map(chain=>(
+                <a key={chain.id}
+                  href={`${chain.url}${encodeURIComponent(film.title.toLowerCase().replace(/\s+/g,'-'))}`}
+                  target="_blank" rel="noopener noreferrer"
+                  onClick={()=>onBookingClick&&onBookingClick(film.id,chain.id)}
+                  style={{ background:T.surfaceUp, border:`1px solid ${T.border}`, borderRadius:'9px', padding:'8px 14px', textDecoration:'none', fontSize:'12px', color:T.text, fontFamily:T.mono, display:'flex', alignItems:'center', gap:'6px' }}>
+                  <span style={{ width:'8px', height:'8px', borderRadius:'50%', background:chain.color, flexShrink:0 }}/>
+                  {chain.label}
+                </a>
+              ))}
+              {film.affiliateUrl && (
+                <a href={film.affiliateUrl} target="_blank" rel="noopener noreferrer"
+                  onClick={()=>onBookingClick&&onBookingClick(film.id,'direct')}
+                  style={{ background:`${T.gold}18`, border:`1px solid ${T.gold}44`, borderRadius:'9px', padding:'8px 14px', textDecoration:'none', fontSize:'12px', color:T.gold, fontFamily:T.mono, fontWeight:600 }}>
+                  🎟 Official Link
+                </a>
+              )}
+            </div>
+
+            {eventsForFilm.length>0 && (
+              <>
+                <div style={{ ...S.label, marginBottom:'10px' }}>Marketing Timeline</div>
+                <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+                  {eventsForFilm.map(ev=>{
+                    const evType=MARKETING_EVENT_TYPES.find(t=>t.id===ev.event_type)
+                    return (
+                      <div key={ev.id} style={{ display:'flex', gap:'12px', alignItems:'center', padding:'10px 12px', background:T.surfaceUp, borderRadius:'9px' }}>
+                        <span style={{ fontSize:'18px' }}>{evType?.icon}</span>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:'13px', fontWeight:500 }}>{ev.label}</div>
+                          <div style={{ fontSize:'11px', color:T.textSub, marginTop:'2px' }}>{evType?.label} · {new Date(ev.event_date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
-                {c.user_id === profile.id && (
-                  <button onClick={() => supabase.from('film_comments').delete().eq('id',c.id).then(loadComments)} style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer', fontSize:'13px', padding:'2px 8px' }}>✕</button>
-                )}
-              </div>
-            )
-          })}
-        </div>
+              </>
+            )}
+          </div>
+        )}
 
-        <div style={{ padding:'18px 28px 28px', borderTop:`1px solid ${T.border}`, flexShrink:0, display:'flex', gap:'12px' }}>
-          <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key==='Enter' && post()} placeholder="Add a comment…" style={{ ...S.inp, flex:1, fontSize:'15px', padding:'13px 16px' }}/>
-          <Btn onClick={post} color={T.blue} textColor="#fff" size="lg">Post</Btn>
-        </div>
+        {/* Intent tab */}
+        {tab==='intent' && (
+          <div style={{ flex:1, overflowY:'auto', padding:'16px 24px 24px' }}>
+            <div style={{ display:'flex', gap:'8px', marginBottom:'20px' }}>
+              <StatBox label="Total picks" value={pickCount} color={T.gold}/>
+              <StatBox label="This week"   value={vel7}      color={vel7>=5?T.red:vel7>=2?T.orange:T.text}/>
+              <StatBox label="Today"       value={vel1}      color={vel1>0?T.green:T.text}/>
+            </div>
+            {pickCount>0 && (
+              <>
+                <div style={{ ...S.label, marginBottom:'10px' }}>Pick velocity — last 30 days</div>
+                <div style={{ background:T.surfaceUp, borderRadius:'12px', padding:'16px', marginBottom:'16px', overflowX:'auto' }}>
+                  <VelocitySparkline filmId={film.id} allPicks={allPicks} marketingEvents={marketingEvents} width={560} height={60}/>
+                  {eventsForFilm.length>0 && (
+                    <div style={{ display:'flex', gap:'12px', marginTop:'8px', flexWrap:'wrap' }}>
+                      {eventsForFilm.map(ev=>{
+                        const evType=MARKETING_EVENT_TYPES.find(t=>t.id===ev.event_type)
+                        return <span key={ev.id} style={{ fontSize:'11px', color:T.blue }}>{evType?.icon} {ev.label} — {new Date(ev.event_date).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</span>
+                      })}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+            {pickCount===0 && <div style={{ fontSize:'13px', color:T.textSub, padding:'32px 0', textAlign:'center' }}>No picks yet — be the first to add it to your watchlist!</div>}
+          </div>
+        )}
+
+        {/* Comments tab */}
+        {tab==='comments' && (
+          <>
+            <div style={{ flex:1, overflowY:'auto', padding:'12px 24px' }}>
+              {comments.length===0 && <div style={{ fontSize:'14px', color:T.textSub, padding:'20px 0' }}>No comments yet — be first!</div>}
+              {comments.map(c => {
+                const p = players.find(pl => pl.id===c.user_id)
+                return (
+                  <div key={c.id} style={{ display:'flex', gap:'12px', marginBottom:'18px' }}>
+                    <div style={{ width:'32px', height:'32px', borderRadius:'50%', background:p?.color||T.gold, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'13px', fontWeight:700, color:'#0D0A08' }}>{p?.name?.[0]||'?'}</div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ display:'flex', gap:'8px', alignItems:'baseline', marginBottom:'4px' }}>
+                        <span style={{ fontSize:'13px', fontWeight:600, color:p?.color||T.gold }}>{p?.name}</span>
+                        <span style={{ fontSize:'11px', color:T.textDim }}>{timeAgo(c.created_at)}</span>
+                      </div>
+                      <div style={{ fontSize:'14px', color:T.text, lineHeight:1.55 }}>{c.comment}</div>
+                    </div>
+                    {c.user_id===profile.id && <button onClick={()=>supabase.from('film_comments').delete().eq('id',c.id).then(loadComments)} style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer', fontSize:'13px', padding:'2px 8px' }}>✕</button>}
+                  </div>
+                )
+              })}
+            </div>
+            <div style={{ padding:'16px 24px 24px', borderTop:`1px solid ${T.border}`, flexShrink:0, display:'flex', gap:'12px' }}>
+              <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>e.key==='Enter'&&post()} placeholder="Add a comment…" style={{ ...S.inp, flex:1, fontSize:'15px', padding:'13px 16px' }}/>
+              <Btn onClick={post} color={T.blue} textColor="#fff" size="lg">Post</Btn>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
@@ -918,6 +1031,70 @@ function TradeModal({ profile, players, rosters, films, filmVal, curPhase, onClo
   )
 }
 
+// ── INTENT PICK BUTTON ─────────────────────────────────────────────────────────
+function PickButton({ filmId, userId, allPicks, onToggle, size='sm' }) {
+  const isPicked = allPicks.some(p => p.film_id===filmId && p.user_id===userId)
+  const count    = allPicks.filter(p => p.film_id===filmId).length
+  const [popping, setPopping] = useState(false)
+  const handle = async (e) => {
+    e.stopPropagation()
+    setPopping(true); setTimeout(()=>setPopping(false), 350)
+    await onToggle(filmId, isPicked)
+  }
+  return (
+    <button onClick={handle} className={popping ? 'pick-pop' : ''} title={isPicked?'Remove from watchlist':'Want to watch'} style={{
+      display:'flex', alignItems:'center', gap:'4px',
+      background: isPicked ? `${T.gold}22` : T.surfaceUp,
+      border: `1px solid ${isPicked ? T.gold+'66' : T.border}`,
+      borderRadius:'20px', padding:size==='sm'?'5px 10px':'7px 14px',
+      cursor:'pointer', fontFamily:T.mono, fontSize:'12px',
+      color: isPicked ? T.gold : T.textSub,
+      transition:'all .15s', fontWeight: isPicked ? 600 : 400,
+    }}>
+      <span style={{ fontSize:'14px', lineHeight:1 }}>{isPicked ? '👁️' : '👁'}</span>
+      {count > 0 && <span>{count}</span>}
+    </button>
+  )
+}
+
+// ── VELOCITY SPARKLINE ─────────────────────────────────────────────────────────
+function VelocitySparkline({ filmId, allPicks, marketingEvents=[], width=200, height=50 }) {
+  const now  = Date.now()
+  const days = 30
+  const buckets = Array.from({length:days}, (_,i) => {
+    const dayStart = now - (days-1-i)*86400000
+    return allPicks.filter(p => {
+      if (p.film_id !== filmId) return false
+      const t = new Date(p.picked_at).getTime()
+      return t >= dayStart - 86400000 && t < dayStart
+    }).length
+  })
+  const max = Math.max(1, ...buckets)
+  const pts = buckets.map((c,i) => {
+    const x = (i/(days-1))*width
+    const y = height - (c/max)*(height-6)
+    return `${x},${y}`
+  }).join(' ')
+  const evs = (marketingEvents||[]).filter(e => e.film_id===filmId)
+  return (
+    <svg width={width} height={height} style={{ overflow:'visible', display:'block' }}>
+      <polyline points={pts} fill="none" stroke={T.gold} strokeWidth="2" strokeLinejoin="round" opacity="0.85"/>
+      {evs.map((ev,i)=>{
+        const daysAgo = (now - new Date(ev.event_date).getTime())/86400000
+        if (daysAgo < 0 || daysAgo > days) return null
+        const x = ((days-daysAgo)/(days-1))*width
+        const evType = MARKETING_EVENT_TYPES.find(t=>t.id===ev.event_type)
+        return (
+          <g key={i}>
+            <line x1={x} y1={0} x2={x} y2={height} stroke={T.blue} strokeWidth="1" strokeDasharray="3,2" opacity="0.7"/>
+            <text x={x+2} y={10} fill={T.blue} fontSize="9" fontFamily={T.mono}>{evType?.icon}</text>
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
 // ── WINDOW TIMER — isolated so ticking never re-renders App ───────────────────
 function WindowTimer({ openedAt, short }) {
   const [, tick] = useState(0)
@@ -973,6 +1150,11 @@ export default function App() {
   const [sidebarOpen,  setSidebarOpen]  = useState(true)
   const [marketSearch, setMarketSearch] = useState('')
   const [marketGenre,  setMarketGenre]  = useState('All')
+  // ── INTENT / AUDIENCE DATA ────────────────────────────────────────────────
+  const [allPicks,         setAllPicks]         = useState([])
+  const [marketingEvents,  setMarketingEvents]  = useState([])
+  const [bookingClicks,    setBookingClicks]    = useState([])
+  const [newMktEvent,      setNewMktEvent]      = useState({ event_type:'trailer', label:'', event_date:'', notes:'' })
   const nowRef = useRef(Date.now())
 
   const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
@@ -990,7 +1172,7 @@ export default function App() {
     supabase.auth.onAuthStateChange((_,s) => setSession(s))
   }, [])
 
-  useEffect(() => { if (session) { loadProfile(); loadData(); loadFeed() } }, [session])
+  useEffect(() => { if (session) { loadProfile(); loadData(); loadFeed(); loadPicks(); loadMarketingEvents() } }, [session])
 
   useEffect(() => {
     const t = setInterval(() => { nowRef.current = Date.now() }, 1000)
@@ -1002,6 +1184,7 @@ export default function App() {
     const ch = supabase.channel('rt')
       .on('postgres_changes',{event:'INSERT',schema:'public',table:'activity_feed'}, () => loadFeed())
       .on('postgres_changes',{event:'*',schema:'public',table:'trades'}, () => loadTrades())
+      .on('postgres_changes',{event:'*',schema:'public',table:'film_picks'}, () => loadPicks())
       .subscribe()
     return () => supabase.removeChannel(ch)
   }, [session])
@@ -1030,6 +1213,28 @@ export default function App() {
   const loadTrades = async () => {
     const {data} = await supabase.from('trades').select('*').order('created_at',{ascending:false})
     if (data) setTrades(data)
+  }
+  const loadPicks = async () => {
+    const {data} = await supabase.from('film_picks').select('*')
+    if (data) setAllPicks(data)
+  }
+  const loadMarketingEvents = async () => {
+    const {data} = await supabase.from('marketing_events').select('*').order('event_date')
+    if (data) setMarketingEvents(data)
+  }
+
+  // ── INTENT ACTIONS ──────────────────────────────────────────────────────────
+  const togglePick = async (filmId, isPicked) => {
+    if (!profile) return notify('Sign in to pick films', T.red)
+    if (isPicked) {
+      await supabase.from('film_picks').delete().eq('user_id', profile.id).eq('film_id', filmId)
+    } else {
+      await supabase.from('film_picks').insert({ user_id: profile.id, film_id: filmId })
+    }
+    loadPicks()
+  }
+  const trackBookingClick = async (filmId, chain) => {
+    await supabase.from('booking_clicks').insert({ user_id: profile?.id, film_id: filmId, chain })
   }
   const loadData = async () => {
     const [
@@ -1261,6 +1466,7 @@ export default function App() {
   const myRoster     = rosters.filter(r => r.player_id===profile.id && r.phase===ph && r.active && films.find(f=>f.id===r.film_id))
   const myBudget     = budgetLeft(profile.id)
   const pendingForMe = trades.filter(t => t.receiver_id===profile.id && t.status==='pending')
+  const myPicks      = allPicks.filter(p => p.user_id===profile.id)
   const recutUsed    = chips?.recut_used || false
   const shortUsed    = !!chips?.short_film_id
   const analystUsed  = !!chips?.analyst_film_id
@@ -1275,11 +1481,12 @@ export default function App() {
     {id:'chips', icon:'⚡',label:'Chips'},
     {id:'league',icon:'🥇',label:'League'},
     {id:'feed',  icon:'📡',label:'Feed'},
+    {id:'intent',icon:'👁️',label:'Watchlist'},
     {id:'trades',icon:'🔄',label:'Trades'},
     {id:'forecaster',icon:'📊',label:'Forecaster'},
     {id:'oscar', icon:'🏆',label:'Oscars'},
     {id:'results',icon:'📋',label:'Results'},
-    ...(isCommissioner ? [{id:'commissioner',icon:'⚙️',label:'Panel'}] : [])
+    ...(isCommissioner ? [{id:'commissioner',icon:'⚙️',label:'Panel'},{id:'distributor',icon:'📈',label:'Insights'}] : [])
   ]
 
   // ── MARKET ──────────────────────────────────────────────────────────────────
@@ -1329,6 +1536,8 @@ export default function App() {
             const isAnalyst_ = chips?.analyst_film_id===film.id
             const isAuteur_  = auteurOn(profile.id,film.id)
             const isEB       = owned && isEarlyBird(owned)
+            const pickCount  = allPicks.filter(p=>p.film_id===film.id).length
+            const vel7       = pickVelocity(film.id, allPicks, 7)
 
             return (
               <div key={film.id} className="hoverable" style={{
@@ -1360,6 +1569,12 @@ export default function App() {
                     {isAnalyst_    && <Badge color={T.blue}>🎯 analyst</Badge>}
                     {isAuteur_     && <Badge color={T.orange}>🎭 auteur</Badge>}
                   </div>
+                  {/* Pick count */}
+                  {pickCount>0 && (
+                    <div style={{ position:'absolute', bottom:'10px', right:'10px' }}>
+                      <Badge color={vel7>=5?T.red:vel7>=2?T.orange:T.textSub}>👁 {pickCount}</Badge>
+                    </div>
+                  )}
                 </div>
 
                 {/* Card body */}
@@ -1393,12 +1608,13 @@ export default function App() {
                   )}
 
                   <div style={{ display:'flex', gap:'6px' }}>
+                    <PickButton filmId={film.id} userId={profile.id} allPicks={allPicks} onToggle={togglePick} size="sm"/>
                     <button onClick={() => setFilmDetail(film)} style={{ ...S.btn, background:T.surfaceUp, color:T.textSub, fontSize:'13px', padding:'8px', flex:1 }}>💬</button>
                     {film.trailer?.length>5 && (
                       <button onClick={e=>{e.stopPropagation();setTrailerFilm(film)}} style={{ ...S.btn, background:T.surfaceUp, color:T.textSub, fontSize:'13px', padding:'8px', flex:1 }}>▶</button>
                     )}
                     {film.affiliateUrl && film.week<=cfg.current_week && (
-                      <a href={film.affiliateUrl} target="_blank" rel="noopener noreferrer" style={{ ...S.btn, background:T.surfaceUp, color:T.gold, fontSize:'13px', padding:'8px', flex:1, textDecoration:'none' }}>🎟</a>
+                      <a href={film.affiliateUrl} target="_blank" rel="noopener noreferrer" onClick={()=>trackBookingClick(film.id,'direct')} style={{ ...S.btn, background:T.surfaceUp, color:T.gold, fontSize:'13px', padding:'8px', flex:1, textDecoration:'none' }}>🎟</a>
                     )}
                   </div>
 
@@ -1683,6 +1899,254 @@ export default function App() {
             })}
           </div>
         ))}
+      </div>
+    )
+  }
+
+
+  // ── INTENT / WATCHLIST PAGE ─────────────────────────────────────────────────
+  const IntentPage = () => {
+    const myPickedFilms = myPicks.map(p => films.find(f => f.id===p.film_id)).filter(Boolean)
+    const sorted = [...myPickedFilms].sort((a,b) => pickVelocity(b.id,allPicks,7)-pickVelocity(a.id,allPicks,7))
+    return (
+      <div>
+        <div style={S.pageTitle}>👁️ My Watchlist</div>
+        <div style={{ fontSize:'13px', color:T.textSub, marginTop:'4px', marginBottom:'20px' }}>Films you want to see · {myPicks.length} picked · UK booking links</div>
+        {sorted.length===0 && (
+          <div style={{ ...S.card, textAlign:'center', padding:'48px 24px' }}>
+            <div style={{ fontSize:'40px', marginBottom:'12px' }}>👁</div>
+            <div style={{ fontSize:'15px', fontWeight:600, marginBottom:'8px' }}>Your watchlist is empty</div>
+            <div style={{ fontSize:'13px', color:T.textSub }}>Tap 👁 on any film card to add it here</div>
+          </div>
+        )}
+        {sorted.map(film => {
+          const vel7 = pickVelocity(film.id, allPicks, 7)
+          const vel1 = pickVelocity(film.id, allPicks, 1)
+          const total = allPicks.filter(p=>p.film_id===film.id).length
+          const actual = results[film.id]
+          const gc = GENRE_COL[film.genre] || T.textSub
+          const eventsForFilm = marketingEvents.filter(e => e.film_id===film.id)
+          return (
+            <div key={film.id} style={{ ...S.card, marginBottom:'12px' }}>
+              <div style={{ display:'flex', gap:'14px', alignItems:'flex-start', marginBottom:'14px' }}>
+                <div style={{ position:'relative', flexShrink:0, cursor:'pointer' }} onClick={()=>setFilmDetail(film)}>
+                  <FilmPoster film={film} width={64} height={96} radius={9}/>
+                  <div style={{ position:'absolute', top:0, left:0, right:0, height:'3px', background:gc, borderRadius:'9px 9px 0 0' }}/>
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:'15px', fontWeight:700, lineHeight:1.3, marginBottom:'3px' }}>{film.title}</div>
+                  <div style={{ fontSize:'12px', color:T.textSub, marginBottom:'10px' }}>{film.dist} · {film.genre} · W{film.week}</div>
+                  <div style={{ display:'flex', gap:'6px', marginBottom:'10px', flexWrap:'wrap' }}>
+                    <StatBox label="Picks" value={total} color={T.gold}/>
+                    <StatBox label="7d" value={vel7} color={vel7>=5?T.red:vel7>=2?T.orange:T.text}/>
+                    {vel1>0 && <StatBox label="Today" value={vel1} color={T.green}/>}
+                  </div>
+                  {actual!=null && <div style={{ fontSize:'13px', color:T.green, fontWeight:600, marginBottom:'6px' }}>${actual}M actual · {calcOpeningPts(film,actual)}pts</div>}
+                </div>
+                <PickButton filmId={film.id} userId={profile.id} allPicks={allPicks} onToggle={togglePick}/>
+              </div>
+              {total>0 && (
+                <div style={{ background:T.surfaceUp, borderRadius:'9px', padding:'10px 12px', marginBottom:'12px', overflowX:'auto' }}>
+                  <div style={{ ...S.label, marginBottom:'6px' }}>Pick velocity — 30 days</div>
+                  <VelocitySparkline filmId={film.id} allPicks={allPicks} marketingEvents={marketingEvents} width={Math.max(260, Math.min(500, (typeof window!=='undefined'?window.innerWidth:400)-80))} height={44}/>
+                </div>
+              )}
+              <div style={{ ...S.label, marginBottom:'8px' }}>Book tickets · UK cinemas</div>
+              <div style={{ display:'flex', gap:'6px', flexWrap:'wrap', marginBottom: eventsForFilm.length?'12px':'0' }}>
+                {BOOKING_CHAINS.map(chain=>(
+                  <a key={chain.id}
+                    href={`${chain.url}${encodeURIComponent(film.title.toLowerCase().replace(/\s+/g,'-'))}`}
+                    target="_blank" rel="noopener noreferrer"
+                    onClick={()=>trackBookingClick(film.id,chain.id)}
+                    style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:'8px', padding:'7px 12px', textDecoration:'none', fontSize:'11px', color:T.text, fontFamily:T.mono, display:'flex', alignItems:'center', gap:'5px' }}>
+                    <span style={{ width:'6px', height:'6px', borderRadius:'50%', background:chain.color, flexShrink:0 }}/>
+                    {chain.label}
+                  </a>
+                ))}
+                {film.affiliateUrl && (
+                  <a href={film.affiliateUrl} target="_blank" rel="noopener noreferrer"
+                    onClick={()=>trackBookingClick(film.id,'direct')}
+                    style={{ background:`${T.gold}18`, border:`1px solid ${T.gold}44`, borderRadius:'8px', padding:'7px 12px', textDecoration:'none', fontSize:'11px', color:T.gold, fontFamily:T.mono, fontWeight:600 }}>
+                    🎟 Official
+                  </a>
+                )}
+              </div>
+              {eventsForFilm.length>0 && (
+                <div style={{ display:'flex', gap:'6px', flexWrap:'wrap', marginTop:'8px' }}>
+                  {eventsForFilm.map(ev=>{
+                    const evType=MARKETING_EVENT_TYPES.find(t=>t.id===ev.event_type)
+                    return <div key={ev.id} style={{ background:T.surfaceUp, borderRadius:'8px', padding:'5px 10px', fontSize:'11px', color:T.textSub }}>{evType?.icon} {ev.label} · {new Date(ev.event_date).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</div>
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // ── DISTRIBUTOR INSIGHTS PAGE ───────────────────────────────────────────────
+  const DistributorPage = () => {
+    const [selFilm, setSelFilm] = useState(films[0]?.id||'')
+    const [newEvt,  setNewEvt]  = useState({ event_type:'trailer', label:'', event_date:'', notes:'' })
+    const selF = films.find(f=>f.id===selFilm)
+    const filmPicks    = allPicks.filter(p=>p.film_id===selFilm)
+    const total        = filmPicks.length
+    const vel7         = pickVelocity(selFilm, allPicks, 7)
+    const vel24        = pickVelocity(selFilm, allPicks, 1)
+    const eventsForFilm = marketingEvents.filter(e=>e.film_id===selFilm).sort((a,b)=>new Date(a.event_date)-new Date(b.event_date))
+    const clicks       = bookingClicks.filter(b=>b.film_id===selFilm)
+
+    const marketingImpact = eventsForFilm.map(ev=>{
+      const evMs = new Date(ev.event_date).getTime()
+      const before = filmPicks.filter(p=>{const t=new Date(p.picked_at).getTime();return t>=evMs-7*86400000&&t<evMs}).length
+      const after  = filmPicks.filter(p=>{const t=new Date(p.picked_at).getTime();return t>=evMs&&t<evMs+7*86400000}).length
+      const lift   = before>0?Math.round((after-before)/before*100):after>0?100:0
+      return{ev,before,after,lift}
+    })
+
+    const filmRanking = [...films].map(f=>({f,total:allPicks.filter(p=>p.film_id===f.id).length,vel:pickVelocity(f.id,allPicks,7)})).sort((a,b)=>b.total-a.total)
+
+    return (
+      <div>
+        <div style={S.pageTitle}>📈 Distributor Insights</div>
+        <div style={{ fontSize:'13px', color:T.textSub, marginTop:'4px', marginBottom:'20px' }}>Audience intent data · UK-flagged · pick velocity vs marketing events</div>
+
+        <div style={{ marginBottom:'20px' }}>
+          <div style={{ ...S.label, marginBottom:'6px' }}>Select Film</div>
+          <select value={selFilm} onChange={e=>setSelFilm(e.target.value)} style={S.inp}>
+            {films.map(f=><option key={f.id} value={f.id}>{f.title} (Ph{f.phase})</option>)}
+          </select>
+        </div>
+
+        {selF && (<>
+          <div style={{ ...S.card, marginBottom:'16px', display:'flex', gap:'16px', alignItems:'center' }}>
+            <FilmPoster film={selF} width={56} height={84} radius={8}/>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:'18px', fontWeight:700, marginBottom:'4px' }}>{selF.title}</div>
+              <div style={{ fontSize:'13px', color:T.textSub }}>{selF.dist} · Ph{selF.phase} · W{selF.week}</div>
+              <div style={{ display:'flex', gap:'8px', marginTop:'8px', flexWrap:'wrap' }}>
+                <Pill color={GENRE_COL[selF.genre]||T.textSub}>{selF.genre}</Pill>
+                {selF.rt!=null&&<Pill color={selF.rt>=75?T.green:T.red}>RT {selF.rt}%</Pill>}
+                {selF.starActor&&<Pill>⭐ {selF.starActor}</Pill>}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:'8px', marginBottom:'16px' }}>
+            <StatBox label="Total picks"     value={total}  color={T.gold}   sub="intent signals"/>
+            <StatBox label="7-day velocity"  value={vel7}   color={vel7>=5?T.red:vel7>=2?T.orange:T.text} sub="this week"/>
+            <StatBox label="24h picks"       value={vel24}  color={vel24>0?T.green:T.text} sub="today"/>
+            <StatBox label="Booking clicks"  value={clicks.length} color={T.blue} sub="ticket CTAs"/>
+          </div>
+
+          {total>0 && (
+            <div style={{ ...S.card, marginBottom:'16px' }}>
+              <div style={{ fontSize:'13px', fontWeight:600, color:T.textSub, marginBottom:'14px' }}>Pick Velocity — 30 days</div>
+              <div style={{ overflowX:'auto' }}>
+                <VelocitySparkline filmId={selFilm} allPicks={allPicks} marketingEvents={marketingEvents} width={Math.max(320, Math.min(600,(typeof window!=='undefined'?window.innerWidth:500)-80))} height={80}/>
+              </div>
+              <div style={{ display:'flex', gap:'16px', marginTop:'10px', flexWrap:'wrap' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:'6px' }}><div style={{ width:'20px', height:'2px', background:T.gold }}/><span style={{ fontSize:'11px', color:T.textSub }}>Pick count</span></div>
+                {eventsForFilm.length>0&&<div style={{ display:'flex', alignItems:'center', gap:'6px' }}><div style={{ width:'12px', height:'0', borderTop:`1px dashed ${T.blue}` }}/><span style={{ fontSize:'11px', color:T.textSub }}>Marketing event</span></div>}
+              </div>
+            </div>
+          )}
+
+          {marketingImpact.length>0 && (
+            <div style={{ ...S.card, marginBottom:'16px' }}>
+              <div style={{ fontSize:'13px', fontWeight:600, color:T.textSub, marginBottom:'14px' }}>Marketing Event Impact</div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr auto auto auto', gap:'8px', marginBottom:'8px', padding:'0 4px' }}>
+                {['Event','−7d','+7d','Lift'].map(h=><div key={h} style={S.label}>{h}</div>)}
+              </div>
+              {marketingImpact.map(({ev,before,after,lift})=>{
+                const evType=MARKETING_EVENT_TYPES.find(t=>t.id===ev.event_type)
+                return (
+                  <div key={ev.id} style={{ display:'grid', gridTemplateColumns:'1fr auto auto auto', gap:'8px', padding:'10px 4px', borderTop:`1px solid ${T.border}`, alignItems:'center' }}>
+                    <div>
+                      <div style={{ fontSize:'13px', fontWeight:500 }}>{evType?.icon} {ev.label}</div>
+                      <div style={{ fontSize:'11px', color:T.textSub }}>{new Date(ev.event_date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div>
+                    </div>
+                    <div style={{ fontSize:'14px', fontWeight:600, textAlign:'right' }}>{before}</div>
+                    <div style={{ fontSize:'14px', fontWeight:600, textAlign:'right' }}>{after}</div>
+                    <div style={{ fontSize:'14px', fontWeight:700, color:lift>0?T.green:lift<0?T.red:T.textSub, textAlign:'right' }}>{lift>0?'+':''}{lift}%</div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {clicks.length>0 && (
+            <div style={{ ...S.card, marginBottom:'16px' }}>
+              <div style={{ fontSize:'13px', fontWeight:600, color:T.textSub, marginBottom:'14px' }}>Booking Click Breakdown</div>
+              {BOOKING_CHAINS.map(chain=>{
+                const count=clicks.filter(c=>c.chain===chain.id).length
+                const pct=clicks.length?Math.round(count/clicks.length*100):0
+                if(!count)return null
+                return (
+                  <div key={chain.id} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'8px 0', borderTop:`1px solid ${T.border}` }}>
+                    <span style={{ width:'8px', height:'8px', borderRadius:'50%', background:chain.color, flexShrink:0 }}/>
+                    <div style={{ flex:1, fontSize:'13px' }}>{chain.label}</div>
+                    <div style={{ width:'100px', height:'6px', background:T.surfaceUp, borderRadius:'3px', overflow:'hidden' }}>
+                      <div style={{ width:`${pct}%`, height:'100%', background:chain.color, borderRadius:'3px' }}/>
+                    </div>
+                    <div style={{ fontSize:'13px', fontWeight:600, minWidth:'28px', textAlign:'right' }}>{count}</div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {isCommissioner && (
+            <div style={{ ...S.card, border:`1px solid ${T.blue}33`, marginBottom:'24px' }}>
+              <div style={{ fontSize:'13px', fontWeight:600, color:T.blue, marginBottom:'14px' }}>+ Log Marketing Event for {selF.title}</div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'12px' }}>
+                <div>
+                  <div style={{ ...S.label, marginBottom:'5px' }}>Event Type</div>
+                  <select value={newEvt.event_type} onChange={e=>setNewEvt(p=>({...p,event_type:e.target.value}))} style={S.inp}>
+                    {MARKETING_EVENT_TYPES.map(t=><option key={t.id} value={t.id}>{t.icon} {t.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <div style={{ ...S.label, marginBottom:'5px' }}>Date</div>
+                  <input type="date" value={newEvt.event_date} onChange={e=>setNewEvt(p=>({...p,event_date:e.target.value}))} style={S.inp}/>
+                </div>
+                <div style={{ gridColumn:'1/-1' }}>
+                  <div style={{ ...S.label, marginBottom:'5px' }}>Label</div>
+                  <input type="text" value={newEvt.label} onChange={e=>setNewEvt(p=>({...p,label:e.target.value}))} placeholder="e.g. Main trailer drop — 2.4M views in 24h" style={S.inp}/>
+                </div>
+              </div>
+              <Btn color={T.blue} textColor="#fff" onClick={async()=>{
+                if(!newEvt.label||!newEvt.event_date)return notify('Label and date required',T.red)
+                const{error}=await supabase.from('marketing_events').insert({film_id:selFilm,event_type:newEvt.event_type,label:newEvt.label,event_date:newEvt.event_date,created_by:profile.id})
+                if(error)return notify(error.message,T.red)
+                notify(`Event logged for ${selF.title}`,T.blue)
+                setNewEvt({event_type:'trailer',label:'',event_date:'',notes:''})
+                loadMarketingEvents()
+              }}>Log Event</Btn>
+            </div>
+          )}
+        </>)}
+
+        <div style={{ fontSize:'13px', fontWeight:600, color:T.textSub, margin:'8px 0 12px' }}>All Films — Audience Intent Ranking</div>
+        {filmRanking.filter(x=>x.total>0).map(({f,total,vel},i)=>(
+          <div key={f.id} className="hoverable" style={{ display:'flex', gap:'12px', alignItems:'center', padding:'10px 12px', background:T.surface, border:`1px solid ${T.border}`, borderRadius:'10px', marginBottom:'6px', cursor:'pointer' }} onClick={()=>setSelFilm(f.id)}>
+            <div style={{ fontSize:'16px', minWidth:'24px', textAlign:'center', color:T.textDim, fontWeight:700 }}>#{i+1}</div>
+            <FilmPoster film={f} width={28} height={42} radius={5}/>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:'13px', fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.title}</div>
+              <div style={{ fontSize:'11px', color:T.textSub, marginTop:'2px' }}>{f.dist} · Ph{f.phase}</div>
+            </div>
+            <div style={{ textAlign:'right' }}>
+              <div style={{ fontSize:'16px', fontWeight:700, color:T.gold }}>{total}</div>
+              <div style={{ fontSize:'11px', color:vel>=5?T.red:vel>=2?T.orange:T.textSub }}>+{vel}/wk</div>
+            </div>
+          </div>
+        ))}
+        {filmRanking.filter(x=>x.total>0).length===0 && (
+          <div style={{ ...S.card, textAlign:'center', padding:'32px', color:T.textSub, fontSize:'13px' }}>No picks recorded yet — intent data will appear as players pick films.</div>
+        )}
       </div>
     )
   }
@@ -2081,6 +2545,12 @@ export default function App() {
             </div>
           )}
 
+          {myPicks.length>0 && (
+            <div onClick={() => setPage('intent')} style={{ background:`${T.gold}18`, border:`1px solid ${T.gold}44`, borderRadius:'10px', padding:'8px 14px', fontSize:'13px', color:T.gold, cursor:'pointer', flexShrink:0 }}>
+              👁 {myPicks.length}
+            </div>
+          )}
+
           {/* Avatar */}
           <div style={{ width:'42px', height:'42px', borderRadius:'50%', background:profile?.color||T.gold, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px', fontWeight:900, color:'#0D0A08', cursor:'pointer', flexShrink:0 }}
             onClick={() => goToProfile(players.find(p=>p.id===profile?.id))}>
@@ -2110,6 +2580,9 @@ export default function App() {
                 {id==='trades' && pendingForMe.length>0 && (
                   <span style={{ marginLeft:'auto', background:T.red, color:'#fff', fontSize:'10px', padding:'2px 7px', borderRadius:'10px', fontWeight:700 }}>{pendingForMe.length}</span>
                 )}
+                {id==='intent' && myPicks.length>0 && (
+                  <span style={{ marginLeft:'auto', background:T.gold, color:'#000', fontSize:'10px', padding:'2px 7px', borderRadius:'10px', fontWeight:700 }}>{myPicks.length}</span>
+                )}
               </div>
             ))}
           </div>
@@ -2122,6 +2595,8 @@ export default function App() {
           {page==='chips'        && <ChipsPage/>}
           {page==='league'       && <LeaguePage/>}
           {page==='feed'         && <FeedPage/>}
+          {page==='intent'       && <IntentPage/>}
+          {page==='distributor'  && isCommissioner && <DistributorPage/>}
           {page==='profile'      && profilePlayer && (
             <PlayerProfilePage
               player={profilePlayer}
@@ -2136,10 +2611,12 @@ export default function App() {
             />
           )}
           {page==='trades'       && <TradesPage/>}
+          {page==='intent'       && <IntentPage/>}
           {page==='forecaster'   && <ForecasterPage/>}
           {page==='oscar'        && <OscarPage/>}
           {page==='results'      && <ResultsPage/>}
           {page==='commissioner' && isCommissioner && <CommissionerPage/>}
+          {page==='distributor'  && isCommissioner && <DistributorPage/>}
         </div>
       </div>
 
@@ -2196,6 +2673,9 @@ export default function App() {
                   {id==='trades' && pendingForMe.length>0 && (
                     <span style={{ position:'absolute', top:'8px', right:'8px', background:T.red, color:'#fff', fontSize:'10px', padding:'2px 6px', borderRadius:'9px', fontWeight:700 }}>{pendingForMe.length}</span>
                   )}
+                  {id==='intent' && myPicks.length>0 && (
+                    <span style={{ position:'absolute', top:'8px', right:'8px', background:T.gold, color:'#000', fontSize:'10px', padding:'2px 6px', borderRadius:'9px', fontWeight:700 }}>{myPicks.length}</span>
+                  )}
                 </button>
               ))}
             </div>
@@ -2217,7 +2697,7 @@ export default function App() {
       )}
 
       {filmDetail && (
-        <FilmDetailModal film={filmDetail} profile={profile} players={players} results={results} onClose={() => setFilmDetail(null)}/>
+        <FilmDetailModal film={filmDetail} profile={profile} players={players} results={results} allPicks={allPicks} marketingEvents={marketingEvents} onTogglePick={togglePick} onBookingClick={trackBookingClick} onClose={() => setFilmDetail(null)}/>
       )}
 
       {tradeModal && (
