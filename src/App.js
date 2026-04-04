@@ -192,21 +192,24 @@ async function fetchTMDBPoster(title) {
 function PosterSkeleton({ width, height, radius=8 }) {
   return (
     <div style={{
-      width, height, borderRadius:radius, flexShrink:0,
+      width, height, borderRadius:radius, flexShrink:0, overflow:'hidden',
       background:`linear-gradient(90deg, ${T.surfaceUp} 25%, ${T.border} 50%, ${T.surfaceUp} 75%)`,
       backgroundSize:'600px 100%',
       animation:'shimmer 1.6s ease-in-out infinite',
+      willChange:'background-position',
     }}/>
   )
 }
 
+// Outer wrapper always reserves the exact pixel space — no layout shift ever
 function FilmPoster({ film, width, height, radius=8, imgStyle={} }) {
-  const [url, setUrl] = useState(undefined) // undefined=loading, null=error
+  const [url, setUrl] = useState(posterCache[film?.title] !== undefined ? posterCache[film.title] : undefined)
   const gc = GENRE_COL[film?.genre] || T.textSub
 
   useEffect(() => {
     if (!film?.title) { setUrl(null); return }
-    if (posterCache[film.title] !== undefined) { setUrl(posterCache[film.title]); return }
+    // Already resolved synchronously in useState initialiser — skip
+    if (posterCache[film.title] !== undefined) return
     let cancelled = false
     fetchTMDBPoster(film.title).then(u => { if (!cancelled) setUrl(u) })
     return () => { cancelled = true }
@@ -215,27 +218,36 @@ function FilmPoster({ film, width, height, radius=8, imgStyle={} }) {
   const w = typeof width  === 'number' ? `${width}px`  : width
   const h = typeof height === 'number' ? `${height}px` : height
 
-  if (url === undefined) return <PosterSkeleton width={w} height={h} radius={radius} />
-
-  if (!url) return (
-    <div style={{
-      width:w, height:h, borderRadius:radius, flexShrink:0,
-      background:`linear-gradient(145deg, ${gc}28 0%, ${T.surfaceUp} 100%)`,
-      border:`1px solid ${gc}30`,
-      display:'flex', flexDirection:'column', alignItems:'center',
-      justifyContent:'center', gap:'5px', overflow:'hidden',
-    }}>
-      <div style={{ fontSize: typeof width === 'number' ? Math.max(18, width * 0.28) : 22, lineHeight:1 }}>🎬</div>
-      <div style={{ fontSize:'9px', color:gc, textAlign:'center', padding:'0 6px', lineHeight:1.2, letterSpacing:'0.5px' }}>{film?.genre}</div>
-    </div>
-  )
-
+  // Always render a wrapper of fixed size — only inner content swaps
   return (
-    <img
-      src={url} alt={film?.title} loading="lazy"
-      style={{ width:w, height:h, borderRadius:radius, objectFit:'cover', flexShrink:0, display:'block', ...imgStyle }}
-      onError={() => setUrl(null)}
-    />
+    <div style={{ width:w, height:h, borderRadius:radius, flexShrink:0, overflow:'hidden', position:'relative', contain:'strict', transform:'translateZ(0)', isolation:'isolate' }}>
+      {url === undefined && (
+        <div style={{
+          position:'absolute', inset:0,
+          background:`linear-gradient(90deg, ${T.surfaceUp} 25%, ${T.border} 50%, ${T.surfaceUp} 75%)`,
+          backgroundSize:'600px 100%',
+          animation:'shimmer 1.6s ease-in-out infinite',
+          willChange:'background-position',
+        }}/>
+      )}
+      {url === null && (
+        <div style={{
+          position:'absolute', inset:0,
+          background:`linear-gradient(145deg, ${gc}28 0%, ${T.surfaceUp} 100%)`,
+          display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:5,
+        }}>
+          <div style={{ fontSize: typeof width === 'number' ? Math.max(16, width * 0.28) : 20, lineHeight:1 }}>🎬</div>
+          <div style={{ fontSize:'9px', color:gc, textAlign:'center', padding:'0 6px', lineHeight:1.2, letterSpacing:'0.5px' }}>{film?.genre}</div>
+        </div>
+      )}
+      {url && (
+        <img
+          src={url} alt={film?.title}
+          style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', display:'block', ...imgStyle }}
+          onError={() => setUrl(null)}
+        />
+      )}
+    </div>
   )
 }
 
@@ -492,21 +504,30 @@ function FilmDetailModal({ film, profile, players, results, onClose }) {
   const myEmojis = reactions.filter(r => r.user_id===profile.id).map(r => r.emoji)
 
   return (
-    <div style={{ position:'fixed', inset:0, background:'#000000CC', display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:800 }} onClick={onClose}>
-      <div style={{ background:T.surface, borderRadius:'20px 20px 0 0', width:'100%', maxWidth:'520px', maxHeight:'88vh', display:'flex', flexDirection:'column', animation:'slideUp .25s ease' }} onClick={e => e.stopPropagation()}>
-        <div style={{ padding:'20px 20px 0', flexShrink:0 }}>
-          <div style={{ width:'36px', height:'4px', background:T.border, borderRadius:'2px', margin:'0 auto 16px' }}/>
-          <div style={{ height:'3px', background:gc, borderRadius:'2px', marginBottom:'16px' }}/>
-          <div style={{ display:'flex', gap:'14px', alignItems:'flex-start', marginBottom:'16px' }}>
-            <FilmPoster film={film} width={60} height={90} radius={8} />
+    <div style={{ position:'fixed', inset:0, background:'#000000CC', display:'flex', alignItems:'center', justifyContent:'center', zIndex:800, padding:'12px' }} onClick={onClose}>
+      <div style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:'20px', width:'100%', maxWidth:'700px', height:'min(92vh, 840px)', display:'flex', flexDirection:'column', animation:'fadeUp .2s ease' }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding:'28px 28px 0', flexShrink:0 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'18px' }}>
+            <div style={{ fontSize:'20px', fontWeight:800, color:T.text }}>Film Details</div>
+            <button onClick={onClose} style={{ background:'none', border:`1px solid ${T.border}`, color:T.textSub, borderRadius:'8px', padding:'6px 14px', cursor:'pointer', fontFamily:T.mono, fontSize:'12px' }}>✕ Close</button>
+          </div>
+          <div style={{ height:'3px', background:gc, borderRadius:'2px', marginBottom:'20px' }}/>
+          <div style={{ display:'flex', gap:'20px', alignItems:'flex-start', marginBottom:'24px' }}>
+            <FilmPoster film={film} width={100} height={150} radius={10} />
             <div style={{ flex:1 }}>
-              <div style={{ fontSize:'17px', fontWeight:700, lineHeight:1.3 }}>{film.title}</div>
-              <div style={{ fontSize:'12px', color:T.textSub, marginTop:'3px' }}>{film.dist} · {film.genre} · W{film.week}</div>
-              {film.starActor && <div style={{ fontSize:'12px', color:T.textSub, marginTop:'2px' }}>⭐ {film.starActor}</div>}
-              {actual != null && <div style={{ fontSize:'13px', color:T.green, fontWeight:600, marginTop:'6px' }}>${actual}M opening</div>}
+              <div style={{ fontSize:'22px', fontWeight:800, lineHeight:1.25, letterSpacing:'-0.5px' }}>{film.title}</div>
+              <div style={{ fontSize:'14px', color:T.textSub, marginTop:'6px' }}>{film.dist} · {film.genre} · Week {film.week} · Phase {film.phase}</div>
+              {film.starActor && <div style={{ fontSize:'14px', color:T.textSub, marginTop:'4px' }}>⭐ {film.starActor}</div>}
+              {film.franchise && <div style={{ fontSize:'13px', color:T.textDim, marginTop:'4px' }}>📽 {film.franchise}</div>}
+              <div style={{ display:'flex', gap:'14px', marginTop:'14px', flexWrap:'wrap' }}>
+                <div><div style={{ ...S.label, marginBottom:'4px' }}>Est</div><div style={{ fontSize:'17px', fontWeight:700 }}>${film.estM}M</div></div>
+                <div><div style={{ ...S.label, marginBottom:'4px' }}>IPO</div><div style={{ fontSize:'17px', fontWeight:700 }}>${film.basePrice}M</div></div>
+                {actual != null && <div><div style={{ ...S.label, marginBottom:'4px' }}>Actual</div><div style={{ fontSize:'17px', fontWeight:700, color:T.green }}>${actual}M</div></div>}
+                {film.rt != null && <div><div style={{ ...S.label, marginBottom:'4px' }}>RT</div><div style={{ fontSize:'17px', fontWeight:700, color:film.rt>=75?T.green:T.red }}>{film.rt}%</div></div>}
+              </div>
             </div>
           </div>
-          <div style={{ ...S.label, marginBottom:'10px' }}>Reactions</div>
+          <div style={{ ...S.label, marginBottom:'12px' }}>Reactions</div>
           <div style={{ display:'flex', gap:'6px', flexWrap:'wrap', marginBottom:'16px' }}>
             {EMOJI_OPTIONS.map(emoji => {
               const count = counts[emoji], ismine = myEmojis.includes(emoji)
@@ -528,31 +549,31 @@ function FilmDetailModal({ film, profile, players, results, onClose }) {
           <div style={{ ...S.label, margin:'14px 0 4px' }}>Comments ({comments.length})</div>
         </div>
 
-        <div style={{ flex:1, overflowY:'auto', padding:'8px 20px' }}>
-          {comments.length === 0 && <div style={{ fontSize:'13px', color:T.textSub, padding:'16px 0' }}>No comments yet — be first!</div>}
+        <div style={{ flex:1, overflowY:'auto', padding:'12px 28px' }}>
+          {comments.length === 0 && <div style={{ fontSize:'14px', color:T.textSub, padding:'20px 0' }}>No comments yet — be first!</div>}
           {comments.map(c => {
             const p = players.find(pl => pl.id===c.user_id)
             return (
-              <div key={c.id} style={{ display:'flex', gap:'10px', marginBottom:'14px' }}>
-                <div style={{ width:'28px', height:'28px', borderRadius:'50%', background:p?.color||T.gold, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'11px', fontWeight:700, color:'#0D0A08' }}>{p?.name?.[0]||'?'}</div>
+              <div key={c.id} style={{ display:'flex', gap:'12px', marginBottom:'18px' }}>
+                <div style={{ width:'32px', height:'32px', borderRadius:'50%', background:p?.color||T.gold, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'13px', fontWeight:700, color:'#0D0A08' }}>{p?.name?.[0]||'?'}</div>
                 <div style={{ flex:1 }}>
-                  <div style={{ display:'flex', gap:'8px', alignItems:'baseline', marginBottom:'3px' }}>
-                    <span style={{ fontSize:'12px', fontWeight:600, color:p?.color||T.gold }}>{p?.name}</span>
-                    <span style={{ fontSize:'10px', color:T.textDim }}>{timeAgo(c.created_at)}</span>
+                  <div style={{ display:'flex', gap:'8px', alignItems:'baseline', marginBottom:'4px' }}>
+                    <span style={{ fontSize:'13px', fontWeight:600, color:p?.color||T.gold }}>{p?.name}</span>
+                    <span style={{ fontSize:'11px', color:T.textDim }}>{timeAgo(c.created_at)}</span>
                   </div>
-                  <div style={{ fontSize:'13px', color:T.text, lineHeight:1.5 }}>{c.comment}</div>
+                  <div style={{ fontSize:'14px', color:T.text, lineHeight:1.55 }}>{c.comment}</div>
                 </div>
                 {c.user_id === profile.id && (
-                  <button onClick={() => supabase.from('film_comments').delete().eq('id',c.id).then(loadComments)} style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer', fontSize:'12px', padding:'2px 6px' }}>✕</button>
+                  <button onClick={() => supabase.from('film_comments').delete().eq('id',c.id).then(loadComments)} style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer', fontSize:'13px', padding:'2px 8px' }}>✕</button>
                 )}
               </div>
             )
           })}
         </div>
 
-        <div style={{ padding:'12px 20px 20px', borderTop:`1px solid ${T.border}`, flexShrink:0, display:'flex', gap:'8px' }}>
-          <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key==='Enter' && post()} placeholder="Add a comment…" style={{ ...S.inp, flex:1 }}/>
-          <Btn onClick={post} color={T.blue} textColor="#fff" size="sm">Post</Btn>
+        <div style={{ padding:'18px 28px 28px', borderTop:`1px solid ${T.border}`, flexShrink:0, display:'flex', gap:'12px' }}>
+          <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key==='Enter' && post()} placeholder="Add a comment…" style={{ ...S.inp, flex:1, fontSize:'15px', padding:'13px 16px' }}/>
+          <Btn onClick={post} color={T.blue} textColor="#fff" size="lg">Post</Btn>
         </div>
       </div>
     </div>
@@ -1784,53 +1805,63 @@ export default function App() {
     <div style={{ minHeight:'100vh', background:T.bg, color:T.text, fontFamily:T.mono }}>
 
       {/* TOP BAR */}
-      <div style={{ background:T.surface, borderBottom:`1px solid ${T.border}`, height:'54px', display:'flex', alignItems:'center', padding:'0 16px', gap:'10px', position:'sticky', top:0, zIndex:100 }}>
-        <div style={{ fontSize:'22px', fontWeight:900, color:T.gold, letterSpacing:'-1.5px', userSelect:'none', flexShrink:0 }}>BOXD</div>
+      <div style={{ background:T.surface, borderBottom:`1px solid ${T.border}`, height:'72px', display:'flex', alignItems:'center', padding:'0 24px', gap:'16px', position:'sticky', top:0, zIndex:100 }}>
+        <div
+          onClick={() => !isMobile && setSidebarOpen(o => !o)}
+          title={!isMobile ? (sidebarOpen ? 'Hide menu' : 'Show menu') : undefined}
+          style={{ fontSize:'32px', fontWeight:900, color:T.gold, letterSpacing:'-2px', userSelect:'none', flexShrink:0, cursor: isMobile?'default':'pointer', lineHeight:1, padding:'6px 10px', borderRadius:'10px', transition:'background .15s', background: (!isMobile && sidebarOpen) ? `${T.gold}15` : 'transparent' }}
+        >BOXD</div>
+
+        {!isMobile && (
+          <div onClick={() => setSidebarOpen(o => !o)} style={{ fontSize:'12px', color:T.textDim, cursor:'pointer', userSelect:'none', letterSpacing:'0.5px', transition:'color .15s', padding:'4px 8px', borderRadius:'6px', background:T.surfaceUp, border:`1px solid ${T.border}` }}>
+            {sidebarOpen ? '← hide' : '→ menu'}
+          </div>
+        )}
 
         {win && wMs>0 && (
-          <div style={{ background:`${T.orange}18`, border:`1px solid ${T.orange}44`, borderRadius:'8px', padding:'3px 10px', fontSize:'11px', color:T.orange, letterSpacing:'0.5px' }}>
+          <div style={{ background:`${T.orange}18`, border:`1px solid ${T.orange}44`, borderRadius:'9px', padding:'5px 14px', fontSize:'12px', color:T.orange, letterSpacing:'0.5px' }}>
             🔓 {wH}h {wMin}m {wS}s
           </div>
         )}
 
-        <div style={{ marginLeft:'auto', display:'flex', gap:'8px', alignItems:'center' }}>
+        <div style={{ marginLeft:'auto', display:'flex', gap:'12px', alignItems:'center' }}>
           {/* Budget pill */}
-          <div style={{ background:T.surfaceUp, border:`1px solid ${T.border}`, borderRadius:'9px', padding:'5px 11px' }}>
-            <div style={{ fontSize:'9px', color:T.textDim, letterSpacing:'1.5px' }}>PH{ph} BUDGET</div>
-            <div style={{ fontSize:'15px', fontWeight:700, color:myBudget<20?T.red:T.green, lineHeight:1.2, fontFamily:T.mono }}>{cur}{myBudget}M</div>
+          <div style={{ background:T.surfaceUp, border:`1px solid ${T.border}`, borderRadius:'12px', padding:'8px 16px' }}>
+            <div style={{ fontSize:'10px', color:T.textDim, letterSpacing:'1.5px' }}>PH{ph} BUDGET</div>
+            <div style={{ fontSize:'22px', fontWeight:900, color:myBudget<20?T.red:T.green, lineHeight:1.1, fontFamily:T.mono, letterSpacing:'-1px' }}>{cur}{myBudget}M</div>
           </div>
 
           {pendingForMe.length>0 && (
-            <div onClick={() => setPage('trades')} style={{ background:`${T.red}22`, border:`1px solid ${T.red}44`, borderRadius:'9px', padding:'5px 11px', fontSize:'12px', color:T.red, cursor:'pointer', flexShrink:0 }}>
+            <div onClick={() => setPage('trades')} style={{ background:`${T.red}22`, border:`1px solid ${T.red}44`, borderRadius:'10px', padding:'8px 16px', fontSize:'14px', color:T.red, cursor:'pointer', flexShrink:0 }}>
               🔄 {pendingForMe.length}
             </div>
           )}
 
           {/* Avatar */}
-          <div style={{ width:'32px', height:'32px', borderRadius:'50%', background:profile?.color||T.gold, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'13px', fontWeight:900, color:'#0D0A08', cursor:'pointer', flexShrink:0 }}
+          <div style={{ width:'42px', height:'42px', borderRadius:'50%', background:profile?.color||T.gold, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px', fontWeight:900, color:'#0D0A08', cursor:'pointer', flexShrink:0 }}
             onClick={() => setProfileModal(players.find(p=>p.id===profile?.id))}>
             {profile?.name?.[0]||'?'}
           </div>
 
-          <button style={{ ...S.btn, background:T.surfaceUp, border:`1px solid ${T.border}`, color:T.textSub, fontSize:'10px', padding:'5px 10px' }} onClick={() => supabase.auth.signOut()}>Out</button>
+          <button style={{ ...S.btn, background:T.surfaceUp, border:`1px solid ${T.border}`, color:T.textSub, fontSize:'11px', padding:'8px 14px' }} onClick={() => supabase.auth.signOut()}>Sign out</button>
         </div>
       </div>
 
       {/* CONTENT + SIDEBAR */}
-      <div style={{ display:'flex', minHeight:'calc(100vh - 54px)' }}>
+      <div style={{ display:'flex', minHeight:'calc(100vh - 72px)' }}>
 
-        {/* DESKTOP SIDEBAR */}
-        {!isMobile && (
-          <div style={{ width:'190px', background:T.surface, borderRight:`1px solid ${T.border}`, padding:'12px 8px', flexShrink:0, position:'sticky', top:'54px', height:'calc(100vh - 54px)', overflowY:'auto' }}>
+        {/* DESKTOP SIDEBAR — collapsible via BOXD logo click */}
+        {!isMobile && sidebarOpen && (
+          <div style={{ width:'220px', background:T.surface, borderRight:`1px solid ${T.border}`, padding:'16px 10px', flexShrink:0, position:'sticky', top:'72px', height:'calc(100vh - 72px)', overflowY:'auto' }}>
             {ALL_PAGES.map(({ id, icon, label }) => (
               <div key={id} onClick={() => setPage(id)} style={{
-                display:'flex', alignItems:'center', gap:'10px', padding:'11px 12px',
-                borderRadius:'10px', cursor:'pointer', fontSize:'13px', marginBottom:'2px',
+                display:'flex', alignItems:'center', gap:'12px', padding:'14px 16px',
+                borderRadius:'12px', cursor:'pointer', fontSize:'15px', marginBottom:'3px',
                 background: page===id ? `${T.gold}18` : 'transparent',
                 color:      page===id ? T.gold : T.textSub,
                 transition:'all .15s', position:'relative',
               }}>
-                <span style={{ fontSize:'16px' }}>{icon}</span>
+                <span style={{ fontSize:'20px' }}>{icon}</span>
                 <span style={{ fontWeight: page===id ? 600 : 400 }}>{label}</span>
                 {id==='trades' && pendingForMe.length>0 && (
                   <span style={{ marginLeft:'auto', background:T.red, color:'#fff', fontSize:'10px', padding:'2px 7px', borderRadius:'10px', fontWeight:700 }}>{pendingForMe.length}</span>
@@ -1841,7 +1872,7 @@ export default function App() {
         )}
 
         {/* PAGE CONTENT */}
-        <div style={{ flex:1, padding:'20px 16px', overflowY:'auto', minWidth:0, paddingBottom: isMobile ? '88px' : '32px' }}>
+        <div style={{ flex:1, padding:'20px 16px', overflowY:'auto', minWidth:0, paddingBottom: isMobile ? '100px' : '32px' }}>
           {page==='market'       && <MarketPage/>}
           {page==='roster'       && <RosterPage/>}
           {page==='chips'        && <ChipsPage/>}
@@ -1862,27 +1893,28 @@ export default function App() {
             const active = page===id
             return (
               <button key={id} onClick={() => { setPage(id); setMoreOpen(false) }} style={{
-                flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:'3px',
-                padding:'10px 2px 8px', background:'none', border:'none', cursor:'pointer',
+                flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:'6px',
+                padding:'14px 2px 12px', background:'none', border:'none', cursor:'pointer',
                 color: active ? T.gold : T.textSub, fontFamily:T.mono, transition:'color .15s',
                 position:'relative',
               }}>
-                {active && <div style={{ position:'absolute', top:0, left:'50%', transform:'translateX(-50%)', width:'24px', height:'2px', background:T.gold, borderRadius:'0 0 2px 2px' }}/>}
-                <span style={{ fontSize:'20px', lineHeight:1 }}>{icon}</span>
-                <span style={{ fontSize:'10px', fontWeight: active?600:400, letterSpacing:'0.2px' }}>{label}</span>
+                {active && <div style={{ position:'absolute', top:0, left:'50%', transform:'translateX(-50%)', width:'32px', height:'3px', background:T.gold, borderRadius:'0 0 4px 4px' }}/>}
+                <span style={{ fontSize:'26px', lineHeight:1 }}>{icon}</span>
+                <span style={{ fontSize:'12px', fontWeight: active?600:400, letterSpacing:'0.2px' }}>{label}</span>
               </button>
             )
           })}
 
           {/* More button */}
           <button onClick={() => setMoreOpen(o => !o)} style={{
-            flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:'3px',
-            padding:'10px 2px 8px', background:'none', border:'none', cursor:'pointer',
+            flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:'6px',
+            padding:'14px 2px 12px', background:'none', border:'none', cursor:'pointer',
             color: moreOpen || !BOTTOM_TABS.find(t=>t.id===page) ? T.gold : T.textSub,
-            fontFamily:T.mono, transition:'color .15s',
+            fontFamily:T.mono, transition:'color .15s', position:'relative',
           }}>
-            <span style={{ fontSize:'20px', lineHeight:1 }}>⋯</span>
-            <span style={{ fontSize:'10px', letterSpacing:'0.2px' }}>More</span>
+            {(moreOpen || !BOTTOM_TABS.find(t=>t.id===page)) && <div style={{ position:'absolute', top:0, left:'50%', transform:'translateX(-50%)', width:'32px', height:'3px', background:T.gold, borderRadius:'0 0 4px 4px' }}/>}
+            <span style={{ fontSize:'26px', lineHeight:1 }}>⋯</span>
+            <span style={{ fontSize:'12px', letterSpacing:'0.2px' }}>More</span>
           </button>
         </div>
       )}
