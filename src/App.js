@@ -54,8 +54,8 @@ const GLOBAL_CSS = `
   ::-webkit-scrollbar-track { background:transparent; }
   ::-webkit-scrollbar-thumb { background:${T.border}; border-radius:3px; }
   @keyframes shimmer {
-    0%   { background-position:-600px 0; }
-    100% { background-position: 600px 0; }
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
   }
   @keyframes fadeUp {
     from { opacity:0; transform:translateY(10px); }
@@ -191,13 +191,14 @@ async function fetchTMDBPoster(title) {
 
 function PosterSkeleton({ width, height, radius=8 }) {
   return (
-    <div style={{
-      width, height, borderRadius:radius, flexShrink:0, overflow:'hidden',
-      background:`linear-gradient(90deg, ${T.surfaceUp} 25%, ${T.border} 50%, ${T.surfaceUp} 75%)`,
-      backgroundSize:'600px 100%',
-      animation:'shimmer 1.6s ease-in-out infinite',
-      willChange:'background-position',
-    }}/>
+    <div style={{ width, height, borderRadius:radius, flexShrink:0, overflow:'hidden', position:'relative', background:T.surfaceUp }}>
+      <div style={{
+        position:'absolute', inset:0,
+        background:`linear-gradient(90deg, transparent 0%, ${T.borderUp}BB 50%, transparent 100%)`,
+        animation:'shimmer 1.6s ease-in-out infinite',
+        willChange:'transform',
+      }}/>
+    </div>
   )
 }
 
@@ -227,7 +228,7 @@ function FilmPoster({ film, width, height, radius=8, imgStyle={} }) {
           background:`linear-gradient(90deg, ${T.surfaceUp} 25%, ${T.border} 50%, ${T.surfaceUp} 75%)`,
           backgroundSize:'600px 100%',
           animation:'shimmer 1.6s ease-in-out infinite',
-          willChange:'background-position',
+          willChange:'transform',
         }}/>
       )}
       {url === null && (
@@ -659,7 +660,7 @@ function PlayerProfilePage({ player, films, rosters, results, weeklyG, allChips,
                         <div><div style={S.label}>Paid</div><div style={{ fontSize:'14px', fontWeight:600, marginTop:'2px' }}>${h.bought_price}M</div></div>
                         {!h.active && <div><div style={S.label}>Sold</div><div style={{ fontSize:'14px', fontWeight:600, color:pnl_>=0?T.green:T.red, marginTop:'2px' }}>${h.sold_price||0}M</div></div>}
                         {actual!=null && <div><div style={S.label}>Actual</div><div style={{ fontSize:'14px', fontWeight:600, color:T.green, marginTop:'2px' }}>${actual}M</div></div>}
-                        <div><div style={S.label}>P&amp;L</div><div style={{ fontSize:'14px', fontWeight:700, color:pnl_>=0?T.green:T.red, marginTop:'2px' }}>{pnl_>=0?'+':''}{pnl_}M</div></div>
+                        <div><div style={S.label}>P&L</div><div style={{ fontSize:'14px', fontWeight:700, color:pnl_>=0?T.green:T.red, marginTop:'2px' }}>{pnl_>=0?'+':''}{pnl_}M</div></div>
                       </div>
                       {actual != null && (
                         <div style={{ marginTop:'10px', background:T.surfaceUp, borderRadius:'9px', padding:'10px 12px' }}>
@@ -755,7 +756,7 @@ function PlayerProfilePage({ player, films, rosters, results, weeklyG, allChips,
       </div>
 
       {/* Chips */}
-      <div style={S.label}>Chips &amp; Specials</div>
+      <div style={S.label}>Chips & Specials</div>
       <div style={{ ...S.card, margin:'12px 0 20px' }}>
         {!chip && !auteur && !oscar
           ? <div style={{ fontSize:'13px', color:T.textSub }}>No chips used yet</div>
@@ -1637,7 +1638,7 @@ export default function App() {
             {items.map(item => {
               const { icon, text, col } = getItem(item)
               return (
-                <div key={item.id} style={{ ...S.card, padding:'13px 15px', marginBottom:'8px', borderLeft:`3px solid ${col}55`, display:'flex', gap:'14px', alignItems:'flex-start', animation:'fadeUp .3s ease' }}>
+                <div key={item.id} style={{ ...S.card, padding:'13px 15px', marginBottom:'8px', borderLeft:`3px solid ${col}55`, display:'flex', gap:'14px', alignItems:'flex-start', animation:'none' }}>
                   <div style={{ fontSize:'18px', flexShrink:0, marginTop:'1px' }}>{icon}</div>
                   <div style={{ flex:1 }}>
                     <div style={{ fontSize:'13px', lineHeight:1.6, color:T.text }}>{text}</div>
