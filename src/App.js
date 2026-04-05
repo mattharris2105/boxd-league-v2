@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from './supabase'
 
-const SUPABASE_URL = 'https://yxluqkfanhzktinayvex.supabase.co'
+const SUPABASE_URL  = 'https://yxluqkfanhzktinayvex.supabase.co'
 
 // ── DESIGN TOKENS ──────────────────────────────────────────────────────────────
 const T = {
@@ -1117,7 +1117,7 @@ const CHAIN_META = {
 }
 
 // ── SHOWTIMES MODAL ────────────────────────────────────────────────────────────
-function ShowtimesModal({ film, onClose, onBookingClick, supabaseUrl }) {
+function ShowtimesModal({ film, onClose, onBookingClick, supabaseUrl, anonKey }) {
   const [state,    setState]    = useState('idle')  // idle|locating|loading|done|error
   const [error,    setError]    = useState('')
   const [cinemas,  setCinemas]  = useState([])
@@ -1138,10 +1138,16 @@ function ShowtimesModal({ film, onClose, onBookingClick, supabaseUrl }) {
         title: film.title, date, radius,
       })
       const res  = await fetch(`${EDGE_URL}?${params}`, {
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': anonKey || '',
+          'Authorization': `Bearer ${anonKey || ''}`,
+        }
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch showtimes')
+      const text = await res.text()
+      let data
+      try { data = JSON.parse(text) } catch { throw new Error(`Bad response: ${text.substring(0,100)}`) }
+      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`)
       setCinemas(data.cinemas || [])
       setState('done')
     } catch (e) {
@@ -2951,7 +2957,7 @@ export default function App() {
       )}
 
       {showtimesFilm && (
-        <ShowtimesModal film={showtimesFilm} supabaseUrl={SUPABASE_URL} onBookingClick={trackBookingClick} onClose={() => setShowtimesFilm(null)}/>
+        <ShowtimesModal film={showtimesFilm} supabaseUrl={SUPABASE_URL} anonKey={supabase.supabaseKey} onBookingClick={trackBookingClick} onClose={() => setShowtimesFilm(null)}/>
       )}
 
       {tradeModal && (
