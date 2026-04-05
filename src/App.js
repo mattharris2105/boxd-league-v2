@@ -1313,9 +1313,10 @@ function ShowtimesModal({ film, onClose, onBookingClick, supabaseUrl, anonKey })
                           const bookUrl = t.bookUrl || cinema.url || chain.bookBase
                           return (
                             <a key={i} href={bookUrl||'#'} target={bookUrl?'_blank':'_self'} rel="noopener noreferrer"
-                              onClick={()=>{ if(bookUrl) onBookingClick&&onBookingClick(film.id, cinema.chain) }}
+                              onClick={()=>{ if(bookUrl) onBookingClick&&onBookingClick(film.id, cinema.chain || cinema.name) }}
                               style={{ background: bookUrl?`${chain.color}18`:T.surfaceUp, border:`1px solid ${bookUrl?chain.color+'44':T.border}`, borderRadius:'9px', padding:'8px 14px', textDecoration:'none', cursor:bookUrl?'pointer':'default', display:'flex', flexDirection:'column', alignItems:'center', gap:'2px', minWidth:'64px' }}>
                               <span style={{ fontSize:'15px', fontWeight:700, color:bookUrl?chain.color:T.text, fontFamily:T.mono }}>{t.time}</span>
+                              {t.price && <span style={{ fontSize:'10px', color:T.textSub }}>{t.price}</span>}
                               {t.format && t.format!=='Standard' && <span style={{ fontSize:'9px', color:T.textSub, letterSpacing:'0.5px' }}>{t.format}</span>}
                             </a>
                           )
@@ -1424,7 +1425,7 @@ export default function App() {
     supabase.auth.onAuthStateChange((_,s) => setSession(s))
   }, [])
 
-  useEffect(() => { if (session) { loadProfile(); loadData(); loadFeed(); loadPicks(); loadMarketingEvents() } }, [session])
+  useEffect(() => { if (session) { loadProfile(); loadData(); loadFeed(); loadPicks(); loadMarketingEvents(); loadBookingClicks() } }, [session])
 
   useEffect(() => {
     const t = setInterval(() => { nowRef.current = Date.now() }, 1000)
@@ -1475,6 +1476,11 @@ export default function App() {
     if (data) setMarketingEvents(data)
   }
 
+  const loadBookingClicks = async () => {
+    const {data} = await supabase.from('booking_clicks').select('*')
+    if (data) setBookingClicks(data)
+  }
+
   // ── INTENT ACTIONS ──────────────────────────────────────────────────────────
   const togglePick = async (filmId, isPicked) => {
     if (!profile) return notify('Sign in to pick films', T.red)
@@ -1487,6 +1493,7 @@ export default function App() {
   }
   const trackBookingClick = async (filmId, chain) => {
     await supabase.from('booking_clicks').insert({ user_id: profile?.id, film_id: filmId, chain })
+    loadBookingClicks() // refresh so Insights updates immediately
   }
   const loadData = async () => {
     const [
@@ -2953,7 +2960,7 @@ export default function App() {
       )}
 
       {filmDetail && (
-        <FilmDetailModal film={filmDetail} profile={profile} players={players} results={results} allPicks={allPicks} marketingEvents={marketingEvents} onTogglePick={togglePick} onBookingClick={trackBookingClick} onShowtimes={(f)=>{setFilmDetail(null);setShowtimesFilm(f)}} onClose={() => setFilmDetail(null)}/>
+        <FilmDetailModal film={filmDetail} profile={profile} players={players} results={results} allPicks={allPicks} marketingEvents={marketingEvents} onTogglePick={togglePick} onBookingClick={trackBookingClick} onShowtimes={(f)=>{setShowtimesFilm(f)}} onClose={() => setFilmDetail(null)}/>
       )}
 
       {showtimesFilm && (
