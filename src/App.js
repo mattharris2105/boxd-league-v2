@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from './supabase'
 
+const SUPABASE_URL = 'https://yxluqkfanhzktinayvex.supabase.co'
+
 // ── DESIGN TOKENS ──────────────────────────────────────────────────────────────
 const T = {
   bg:        '#0D0A08',
@@ -496,7 +498,7 @@ function ScoreBreakdownModal({ film, holding, results, weeklyGrosses, allChips, 
 }
 
 // ── FILM DETAIL MODAL ──────────────────────────────────────────────────────────
-function FilmDetailModal({ film, profile, players, results, allPicks=[], marketingEvents=[], onTogglePick, onBookingClick, onClose }) {
+function FilmDetailModal({ film, profile, players, results, allPicks=[], marketingEvents=[], onTogglePick, onBookingClick, onShowtimes, onClose }) {
   const [comments,  setComments]  = useState([])
   const [reactions, setReactions] = useState([])
   const [text,      setText]      = useState('')
@@ -591,6 +593,12 @@ function FilmDetailModal({ film, profile, players, results, allPicks=[], marketi
             </div>
 
             <div style={{ ...S.label, marginBottom:'10px' }}>Book Tickets · UK Cinemas</div>
+            {/* Showtimes finder button */}
+            {onShowtimes && (
+              <button onClick={()=>onShowtimes(film)} style={{ ...S.btn, background:`${T.green}18`, border:`1px solid ${T.green}44`, color:T.green, padding:'10px 18px', fontSize:'13px', width:'100%', marginBottom:'12px', textTransform:'none', letterSpacing:0, borderRadius:'10px' }}>
+                🎟 Find Showtimes Near Me
+              </button>
+            )}
             <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'20px' }}>
               {BOOKING_CHAINS.map(chain=>(
                 <a key={chain.id}
@@ -1095,6 +1103,243 @@ function VelocitySparkline({ filmId, allPicks, marketingEvents=[], width=200, he
   )
 }
 
+// ── CHAIN META ─────────────────────────────────────────────────────────────────
+const CHAIN_META = {
+  odeon:        { color:'#E8003D', logo:'🎬', bookBase:'https://www.odeon.co.uk/films/' },
+  vue:          { color:'#FF6B00', logo:'🎬', bookBase:'https://www.myvue.com/cinema/' },
+  cineworld:    { color:'#1D3C6E', logo:'🎬', bookBase:'https://www.cineworld.co.uk/' },
+  curzon:       { color:'#C8A96E', logo:'🎬', bookBase:'https://www.curzoncinemas.com/' },
+  picturehouse: { color:'#E63A2E', logo:'🎬', bookBase:'https://www.picturehouses.com/' },
+  everyman:     { color:'#2E7D32', logo:'🎬', bookBase:'https://www.everymancinema.com/' },
+  empire:       { color:'#7B1FA2', logo:'🎬', bookBase:'https://www.empirecinemas.co.uk/' },
+  showcase:     { color:'#01579B', logo:'🎬', bookBase:'https://www.showcasecinemas.co.uk/' },
+  indie:        { color:'#546E7A', logo:'🎬', bookBase:'' },
+}
+
+// ── SHOWTIMES MODAL ────────────────────────────────────────────────────────────
+function ShowtimesModal({ film, onClose, onBookingClick, supabaseUrl }) {
+  const [state,    setState]    = useState('idle')  // idle|locating|loading|done|error
+  const [error,    setError]    = useState('')
+  const [cinemas,  setCinemas]  = useState([])
+  const [date,     setDate]     = useState(new Date().toISOString().split('T')[0])
+  const [radius,   setRadius]   = useState('10')
+  const [coords,   setCoords]   = useState(null)
+  const [postcode, setPostcode] = useState('')
+  const [method,   setMethod]   = useState('gps') // 'gps' | 'postcode'
+
+  const EDGE_URL = `${supabaseUrl}/functions/v1/showtimes`
+
+  const fetchShowtimes = async (lat, lon) => {
+    setState('loading')
+    setError('')
+    try {
+      const params = new URLSearchParams({
+        lat: lat.toString(), lon: lon.toString(),
+        title: film.title, date, radius,
+      })
+      const res  = await fetch(`${EDGE_URL}?${params}`, {
+        headers: { 'Content-Type': 'application/json' }
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch showtimes')
+      setCinemas(data.cinemas || [])
+      setState('done')
+    } catch (e) {
+      setError(e.message)
+      setState('error')
+    }
+  }
+
+  const locateGPS = () => {
+    setState('locating')
+    if (!navigator.geolocation) { setError('Geolocation not supported'); setState('error'); return }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const { latitude: lat, longitude: lon } = pos.coords
+        setCoords({ lat, lon })
+        fetchShowtimes(lat, lon)
+      },
+      err => { setError('Location denied — try postcode instead'); setState('error') },
+      { timeout: 8000 }
+    )
+  }
+
+  const locatePostcode = async () => {
+    if (!postcode.trim()) return
+    setState('locating')
+    try {
+      // Free UK postcode lookup
+      const res  = await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(postcode.trim())}`)
+      const data = await res.json()
+      if (data.status !== 200) throw new Error('Invalid postcode')
+      const { latitude: lat, longitude: lon } = data.result
+      setCoords({ lat, lon })
+      fetchShowtimes(lat, lon)
+    } catch (e) {
+      setError('Postcode not found'); setState('error')
+    }
+  }
+
+  const refresh = () => coords && fetchShowtimes(coords.lat, coords.lon)
+
+  const dates = Array.from({length:7}, (_,i) => {
+    const d = new Date(); d.setDate(d.getDate()+i)
+    return d.toISOString().split('T')[0]
+  })
+
+  const formatDate = (d) => {
+    const dt = new Date(d)
+    const today = new Date().toISOString().split('T')[0]
+    const tom   = new Date(Date.now()+86400000).toISOString().split('T')[0]
+    if (d===today) return 'Today'
+    if (d===tom)   return 'Tomorrow'
+    return dt.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})
+  }
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'#000000CC', display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:900 }} onClick={onClose}>
+      <div style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:'20px 20px 0 0', width:'100%', maxWidth:'600px', maxHeight:'90vh', display:'flex', flexDirection:'column', animation:'slideUp .25s ease', paddingBottom:'env(safe-area-inset-bottom)' }} onClick={e=>e.stopPropagation()}>
+
+        {/* Handle + header */}
+        <div style={{ padding:'20px 20px 0', flexShrink:0 }}>
+          <div style={{ width:'36px', height:'4px', background:T.border, borderRadius:'2px', margin:'0 auto 16px' }}/>
+          <div style={{ display:'flex', alignItems:'center', gap:'14px', marginBottom:'16px' }}>
+            <FilmPoster film={film} width={44} height={66} radius={7}/>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:'16px', fontWeight:700, lineHeight:1.3 }}>{film.title}</div>
+              <div style={{ fontSize:'12px', color:T.textSub, marginTop:'3px' }}>🎟 Showtimes near you · UK</div>
+            </div>
+            <button onClick={onClose} style={{ background:'none', border:`1px solid ${T.border}`, color:T.textSub, borderRadius:'8px', padding:'6px 12px', cursor:'pointer', fontFamily:T.mono, fontSize:'12px' }}>✕</button>
+          </div>
+
+          {/* Date selector */}
+          <div style={{ display:'flex', gap:'6px', overflowX:'auto', paddingBottom:'4px', marginBottom:'14px' }}>
+            {dates.map(d => (
+              <button key={d} onClick={()=>{setDate(d); if(coords) setTimeout(()=>fetchShowtimes(coords.lat,coords.lon),0)}}
+                style={{ ...S.btn, background:d===date?T.gold:T.surfaceUp, color:d===date?'#0D0A08':T.textSub, border:`1px solid ${d===date?T.gold:T.border}`, padding:'7px 14px', fontSize:'12px', flexShrink:0, textTransform:'none', letterSpacing:0 }}>
+                {formatDate(d)}
+              </button>
+            ))}
+          </div>
+
+          {/* Radius */}
+          <div style={{ display:'flex', gap:'6px', marginBottom:'14px', alignItems:'center' }}>
+            <span style={{ fontSize:'12px', color:T.textSub, flexShrink:0 }}>Within</span>
+            {['5','10','20','30'].map(r => (
+              <button key={r} onClick={()=>{setRadius(r); if(coords) setTimeout(()=>fetchShowtimes(coords.lat,coords.lon),0)}}
+                style={{ ...S.btn, background:r===radius?T.gold:T.surfaceUp, color:r===radius?'#0D0A08':T.textSub, border:`1px solid ${r===radius?T.gold:T.border}`, padding:'5px 12px', fontSize:'11px', textTransform:'none', letterSpacing:0 }}>
+                {r}mi
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Scrollable content */}
+        <div style={{ flex:1, overflowY:'auto', padding:'0 20px 20px' }}>
+
+          {/* Location input */}
+          {state === 'idle' || state === 'error' ? (
+            <div>
+              <div style={{ display:'flex', gap:'8px', marginBottom:'10px' }}>
+                <button onClick={()=>setMethod('gps')} style={{ ...S.btn, background:method==='gps'?`${T.blue}22`:T.surfaceUp, color:method==='gps'?T.blue:T.textSub, border:`1px solid ${method==='gps'?T.blue+'66':T.border}`, padding:'8px 16px', fontSize:'12px', flex:1, textTransform:'none', letterSpacing:0 }}>📍 Use my location</button>
+                <button onClick={()=>setMethod('postcode')} style={{ ...S.btn, background:method==='postcode'?`${T.blue}22`:T.surfaceUp, color:method==='postcode'?T.blue:T.textSub, border:`1px solid ${method==='postcode'?T.blue+'66':T.border}`, padding:'8px 16px', fontSize:'12px', flex:1, textTransform:'none', letterSpacing:0 }}>📮 Enter postcode</button>
+              </div>
+              {method === 'gps' ? (
+                <Btn onClick={locateGPS} color={T.blue} textColor="#fff" full size="lg">Find Cinemas Near Me</Btn>
+              ) : (
+                <div style={{ display:'flex', gap:'8px' }}>
+                  <input value={postcode} onChange={e=>setPostcode(e.target.value)} onKeyDown={e=>e.key==='Enter'&&locatePostcode()} placeholder="e.g. SW1A 1AA" style={{ ...S.inp, flex:1, textTransform:'uppercase' }}/>
+                  <Btn onClick={locatePostcode} color={T.blue} textColor="#fff" size="lg">Search</Btn>
+                </div>
+              )}
+              {state === 'error' && <div style={{ fontSize:'13px', color:T.red, marginTop:'10px', padding:'10px 14px', background:`${T.red}12`, borderRadius:'9px' }}>⚠️ {error}</div>}
+            </div>
+          ) : state === 'locating' ? (
+            <div style={{ textAlign:'center', padding:'40px 0', color:T.textSub }}>
+              <div style={{ fontSize:'32px', marginBottom:'12px' }}>📍</div>
+              <div style={{ fontSize:'14px' }}>Finding your location…</div>
+            </div>
+          ) : state === 'loading' ? (
+            <div style={{ textAlign:'center', padding:'40px 0', color:T.textSub }}>
+              <div style={{ fontSize:'32px', marginBottom:'12px' }}>🎬</div>
+              <div style={{ fontSize:'14px', marginBottom:'8px' }}>Searching for showtimes…</div>
+              <div style={{ width:'40px', height:'3px', background:T.gold, borderRadius:'2px', margin:'0 auto', animation:'pulse 1.2s ease-in-out infinite' }}/>
+            </div>
+          ) : (
+            <>
+              {/* Results */}
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px' }}>
+                <div style={{ fontSize:'13px', color:T.textSub }}>{cinemas.length} cinema{cinemas.length!==1?'s':''} · {formatDate(date)}</div>
+                <button onClick={refresh} style={{ background:'none', border:`1px solid ${T.border}`, color:T.textSub, borderRadius:'7px', padding:'5px 12px', cursor:'pointer', fontFamily:T.mono, fontSize:'11px' }}>↻ Refresh</button>
+              </div>
+
+              {cinemas.length === 0 ? (
+                <div style={{ ...S.card, textAlign:'center', padding:'40px 24px' }}>
+                  <div style={{ fontSize:'32px', marginBottom:'12px' }}>🍿</div>
+                  <div style={{ fontSize:'14px', fontWeight:600, marginBottom:'6px' }}>No showtimes found</div>
+                  <div style={{ fontSize:'13px', color:T.textSub }}>Try a wider radius, different date, or check back closer to release</div>
+                </div>
+              ) : cinemas.map(cinema => {
+                const chain  = CHAIN_META[cinema.chain] || CHAIN_META.indie
+                const times  = cinema.times || []
+                return (
+                  <div key={cinema.id} style={{ ...S.card, marginBottom:'10px' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'12px' }}>
+                      <div style={{ width:'10px', height:'10px', borderRadius:'50%', background:chain.color, flexShrink:0 }}/>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:'14px', fontWeight:600, lineHeight:1.3 }}>{cinema.name}</div>
+                        {cinema.chain !== 'indie' && <div style={{ fontSize:'11px', color:T.textSub, marginTop:'2px', textTransform:'capitalize' }}>{cinema.chain}</div>}
+                      </div>
+                      {cinema.url && (
+                        <a href={cinema.url} target="_blank" rel="noopener noreferrer"
+                          onClick={()=>onBookingClick&&onBookingClick(film.id, cinema.chain)}
+                          style={{ fontSize:'11px', color:chain.color, textDecoration:'none', border:`1px solid ${chain.color}55`, borderRadius:'7px', padding:'4px 10px', flexShrink:0 }}>
+                          Website →
+                        </a>
+                      )}
+                    </div>
+
+                    {times.length === 0 ? (
+                      <div style={{ fontSize:'12px', color:T.textSub }}>No times available for this date</div>
+                    ) : (
+                      <div style={{ display:'flex', gap:'6px', flexWrap:'wrap' }}>
+                        {times.map((t, i) => {
+                          const bookUrl = t.bookUrl || cinema.url || chain.bookBase
+                          return (
+                            <a key={i} href={bookUrl||'#'} target={bookUrl?'_blank':'_self'} rel="noopener noreferrer"
+                              onClick={()=>{ if(bookUrl) onBookingClick&&onBookingClick(film.id, cinema.chain) }}
+                              style={{ background: bookUrl?`${chain.color}18`:T.surfaceUp, border:`1px solid ${bookUrl?chain.color+'44':T.border}`, borderRadius:'9px', padding:'8px 14px', textDecoration:'none', cursor:bookUrl?'pointer':'default', display:'flex', flexDirection:'column', alignItems:'center', gap:'2px', minWidth:'64px' }}>
+                              <span style={{ fontSize:'15px', fontWeight:700, color:bookUrl?chain.color:T.text, fontFamily:T.mono }}>{t.time}</span>
+                              {t.format && t.format!=='Standard' && <span style={{ fontSize:'9px', color:T.textSub, letterSpacing:'0.5px' }}>{t.format}</span>}
+                            </a>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+
+              {cinemas.length > 0 && (
+                <div style={{ fontSize:'11px', color:T.textDim, textAlign:'center', marginTop:'12px', lineHeight:1.5 }}>
+                  Showtimes via Data Thistle · Tap a time to book directly with the cinema
+                </div>
+              )}
+
+              {/* Change location */}
+              <div style={{ marginTop:'16px', textAlign:'center' }}>
+                <button onClick={()=>{setState('idle');setCinemas([]);setCoords(null)}} style={{ background:'none', border:'none', color:T.textSub, cursor:'pointer', fontFamily:T.mono, fontSize:'12px', textDecoration:'underline' }}>
+                  Change location
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── WINDOW TIMER — isolated so ticking never re-renders App ───────────────────
 function WindowTimer({ openedAt, short }) {
   const [, tick] = useState(0)
@@ -1155,6 +1400,7 @@ export default function App() {
   const [marketingEvents,  setMarketingEvents]  = useState([])
   const [bookingClicks,    setBookingClicks]    = useState([])
   const [newMktEvent,      setNewMktEvent]      = useState({ event_type:'trailer', label:'', event_date:'', notes:'' })
+  const [showtimesFilm,    setShowtimesFilm]    = useState(null)
   const nowRef = useRef(Date.now())
 
   const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
@@ -1610,6 +1856,7 @@ export default function App() {
                   <div style={{ display:'flex', gap:'6px' }}>
                     <PickButton filmId={film.id} userId={profile.id} allPicks={allPicks} onToggle={togglePick} size="sm"/>
                     <button onClick={() => setFilmDetail(film)} style={{ ...S.btn, background:T.surfaceUp, color:T.textSub, fontSize:'13px', padding:'8px', flex:1 }}>💬</button>
+                    <button onClick={e=>{e.stopPropagation();setShowtimesFilm(film)}} style={{ ...S.btn, background:T.surfaceUp, color:T.textSub, fontSize:'13px', padding:'8px', flex:1 }} title="Find showtimes near you">🎟</button>
                     {film.trailer?.length>5 && (
                       <button onClick={e=>{e.stopPropagation();setTrailerFilm(film)}} style={{ ...S.btn, background:T.surfaceUp, color:T.textSub, fontSize:'13px', padding:'8px', flex:1 }}>▶</button>
                     )}
@@ -1952,6 +2199,9 @@ export default function App() {
                 </div>
               )}
               <div style={{ ...S.label, marginBottom:'8px' }}>Book tickets · UK cinemas</div>
+              <button onClick={()=>setShowtimesFilm(film)} style={{ ...S.btn, background:`${T.green}18`, border:`1px solid ${T.green}44`, color:T.green, padding:'9px 16px', fontSize:'12px', width:'100%', marginBottom:'10px', textTransform:'none', letterSpacing:0, borderRadius:'9px' }}>
+                🎟 Find Showtimes Near Me
+              </button>
               <div style={{ display:'flex', gap:'6px', flexWrap:'wrap', marginBottom: eventsForFilm.length?'12px':'0' }}>
                 {BOOKING_CHAINS.map(chain=>(
                   <a key={chain.id}
@@ -2697,7 +2947,11 @@ export default function App() {
       )}
 
       {filmDetail && (
-        <FilmDetailModal film={filmDetail} profile={profile} players={players} results={results} allPicks={allPicks} marketingEvents={marketingEvents} onTogglePick={togglePick} onBookingClick={trackBookingClick} onClose={() => setFilmDetail(null)}/>
+        <FilmDetailModal film={filmDetail} profile={profile} players={players} results={results} allPicks={allPicks} marketingEvents={marketingEvents} onTogglePick={togglePick} onBookingClick={trackBookingClick} onShowtimes={(f)=>{setFilmDetail(null);setShowtimesFilm(f)}} onClose={() => setFilmDetail(null)}/>
+      )}
+
+      {showtimesFilm && (
+        <ShowtimesModal film={showtimesFilm} supabaseUrl={SUPABASE_URL} onBookingClick={trackBookingClick} onClose={() => setShowtimesFilm(null)}/>
       )}
 
       {tradeModal && (
