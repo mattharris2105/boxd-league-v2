@@ -3559,7 +3559,7 @@ export default function App() {
       )}
 
       {filmDetail && (
-        <FilmDetailModal film={filmDetail} profile={profile} players={players} results={results} allPicks={allPicks} marketingEvents={marketingEvents} onTogglePick={togglePick} onBookingClick={trackBookingClick} onShowtimes={(f)=>{setShowtimesFilm(f)}} onClose={() => setFilmDetail(null)}/>
+        <FilmDetailModal film={filmDetail} profile={profile} players={players} results={results} allPicks={allPicks} marketingEvents={marketingEvents} onTogglePick={togglePick} onBookingClick={trackBookingClick} onShowtimes={(f)=>{setShowtimesFilm(f)}} onClose={() => setFilmDetail(null)} league={league}/>
       )}
 
       {showtimesFilm && (
