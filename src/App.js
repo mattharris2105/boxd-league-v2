@@ -498,7 +498,7 @@ function ScoreBreakdownModal({ film, holding, results, weeklyGrosses, allChips, 
 }
 
 // ── FILM DETAIL MODAL ──────────────────────────────────────────────────────────
-function FilmDetailModal({ film, profile, players, results, allPicks=[], marketingEvents=[], onTogglePick, onBookingClick, onShowtimes, onClose }) {
+function TradeModal({ profile, players, rosters, films, filmVal, curPhase, onClose, notify, onDone, league }) {
   const [comments,  setComments]  = useState([])
   const [reactions, setReactions] = useState([])
   const [text,      setText]      = useState('')
