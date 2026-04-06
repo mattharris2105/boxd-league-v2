@@ -70,16 +70,25 @@ const GLOBAL_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&display=swap');
   *,*::before,*::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;background:#0D0A08;}
-  ::-webkit-scrollbar{width:3px;height:3px;}
+  ::-webkit-scrollbar{width:4px;height:4px;}
   ::-webkit-scrollbar-track{background:transparent;}
-  ::-webkit-scrollbar-thumb{background:#2A2420;border-radius:3px;}
+  ::-webkit-scrollbar-thumb{background:#2A2420;border-radius:4px;}
+  ::-webkit-scrollbar-thumb:hover{background:#382E28;}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:#E8A02066 !important;}
   @keyframes shimmer{0%{transform:translateX(-100%);}100%{transform:translateX(200%);}}
   @keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+  @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
   @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
   @keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
-  .hoverable{transition:border-color .15s,transform .15s,background .15s;}
+  @keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+  .hoverable{transition:border-color .15s,transform .12s,background .15s,box-shadow .15s;}
+  .hoverable:hover{border-color:#382E28 !important;box-shadow:0 4px 20px #00000044;}
   .hoverable:active{transform:scale(0.985);opacity:0.9;}
   .pressable:active{transform:scale(0.96);opacity:0.8;}
+  button:focus-visible{outline:2px solid #E8A02066;outline-offset:2px;}
+  @media(min-width:768px){
+    .film-grid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))!important;}
+  }
 `
 
 const S = {
@@ -850,7 +859,18 @@ export default function App(){
   const nowRef=useRef(Date.now())
   const isMobile=/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
 
-  useEffect(()=>{const el=document.createElement('style');el.textContent=GLOBAL_CSS;document.head.appendChild(el);return()=>document.head.removeChild(el)},[])
+  useEffect(()=>{
+    const el=document.createElement('style');el.textContent=GLOBAL_CSS;document.head.appendChild(el)
+    // PWA / mobile meta
+    const setMeta=(name,content,prop='name')=>{let m=document.querySelector(`meta[${prop}="${name}"]`);if(!m){m=document.createElement('meta');m.setAttribute(prop,name);document.head.appendChild(m)}m.setAttribute('content',content)}
+    setMeta('theme-color','#0D0A08')
+    setMeta('apple-mobile-web-app-capable','yes')
+    setMeta('apple-mobile-web-app-status-bar-style','black-translucent')
+    setMeta('apple-mobile-web-app-title','BOXD')
+    setMeta('viewport','width=device-width,initial-scale=1,viewport-fit=cover')
+    document.title='BOXD · Fantasy Box Office'
+    return()=>document.head.removeChild(el)
+  },[])
   useEffect(()=>{supabase.auth.getSession().then(({data:{session}})=>{setSession(session);setLoading(false)});supabase.auth.onAuthStateChange((_,s)=>setSession(s))},[])
   useEffect(()=>{if(session){loadProfile();loadLeagues();loadPicks();loadMarketingEvents();loadBookingClicks()}},[session])
   useEffect(()=>{const t=setInterval(()=>{nowRef.current=Date.now()},1000);return()=>clearInterval(t)},[])
@@ -1226,7 +1246,7 @@ export default function App(){
             {genres.map(g=><option key={g} value={g}>{g}</option>)}
           </select>
         </div>
-        <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(auto-fill,minmax(200px,1fr))',gap:'12px'}}>
+        <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(auto-fill,minmax(240px,1fr))',gap:'14px'}}>
           {visible.map(film=>{
             const owned=myRoster.find(r=>r.film_id===film.id)
             const val=filmVal(film),actual=results[film.id]
@@ -1242,7 +1262,7 @@ export default function App(){
               <div key={film.id} className="hoverable" style={{background:owned?`linear-gradient(155deg,${T.gold}14 0%,${T.surface} 55%)`:T.surface,border:`1px solid ${owned?T.gold+'55':T.border}`,borderRadius:'14px',overflow:'hidden',display:'flex',flexDirection:'column'}}>
                 <div style={{height:'3px',background:gc,flexShrink:0}}/>
                 <div style={{position:'relative',cursor:'pointer',flexShrink:0}} onClick={()=>setFilmDetail(film)}>
-                  <FilmPoster film={film} width="100%" height={isMobile?168:196} radius={0} imgStyle={{width:'100%'}}/>
+                  <FilmPoster film={film} width="100%" height={isMobile?168:220} radius={0} imgStyle={{width:'100%'}}/>
                   <div style={{position:'absolute',inset:0,background:'linear-gradient(to bottom,transparent 45%,rgba(13,10,8,0.95) 100%)'}}/>
                   <div style={{position:'absolute',bottom:'10px',left:'12px'}}>
                     <div style={{fontSize:'20px',fontWeight:800,color:owned?T.gold:T.text,lineHeight:1,fontFamily:T.mono}}>{cur}{val}M</div>
@@ -1300,7 +1320,7 @@ export default function App(){
       <div style={{display:'flex',gap:'6px',marginBottom:'20px',overflowX:'auto',paddingBottom:'2px'}}>
         {[1,2,3,4,5].map(p=>{const pts=calcPhasePoints(profile.id,p),nr=rosters.filter(r=>r.player_id===profile.id&&r.phase===p&&films.find(f=>f.id===r.film_id)).length;return <div key={p} style={{background:p===ph?`${T.gold}18`:T.surfaceUp,border:`1px solid ${p===ph?T.gold+'55':T.border}`,borderRadius:'10px',padding:'10px 14px',textAlign:'center',flexShrink:0,minWidth:'60px'}}><div style={{...S.label,color:p===ph?T.gold:T.textDim,marginBottom:'4px'}}>PH{p}</div><div style={{fontSize:'16px',fontWeight:700,color:p===ph?T.gold:T.text}}>{pts}</div><div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>{nr} films</div></div>})}
       </div>
-      {myRoster.length===0?<div style={{...S.card,textAlign:'center',padding:'48px 24px'}}><div style={{fontSize:'32px',marginBottom:'12px'}}>🎬</div><div style={{fontSize:'14px',color:T.textSub}}>No films this phase.</div><div style={{fontSize:'12px',color:T.textDim,marginTop:'6px'}}>Head to Market to acquire.</div></div>:myRoster.map(h=>{
+      {myRoster.length===0?<div style={{...S.card,textAlign:'center',padding:'48px 24px'}}><div style={{fontSize:'32px',marginBottom:'12px'}}>🎬</div><div style={{fontSize:'14px',color:T.textSub}}>No films this phase.</div><div style={{fontSize:'12px',color:T.textDim,marginTop:'6px'}}>Head to Market to acquire.</div></div>:<div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(auto-fill,minmax(340px,1fr))',gap:'10px'}}>{myRoster.map(h=>{
         const film=films.find(f=>f.id===h.film_id);if(!film)return null
         const val=filmVal(film),actual=results[film.id],pnl=val-h.bought_price
         const gc=GENRE_COL[film.genre]||T.textSub
@@ -1330,7 +1350,7 @@ export default function App(){
             </div>
           </div>
         )
-      })}
+      })}</div>}
     </div>
   )
 
@@ -1658,6 +1678,73 @@ export default function App(){
     </div>
   )
 
+  const SealedBidPage=()=>{
+    const[bidAmount,setBidAmount]=useState('')
+    const[selFilm,setSelFilm]=useState(phaseFilms[0]?.id||'')
+    const allBids=sealedBids.filter(b=>b.league_id===league?.id)
+    const myBid=allBids.find(b=>b.player_id===profile.id&&b.status==='pending')
+    const deadline=sealedWindowDeadline?new Date(sealedWindowDeadline):null
+    const submitBid=async()=>{
+      if(!selFilm||!bidAmount)return notify('Select film and enter bid',T.red)
+      const amt=parseFloat(bidAmount)
+      if(isNaN(amt)||amt<=0)return notify('Invalid amount',T.red)
+      if(amt>myBudget)return notify(`Over budget — ${cur}${myBudget}M available`,T.red)
+      if(myBid){await supabase.from('sealed_bids').update({film_id:selFilm,amount:amt,updated_at:new Date().toISOString()}).eq('id',myBid.id)}
+      else{await supabase.from('sealed_bids').insert({player_id:profile.id,film_id:selFilm,amount:amt,phase:ph,league_id:league?.id,status:'pending'})}
+      notify(`🔒 Bid locked — ${cur}${amt}M`,T.purple);setBidAmount('');loadData(league?.id)
+    }
+    const cancelBid=async()=>{if(!myBid)return;await supabase.from('sealed_bids').update({status:'cancelled'}).eq('id',myBid.id);notify('Bid cancelled',T.textSub);loadData(league?.id)}
+    return(
+      <div>
+        <div style={S.pageTitle}>🔒 Sealed Bid</div>
+        <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px',marginBottom:'20px'}}>Blind IPO auction — highest bid wins the film at their price</div>
+        {deadline&&<div style={{...S.card,border:`1px solid ${T.purple}44`,marginBottom:'20px',display:'flex',gap:'16px',alignItems:'center'}}>
+          <div style={{fontSize:'28px'}}>⏱</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:'13px',fontWeight:600,color:T.purple,marginBottom:'3px'}}>Bidding closes</div>
+            <div style={{fontSize:'12px',color:T.textSub}}>{deadline.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})}</div>
+          </div>
+          <DraftTimer deadline={sealedWindowDeadline} shortfall={0} draftMin={0}/>
+        </div>}
+        {myBid?<div style={{...S.card,border:`1px solid ${T.purple}55`,marginBottom:'20px'}}>
+          <div style={{...S.label,color:T.purple,marginBottom:'12px'}}>Your Sealed Bid</div>
+          <div style={{display:'flex',gap:'14px',alignItems:'center'}}>
+            <FilmPoster film={films.find(f=>f.id===myBid.film_id)} width={48} height={72} radius={7}/>
+            <div style={{flex:1}}>
+              <div style={{fontSize:'16px',fontWeight:700,marginBottom:'4px'}}>{films.find(f=>f.id===myBid.film_id)?.title}</div>
+              <div style={{fontSize:'24px',fontWeight:900,color:T.purple,fontFamily:T.mono}}>{cur}{myBid.amount}M</div>
+            </div>
+            <Btn onClick={cancelBid} variant="outline" color={T.red} size="sm">Cancel</Btn>
+          </div>
+        </div>:<div style={{...S.card,marginBottom:'20px'}}>
+          <div style={{...S.label,marginBottom:'14px'}}>Place Your Bid</div>
+          <div style={{marginBottom:'12px'}}>
+            <div style={{...S.label,marginBottom:'6px'}}>Film</div>
+            <select value={selFilm} onChange={e=>setSelFilm(e.target.value)} style={S.inp}>
+              {phaseFilms.map(f=><option key={f.id} value={f.id}>{f.title} — IPO {cur}{f.basePrice}M</option>)}
+            </select>
+          </div>
+          <div style={{marginBottom:'16px'}}>
+            <div style={{...S.label,marginBottom:'6px'}}>Your Bid ({cur}M) — Budget: {cur}{myBudget}M</div>
+            <input type="number" value={bidAmount} onChange={e=>setBidAmount(e.target.value)} placeholder={`e.g. ${phaseFilms.find(f=>f.id===selFilm)?.basePrice||20}`} style={{...S.inp,fontSize:'20px',padding:'14px 16px'}}/>
+          </div>
+          <Btn onClick={submitBid} color={T.purple} textColor="#fff" full size="lg">🔒 Lock Bid</Btn>
+          <div style={{fontSize:'11px',color:T.textDim,marginTop:'10px',textAlign:'center'}}>Bids are hidden until the window closes · you can update until deadline</div>
+        </div>}
+        <div style={{...S.sectionTitle,marginBottom:'12px'}}>Who Has Bid</div>
+        <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+          {players.map(p=>{const hasBid=allBids.find(b=>b.player_id===p.id&&b.status==='pending');return(
+            <div key={p.id} style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 14px',background:T.surface,border:`1px solid ${T.border}`,borderRadius:'10px'}}>
+              <div style={{width:'10px',height:'10px',borderRadius:'50%',background:hasBid?T.purple:T.border,flexShrink:0}}/>
+              <div style={{width:'30px',height:'30px',borderRadius:'50%',background:p.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'12px',fontWeight:900,color:'#0D0A08',flexShrink:0}}>{p.name?.[0]}</div>
+              <div style={{flex:1,fontSize:'13px',color:p.color||T.gold,fontWeight:500}}>{p.name}</div>
+              <div style={{fontSize:'12px',color:hasBid?T.purple:T.textDim,fontWeight:hasBid?600:400}}>{hasBid?'🔒 Bid placed':'No bid yet'}</div>
+            </div>
+          )})}
+        </div>
+      </div>
+    )
+  }
 
   const DistributorPage=()=>{
     const[selFilm,setSelFilm]=useState(films[0]?.id||'')
@@ -1860,6 +1947,45 @@ export default function App(){
           <div style={{fontSize:'12px',color:T.textSub,marginBottom:'12px'}}>Fix orphaned active roster rows from deleted films.</div>
           <Btn variant="outline" color={T.red} size="sm" onClick={async()=>{const ids=new Set(films.map(f=>f.id)),orphans=rosters.filter(r=>r.active&&!ids.has(r.film_id));if(!orphans.length)return notify('No orphans found ✅',T.green);for(const o of orphans)await supabase.from('rosters').update({active:false}).eq('id',o.id);notify(`Fixed ${orphans.length} orphaned rows`,T.green);loadData(league?.id)}}>Scan & Fix Orphans ({rosters.filter(r=>r.active&&!films.find(f=>f.id===r.film_id)).length})</Btn>
         </div>
+        <div style={{...S.card,marginBottom:'12px',border:`1px solid ${T.purple}33`}}>
+          <div style={{...S.sectionTitle,color:T.purple,marginBottom:'10px'}}>🔒 Sealed Bid Window</div>
+          <div style={{fontSize:'12px',color:T.textSub,marginBottom:'12px'}}>Open a blind auction — players bid on Phase {ph} films without seeing each other's bids.</div>
+          <Btn color={sealedWindowOpen?T.red:T.purple} textColor="#fff" size="sm" onClick={async()=>{
+            const deadline=new Date(Date.now()+48*3600000).toISOString()
+            await supabase.from('league_config').update({sealed_bid_window_open:!sealedWindowOpen,sealed_bid_deadline:!sealedWindowOpen?deadline:null}).eq('league_id',league?.id)
+            notify(sealedWindowOpen?'Sealed bid closed':'🔒 Sealed bid open · 48hrs',T.purple);loadData(league?.id)
+          }}>{sealedWindowOpen?'Close Sealed Bid':'Open Sealed Bid (48hrs)'}</Btn>
+          {sealedWindowOpen&&<>
+            <div style={{fontSize:'12px',color:T.purple,marginTop:'10px',padding:'8px 12px',background:`${T.purple}12`,borderRadius:'8px'}}>
+              ⏱ Closes: {cfg.sealed_bid_deadline?new Date(cfg.sealed_bid_deadline).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'—'}
+            </div>
+            <div style={{marginTop:'12px'}}>
+              <div style={{...S.label,marginBottom:'8px'}}>Bids placed</div>
+              {players.map(p=>{const b=sealedBids.find(b=>b.player_id===p.id&&b.status==='pending');return(
+                <div key={p.id} style={{display:'flex',alignItems:'center',gap:'10px',padding:'6px 0',borderBottom:`1px solid ${T.border}`}}>
+                  <div style={{width:'8px',height:'8px',borderRadius:'50%',background:b?T.purple:T.border}}/>
+                  <span style={{fontSize:'12px',color:p.color||T.gold,flex:1}}>{p.name}</span>
+                  {b&&<span style={{fontSize:'12px',color:T.purple}}>{films.find(f=>f.id===b.film_id)?.title} · {cur}{b.amount}M</span>}
+                  {!b&&<span style={{fontSize:'11px',color:T.textDim}}>No bid</span>}
+                </div>
+              )})}
+            </div>
+            <Btn color={T.orange} textColor="#0D0A08" size="sm" sx={{marginTop:'14px'}} onClick={async()=>{
+              if(!confirm('Resolve sealed bids now? Highest bidder per film wins.'))return
+              const bidsByFilm={}
+              sealedBids.filter(b=>b.status==='pending').forEach(b=>{if(!bidsByFilm[b.film_id]||b.amount>bidsByFilm[b.film_id].amount)bidsByFilm[b.film_id]=b})
+              for(const[filmId,winBid] of Object.entries(bidsByFilm)){
+                const film=films.find(f=>f.id===filmId);if(!film)continue
+                await supabase.from('rosters').insert({player_id:winBid.player_id,film_id:filmId,bought_price:winBid.amount,bought_week:cfg.current_week,acquired_week:cfg.current_week,phase:ph,active:true,league_id:league?.id})
+                await supabase.from('sealed_bids').update({status:'won'}).eq('id',winBid.id)
+                await supabase.from('sealed_bids').update({status:'lost'}).eq('film_id',filmId).eq('status','pending')
+                await logActivity(session.user.id,'sealed_bid_won',{film_title:film.title,winner:players.find(p=>p.id===winBid.player_id)?.name,amount:winBid.amount},league?.id)
+              }
+              await supabase.from('league_config').update({sealed_bid_window_open:false,sealed_bid_deadline:null}).eq('league_id',league?.id)
+              notify('✅ Sealed bids resolved — winners added to rosters',T.green);loadData(league?.id)
+            }}>Resolve Bids Now</Btn>
+          </>}
+        </div>
         <div style={{...S.card,marginBottom:'12px'}}>
           <div style={{...S.sectionTitle,color:T.gold,marginBottom:'14px'}}>Oscar Night</div>
           <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
@@ -1929,6 +2055,7 @@ export default function App(){
       case 'forecaster': return <ForecasterPage/>
       case 'oscar':      return <OscarPage/>
       case 'results':    return <ResultsPage/>
+      case 'sealed':     return <SealedBidPage/>
       case 'commissioner': return <CommissionerPage/>
       case 'distributor':  return <DistributorPage/>
       default:           return <MarketPage/>
@@ -1943,21 +2070,24 @@ export default function App(){
     <div style={{minHeight:'100vh',background:T.bg,color:T.text,fontFamily:T.mono,fontSize:'14px'}}>
 
       {/* ── TOP BAR ─────────────────────────────────────────────────────────── */}
-      <div style={{position:'sticky',top:0,zIndex:200,background:`${T.bg}F0`,backdropFilter:'blur(12px)',borderBottom:`1px solid ${T.border}`,padding:'0 16px',height:'54px',display:'flex',alignItems:'center',gap:'12px'}}>
-        <button onClick={()=>setSidebarOpen(o=>!o)} style={{background:'none',border:'none',color:T.textSub,cursor:'pointer',fontSize:'18px',padding:'4px',flexShrink:0,display:isMobile?'none':'block'}}>☰</button>
-        <div style={{fontSize:'22px',fontWeight:900,color:T.gold,letterSpacing:'-1px',lineHeight:1,flexShrink:0,cursor:'pointer'}} onClick={()=>navigate('market')}>BOXD</div>
-        {league&&<div style={{fontSize:'12px',color:T.textSub,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',minWidth:0}}>{league.name}</div>}
+      <div style={{position:'sticky',top:0,zIndex:200,background:`${T.bg}F2`,backdropFilter:'blur(14px)',borderBottom:`1px solid ${T.border}`,padding:'0 20px',height:'56px',display:'flex',alignItems:'center',gap:'14px'}}>
+        <button onClick={()=>setSidebarOpen(o=>!o)} style={{background:'none',border:'none',color:T.textSub,cursor:'pointer',fontSize:'18px',padding:'4px 6px',flexShrink:0,display:isMobile?'none':'flex',alignItems:'center',justifyContent:'center',borderRadius:'6px',lineHeight:1}}>☰</button>
+        <div style={{fontSize:'24px',fontWeight:900,color:T.gold,letterSpacing:'-1.5px',lineHeight:1,flexShrink:0,cursor:'pointer',fontFamily:T.mono}} onClick={()=>navigate('market')}>BOXD</div>
+        {league&&<div style={{fontSize:'13px',color:T.textSub,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',minWidth:0,paddingLeft:'4px'}}>{league.name}</div>}
+        {!isMobile&&<div style={{display:'flex',gap:'6px',alignItems:'center',marginLeft:'auto',flexShrink:0}}>
+          <div style={{fontSize:'12px',color:T.textDim,background:T.surfaceUp,border:`1px solid ${T.border}`,borderRadius:'8px',padding:'4px 10px',whiteSpace:'nowrap'}}>W{cfg.current_week} · Ph{ph}</div>
+        </div>}
         <div style={{display:'flex',gap:'8px',alignItems:'center',flexShrink:0}}>
           {draftWindowOpen&&<div style={{display:'flex',flexDirection:'column',alignItems:'center',lineHeight:1,cursor:'pointer'}} onClick={()=>navigate('market')}>
             <DraftTimer deadline={draftDeadline} shortfall={draftShortfall} draftMin={DRAFT_MIN}/>
           </div>}
-          <div style={{background:myBudget<20?`${T.red}22`:`${T.gold}18`,border:`1px solid ${myBudget<20?T.red+'44':T.gold+'44'}`,borderRadius:'20px',padding:'5px 12px',fontSize:'13px',fontWeight:700,color:myBudget<20?T.red:T.gold,whiteSpace:'nowrap',cursor:'pointer'}} onClick={()=>navigate('roster')}>
+          <div style={{background:myBudget<20?`${T.red}22`:`${T.gold}18`,border:`1px solid ${myBudget<20?T.red+'55':T.gold+'55'}`,borderRadius:'20px',padding:'6px 14px',fontSize:'14px',fontWeight:700,color:myBudget<20?T.red:T.gold,whiteSpace:'nowrap',cursor:'pointer',fontFamily:T.mono}} onClick={()=>navigate('roster')}>
             {cur}{myBudget}M
           </div>
-          {pendingForMe.length>0&&<div style={{background:`${T.blue}22`,border:`1px solid ${T.blue}55`,borderRadius:'20px',padding:'5px 10px',fontSize:'12px',color:T.blue,cursor:'pointer',whiteSpace:'nowrap'}} onClick={()=>navigate('trades')}>
+          {pendingForMe.length>0&&<div style={{background:`${T.blue}22`,border:`1px solid ${T.blue}55`,borderRadius:'20px',padding:'6px 12px',fontSize:'13px',color:T.blue,cursor:'pointer',whiteSpace:'nowrap',fontWeight:600}} onClick={()=>navigate('trades')}>
             🔄 {pendingForMe.length}
           </div>}
-          <div onClick={()=>goToProfile(profile)} style={{width:'32px',height:'32px',borderRadius:'50%',background:profile?.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'13px',fontWeight:900,color:'#0D0A08',cursor:'pointer',flexShrink:0}}>
+          <div onClick={()=>goToProfile(profile)} style={{width:'34px',height:'34px',borderRadius:'50%',background:profile?.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'14px',fontWeight:900,color:'#0D0A08',cursor:'pointer',flexShrink:0,boxShadow:`0 0 0 2px ${T.bg},0 0 0 3px ${profile?.color||T.gold}44`}}>
             {profile?.name?.[0]||'?'}
           </div>
         </div>
@@ -1976,28 +2106,75 @@ export default function App(){
 
         {/* ── DESKTOP SIDEBAR ─────────────────────────────────────────────── */}
         {!isMobile&&sidebarOpen&&(
-          <div style={{width:'200px',flexShrink:0,borderRight:`1px solid ${T.border}`,padding:'16px 10px',display:'flex',flexDirection:'column',gap:'2px',position:'sticky',top:'54px',height:'calc(100vh - 54px)',overflowY:'auto'}}>
-            {ALL_PAGES.map(({id,icon,label})=>{
+          <div style={{width:'220px',flexShrink:0,borderRight:`1px solid ${T.border}`,padding:'12px 8px',display:'flex',flexDirection:'column',gap:'2px',position:'sticky',top:'54px',height:'calc(100vh - 54px)',overflowY:'auto',background:T.bg}}>
+            {/* Main nav */}
+            {[
+              {id:'market',icon:'🎬',label:'Market'},
+              {id:'roster',icon:'📁',label:'Roster'},
+              {id:'chips',icon:'⚡',label:'Chips'},
+              {id:'league',icon:'🥇',label:'League'},
+              {id:'feed',icon:'📡',label:'Feed'},
+            ].map(({id,icon,label})=>{
               const active=page===id
-              const badge=id==='trades'&&pendingForMe.length>0?pendingForMe.length:null
               return(
-                <button key={id} onClick={()=>navigate(id)} style={{...S.btn,width:'100%',justifyContent:'flex-start',background:active?`${T.gold}18`:'transparent',color:active?T.gold:T.textSub,border:`1px solid ${active?T.gold+'44':'transparent'}`,padding:'10px 14px',fontSize:'12px',gap:'10px',textTransform:'none',letterSpacing:0,fontWeight:active?700:400,position:'relative'}}>
-                  <span style={{fontSize:'15px'}}>{icon}</span>
+                <button key={id} onClick={()=>navigate(id)} style={{display:'flex',alignItems:'center',gap:'10px',width:'100%',background:active?`${T.gold}18`:'transparent',color:active?T.gold:T.textSub,border:`1px solid ${active?T.gold+'44':'transparent'}`,borderRadius:'9px',padding:'10px 12px',cursor:'pointer',fontFamily:T.mono,fontSize:'13px',fontWeight:active?700:400,textAlign:'left',transition:'all .12s'}}>
+                  <span style={{fontSize:'16px',lineHeight:1,flexShrink:0}}>{icon}</span>
                   <span>{label}</span>
-                  {badge&&<span style={{marginLeft:'auto',background:T.blue,color:'#fff',borderRadius:'20px',fontSize:'10px',padding:'1px 7px',fontWeight:700}}>{badge}</span>}
                 </button>
               )
             })}
-            <div style={{marginTop:'auto',paddingTop:'16px',borderTop:`1px solid ${T.border}`}}>
-              <button onClick={()=>supabase.auth.signOut()} style={{...S.btn,width:'100%',background:'none',color:T.textDim,padding:'8px 14px',fontSize:'11px',textTransform:'none',letterSpacing:0,justifyContent:'flex-start',gap:'8px'}}>→ Sign out</button>
-              <button onClick={()=>{setLeague(null);supabase.from('profiles').update({active_league_id:null}).eq('id',profile.id)}} style={{...S.btn,width:'100%',background:'none',color:T.textDim,padding:'8px 14px',fontSize:'11px',textTransform:'none',letterSpacing:0,justifyContent:'flex-start',gap:'8px'}}>← Switch league</button>
+            <div style={{height:'1px',background:T.border,margin:'8px 4px'}}/>
+            {/* Secondary nav */}
+            {[
+              {id:'intent',icon:'👁️',label:'Watchlist'},
+              {id:'trades',icon:'🔄',label:'Trades',badge:pendingForMe.length||null},
+              {id:'forecaster',icon:'📊',label:'Forecaster'},
+              {id:'oscar',icon:'🏆',label:'Oscars'},
+              {id:'results',icon:'📋',label:'Results'},
+              ...(sealedWindowOpen?[{id:'sealed',icon:'🔒',label:'Sealed Bid',badge:null}]:[]),
+            ].map(({id,icon,label,badge})=>{
+              const active=page===id
+              return(
+                <button key={id} onClick={()=>navigate(id)} style={{display:'flex',alignItems:'center',gap:'10px',width:'100%',background:active?`${T.gold}18`:'transparent',color:active?T.gold:T.textSub,border:`1px solid ${active?T.gold+'44':'transparent'}`,borderRadius:'9px',padding:'10px 12px',cursor:'pointer',fontFamily:T.mono,fontSize:'13px',fontWeight:active?700:400,textAlign:'left',transition:'all .12s',position:'relative'}}>
+                  <span style={{fontSize:'16px',lineHeight:1,flexShrink:0}}>{icon}</span>
+                  <span style={{flex:1}}>{label}</span>
+                  {badge>0&&<span style={{background:T.blue,color:'#fff',borderRadius:'20px',fontSize:'10px',padding:'1px 7px',fontWeight:700,flexShrink:0}}>{badge}</span>}
+                </button>
+              )
+            })}
+            {isCommissioner&&<>
+              <div style={{height:'1px',background:T.border,margin:'8px 4px'}}/>
+              {[
+                {id:'commissioner',icon:'⚙️',label:'Panel'},
+                {id:'distributor',icon:'📈',label:'Insights'},
+              ].map(({id,icon,label})=>{
+                const active=page===id
+                return(
+                  <button key={id} onClick={()=>navigate(id)} style={{display:'flex',alignItems:'center',gap:'10px',width:'100%',background:active?`${T.gold}18`:'transparent',color:active?T.gold:T.textDim,border:`1px solid ${active?T.gold+'44':'transparent'}`,borderRadius:'9px',padding:'10px 12px',cursor:'pointer',fontFamily:T.mono,fontSize:'12px',fontWeight:active?700:400,textAlign:'left',transition:'all .12s'}}>
+                    <span style={{fontSize:'15px',lineHeight:1,flexShrink:0}}>{icon}</span>
+                    <span>{label}</span>
+                  </button>
+                )
+              })}
+            </>}
+            <div style={{marginTop:'auto',paddingTop:'12px',borderTop:`1px solid ${T.border}`}}>
+              {/* Phase indicator */}
+              <div style={{background:T.surfaceUp,borderRadius:'10px',padding:'10px 12px',marginBottom:'8px'}}>
+                <div style={{fontSize:'10px',color:T.textDim,letterSpacing:'1.5px',textTransform:'uppercase',marginBottom:'4px'}}>Current Phase</div>
+                <div style={{fontSize:'13px',fontWeight:700,color:T.gold}}>Ph{ph} · {PHASE_NAMES[ph]}</div>
+                <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>W{cfg.current_week} · {cur}{myBudget}M left</div>
+              </div>
+              <button onClick={()=>supabase.auth.signOut()} style={{display:'flex',alignItems:'center',gap:'8px',width:'100%',background:'none',border:'none',color:T.textDim,padding:'8px 12px',cursor:'pointer',fontFamily:T.mono,fontSize:'11px',textAlign:'left',borderRadius:'8px'}}>→ Sign out</button>
+              <button onClick={()=>{setLeague(null);supabase.from('profiles').update({active_league_id:null}).eq('id',profile.id)}} style={{display:'flex',alignItems:'center',gap:'8px',width:'100%',background:'none',border:'none',color:T.textDim,padding:'8px 12px',cursor:'pointer',fontFamily:T.mono,fontSize:'11px',textAlign:'left',borderRadius:'8px'}}>← Switch league</button>
             </div>
           </div>
         )}
 
         {/* ── PAGE CONTENT ────────────────────────────────────────────────── */}
-        <div style={{flex:1,minWidth:0,padding:isMobile?'16px 14px 100px':'24px 28px 48px',maxWidth:isMobile?'100%':'880px'}}>
-          {renderPage()}
+        <div style={{flex:1,minWidth:0,padding:isMobile?'16px 14px 100px':'28px 36px 56px',overflowX:'hidden'}}>
+          <div style={{maxWidth:'1400px',margin:'0 auto'}}>
+            {renderPage()}
+          </div>
         </div>
       </div>
 
