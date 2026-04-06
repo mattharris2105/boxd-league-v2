@@ -332,8 +332,8 @@ async function dbUpsertWeekly(filmId, wk, g) {
   if (ex?.length) return supabase.from('weekly_grosses').update({gross_m:g}).eq('film_id',filmId).eq('week_num',wk)
   return supabase.from('weekly_grosses').insert({film_id:filmId, week_num:wk, gross_m:g})
 }
-async function logActivity(uid, type, payload) {
-  try { await supabase.from('activity_feed').insert({ user_id:uid, type, payload }) } catch {}
+async function logActivity(uid, type, payload, leagueId) {
+  try { await supabase.from('activity_feed').insert({ user_id:uid, type, payload, league_id: leagueId || null }) } catch {}
 }
 
 // ── FILM DATA ──────────────────────────────────────────────────────────────────
@@ -524,7 +524,7 @@ function FilmDetailModal({ film, profile, players, results, allPicks=[], marketi
 
   const post = async () => {
     if (!text.trim()) return
-    await supabase.from('film_comments').insert({ user_id:profile.id, film_id:film.id, comment:text.trim() })
+    await supabase.from('film_comments').insert({ user_id:profile.id, film_id:film.id, comment:text.trim(), league_id:league?.id })
     setText('')
   }
   const toggleReaction = async (emoji) => {
@@ -684,16 +684,42 @@ function FilmDetailModal({ film, profile, players, results, allPicks=[], marketi
                         <span style={{ fontSize:'13px', fontWeight:600, color:p?.color||T.gold }}>{p?.name}</span>
                         <span style={{ fontSize:'11px', color:T.textDim }}>{timeAgo(c.created_at)}</span>
                       </div>
-                      <div style={{ fontSize:'14px', color:T.text, lineHeight:1.55 }}>{c.comment}</div>
+                      <div style={{ fontSize:'14px', color:T.text, lineHeight:1.55 }}>
+                        {c.comment.split(/(@\w+)/g).map((part, i) => {
+                          if (part.startsWith('@')) {
+                            const mentioned = players.find(p => `@${p.name}` === part)
+                            return <span key={i} style={{ color: mentioned?.color || T.gold, fontWeight:600 }}>{part}</span>
+                          }
+                          return part
+                        })}
+                      </div>
                     </div>
                     {c.user_id===profile.id && <button onClick={()=>supabase.from('film_comments').delete().eq('id',c.id).then(loadComments)} style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer', fontSize:'13px', padding:'2px 8px' }}>✕</button>}
                   </div>
                 )
               })}
             </div>
-            <div style={{ padding:'16px 24px 24px', borderTop:`1px solid ${T.border}`, flexShrink:0, display:'flex', gap:'12px' }}>
-              <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>e.key==='Enter'&&post()} placeholder="Add a comment…" style={{ ...S.inp, flex:1, fontSize:'15px', padding:'13px 16px' }}/>
-              <Btn onClick={post} color={T.blue} textColor="#fff" size="lg">Post</Btn>
+            <div style={{ padding:'16px 24px 24px', borderTop:`1px solid ${T.border}`, flexShrink:0 }}>
+              {/* @mention suggestions */}
+              {text.includes('@') && (() => {
+                const atPart = text.split('@').pop().toLowerCase()
+                const matches = players.filter(p => p.id !== profile.id && p.name?.toLowerCase().startsWith(atPart) && atPart.length > 0)
+                if (!matches.length) return null
+                return (
+                  <div style={{ display:'flex', gap:'6px', flexWrap:'wrap', marginBottom:'8px' }}>
+                    {matches.slice(0,4).map(p => (
+                      <button key={p.id} onClick={() => setText(prev => prev.replace(/@\w*$/, `@${p.name} `))}
+                        style={{ ...S.btn, background:T.surfaceUp, border:`1px solid ${T.border}`, color:p.color||T.gold, fontSize:'12px', padding:'5px 12px', textTransform:'none', letterSpacing:0 }}>
+                        @{p.name}
+                      </button>
+                    ))}
+                  </div>
+                )
+              })()}
+              <div style={{ display:'flex', gap:'12px' }}>
+                <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>e.key==='Enter'&&post()} placeholder="Add a comment… use @ to mention" style={{ ...S.inp, flex:1, fontSize:'15px', padding:'13px 16px' }}/>
+                <Btn onClick={post} color={T.blue} textColor="#fff" size="lg">Post</Btn>
+              </div>
             </div>
           </>
         )}
@@ -813,7 +839,12 @@ function PlayerProfilePage({ player, films, rosters, results, weeklyG, allChips,
   }
 
   // ── Overview ──────────────────────────────────────────────────────────────────
-  const Overview = () => (
+  const Overview = () => {
+    // Performance chart — phase points as bar chart
+    const phaseScores = [1,2,3,4,5].map(p => ({ ph:p, pts:calcPhasePoints(player.id,p), name:PHASE_NAMES[p] }))
+    const maxPts = Math.max(1, ...phaseScores.map(s => s.pts))
+
+    return (
     <div style={{ animation:'fadeUp .2s ease' }}>
 
       {/* Hero */}
@@ -952,8 +983,34 @@ function PlayerProfilePage({ player, films, rosters, results, weeklyG, allChips,
           })}
         </div>
       </>}
+
+      {/* Performance history chart */}
+      {phaseScores.some(s => s.pts > 0) && (
+        <div style={{ marginTop:'20px' }}>
+          <div style={S.label}>Performance History</div>
+          <div style={{ background:T.surfaceUp, borderRadius:'12px', padding:'16px', marginTop:'10px' }}>
+            <div style={{ display:'flex', gap:'8px', alignItems:'flex-end', height:'80px' }}>
+              {phaseScores.map(({ ph:p, pts, name }) => {
+                const barH = pts > 0 ? Math.max(8, Math.round((pts/maxPts)*72)) : 4
+                const isCurrentPh = p === curPhase_ref
+                return (
+                  <div key={p} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:'4px' }}>
+                    <div style={{ fontSize:'10px', color:pts>0?T.gold:T.textDim, fontWeight:700, fontFamily:T.mono }}>{pts>0?pts:'—'}</div>
+                    <div style={{ width:'100%', height:`${barH}px`, background:isCurrentPh?pc:`${pc}55`, borderRadius:'4px 4px 0 0', transition:'height .3s ease', minHeight:'4px' }}/>
+                    <div style={{ fontSize:'9px', color:isCurrentPh?pc:T.textDim, letterSpacing:'0.5px' }}>P{p}</div>
+                  </div>
+                )
+              })}
+            </div>
+            <div style={{ fontSize:'11px', color:T.textSub, marginTop:'8px', textAlign:'center' }}>
+              Total: {phaseScores.reduce((s,x)=>s+x.pts,0)} pts across {phaseScores.filter(s=>s.pts>0).length} phases
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  )
+    ) // end Overview return
+  } // end Overview function
 
   return (
     <div style={{ animation:'fadeUp .2s ease' }}>
@@ -984,9 +1041,9 @@ function TradeModal({ profile, players, rosters, films, filmVal, curPhase, onClo
 
   const propose = async () => {
     if (!target||!myFilm||!theirFilm) return notify('Fill all fields', T.red)
-    const { error } = await supabase.from('trades').insert({ proposer_id:profile.id, receiver_id:target, proposer_film_id:myFilm, receiver_film_id:theirFilm, status:'pending', phase:ph })
+    const { error } = await supabase.from('trades').insert({ proposer_id:profile.id, receiver_id:target, proposer_film_id:myFilm, receiver_film_id:theirFilm, status:'pending', phase:ph, league_id:league?.id })
     if (error) return notify(error.message, T.red)
-    await logActivity(profile.id,'trade_proposed',{ player_name:profile.name, my_film:mf?.title, their_film:tf?.title })
+    await logActivity(profile.id,'trade_proposed',{ player_name:profile.name, my_film:mf?.title, their_film:tf?.title },league?.id)
     notify('Trade proposal sent!', T.blue); onDone()
   }
 
@@ -1408,6 +1465,13 @@ export default function App() {
   const [bookingClicks,    setBookingClicks]    = useState([])
   const [newMktEvent,      setNewMktEvent]      = useState({ event_type:'trailer', label:'', event_date:'', notes:'' })
   const [showtimesFilm,    setShowtimesFilm]    = useState(null)
+  // ── LEAGUE STATE ──────────────────────────────────────────────────────────
+  const [league,        setLeague]        = useState(null)   // current league object
+  const [myLeagues,     setMyLeagues]     = useState([])     // all leagues user belongs to
+  const [leaguePage,    setLeaguePage]    = useState('lobby') // 'lobby'|'create'|'join'
+  const [inviteCode,    setInviteCode]    = useState('')
+  const [newLeagueName, setNewLeagueName] = useState('')
+  const [ingestLog,     setIngestLog]     = useState(null)   // last auto-ingest result
   const nowRef = useRef(Date.now())
 
   const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
@@ -1425,7 +1489,7 @@ export default function App() {
     supabase.auth.onAuthStateChange((_,s) => setSession(s))
   }, [])
 
-  useEffect(() => { if (session) { loadProfile(); loadData(); loadFeed(); loadPicks(); loadMarketingEvents(); loadBookingClicks() } }, [session])
+  useEffect(() => { if (session) { loadProfile(); loadLeagues(); loadPicks(); loadMarketingEvents(); loadBookingClicks() } }, [session])
 
   useEffect(() => {
     const t = setInterval(() => { nowRef.current = Date.now() }, 1000)
@@ -1435,8 +1499,8 @@ export default function App() {
   useEffect(() => {
     if (!session) return
     const ch = supabase.channel('rt')
-      .on('postgres_changes',{event:'INSERT',schema:'public',table:'activity_feed'}, () => loadFeed())
-      .on('postgres_changes',{event:'*',schema:'public',table:'trades'}, () => loadTrades())
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'activity_feed'}, () => loadFeed(league?.id))
+      .on('postgres_changes',{event:'*',schema:'public',table:'trades'}, () => loadTrades(league?.id))
       .on('postgres_changes',{event:'*',schema:'public',table:'film_picks'}, () => loadPicks())
       .subscribe()
     return () => supabase.removeChannel(ch)
@@ -1453,18 +1517,75 @@ export default function App() {
     setPage('profile')
   }
 
-  const isCommissioner = session?.user?.email === COMMISSIONER_EMAIL
+  const isCommissioner = session?.user?.email === COMMISSIONER_EMAIL || league?.commissioner_id === session?.user?.id
+
+  // ── DRAFT / IPO PHASE ────────────────────────────────────────────────────────
+  // 2 weeks before phase start = draft window. Must pick 4 of 6. -$5M per missing film.
+  const draftWindowOpen = cfg.draft_window_open || false
+  const draftDeadline   = cfg.draft_deadline || null
+  const draftMsLeft     = draftDeadline ? Math.max(0, new Date(draftDeadline).getTime() - Date.now()) : 0
+  const draftDaysLeft   = Math.ceil(draftMsLeft / 86400000)
+  const myDraftPicks    = myRoster?.length || 0
+  const DRAFT_MIN       = 4
+  const DRAFT_PENALTY   = 5 // $M per missing pick below minimum
+  const draftShortfall  = draftWindowOpen ? Math.max(0, DRAFT_MIN - myDraftPicks) : 0
+  const draftPenalty    = draftShortfall * DRAFT_PENALTY
 
   const loadProfile = async () => {
     const {data} = await supabase.from('profiles').select('*').eq('id',session.user.id).single()
-    if (data) setProfile(data)
+    if (data) {
+      setProfile(data)
+      if (data.active_league_id) loadLeagueById(data.active_league_id)
+    }
   }
-  const loadFeed = async () => {
-    const {data} = await supabase.from('activity_feed').select('*').order('created_at',{ascending:false}).limit(80)
+  const loadLeagues = async () => {
+    const {data} = await supabase.from('league_members').select('league_id, role, leagues(*)').eq('user_id',session.user.id)
+    if (data) setMyLeagues(data.map(m => ({ ...m.leagues, myRole: m.role })))
+  }
+  const loadLeagueById = async (leagueId) => {
+    const {data} = await supabase.from('leagues').select('*').eq('id',leagueId).single()
+    if (data) { setLeague(data); loadData(leagueId); loadFeed(leagueId); loadTrades(leagueId) }
+  }
+  const enterLeague = async (lg) => {
+    setLeague(lg)
+    await supabase.from('profiles').update({ active_league_id: lg.id }).eq('id',session.user.id)
+    loadData(lg.id); loadFeed(lg.id); loadTrades(lg.id)
+  }
+  const createLeague = async () => {
+    if (!newLeagueName.trim()) return notify('Enter a league name', T.red)
+    const code = 'BOXD-' + Math.random().toString(36).substring(2,6).toUpperCase()
+    const {data, error} = await supabase.from('leagues').insert({
+      name: newLeagueName.trim(), commissioner_id: session.user.id, invite_code: code,
+    }).select().single()
+    if (error) return notify(error.message, T.red)
+    await supabase.from('league_members').insert({ league_id: data.id, user_id: session.user.id, role: 'commissioner' })
+    await supabase.from('league_config').insert({ league_id: data.id, current_week:1, current_phase:1, tx_fee:5, phase_window_active:false })
+    notify(`✅ League created! Code: ${code}`, T.green)
+    setNewLeagueName(''); loadLeagues(); enterLeague(data)
+  }
+  const joinLeague = async () => {
+    const code = inviteCode.trim().toUpperCase()
+    if (!code) return notify('Enter an invite code', T.red)
+    const {data: lg, error} = await supabase.from('leagues').select('*').eq('invite_code',code).single()
+    if (error || !lg) return notify('Invalid invite code', T.red)
+    const {error: e2} = await supabase.from('league_members').insert({ league_id: lg.id, user_id: session.user.id, role: 'player' })
+    if (e2 && !e2.message?.includes('duplicate')) return notify(e2.message, T.red)
+    notify(`Joined ${lg.name}!`, T.green); setInviteCode(''); loadLeagues(); enterLeague(lg)
+  }
+  const leaveLeague = async () => {
+    if (!league || !confirm(`Leave ${league.name}?`)) return
+    await supabase.from('league_members').delete().eq('league_id',league.id).eq('user_id',session.user.id)
+    await supabase.from('profiles').update({ active_league_id: null }).eq('id',session.user.id)
+    setLeague(null); loadLeagues()
+  }
+  const loadFeed = async (leagueId) => {
+    const lid = leagueId || league?.id; if (!lid) return
+    const {data} = await supabase.from('activity_feed').select('*').eq('league_id',lid).order('created_at',{ascending:false}).limit(80)
     if (data) setFeedItems(data)
   }
-  const loadTrades = async () => {
-    const {data} = await supabase.from('trades').select('*').order('created_at',{ascending:false})
+  const loadTrades = async (leagueId) => {
+    const lid = leagueId || league?.id; if (!lid) return
+    const {data} = await supabase.from('trades').select('*').eq('league_id',lid).order('created_at',{ascending:false})
     if (data) setTrades(data)
   }
   const loadPicks = async () => {
@@ -1475,7 +1596,6 @@ export default function App() {
     const {data} = await supabase.from('marketing_events').select('*').order('event_date')
     if (data) setMarketingEvents(data)
   }
-
   const loadBookingClicks = async () => {
     const {data} = await supabase.from('booking_clicks').select('*')
     if (data) setBookingClicks(data)
@@ -1495,30 +1615,32 @@ export default function App() {
     await supabase.from('booking_clicks').insert({ user_id: profile?.id, film_id: filmId, chain })
     loadBookingClicks() // refresh so Insights updates immediately
   }
-  const loadData = async () => {
+  const loadData = async (leagueId) => {
+    const lid = leagueId || league?.id; if (!lid) return
+    const memberIds = (await supabase.from('league_members').select('user_id').eq('league_id',lid)).data?.map(m=>m.user_id)||[]
     const [
       {data:ps},{data:rs},{data:res},{data:fv},{data:cf},{data:wg},
       {data:ch},{data:fc},{data:op},{data:ad},{data:ww},{data:pb},{data:fl}
     ] = await Promise.all([
-      supabase.from('profiles').select('*'),
-      supabase.from('rosters').select('*'),
+      supabase.from('profiles').select('*').in('id', memberIds.length?memberIds:['none']),
+      supabase.from('rosters').select('*').eq('league_id',lid),
       supabase.from('results').select('*'),
       supabase.from('film_values').select('*'),
-      supabase.from('league_config').select('*').eq('id',1).single(),
+      supabase.from('league_config').select('*').eq('league_id',lid).single(),
       supabase.from('weekly_grosses').select('*'),
-      supabase.from('chips').select('*'),
-      supabase.from('forecasts').select('*'),
-      supabase.from('oscar_predictions').select('*'),
-      supabase.from('auteur_declarations').select('*'),
-      supabase.from('weekend_winners').select('*'),
-      supabase.from('phase_budgets').select('*'),
+      supabase.from('chips').select('*').eq('league_id',lid),
+      supabase.from('forecasts').select('*').eq('league_id',lid),
+      supabase.from('oscar_predictions').select('*').eq('league_id',lid),
+      supabase.from('auteur_declarations').select('*').eq('league_id',lid),
+      supabase.from('weekend_winners').select('*').eq('league_id',lid),
+      supabase.from('phase_budgets').select('*').eq('league_id',lid),
       supabase.from('films').select('*').eq('active', true).order('phase').order('week'),
     ])
     if (ps) setPlayers(ps)
     if (rs) setRosters(rs)
     if (res) { const m={}; res.forEach(r => m[r.film_id]=r.actual_m); setResults(m) }
     if (fv)  { const m={}; fv.forEach(v => m[v.film_id]=v.current_value); setFilmValues(m) }
-    if (cf)  setCfg(cf)
+    if (cf)  setCfg(cf || { current_week:1, current_phase:1, currency:'$', tx_fee:5, phase_window_active:false, phase_window_opened_at:null })
     if (wg)  { const m={}; wg.forEach(w => { if(!m[w.film_id]) m[w.film_id]={}; m[w.film_id][w.week_num]=w.gross_m }); setWeeklyG(m) }
     if (ch)  { setAllChips(ch); setChips(ch.find(c=>c.player_id===session?.user?.id)||null) }
     if (fc)  { setAllForecasts(fc); const m={}; fc.filter(f=>f.player_id===session?.user?.id).forEach(f=>m[f.film_id]=f.predicted_m); setForecasts(m) }
@@ -1526,7 +1648,6 @@ export default function App() {
     if (ad)  setAuteurDecl(ad)
     if (ww)  { const m={}; ww.forEach(w=>m[w.week]=w.film_id); setWwWinners(m) }
     if (pb)  setPhaseBudgets(pb)
-    // Map DB snake_case → app camelCase
     if (fl)  setFilms(fl.map(f => ({
       id: f.id, title: f.title, dist: f.dist, genre: f.genre,
       franchise: f.franchise, starActor: f.star_actor,
@@ -1534,7 +1655,7 @@ export default function App() {
       estM: f.est_m, rt: f.rt, sleeper: f.sleeper,
       trailer: f.trailer || '', affiliateUrl: f.affiliate_url || '',
     })))
-    loadTrades()
+    loadTrades(lid)
   }
 
   // ── BUDGET HELPERS ──────────────────────────────────────────────────────────
@@ -1601,11 +1722,11 @@ export default function App() {
     if (rosters.filter(r=>r.player_id===profile.id&&r.phase===ph&&r.active&&films.find(f=>f.id===r.film_id)).length>=MAX_ROSTER) return notify(`Phase roster full (${MAX_ROSTER} max)`, T.red)
     const price=filmVal(film), left=budgetLeft(profile.id)
     if (price>left) return notify(`Not enough budget — need $${price}M, have $${left}M`, T.red)
-    const {error}=await supabase.from('rosters').insert({ player_id:profile.id, film_id:film.id, bought_price:price, bought_week:cfg.current_week, acquired_week:cfg.current_week, phase:ph, active:true })
+    const {error}=await supabase.from('rosters').insert({ player_id:profile.id, film_id:film.id, bought_price:price, bought_week:cfg.current_week, acquired_week:cfg.current_week, phase:ph, active:true, league_id:league?.id })
     if (error) return notify(error.message, T.red)
-    await supabase.from('transactions').insert({ player_id:profile.id, film_id:film.id, type:'buy', price, week:cfg.current_week })
-    await logActivity(profile.id,'buy',{film_id:film.id,film_title:film.title,price,player_name:profile.name})
-    notify(`Acquired ${film.title} · $${price}M`, T.green); loadData()
+    await supabase.from('transactions').insert({ player_id:profile.id, film_id:film.id, type:'buy', price, week:cfg.current_week, league_id:league?.id })
+    await logActivity(profile.id,'buy',{film_id:film.id,film_title:film.title,price,player_name:profile.name},league?.id)
+    notify(`Acquired ${film.title} · $${price}M`, T.green); loadData(league?.id)
   }
 
   const sellFilm = async (film) => {
@@ -1613,8 +1734,8 @@ export default function App() {
     const win=isWindow(), val=filmVal(film), fee=win?0:cfg.tx_fee, proceeds=Math.max(0,val-fee)
     await supabase.from('rosters').update({active:false,sold_price:proceeds,sold_week:cfg.current_week}).eq('id',h.id)
     await supabase.from('transactions').insert([{player_id:profile.id,film_id:film.id,type:'sell',price:proceeds,week:cfg.current_week},...(fee>0?[{player_id:profile.id,film_id:film.id,type:'fee',price:fee,week:cfg.current_week}]:[])])
-    await logActivity(profile.id,'sell',{film_id:film.id,film_title:film.title,proceeds,player_name:profile.name})
-    notify(`Dropped ${film.title} · $${proceeds}M${win?' (free)':''}`, T.gold); loadData()
+    await logActivity(profile.id,'sell',{film_id:film.id,film_title:film.title,proceeds,player_name:profile.name},league?.id)
+    notify(`Dropped ${film.title} · $${proceeds}M${win?' (free)':''}`, T.gold); loadData(league?.id)
   }
 
   // ── TRADES ──────────────────────────────────────────────────────────────────
@@ -1627,8 +1748,8 @@ export default function App() {
     await supabase.from('rosters').insert({player_id:trade.receiver_id,film_id:trade.proposer_film_id,bought_price:theirH.bought_price,bought_week:cfg.current_week,acquired_week:theirH.acquired_week,phase:trade.phase,active:true})
     await supabase.from('rosters').insert({player_id:trade.proposer_id,film_id:trade.receiver_film_id,bought_price:myH.bought_price,bought_week:cfg.current_week,acquired_week:myH.acquired_week,phase:trade.phase,active:true})
     await supabase.from('trades').update({status:'accepted',resolved_at:new Date().toISOString()}).eq('id',trade.id)
-    await logActivity(profile.id,'trade_accepted',{film_given:films.find(f=>f.id===trade.receiver_film_id)?.title,film_received:films.find(f=>f.id===trade.proposer_film_id)?.title})
-    notify('Trade complete — rosters swapped!', T.green); loadData()
+    await logActivity(profile.id,'trade_accepted',{film_given:films.find(f=>f.id===trade.receiver_film_id)?.title,film_received:films.find(f=>f.id===trade.proposer_film_id)?.title},league?.id)
+    notify('Trade complete — rosters swapped!', T.green); loadData(league?.id)
   }
   const rejectTrade = async (trade) => { await supabase.from('trades').update({status:'rejected',resolved_at:new Date().toISOString()}).eq('id',trade.id); notify('Trade rejected',T.red); loadTrades() }
   const cancelTrade = async (trade) => { await supabase.from('trades').update({status:'cancelled',resolved_at:new Date().toISOString()}).eq('id',trade.id); notify('Trade cancelled',T.gold); loadTrades() }
@@ -1640,28 +1761,28 @@ export default function App() {
     for (const h of rosters.filter(r=>r.player_id===profile.id&&r.active))
       await supabase.from('rosters').update({active:false,sold_price:filmVal(films.find(f=>f.id===h.film_id)||{}),sold_week:cfg.current_week}).eq('id',h.id)
     if (chips) await supabase.from('chips').update({recut_used:true}).eq('player_id',profile.id)
-    else       await supabase.from('chips').insert({player_id:profile.id,recut_used:true})
-    await logActivity(profile.id,'chip_recut',{player_name:profile.name})
-    notify('🎬 RECUT activated', T.purple); setChipModal(null); loadData()
+    else       await supabase.from('chips').insert({player_id:profile.id,recut_used:true,league_id:league?.id})
+    await logActivity(profile.id,'chip_recut',{player_name:profile.name},league?.id)
+    notify('🎬 RECUT activated', T.purple); setChipModal(null); loadData(league?.id)
   }
   const activateShort = async (filmId, pred) => {
     if (chips?.short_film_id) return notify('Short already used', T.red)
     if (allChips.find(c=>c.short_film_id===filmId)) return notify('Film already shorted', T.red)
     if (chips) await supabase.from('chips').update({short_film_id:filmId,short_phase:curPhase(),short_prediction:pred}).eq('player_id',profile.id)
-    else       await supabase.from('chips').insert({player_id:profile.id,short_film_id:filmId,short_phase:curPhase(),short_prediction:pred})
+    else       await supabase.from('chips').insert({player_id:profile.id,short_film_id:filmId,short_phase:curPhase(),short_prediction:pred,league_id:league?.id})
     const ft=films.find(f=>f.id===filmId)?.title
-    await logActivity(profile.id,'chip_short',{film_title:ft,prediction:pred,player_name:profile.name})
-    notify(`📉 SHORT on ${ft}`, T.red); setChipModal(null); loadData()
+    await logActivity(profile.id,'chip_short',{film_title:ft,prediction:pred,player_name:profile.name},league?.id)
+    notify(`📉 SHORT on ${ft}`, T.red); setChipModal(null); loadData(league?.id)
   }
   const activateAnalyst = async (filmId, pred) => {
     if (chips?.analyst_film_id) return notify('Analyst already used', T.red)
     if (allChips.find(c=>c.analyst_film_id===filmId)) return notify('Film already Analysed', T.red)
     if (!rosters.find(r=>r.player_id===profile.id&&r.film_id===filmId&&r.active)) return notify('You must own this film', T.red)
     if (chips) await supabase.from('chips').update({analyst_film_id:filmId,analyst_phase:curPhase(),analyst_prediction:pred}).eq('player_id',profile.id)
-    else       await supabase.from('chips').insert({player_id:profile.id,analyst_film_id:filmId,analyst_phase:curPhase(),analyst_prediction:pred})
+    else       await supabase.from('chips').insert({player_id:profile.id,analyst_film_id:filmId,analyst_phase:curPhase(),analyst_prediction:pred,league_id:league?.id})
     const ft=films.find(f=>f.id===filmId)?.title
-    await logActivity(profile.id,'chip_analyst',{film_title:ft,prediction:pred,player_name:profile.name})
-    notify(`🎯 ANALYST on ${ft}`, T.blue); setChipModal(null); loadData()
+    await logActivity(profile.id,'chip_analyst',{film_title:ft,prediction:pred,player_name:profile.name},league?.id)
+    notify(`🎯 ANALYST on ${ft}`, T.blue); setChipModal(null); loadData(league?.id)
   }
   const resolveChips = async (filmId, actualM) => {
     const film=films.find(f=>f.id===filmId); if(!film) return
@@ -1675,25 +1796,25 @@ export default function App() {
   }
   const submitOscarPick = async (filmId) => {
     if (myOscar) return notify('Already submitted', T.red)
-    await supabase.from('oscar_predictions').insert({player_id:profile.id,best_picture_film_id:filmId})
-    await logActivity(profile.id,'oscar',{film_title:films.find(f=>f.id===filmId)?.title,player_name:profile.name})
-    notify(`🏆 Locked — ${films.find(f=>f.id===filmId)?.title}`, T.gold); loadData()
+    await supabase.from('oscar_predictions').insert({player_id:profile.id,best_picture_film_id:filmId,league_id:league?.id})
+    await logActivity(profile.id,'oscar',{film_title:films.find(f=>f.id===filmId)?.title,player_name:profile.name},league?.id)
+    notify(`🏆 Locked — ${films.find(f=>f.id===filmId)?.title}`, T.gold); loadData(league?.id)
   }
   const submitAuteur = async (actor, filmIds) => {
     if (filmIds.length<2) return notify('Select at least 2 films', T.red)
     const ph=curPhase(), ex=auteurDecl.find(a=>a.player_id===profile.id&&a.phase===ph)
     if (ex) await supabase.from('auteur_declarations').update({star_actor:actor,film_ids:filmIds}).eq('id',ex.id)
-    else    await supabase.from('auteur_declarations').insert({player_id:profile.id,phase:ph,star_actor:actor,film_ids:filmIds})
-    await logActivity(profile.id,'auteur',{actor,film_count:filmIds.length,player_name:profile.name})
+    else    await supabase.from('auteur_declarations').insert({player_id:profile.id,phase:ph,star_actor:actor,film_ids:filmIds,league_id:league?.id})
+    await logActivity(profile.id,'auteur',{actor,film_count:filmIds.length,player_name:profile.name},league?.id)
     notify(`🎭 Auteur — ${actor} · ${filmIds.length} films`, T.orange)
-    setChipModal(null); setAuteurActor(''); setAuteurFilms([]); loadData()
+    setChipModal(null); setAuteurActor(''); setAuteurFilms([]); loadData(league?.id)
   }
   const saveForecast = async (filmId, predicted) => {
     const ex=allForecasts.find(f=>f.player_id===profile.id&&f.film_id===filmId)
     if (ex) await supabase.from('forecasts').update({predicted_m:predicted}).eq('id',ex.id)
-    else    await supabase.from('forecasts').insert({player_id:profile.id,film_id:filmId,phase:curPhase(),predicted_m:predicted})
-    await logActivity(profile.id,'forecast',{film_title:films.find(f=>f.id===filmId)?.title,predicted_m:predicted,player_name:profile.name})
-    notify(`Forecast saved — $${predicted}M`, T.blue); loadData()
+    else    await supabase.from('forecasts').insert({player_id:profile.id,film_id:filmId,phase:curPhase(),predicted_m:predicted,league_id:league?.id})
+    await logActivity(profile.id,'forecast',{film_title:films.find(f=>f.id===filmId)?.title,predicted_m:predicted,player_name:profile.name},league?.id)
+    notify(`Forecast saved — $${predicted}M`, T.blue); loadData(league?.id)
   }
 
   // ── LOADING / AUTH SCREENS ──────────────────────────────────────────────────
@@ -1706,13 +1827,65 @@ export default function App() {
     </div>
   )
   if (!session)  return <Login />
-  if (!profile)  return <CreateProfile session={session} onCreated={() => { loadProfile(); loadData() }} notify={notify} />
-  if (!films.length) return (
-    <div style={{ minHeight:'100vh', background:T.bg, display:'flex', alignItems:'center', justifyContent:'center', fontFamily:T.mono }}>
-      <div style={{ textAlign:'center' }}>
-        <div style={{ fontSize:'52px', fontWeight:900, color:T.gold, letterSpacing:'-2px', marginBottom:'16px' }}>BOXD</div>
-        <div style={{ fontSize:'13px', color:T.textSub, marginBottom:'16px' }}>Loading slate…</div>
-        <div style={{ width:'40px', height:'3px', background:T.gold, borderRadius:'2px', margin:'0 auto', animation:'pulse 1.2s ease-in-out infinite' }}/>
+  if (!profile)  return <CreateProfile session={session} onCreated={() => { loadProfile(); loadLeagues() }} notify={notify} />
+
+  // ── LEAGUE LOBBY ─────────────────────────────────────────────────────────────
+  if (!league) return (
+    <div style={{ minHeight:'100vh', background:T.bg, display:'flex', alignItems:'center', justifyContent:'center', fontFamily:T.mono, padding:'20px' }}>
+      <div style={{ width:'100%', maxWidth:'480px' }}>
+        <div style={{ fontSize:'52px', fontWeight:900, color:T.gold, letterSpacing:'-2px', marginBottom:'6px', lineHeight:1 }}>BOXD</div>
+        <div style={{ fontSize:'11px', color:T.textDim, letterSpacing:'3px', marginBottom:'40px' }}>FANTASY BOX OFFICE</div>
+
+        {myLeagues.length > 0 && (
+          <div style={{ marginBottom:'32px' }}>
+            <div style={{ ...S.label, marginBottom:'12px' }}>Your Leagues</div>
+            {myLeagues.map(lg => (
+              <div key={lg.id} className="hoverable" onClick={() => enterLeague(lg)}
+                style={{ ...S.card, display:'flex', alignItems:'center', gap:'14px', marginBottom:'8px', cursor:'pointer', border:`1px solid ${T.borderUp}` }}>
+                <div style={{ width:'44px', height:'44px', borderRadius:'12px', background:`${T.gold}22`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'20px', flexShrink:0 }}>🎬</div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:'15px', fontWeight:700, color:T.text }}>{lg.name}</div>
+                  <div style={{ fontSize:'12px', color:T.textSub, marginTop:'2px' }}>
+                    {lg.myRole==='commissioner' ? '⚙️ Commissioner' : '🎮 Player'} · Code: {lg.invite_code}
+                  </div>
+                </div>
+                <div style={{ color:T.gold, fontSize:'20px' }}>›</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{ display:'flex', gap:'10px', marginBottom:'24px' }}>
+          <button onClick={()=>setLeaguePage('create')} style={{ ...S.btn, flex:1, background:leaguePage==='create'?T.gold:T.surfaceUp, color:leaguePage==='create'?'#0D0A08':T.textSub, border:`1px solid ${leaguePage==='create'?T.gold:T.border}`, padding:'10px', fontSize:'13px', textTransform:'none', letterSpacing:0 }}>+ Create League</button>
+          <button onClick={()=>setLeaguePage('join')} style={{ ...S.btn, flex:1, background:leaguePage==='join'?T.blue:T.surfaceUp, color:leaguePage==='join'?'#fff':T.textSub, border:`1px solid ${leaguePage==='join'?T.blue:T.border}`, padding:'10px', fontSize:'13px', textTransform:'none', letterSpacing:0 }}>Join League</button>
+        </div>
+
+        {leaguePage === 'create' && (
+          <div style={{ animation:'fadeUp .2s ease' }}>
+            <div style={{ ...S.label, marginBottom:'8px' }}>League Name</div>
+            <input value={newLeagueName} onChange={e=>setNewLeagueName(e.target.value)}
+              onKeyDown={e=>e.key==='Enter'&&createLeague()}
+              placeholder="e.g. The Box Office Boyz" style={{ ...S.inp, marginBottom:'12px', fontSize:'15px', padding:'14px 16px' }}/>
+            <Btn onClick={createLeague} color={T.gold} full size="lg">Create League</Btn>
+            <div style={{ fontSize:'12px', color:T.textSub, marginTop:'10px', textAlign:'center' }}>
+              You'll get a unique invite code to share with players
+            </div>
+          </div>
+        )}
+
+        {leaguePage === 'join' && (
+          <div style={{ animation:'fadeUp .2s ease' }}>
+            <div style={{ ...S.label, marginBottom:'8px' }}>Invite Code</div>
+            <input value={inviteCode} onChange={e=>setInviteCode(e.target.value.toUpperCase())}
+              onKeyDown={e=>e.key==='Enter'&&joinLeague()}
+              placeholder="BOXD-XXXX" style={{ ...S.inp, marginBottom:'12px', fontSize:'18px', padding:'14px 16px', letterSpacing:'3px', textAlign:'center' }}/>
+            <Btn onClick={joinLeague} color={T.blue} textColor="#fff" full size="lg">Join League</Btn>
+          </div>
+        )}
+
+        <div style={{ marginTop:'32px', textAlign:'center' }}>
+          <button onClick={()=>supabase.auth.signOut()} style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer', fontFamily:T.mono, fontSize:'12px' }}>Sign out</button>
+        </div>
       </div>
     </div>
   )
@@ -2072,10 +2245,13 @@ export default function App() {
 
       {/* Player rankings */}
       {[...players].sort((a,b)=>calcPoints(b.id)-calcPoints(a.id)).map((player,i) => {
-        const pts  = calcPoints(player.id)
-        const rank = i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`
-        const pc   = allChips.find(c=>c.player_id===player.id)
-        const pa   = auteurDecl.find(a=>a.player_id===player.id&&a.phase===ph)
+        const pts         = calcPoints(player.id)
+        const rank        = i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`
+        const pc          = allChips.find(c=>c.player_id===player.id)
+        const pa          = auteurDecl.find(a=>a.player_id===player.id&&a.phase===ph)
+        const playerPicks = allPicks.filter(p=>p.user_id===player.id).length
+        const playerDraft = rosters.filter(r=>r.player_id===player.id&&r.phase===ph&&r.active&&films.find(f=>f.id===r.film_id)).length
+        const draftOk     = draftWindowOpen && playerDraft >= DRAFT_MIN
 
         return (
           <div key={player.id} className="hoverable" style={{ ...S.card, display:'flex', alignItems:'center', gap:'14px', marginBottom:'8px', cursor:'pointer' }}
@@ -2088,6 +2264,8 @@ export default function App() {
                 <span style={{ fontSize:'12px', color:T.textSub }}>Ph{ph}: {calcPhasePoints(player.id,ph)}pts</span>
                 <span style={{ fontSize:'11px', color:T.textDim }}>·</span>
                 <span style={{ fontSize:'12px', color:T.textSub }}>{cur}{budgetLeft(player.id)} left</span>
+                {draftWindowOpen && <Badge color={draftOk?T.green:T.red}>{draftOk?'✓ Draft':'⚠️ Draft'} {playerDraft}/{DRAFT_MIN}</Badge>}
+                {playerPicks > 0 && <Badge color={T.gold}>👁 {playerPicks}</Badge>}
                 {pc?.recut_used      && <Badge color={T.purple}>🎬</Badge>}
                 {pc?.short_film_id   && <Badge color={T.red}>📉</Badge>}
                 {pc?.analyst_film_id && <Badge color={T.blue}>🎯</Badge>}
@@ -2271,9 +2449,49 @@ export default function App() {
 
     const filmRanking = [...films].map(f=>({f,total:allPicks.filter(p=>p.film_id===f.id).length,vel:pickVelocity(f.id,allPicks,7)})).sort((a,b)=>b.total-a.total)
 
+    // Benchmark: comparable films (same genre or similar est)
+    const benchmarks = selF ? filmRanking
+      .filter(x => x.f.id !== selFilm && (x.f.genre===selF.genre || Math.abs(x.f.estM-(selF.estM||0))<30))
+      .slice(0,3) : []
+
+    // Campaign ROI Score — single number 0-100
+    // Factors: pick velocity vs comparable titles, marketing event lift, booking conversion
+    const roiScore = (() => {
+      if (!selF || total === 0) return null
+      const avgBenchmarkPicks = benchmarks.length ? benchmarks.reduce((s,b)=>s+b.total,0)/benchmarks.length : total
+      const pickVsAvg = Math.min(2, total / Math.max(1, avgBenchmarkPicks)) // 0-2x
+      const avgLift   = marketingImpact.length ? marketingImpact.reduce((s,m)=>s+m.lift,0)/marketingImpact.length/100 : 0.5
+      const bookConv  = total > 0 ? Math.min(1, clicks.length / total) : 0
+      const raw = (pickVsAvg * 40) + (avgLift * 40) + (bookConv * 20)
+      return Math.min(100, Math.round(raw))
+    })()
+
+    const roiColor = roiScore===null ? T.textSub : roiScore>=70 ? T.green : roiScore>=40 ? T.gold : T.red
+    const roiLabel = roiScore===null ? '—' : roiScore>=70 ? 'Strong' : roiScore>=40 ? 'Building' : 'Weak'
+
+    // CSV export
+    const exportCSV = () => {
+      const rows = [
+        ['Film','Distributor','Genre','Phase','Week','Est $M','Total Picks','7d Velocity','24h Picks','Booking Clicks'],
+        ...filmRanking.map(({f,total,vel}) => [
+          f.title, f.dist, f.genre, f.phase, f.week, f.estM, total, vel,
+          pickVelocity(f.id,allPicks,1),
+          bookingClicks.filter(b=>b.film_id===f.id).length
+        ])
+      ]
+      const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')
+      const blob = new Blob([csv], {type:'text/csv'})
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement('a'); a.href=url; a.download='boxd-intent-data.csv'; a.click()
+      URL.revokeObjectURL(url)
+    }
+
     return (
       <div>
-        <div style={S.pageTitle}>📈 Distributor Insights</div>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'4px' }}>
+          <div style={S.pageTitle}>📈 Distributor Insights</div>
+          <Btn onClick={exportCSV} color={T.textSub} variant="outline" size="sm">↓ Export CSV</Btn>
+        </div>
         <div style={{ fontSize:'13px', color:T.textSub, marginTop:'4px', marginBottom:'20px' }}>Audience intent data · UK-flagged · pick velocity vs marketing events</div>
 
         <div style={{ marginBottom:'20px' }}>
@@ -2302,6 +2520,32 @@ export default function App() {
             <StatBox label="7-day velocity"  value={vel7}   color={vel7>=5?T.red:vel7>=2?T.orange:T.text} sub="this week"/>
             <StatBox label="24h picks"       value={vel24}  color={vel24>0?T.green:T.text} sub="today"/>
             <StatBox label="Booking clicks"  value={clicks.length} color={T.blue} sub="ticket CTAs"/>
+          </div>
+
+          {/* Campaign ROI Score */}
+          <div style={{ ...S.card, marginBottom:'16px', display:'flex', gap:'20px', alignItems:'center' }}>
+            <div style={{ flex:1 }}>
+              <div style={{ ...S.sectionTitle, marginBottom:'6px' }}>Campaign ROI Score</div>
+              <div style={{ fontSize:'12px', color:T.textSub, lineHeight:1.5 }}>
+                Weighted: pick volume vs comparable titles (40%) + marketing event lift (40%) + booking conversion (20%)
+              </div>
+              {benchmarks.length > 0 && (
+                <div style={{ display:'flex', gap:'8px', marginTop:'10px', flexWrap:'wrap' }}>
+                  {benchmarks.map(({f,total:bt}) => (
+                    <div key={f.id} style={{ fontSize:'11px', color:T.textSub, background:T.surfaceUp, borderRadius:'6px', padding:'4px 8px' }}>
+                      {f.title.split(':')[0]} · {bt} picks
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div style={{ textAlign:'center', flexShrink:0 }}>
+              <div style={{ fontSize:'52px', fontWeight:900, color:roiColor, lineHeight:1, fontFamily:T.mono, letterSpacing:'-2px' }}>
+                {roiScore ?? '—'}
+              </div>
+              <div style={{ fontSize:'12px', color:roiColor, fontWeight:600, marginTop:'4px' }}>{roiLabel}</div>
+              <div style={{ fontSize:'10px', color:T.textDim, marginTop:'2px' }}>out of 100</div>
+            </div>
           </div>
 
           {total>0 && (
@@ -2607,13 +2851,13 @@ export default function App() {
                 await dbUpsert('film_values','film_id',film.id,{current_value:nv})
                 await resolveChips(film.id,v)
                 await logActivity(session.user.id,'result',{film_title:film.title,actual_m:v})
-                notify(`✅ ${film.title} · $${nv} · ${calcOpeningPts(film,v)}pts`,T.gold); loadData()
+                notify(`✅ ${film.title} · $${nv} · ${calcOpeningPts(film,v)}pts`,T.gold); loadData(league?.id)
               }}>Save</Btn>
               <button style={{ ...S.btn, background:isWinner?T.gold:T.surfaceUp, border:isWinner?'none':`1px solid ${T.border}`, color:isWinner?'#0D0A08':T.textSub, fontSize:'12px', padding:'9px 12px' }}
                 onClick={async () => {
                   if(isWinner) { await supabase.from('weekend_winners').delete().eq('week',film.week) }
                   else { const ex=await supabase.from('weekend_winners').select('id').eq('week',film.week).single(); if(ex.data) await supabase.from('weekend_winners').update({film_id:film.id,phase:ph}).eq('week',film.week); else await supabase.from('weekend_winners').insert({film_id:film.id,week:film.week,phase:ph}) }
-                  notify(isWinner?'Removed':`🥇 ${film.title} · +15pts`,T.gold); loadData()
+                  notify(isWinner?'Removed':`🥇 ${film.title} · +15pts`,T.gold); loadData(league?.id)
                 }}>{isWinner?'🥇 #1':'#1?'}</button>
               {actual!=null && <span style={{ fontSize:'12px', color:T.green }}>${actual}M → ${filmVal(film)}M · {calcOpeningPts(film,actual)}pts</span>}
             </div>
@@ -2632,7 +2876,7 @@ export default function App() {
                         <div style={{ fontSize:'10px', color:T.textDim }}>W{wk}{wk>=4?'×1.1':''}</div>
                         <input type="number" step="0.1" placeholder="$M" defaultValue={weeks[wk]||''} id={`wk-${film.id}-${wk}`} style={{ ...S.inp, width:'60px', fontSize:'11px', padding:'5px 6px' }}/>
                         <button style={{ ...S.btn, background:T.surfaceUp, border:`1px solid ${T.border}`, color:T.textSub, fontSize:'9px', padding:'3px 6px' }}
-                          onClick={async () => { const v=parseFloat(document.getElementById(`wk-${film.id}-${wk}`).value); if(isNaN(v)) return; await dbUpsertWeekly(film.id,wk,v); notify(`W${wk} saved`,T.gold); loadData() }}>Save</button>
+                          onClick={async () => { const v=parseFloat(document.getElementById(`wk-${film.id}-${wk}`).value); if(isNaN(v)) return; await dbUpsertWeekly(film.id,wk,v); notify(`W${wk} saved`,T.gold); loadData(league?.id) }}>Save</button>
                         {weeks[wk] && <div style={{ fontSize:'10px', color:T.blue }}>+{Math.round(Number(weeks[wk])*rate)}</div>}
                       </div>
                     )
@@ -2647,18 +2891,136 @@ export default function App() {
   )
 
   // ── COMMISSIONER ─────────────────────────────────────────────────────────────
-  const CommissionerPage = () => (
+  const CommissionerPage = () => {
+    const [ingesting, setIngesting] = React.useState(false)
+
+    const runIngest = async () => {
+      setIngesting(true)
+      try {
+        const res  = await fetch(`${SUPABASE_URL}/functions/v1/ingest-results`, {
+          headers: { apikey: supabase.supabaseKey, Authorization: `Bearer ${supabase.supabaseKey}` }
+        })
+        const data = await res.json()
+        setIngestLog(data)
+        notify(`✅ Ingested ${data.matched?.length||0} results · ${data.unmatched?.length||0} unmatched`, T.green)
+        loadData(league?.id)
+      } catch(e) { notify(`Ingest failed: ${e.message}`, T.red) }
+      setIngesting(false)
+    }
+
+    return (
     <div>
       <div style={S.pageTitle}>⚙️ Panel</div>
-      <div style={{ fontSize:'13px', color:T.textSub, marginTop:'4px', marginBottom:'20px' }}>Commissioner controls</div>
+      <div style={{ fontSize:'13px', color:T.textSub, marginTop:'4px', marginBottom:'20px' }}>Commissioner controls · {league?.name}</div>
+
+      {/* League settings */}
+      <div style={{ ...S.card, marginBottom:'12px', border:`1px solid ${T.gold}33` }}>
+        <div style={{ ...S.sectionTitle, color:T.gold, marginBottom:'14px' }}>League Settings</div>
+        <div style={{ display:'flex', gap:'12px', alignItems:'center', marginBottom:'12px', flexWrap:'wrap' }}>
+          <div style={{ flex:1 }}>
+            <div style={S.label}>Invite Code</div>
+            <div style={{ fontSize:'22px', fontWeight:700, color:T.text, letterSpacing:'3px', marginTop:'4px', fontFamily:T.mono }}>{league?.invite_code}</div>
+            <div style={{ fontSize:'12px', color:T.textSub, marginTop:'4px' }}>Share this with players to join your league</div>
+          </div>
+          <Btn onClick={()=>{navigator.clipboard?.writeText(league?.invite_code||'');notify('Code copied!',T.green)}} color={T.gold} size="sm">Copy Code</Btn>
+        </div>
+        <Divider/>
+        <Btn onClick={leaveLeague} variant="outline" color={T.red} size="sm" sx={{ marginTop:'10px' }}>Leave League</Btn>
+      </div>
+
+      {/* Draft / IPO window */}
+      <div style={{ ...S.card, marginBottom:'12px', border:`1px solid ${T.purple}33` }}>
+        <div style={{ ...S.sectionTitle, color:T.purple, marginBottom:'14px' }}>🎬 Draft / IPO Window</div>
+        <div style={{ fontSize:'13px', color:T.textSub, marginBottom:'12px' }}>
+          Open a 2-week draft window before a phase starts. Players must pick min {DRAFT_MIN} films or lose ${DRAFT_PENALTY}M per missing pick.
+        </div>
+        <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'12px' }}>
+          <Btn color={draftWindowOpen?T.red:T.purple} textColor="#fff" size="sm" onClick={async()=>{
+            const deadline = new Date(Date.now() + 14*86400000).toISOString()
+            await supabase.from('league_config').update({
+              draft_window_open: !draftWindowOpen,
+              draft_deadline: !draftWindowOpen ? deadline : null,
+            }).eq('league_id', league?.id)
+            notify(draftWindowOpen ? 'Draft window closed' : `🎬 Draft window open · 14 days`, T.purple)
+            loadData(league?.id)
+          }}>{draftWindowOpen ? 'Close Draft Window' : 'Open Draft Window (14 days)'}</Btn>
+        </div>
+        {draftWindowOpen && (
+          <div style={{ background:`${T.purple}18`, borderRadius:'9px', padding:'10px 14px' }}>
+            <div style={{ fontSize:'12px', color:T.purple }}>
+              ⏱ Deadline: {cfg.draft_deadline ? new Date(cfg.draft_deadline).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'}) : '—'}
+            </div>
+            <div style={{ fontSize:'11px', color:T.textSub, marginTop:'4px' }}>
+              Players with fewer than {DRAFT_MIN} picks will be auto-penalised ${DRAFT_PENALTY}M per missing film when deadline passes
+            </div>
+            {draftWindowOpen && (
+              <Btn variant="outline" color={T.red} size="sm" sx={{ marginTop:'10px' }} onClick={async () => {
+                if (!confirm('Apply draft penalties now? This deducts budget from players below the minimum.')) return
+                let penalised = 0
+                for (const player of players) {
+                  const picks = rosters.filter(r => r.player_id===player.id && r.phase===ph && r.active && films.find(f=>f.id===r.film_id)).length
+                  const shortfall = Math.max(0, DRAFT_MIN - picks)
+                  if (shortfall > 0) {
+                    const penalty = shortfall * DRAFT_PENALTY
+                    // Insert phantom "penalty" transactions to reduce budget
+                    await supabase.from('transactions').insert({
+                      player_id: player.id, film_id: null, type: 'draft_penalty',
+                      price: penalty, week: cfg.current_week, league_id: league?.id
+                    })
+                    // Reduce phase allocation
+                    const alloc = phaseAlloc(player.id, ph)
+                    const ex = phaseBudgets.find(pb => pb.player_id===player.id && pb.phase===ph)
+                    if (ex) await supabase.from('phase_budgets').update({ budget_allocated: alloc - penalty }).eq('id', ex.id)
+                    else await supabase.from('phase_budgets').insert({ player_id: player.id, phase: ph, budget_allocated: PHASE_BUDGETS[ph] - penalty, budget_spent: 0, budget_banked: 0, league_id: league?.id })
+                    penalised++
+                  }
+                }
+                // Close draft window
+                await supabase.from('league_config').update({ draft_window_open: false, draft_deadline: null }).eq('league_id', league?.id)
+                await logActivity(session.user.id, 'draft_penalties', { penalised, league: league?.name }, league?.id)
+                notify(`Draft penalties applied to ${penalised} player${penalised!==1?'s':''}`, T.red)
+                loadData(league?.id)
+              }}>⚠️ Apply Draft Penalties Now</Btn>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Auto box office ingest */}
+      <div style={{ ...S.card, marginBottom:'12px', border:`1px solid ${T.green}33` }}>
+        <div style={{ ...S.sectionTitle, color:T.green, marginBottom:'10px' }}>📊 Box Office Ingest</div>
+        <div style={{ fontSize:'13px', color:T.textSub, marginBottom:'12px' }}>
+          Pull weekend box office from The Numbers and auto-populate results. Runs automatically Sunday nights. Run manually after a major weekend.
+        </div>
+        <Btn onClick={runIngest} color={T.green} textColor="#0D0A08" size="sm" disabled={ingesting}>
+          {ingesting ? '⏳ Fetching…' : '🎬 Run Ingest Now'}
+        </Btn>
+        {ingestLog && (
+          <div style={{ marginTop:'12px', background:T.surfaceUp, borderRadius:'9px', padding:'12px 14px' }}>
+            <div style={{ fontSize:'12px', color:T.green, fontWeight:600, marginBottom:'8px' }}>
+              ✅ {ingestLog.matched?.length||0} matched · ⚠️ {ingestLog.unmatched?.length||0} unmatched
+            </div>
+            {ingestLog.matched?.length>0 && (
+              <div style={{ fontSize:'11px', color:T.textSub, marginBottom:'6px' }}>
+                {ingestLog.matched.map(r=>`${r.matched} → $${r.actualM}M`).join(' · ')}
+              </div>
+            )}
+            {ingestLog.unmatched?.length>0 && (
+              <div style={{ fontSize:'11px', color:T.red }}>
+                Unmatched: {ingestLog.unmatched.join(', ')}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <div style={{ ...S.card, marginBottom:'12px' }}>
         <div style={{ ...S.sectionTitle, color:T.gold, marginBottom:'14px' }}>League Controls</div>
         <div style={{ fontSize:'13px', color:T.textSub, marginBottom:'12px' }}>W{cfg.current_week} · Ph{ph} · {PHASE_NAMES[ph]}</div>
         <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
-          <Btn color={T.gold} size="sm" onClick={async()=>{await supabase.from('league_config').update({current_week:cfg.current_week+1}).eq('id',1);notify(`Week ${cfg.current_week+1}`,T.green);loadData()}}>Next Week →</Btn>
-          <Btn color={win?T.orange:T.purple} textColor="#fff" size="sm" onClick={async()=>{const ni=new Date().toISOString();await supabase.from('league_config').update({phase_window_active:!win,phase_window_opened_at:!win?ni:null}).eq('id',1);notify(win?'Window closed':'🔓 72hr window open!',T.orange);loadData()}}>{win?'🔒 Close Window':'🔓 72hr Window'}</Btn>
-          <Btn variant="outline" color={T.gold} size="sm" onClick={async()=>{if(!confirm(`Advance to Phase ${ph+1}?`)) return; for(const p of players) await bankBudget(p.id,ph); await supabase.from('league_config').update({current_phase:ph+1,phase_window_active:false,phase_window_opened_at:null}).eq('id',1); notify(`Phase ${ph+1} started`,T.green); loadData()}}>Next Phase →</Btn>
+          <Btn color={T.gold} size="sm" onClick={async()=>{await supabase.from('league_config').update({current_week:cfg.current_week+1}).eq('league_id',league?.id);notify(`Week ${cfg.current_week+1}`,T.green);loadData(league?.id)}}>Next Week →</Btn>
+          <Btn color={win?T.orange:T.purple} textColor="#fff" size="sm" onClick={async()=>{const ni=new Date().toISOString();await supabase.from('league_config').update({phase_window_active:!win,phase_window_opened_at:!win?ni:null}).eq('league_id',league?.id);notify(win?'Window closed':'🔓 72hr window open!',T.orange);loadData(league?.id)}}>{win?'🔒 Close Window':'🔓 72hr Window'}</Btn>
+          <Btn variant="outline" color={T.gold} size="sm" onClick={async()=>{if(!confirm(`Advance to Phase ${ph+1}?`)) return; for(const p of players) await bankBudget(p.id,ph); await supabase.from('league_config').update({current_phase:ph+1,phase_window_active:false,phase_window_opened_at:null}).eq('league_id',league?.id); notify(`Phase ${ph+1} started`,T.green); loadData(league?.id)}}>Next Phase →</Btn>
         </div>
         <div style={{ display:'flex', gap:'6px', flexWrap:'wrap', marginTop:'14px' }}>
           {players.map(p => (
@@ -2678,7 +3040,7 @@ export default function App() {
           const ids=new Set(films.map(f=>f.id)), orphans=rosters.filter(r=>r.active&&!ids.has(r.film_id))
           if(!orphans.length) return notify('No orphans found ✅',T.green)
           for(const o of orphans) await supabase.from('rosters').update({active:false}).eq('id',o.id)
-          notify(`Fixed ${orphans.length} orphaned rows`,T.green); loadData()
+          notify(`Fixed ${orphans.length} orphaned rows`,T.green); loadData(league?.id)
         }}>Scan & Fix Orphans ({rosters.filter(r=>r.active&&!films.find(f=>f.id===r.film_id)).length})</Btn>
       </div>
 
@@ -2686,7 +3048,7 @@ export default function App() {
         <div style={{ ...S.sectionTitle, color:T.gold, marginBottom:'14px' }}>Oscar Night</div>
         <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
           <select id="oscar-win" style={{ ...S.inp, flex:1, minWidth:'180px' }}><option value="">Best Picture winner…</option>{films.map(f=><option key={f.id} value={f.id}>{f.title}</option>)}</select>
-          <Btn color={T.gold} onClick={async()=>{ const id=document.getElementById('oscar-win').value; if(!id) return; await supabase.from('league_config').update({best_picture_winner:id}).eq('id',1); for(const op of oscarPreds) await supabase.from('oscar_predictions').update({correct:op.best_picture_film_id===id}).eq('player_id',op.player_id); notify(`🏆 ${films.find(f=>f.id===id)?.title}`,T.gold); loadData() }}>Set Winner</Btn>
+          <Btn color={T.gold} onClick={async()=>{ const id=document.getElementById('oscar-win').value; if(!id) return; await supabase.from('league_config').update({best_picture_winner:id}).eq('league_id',league?.id); for(const op of oscarPreds) await supabase.from('oscar_predictions').update({correct:op.best_picture_film_id===id}).eq('player_id',op.player_id); notify(`🏆 ${films.find(f=>f.id===id)?.title}`,T.gold); loadData(league?.id) }}>Set Winner</Btn>
         </div>
       </div>
 
@@ -2728,12 +3090,12 @@ export default function App() {
                     const na=document.getElementById(`aff-${film.id}`).value.trim()
                     const nt=document.getElementById(`trailer-${film.id}`).value.trim()
                     await supabase.from('films').update({base_price:ni,est_m:ne,rt:nr,affiliate_url:na,trailer:nt}).eq('id',film.id)
-                    notify(`Updated ${film.title}`,T.green); loadData()
+                    notify(`Updated ${film.title}`,T.green); loadData(league?.id)
                   }}>Save</Btn>
                   <Btn size="sm" variant="outline" color={T.red} onClick={async()=>{
                     if(!confirm(`Remove ${film.title}?`)) return
                     await supabase.from('films').update({active:false}).eq('id',film.id)
-                    notify(`Removed ${film.title}`,T.red); loadData()
+                    notify(`Removed ${film.title}`,T.red); loadData(league?.id)
                   }}>✕</Btn>
                 </div>
               ))}
@@ -2754,14 +3116,14 @@ export default function App() {
                 <div style={{ display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap', marginBottom:'6px' }}>
                   <span style={{ fontSize:'12px', color:T.red }}>📉 {films.find(f=>f.id===c.short_film_id)?.title}</span>
                   <span style={{ fontSize:'12px', color:T.textSub }}>→ {c.short_result||'pending'}</span>
-                  {!c.short_result && <><Btn color={T.green} textColor="#0D0A08" size="sm" onClick={async()=>{await supabase.from('chips').update({short_result:'win'}).eq('player_id',c.player_id);notify('Short WIN',T.green);loadData()}}>Win</Btn><Btn color={T.red} textColor="#fff" size="sm" onClick={async()=>{await supabase.from('chips').update({short_result:'lose'}).eq('player_id',c.player_id);notify('Short LOSE',T.red);loadData()}}>Lose</Btn></>}
+                  {!c.short_result && <><Btn color={T.green} textColor="#0D0A08" size="sm" onClick={async()=>{await supabase.from('chips').update({short_result:'win'}).eq('player_id',c.player_id);notify('Short WIN',T.green);loadData(league?.id)}}>Win</Btn><Btn color={T.red} textColor="#fff" size="sm" onClick={async()=>{await supabase.from('chips').update({short_result:'lose'}).eq('player_id',c.player_id);notify('Short LOSE',T.red);loadData(league?.id)}}>Lose</Btn></>}
                 </div>
               )}
               {c.analyst_film_id && (
                 <div style={{ display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap' }}>
                   <span style={{ fontSize:'12px', color:T.blue }}>🎯 {films.find(f=>f.id===c.analyst_film_id)?.title} · ${c.analyst_prediction}M</span>
                   <span style={{ fontSize:'12px', color:T.textSub }}>→ {c.analyst_result||'pending'}</span>
-                  {!c.analyst_result && <><Btn color={T.green} textColor="#0D0A08" size="sm" onClick={async()=>{await supabase.from('chips').update({analyst_result:'win'}).eq('player_id',c.player_id);notify('Analyst WIN',T.green);loadData()}}>Win</Btn><Btn color={T.red} textColor="#fff" size="sm" onClick={async()=>{await supabase.from('chips').update({analyst_result:'lose'}).eq('player_id',c.player_id);notify('Analyst LOSE',T.red);loadData()}}>Lose</Btn></>}
+                  {!c.analyst_result && <><Btn color={T.green} textColor="#0D0A08" size="sm" onClick={async()=>{await supabase.from('chips').update({analyst_result:'win'}).eq('player_id',c.player_id);notify('Analyst WIN',T.green);loadData(league?.id)}}>Win</Btn><Btn color={T.red} textColor="#fff" size="sm" onClick={async()=>{await supabase.from('chips').update({analyst_result:'lose'}).eq('player_id',c.player_id);notify('Analyst LOSE',T.red);loadData(league?.id)}}>Lose</Btn></>}
                 </div>
               )}
             </div>
@@ -2769,7 +3131,8 @@ export default function App() {
         })}
       </div>
     </div>
-  )
+    ) // end CommissionerPage return
+  } // end CommissionerPage function
 
   // ── LAYOUT ──────────────────────────────────────────────────────────────────
   return (
@@ -2782,6 +3145,13 @@ export default function App() {
           title={!isMobile ? (sidebarOpen ? 'Hide menu' : 'Show menu') : undefined}
           style={{ fontSize:'32px', fontWeight:900, color:T.gold, letterSpacing:'-2px', userSelect:'none', flexShrink:0, cursor: isMobile?'default':'pointer', lineHeight:1, padding:'6px 10px', borderRadius:'10px', transition:'background .15s', background: (!isMobile && sidebarOpen) ? `${T.gold}15` : 'transparent' }}
         >BOXD</div>
+
+        {!isMobile && league && (
+          <div style={{ display:'flex', flexDirection:'column', gap:'1px', flexShrink:0 }}>
+            <div style={{ fontSize:'13px', fontWeight:600, color:T.text, lineHeight:1.2 }}>{league.name}</div>
+            <button onClick={()=>setLeague(null)} style={{ background:'none', border:'none', color:T.textDim, cursor:'pointer', fontFamily:T.mono, fontSize:'10px', textAlign:'left', padding:0, letterSpacing:'0.5px' }}>switch league ›</button>
+          </div>
+        )}
 
         {!isMobile && (
           <div onClick={() => setSidebarOpen(o => !o)} style={{ fontSize:'12px', color:T.textDim, cursor:'pointer', userSelect:'none', letterSpacing:'0.5px', transition:'color .15s', padding:'4px 8px', borderRadius:'6px', background:T.surfaceUp, border:`1px solid ${T.border}` }}>
@@ -2805,6 +3175,12 @@ export default function App() {
           {pendingForMe.length>0 && (
             <div onClick={() => setPage('trades')} style={{ background:`${T.red}22`, border:`1px solid ${T.red}44`, borderRadius:'10px', padding:'8px 16px', fontSize:'14px', color:T.red, cursor:'pointer', flexShrink:0 }}>
               🔄 {pendingForMe.length}
+            </div>
+          )}
+
+          {draftWindowOpen && draftShortfall>0 && (
+            <div onClick={() => setPage('market')} style={{ background:`${T.red}22`, border:`1px solid ${T.red}44`, borderRadius:'10px', padding:'8px 14px', fontSize:'12px', color:T.red, cursor:'pointer', flexShrink:0, display:'flex', alignItems:'center', gap:'6px' }}>
+              ⚠️ Draft · {draftDaysLeft}d left
             </div>
           )}
 
@@ -2853,6 +3229,25 @@ export default function App() {
 
         {/* PAGE CONTENT */}
         <div style={{ flex:1, padding:'20px 16px', overflowY:'auto', minWidth:0, paddingBottom: isMobile ? '100px' : '32px' }}>
+
+          {/* Draft window banner */}
+          {draftWindowOpen && (
+            <div style={{ background: draftShortfall>0 ? `${T.red}18` : `${T.green}18`, border:`1px solid ${draftShortfall>0?T.red+'44':T.green+'44'}`, borderRadius:'12px', padding:'12px 16px', marginBottom:'16px', display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap' }}>
+              <div style={{ fontSize:'20px' }}>{draftShortfall>0?'⚠️':'✅'}</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:'13px', fontWeight:600, color:draftShortfall>0?T.red:T.green }}>
+                  {draftWindowOpen && draftShortfall>0
+                    ? `Draft deadline in ${draftDaysLeft}d — pick ${draftShortfall} more film${draftShortfall>1?'s':''} or lose $${draftPenalty}M`
+                    : `Draft window open · ${draftDaysLeft}d left · ${myDraftPicks}/${DRAFT_MIN} minimum picks met ✓`
+                  }
+                </div>
+                <div style={{ fontSize:'11px', color:T.textSub, marginTop:'2px' }}>
+                  Pick at least {DRAFT_MIN} films from Phase {ph} before deadline · −${DRAFT_PENALTY}M per missing pick
+                </div>
+              </div>
+              <Btn onClick={()=>setPage('market')} color={draftShortfall>0?T.red:T.green} textColor="#fff" size="sm">Go to Market →</Btn>
+            </div>
+          )}
           {page==='market'       && <MarketPage/>}
           {page==='roster'       && <RosterPage/>}
           {page==='chips'        && <ChipsPage/>}
@@ -2888,6 +3283,7 @@ export default function App() {
         <div style={{ position:'fixed', bottom:0, left:0, right:0, background:T.surface, borderTop:`1px solid ${T.border}`, display:'flex', zIndex:100, paddingBottom:'env(safe-area-inset-bottom)', backdropFilter:'blur(12px)' }}>
           {BOTTOM_TABS.map(({ id, icon, label }) => {
             const active = page===id
+            const hasDot = (id==='trades' && pendingForMe.length>0) || (id==='market' && draftWindowOpen && draftShortfall>0)
             return (
               <button key={id} onClick={() => { setPage(id); setMoreOpen(false) }} style={{
                 flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:'6px',
@@ -2896,7 +3292,10 @@ export default function App() {
                 position:'relative',
               }}>
                 {active && <div style={{ position:'absolute', top:0, left:'50%', transform:'translateX(-50%)', width:'32px', height:'3px', background:T.gold, borderRadius:'0 0 4px 4px' }}/>}
-                <span style={{ fontSize:'26px', lineHeight:1 }}>{icon}</span>
+                <span style={{ fontSize:'26px', lineHeight:1, position:'relative' }}>
+                  {icon}
+                  {hasDot && <span style={{ position:'absolute', top:'-2px', right:'-4px', width:'8px', height:'8px', background:T.red, borderRadius:'50%', border:`2px solid ${T.surface}` }}/>}
+                </span>
                 <span style={{ fontSize:'12px', fontWeight: active?600:400, letterSpacing:'0.2px' }}>{label}</span>
               </button>
             )
@@ -2968,7 +3367,7 @@ export default function App() {
       )}
 
       {tradeModal && (
-        <TradeModal profile={profile} players={players} rosters={rosters} films={films} filmVal={filmVal} curPhase={curPhase} onClose={() => setTradeModal(false)} notify={notify} onDone={() => { setTradeModal(false); loadData(); setPage('trades') }}/>
+        <TradeModal profile={profile} players={players} rosters={rosters} films={films} filmVal={filmVal} curPhase={curPhase} onClose={() => setTradeModal(false)} notify={notify} onDone={() => { setTradeModal(false); loadData(league?.id); setPage('trades') }}/>
       )}
 
       {/* Trailer modal */}
@@ -3027,7 +3426,7 @@ export default function App() {
                 if(error) return notify(error.message, T.red)
                 setAddFilm(false); notify(`✅ ${newFilm.title} added`,T.green)
                 setNewFilm({title:'',dist:'',genre:'Action',franchise:'',basePrice:20,estM:30,rt:'',week:1,phase:1,sleeper:false,starActor:'',trailer:'',affiliateUrl:''})
-                loadData()
+                loadData(league?.id)
               }} color={T.green} textColor="#0D0A08" sx={{ flex:2 }} size="lg">Add Film</Btn>
             </div>
           </div>
