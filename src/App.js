@@ -1419,6 +1419,28 @@ function WindowTimer({ openedAt, short }) {
   return <span>{short ? `${h}h ${m}m` : `${h}h ${m}m ${s}s`}</span>
 }
 
+// ── DRAFT COUNTDOWN — isolated ticker, never re-renders App ───────────────────
+function DraftTimer({ deadline, shortfall, draftMin }) {
+  const [, tick] = useState(0)
+  useEffect(() => { const t=setInterval(()=>tick(n=>n+1),1000); return ()=>clearInterval(t) }, [])
+  if (!deadline) return null
+  const ms      = Math.max(0, new Date(deadline).getTime() - Date.now())
+  const done    = ms === 0
+  const days    = Math.floor(ms/86400000)
+  const hours   = Math.floor((ms%86400000)/3600000)
+  const mins    = Math.floor((ms%3600000)/60000)
+  const secs    = Math.floor((ms%60000)/1000)
+  const urgent  = ms < 48*3600000
+  const color   = done ? '#666' : urgent ? T.red : shortfall>0 ? T.orange : T.green
+  const display = done ? 'Expired' : days>0 ? `${days}d ${hours}h ${mins}m` : `${hours}h ${mins}m ${secs}s`
+  return (
+    <div style={{ display:'inline-flex', flexDirection:'column', alignItems:'center', gap:'1px' }}>
+      <span style={{ fontFamily:T.mono, fontWeight:900, color, letterSpacing:'-0.5px', lineHeight:1 }}>{display}</span>
+      {shortfall>0 && !done && <span style={{ fontSize:'10px', color, opacity:0.85 }}>pick {shortfall} more</span>}
+    </div>
+  )
+}
+
 // ── APP ROOT ───────────────────────────────────────────────────────────────────
 export default function App() {
   const [session,    setSession]    = useState(null)
@@ -1465,6 +1487,8 @@ export default function App() {
   const [bookingClicks,    setBookingClicks]    = useState([])
   const [newMktEvent,      setNewMktEvent]      = useState({ event_type:'trailer', label:'', event_date:'', notes:'' })
   const [showtimesFilm,    setShowtimesFilm]    = useState(null)
+  const [sealedBids,       setSealedBids]       = useState([])
+  const [myBid,            setMyBid]            = useState(null)
   // ── LEAGUE STATE ──────────────────────────────────────────────────────────
   const [league,        setLeague]        = useState(null)   // current league object
   const [myLeagues,     setMyLeagues]     = useState([])     // all leagues user belongs to
@@ -1530,6 +1554,11 @@ export default function App() {
   const DRAFT_PENALTY   = 5 // $M per missing pick below minimum
   const draftShortfall  = draftWindowOpen ? Math.max(0, DRAFT_MIN - myDraftPicks) : 0
   const draftPenalty    = draftShortfall * DRAFT_PENALTY
+
+  // ── SEALED BID WINDOW
+  const sealedWindowOpen     = cfg.sealed_bid_window_open || false
+  const sealedWindowDeadline = cfg.sealed_bid_deadline || null
+  const myPendingBid         = sealedBids.find(b => b.player_id === profile?.id && b.status === 'pending')
 
   const loadProfile = async () => {
     const {data} = await supabase.from('profiles').select('*').eq('id',session.user.id).single()
@@ -1915,6 +1944,7 @@ export default function App() {
     {id:'feed',  icon:'📡',label:'Feed'},
     {id:'intent',icon:'👁️',label:'Watchlist'},
     {id:'trades',icon:'🔄',label:'Trades'},
+    ...(sealedWindowOpen ? [{id:'sealed',icon:'🔒',label:'Sealed Bid'}] : []),
     {id:'forecaster',icon:'📊',label:'Forecaster'},
     {id:'oscar', icon:'🏆',label:'Oscars'},
     {id:'results',icon:'📋',label:'Results'},
@@ -2636,6 +2666,22 @@ export default function App() {
           )}
         </>)}
 
+        {/* Release window intent split */}
+        {selF && total > 0 && (
+          <div style={{ ...S.card, marginBottom:'16px' }}>
+            <div style={{ ...S.sectionTitle, marginBottom:'10px' }}>Release Window Intent</div>
+            <div style={{ display:'flex', gap:'12px', marginBottom:'12px' }}>
+              <StatBox label="Theatrical" value={`${Math.round((bookingClicks.filter(b=>b.film_id===selFilm).length/Math.max(1,total))*100)}%`} color={T.gold} sub="booking signals"/>
+              <StatBox label="Digital/Home" value={`${100-Math.round((bookingClicks.filter(b=>b.film_id===selFilm).length/Math.max(1,total))*100)}%`} color={T.blue} sub="intent only"/>
+            </div>
+            <div style={{ height:'6px', borderRadius:'3px', overflow:'hidden', background:T.surfaceUp, display:'flex' }}>
+              <div style={{ width:`${Math.round((bookingClicks.filter(b=>b.film_id===selFilm).length/Math.max(1,total))*100)}%`, background:T.gold, transition:'width .4s ease' }}/>
+              <div style={{ flex:1, background:T.blue }}/>
+            </div>
+            <div style={{ fontSize:'11px', color:T.textDim, marginTop:'8px' }}>Theatrical intent = booking clicks ÷ total picks</div>
+          </div>
+        )}
+
         <div style={{ fontSize:'13px', fontWeight:600, color:T.textSub, margin:'8px 0 12px' }}>All Films — Audience Intent Ranking</div>
         {filmRanking.filter(x=>x.total>0).map(({f,total,vel},i)=>(
           <div key={f.id} className="hoverable" style={{ display:'flex', gap:'12px', alignItems:'center', padding:'10px 12px', background:T.surface, border:`1px solid ${T.border}`, borderRadius:'10px', marginBottom:'6px', cursor:'pointer' }} onClick={()=>setSelFilm(f.id)}>
@@ -2659,6 +2705,96 @@ export default function App() {
   }
 
   // ── TRADES ──────────────────────────────────────────────────────────────────
+
+  // ── SEALED BID PAGE ─────────────────────────────────────────────────────────
+  const SealedBidPage = () => {
+    const [bidFilm, setBidFilm] = useState('')
+    const [bidAmt,  setBidAmt]  = useState('')
+    const [bidType, setBidType] = useState('short')
+    const [bids,    setBids]    = useState([])
+
+    const loadMyBids = async () => {
+      const {data} = await supabase.from('sealed_bids').select('*')
+        .eq('league_id', league?.id).eq('player_id', profile.id)
+      if (data) setBids(data)
+    }
+    React.useEffect(() => { loadMyBids() }, [])
+
+    const myActive = bids.find(b => b.status === 'pending')
+
+    const submitBid = async () => {
+      if (!bidFilm) return notify('Select a film', T.red)
+      if (!bidAmt || isNaN(parseFloat(bidAmt))) return notify('Enter a prediction ($M)', T.red)
+      if (myActive) return notify('You already have a sealed bid this window', T.red)
+      const {error} = await supabase.from('sealed_bids').insert({
+        player_id: profile.id, league_id: league?.id,
+        film_id: bidFilm, bid_type: bidType,
+        prediction: parseFloat(bidAmt), status: 'pending',
+      })
+      if (error) return notify(error.message, T.red)
+      notify('Bid sealed — locked until window closes', T.purple)
+      loadMyBids()
+    }
+
+    const filmOptions = bidType === 'analyst'
+      ? myRoster.map(r => films.find(f => f.id === r.film_id)).filter(Boolean)
+      : films.filter(f => !results[f.id])
+
+    return (
+      <div>
+        <div style={S.pageTitle}>Sealed Bids</div>
+        <div style={{ fontSize:'13px', color:T.textSub, marginTop:'4px', marginBottom:'20px' }}>
+          Bids hidden until commissioner reveals · {sealedWindowDeadline ? `Closes ${new Date(sealedWindowDeadline).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}` : ''}
+        </div>
+        {sealedWindowDeadline && (
+          <div style={{ ...S.card, border:`1px solid ${T.purple}44`, marginBottom:'16px', display:'flex', alignItems:'center', gap:'16px' }}>
+            <div style={{ fontSize:'28px' }}>Timer</div>
+            <div>
+              <div style={{ fontSize:'12px', color:T.purple, fontWeight:600, marginBottom:'4px' }}>Window closes in</div>
+              <DraftTimer deadline={sealedWindowDeadline} shortfall={0} draftMin={0}/>
+            </div>
+          </div>
+        )}
+        {myActive ? (
+          <div style={{ ...S.card, border:`1px solid ${T.purple}44`, marginBottom:'16px' }}>
+            <div style={{ fontSize:'13px', fontWeight:600, color:T.purple, marginBottom:'8px' }}>Your sealed bid is in</div>
+            <div style={{ fontSize:'13px', color:T.textSub }}>
+              {myActive.bid_type === 'short' ? 'Short' : 'Analyst'} on {films.find(f=>f.id===myActive.film_id)?.title} — ${myActive.prediction}M
+            </div>
+            <div style={{ fontSize:'11px', color:T.textDim, marginTop:'6px' }}>Cannot be changed — revealed when window closes</div>
+          </div>
+        ) : (
+          <div style={{ ...S.card, marginBottom:'16px' }}>
+            <div style={{ fontSize:'14px', fontWeight:600, marginBottom:'14px' }}>Place your sealed bid</div>
+            <div style={{ display:'flex', gap:'8px', marginBottom:'14px' }}>
+              {[['short','Short — film flops below 60% est = +100pts'],['analyst','Analyst — predict within 10% = +60pts']].map(([id,label]) => (
+                <button key={id} onClick={()=>setBidType(id)} style={{ flex:1, padding:'10px 8px', background:bidType===id?`${T.purple}22`:T.surfaceUp, border:`1px solid ${bidType===id?T.purple:T.border}`, borderRadius:'10px', cursor:'pointer', color:bidType===id?T.purple:T.textSub, fontFamily:T.mono, fontSize:'12px' }}>{label}</button>
+              ))}
+            </div>
+            <div style={{ marginBottom:'12px' }}>
+              <div style={{ ...S.label, marginBottom:'6px' }}>Film</div>
+              <select value={bidFilm} onChange={e=>setBidFilm(e.target.value)} style={S.inp}>
+                <option value="">Select a film</option>
+                {filmOptions.map(f => <option key={f.id} value={f.id}>{f.title} (Est ${f.estM}M)</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom:'16px' }}>
+              <div style={{ ...S.label, marginBottom:'6px' }}>Opening weekend prediction ($M)</div>
+              <input type="number" step="0.1" value={bidAmt} onChange={e=>setBidAmt(e.target.value)} placeholder="e.g. 42" style={S.inp}/>
+            </div>
+            <Btn onClick={submitBid} color={T.purple} textColor="#fff" full size="lg">Seal Bid</Btn>
+          </div>
+        )}
+        <div style={{ ...S.card, background:T.surfaceUp }}>
+          <div style={{ fontSize:'13px', fontWeight:600, marginBottom:'10px' }}>How it works</div>
+          {[['All players submit chip choices in secret'],['Window closes at deadline — no changes after'],['Commissioner reveals all bids simultaneously'],['Chips activate immediately on reveal']].map(([text],i) => (
+            <div key={i} style={{ fontSize:'12px', color:T.textSub, marginBottom:'6px' }}>{text}</div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   const TradesPage = () => {
     const myProposed = trades.filter(t => t.proposer_id===profile.id)
     const myReceived = trades.filter(t => t.receiver_id===profile.id)
@@ -2949,6 +3085,11 @@ export default function App() {
           <div style={{ background:`${T.purple}18`, borderRadius:'9px', padding:'10px 14px' }}>
             <div style={{ fontSize:'12px', color:T.purple }}>
               ⏱ Deadline: {cfg.draft_deadline ? new Date(cfg.draft_deadline).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'}) : '—'}
+              {cfg.draft_deadline && (
+                <span style={{ marginLeft:'12px', fontSize:'14px' }}>
+                  · <DraftTimer deadline={cfg.draft_deadline} shortfall={0} draftMin={DRAFT_MIN}/>
+                </span>
+              )}
             </div>
             <div style={{ fontSize:'11px', color:T.textSub, marginTop:'4px' }}>
               Players with fewer than {DRAFT_MIN} picks will be auto-penalised ${DRAFT_PENALTY}M per missing film when deadline passes
@@ -2982,6 +3123,58 @@ export default function App() {
                 loadData(league?.id)
               }}>⚠️ Apply Draft Penalties Now</Btn>
             )}
+          </div>
+        )}
+      </div>
+
+      {/* Sealed bid window */}
+      <div style={{ ...S.card, marginBottom:'12px', border:`1px solid ${T.purple}33` }}>
+        <div style={{ ...S.sectionTitle, color:T.purple, marginBottom:'10px' }}>🔒 Sealed Bid Window</div>
+        <div style={{ fontSize:'13px', color:T.textSub, marginBottom:'12px' }}>
+          Open a window where players secretly submit chip activations. All revealed at once when you close it.
+        </div>
+        <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
+          <Btn color={sealedWindowOpen?T.red:T.purple} textColor="#fff" size="sm" onClick={async()=>{
+            const deadline = new Date(Date.now() + 7*86400000).toISOString()
+            await supabase.from('league_config').update({
+              sealed_bid_window_open: !sealedWindowOpen,
+              sealed_bid_deadline: !sealedWindowOpen ? deadline : null,
+            }).eq('league_id', league?.id)
+            notify(sealedWindowOpen ? 'Sealed bid window closed' : '🔒 Sealed bid window open — 7 days', T.purple)
+            loadData(league?.id)
+          }}>{sealedWindowOpen ? 'Close Window' : 'Open Sealed Bid Window (7 days)'}</Btn>
+
+          {sealedWindowOpen && (
+            <Btn color={T.gold} textColor="#0D0A08" size="sm" onClick={async()=>{
+              if (!confirm('Reveal all bids and activate chips now?')) return
+              const {data: bids} = await supabase.from('sealed_bids')
+                .select('*').eq('league_id', league?.id).eq('status','pending')
+              if (!bids?.length) return notify('No pending bids', T.textSub)
+              for (const bid of bids) {
+                // Activate the chip
+                const ex = allChips.find(c => c.player_id === bid.player_id)
+                if (bid.bid_type === 'short') {
+                  if (ex) await supabase.from('chips').update({short_film_id:bid.film_id,short_phase:ph,short_prediction:bid.prediction}).eq('player_id',bid.player_id)
+                  else await supabase.from('chips').insert({player_id:bid.player_id,short_film_id:bid.film_id,short_phase:ph,short_prediction:bid.prediction,league_id:league?.id})
+                } else if (bid.bid_type === 'analyst') {
+                  if (ex) await supabase.from('chips').update({analyst_film_id:bid.film_id,analyst_phase:ph,analyst_prediction:bid.prediction}).eq('player_id',bid.player_id)
+                  else await supabase.from('chips').insert({player_id:bid.player_id,analyst_film_id:bid.film_id,analyst_phase:ph,analyst_prediction:bid.prediction,league_id:league?.id})
+                }
+                // Mark bid as revealed
+                await supabase.from('sealed_bids').update({status:'revealed'}).eq('id',bid.id)
+                await logActivity(bid.player_id,`chip_${bid.bid_type}`,{film_title:films.find(f=>f.id===bid.film_id)?.title,prediction:bid.prediction,via:'sealed_bid'},league?.id)
+              }
+              await supabase.from('league_config').update({sealed_bid_window_open:false,sealed_bid_deadline:null}).eq('league_id',league?.id)
+              notify(`Revealed ${bids.length} sealed bid${bids.length!==1?'s':''}!`, T.gold)
+              loadData(league?.id)
+            }}>Reveal All Bids Now</Btn>
+          )}
+        </div>
+        {sealedWindowOpen && sealedWindowDeadline && (
+          <div style={{ background:`${T.purple}18`, borderRadius:'9px', padding:'10px 14px', marginTop:'12px' }}>
+            <div style={{ fontSize:'12px', color:T.purple }}>
+              Closes: {new Date(sealedWindowDeadline).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}
+            </div>
           </div>
         )}
       </div>
@@ -3179,8 +3372,8 @@ export default function App() {
           )}
 
           {draftWindowOpen && draftShortfall>0 && (
-            <div onClick={() => setPage('market')} style={{ background:`${T.red}22`, border:`1px solid ${T.red}44`, borderRadius:'10px', padding:'8px 14px', fontSize:'12px', color:T.red, cursor:'pointer', flexShrink:0, display:'flex', alignItems:'center', gap:'6px' }}>
-              ⚠️ Draft · {draftDaysLeft}d left
+            <div onClick={() => setPage('market')} style={{ background:`${T.red}22`, border:`1px solid ${T.red}44`, borderRadius:'10px', padding:'8px 14px', fontSize:'12px', color:T.red, cursor:'pointer', flexShrink:0, display:'flex', alignItems:'center', gap:'8px' }}>
+              ⚠️ Draft · <DraftTimer deadline={draftDeadline} shortfall={draftShortfall} draftMin={DRAFT_MIN}/>
             </div>
           )}
 
@@ -3235,14 +3428,20 @@ export default function App() {
             <div style={{ background: draftShortfall>0 ? `${T.red}18` : `${T.green}18`, border:`1px solid ${draftShortfall>0?T.red+'44':T.green+'44'}`, borderRadius:'12px', padding:'12px 16px', marginBottom:'16px', display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap' }}>
               <div style={{ fontSize:'20px' }}>{draftShortfall>0?'⚠️':'✅'}</div>
               <div style={{ flex:1 }}>
-                <div style={{ fontSize:'13px', fontWeight:600, color:draftShortfall>0?T.red:T.green }}>
-                  {draftWindowOpen && draftShortfall>0
-                    ? `Draft deadline in ${draftDaysLeft}d — pick ${draftShortfall} more film${draftShortfall>1?'s':''} or lose $${draftPenalty}M`
-                    : `Draft window open · ${draftDaysLeft}d left · ${myDraftPicks}/${DRAFT_MIN} minimum picks met ✓`
-                  }
+                <div style={{ fontSize:'13px', fontWeight:600, color:draftShortfall>0?T.red:T.green, display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' }}>
+                  <span>{draftShortfall>0 ? `Draft deadline` : `Draft window open`}</span>
+                  {draftDeadline && (
+                    <span style={{ fontSize:'18px' }}>
+                      <DraftTimer deadline={draftDeadline} shortfall={draftShortfall} draftMin={DRAFT_MIN}/>
+                    </span>
+                  )}
+                  {draftShortfall===0 && <span>· {myDraftPicks}/{DRAFT_MIN} minimum picks met ✓</span>}
                 </div>
                 <div style={{ fontSize:'11px', color:T.textSub, marginTop:'2px' }}>
-                  Pick at least {DRAFT_MIN} films from Phase {ph} before deadline · −${DRAFT_PENALTY}M per missing pick
+                  {draftShortfall>0
+                    ? `Pick ${draftShortfall} more film${draftShortfall>1?'s':''} or lose $${draftPenalty}M · min ${DRAFT_MIN} of ${MAX_ROSTER} required`
+                    : `Pick at least ${DRAFT_MIN} films from Phase ${ph} · −$${DRAFT_PENALTY}M per missing pick`
+                  }
                 </div>
               </div>
               <Btn onClick={()=>setPage('market')} color={draftShortfall>0?T.red:T.green} textColor="#fff" size="sm">Go to Market →</Btn>
@@ -3268,6 +3467,7 @@ export default function App() {
               onBack={() => { setPage(prevPage); setProfilePlayer(null) }}
             />
           )}
+          {page==='sealed'       && sealedWindowOpen && <SealedBidPage/>}
           {page==='trades'       && <TradesPage/>}
           {page==='intent'       && <IntentPage/>}
           {page==='forecaster'   && <ForecasterPage/>}
@@ -3283,7 +3483,7 @@ export default function App() {
         <div style={{ position:'fixed', bottom:0, left:0, right:0, background:T.surface, borderTop:`1px solid ${T.border}`, display:'flex', zIndex:100, paddingBottom:'env(safe-area-inset-bottom)', backdropFilter:'blur(12px)' }}>
           {BOTTOM_TABS.map(({ id, icon, label }) => {
             const active = page===id
-            const hasDot = (id==='trades' && pendingForMe.length>0) || (id==='market' && draftWindowOpen && draftShortfall>0)
+            const hasDot = (id==='trades' && pendingForMe.length>0) || (id==='market' && draftWindowOpen && draftShortfall>0) || (id==='sealed' && sealedWindowOpen && !myPendingBid)
             return (
               <button key={id} onClick={() => { setPage(id); setMoreOpen(false) }} style={{
                 flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:'6px',
