@@ -3567,8 +3567,8 @@ export default function App() {
       )}
 
       {tradeModal && (
-        <TradeModal profile={profile} players={players} rosters={rosters} films={films} filmVal={filmVal} curPhase={curPhase} onClose={() => setTradeModal(false)} notify={notify} onDone={() => { setTradeModal(false); loadData(league?.id); setPage('trades') }}/>
-      )}
+        <TradeModal profile={profile} players={players} rosters={rosters} films={films} filmVal={filmVal} curPhase={curPhase} onClose={() => setTradeModal(false)} notify={notify} onDone={() => { setTradeModal(false); loadData(league?.id); setPage('trades') }} league={league}/>
+
 
       {/* Trailer modal */}
       {trailerFilm && (
