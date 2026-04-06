@@ -1543,22 +1543,7 @@ export default function App() {
 
   const isCommissioner = session?.user?.email === COMMISSIONER_EMAIL || league?.commissioner_id === session?.user?.id
 
-  // ── DRAFT / IPO PHASE ────────────────────────────────────────────────────────
-  // 2 weeks before phase start = draft window. Must pick 4 of 6. -$5M per missing film.
-  const draftWindowOpen = cfg.draft_window_open || false
-  const draftDeadline   = cfg.draft_deadline || null
-  const draftMsLeft     = draftDeadline ? Math.max(0, new Date(draftDeadline).getTime() - Date.now()) : 0
-  const draftDaysLeft   = Math.ceil(draftMsLeft / 86400000)
-  const myDraftPicks    = myRoster?.length || 0
-  const DRAFT_MIN       = 4
-  const DRAFT_PENALTY   = 5 // $M per missing pick below minimum
-  const draftShortfall  = draftWindowOpen ? Math.max(0, DRAFT_MIN - myDraftPicks) : 0
-  const draftPenalty    = draftShortfall * DRAFT_PENALTY
 
-  // ── SEALED BID WINDOW
-  const sealedWindowOpen     = cfg.sealed_bid_window_open || false
-  const sealedWindowDeadline = cfg.sealed_bid_deadline || null
-  const myPendingBid         = sealedBids.find(b => b.player_id === profile?.id && b.status === 'pending')
 
   const loadProfile = async () => {
     const {data} = await supabase.from('profiles').select('*').eq('id',session.user.id).single()
@@ -1931,6 +1916,17 @@ export default function App() {
   const recutUsed    = chips?.recut_used || false
   const shortUsed    = !!chips?.short_film_id
   const analystUsed  = !!chips?.analyst_film_id
+  const sealedWindowOpen     = cfg.sealed_bid_window_open || false
+  const sealedWindowDeadline = cfg.sealed_bid_deadline || null
+  const myPendingBid         = sealedBids.find(b => b.player_id === profile?.id && b.status === 'pending')
+  // ── DRAFT / IPO PHASE ─────────────────────────────────────────────────────
+  const draftWindowOpen = cfg.draft_window_open || false
+  const draftDeadline   = cfg.draft_deadline || null
+  const draftMsLeft     = draftDeadline ? Math.max(0, new Date(draftDeadline).getTime() - Date.now()) : 0
+  const draftDaysLeft   = Math.ceil(draftMsLeft / 86400000)
+  const myDraftPicks    = myRoster.length
+  const draftShortfall  = draftWindowOpen ? Math.max(0, DRAFT_MIN - myDraftPicks) : 0
+  const draftPenalty    = draftShortfall * DRAFT_PENALTY
 
   // Window timer
   const wMs = cfg.phase_window_opened_at ? Math.max(0, 72*3600000-(nowRef.current-new Date(cfg.phase_window_opened_at).getTime())) : 0
@@ -3568,7 +3564,7 @@ export default function App() {
 
       {tradeModal && (
         <TradeModal profile={profile} players={players} rosters={rosters} films={films} filmVal={filmVal} curPhase={curPhase} onClose={() => setTradeModal(false)} notify={notify} onDone={() => { setTradeModal(false); loadData(league?.id); setPage('trades') }} league={league}/>
-
+      )}
 
       {/* Trailer modal */}
       {trailerFilm && (
