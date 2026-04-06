@@ -1029,7 +1029,7 @@ function PlayerProfilePage({ player, films, rosters, results, weeklyG, allChips,
 
 
 // ── TRADE MODAL ────────────────────────────────────────────────────────────────
-function TradeModal({ profile, players, rosters, films, filmVal, curPhase, onClose, notify, onDone }) {
+function TradeModal({ profile, players, rosters, films, filmVal, curPhase, onClose, notify, onDone, league }) {
   const [target,    setTarget]    = useState('')
   const [myFilm,    setMyFilm]    = useState('')
   const [theirFilm, setTheirFilm] = useState('')
