@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabase'
 
 const SUPABASE_URL = 'https://yxluqkfanhzktinayvex.supabase.co'
+const SUPABASE_ANON_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY || ''
 
 const T = {
   bg:'#0D0A08',surface:'#161210',surfaceUp:'#1E1916',
@@ -51,7 +52,7 @@ const BOTTOM_TABS = [
   {id:'roster',icon:'📁',label:'Roster'},
   {id:'chips',icon:'⚡',label:'Chips'},
   {id:'league',icon:'🥇',label:'League'},
-  {id:'feed',icon:'📡',label:'Feed'},
+  {id:'trades',icon:'🔄',label:'Trades'},
 ]
 
 const CHAIN_META = {
@@ -179,9 +180,26 @@ function calcOpeningPts(film,actualM,isEB=false,isAnalyst=false){
 function calcLegsBonus(actualM,week2Gross){return(actualM!=null&&week2Gross!=null&&(actualM-week2Gross)/actualM<0.3)?25:0}
 function calcWeeklyPts(weekMap){return Object.entries(weekMap).reduce((s,[wk,g])=>s+Number(g)*(Number(wk)>=4?1.1:1),0)}
 function calcDemandMult(film,rosters,phase,totalPlayers){
+  // Ownership demand only — watchlist intentionally excluded (gameable)
   if(!totalPlayers) return 1
-  const pct=rosters.filter(r=>r.film_id===film.id&&r.phase===phase&&r.active).length/totalPlayers
-  return pct>0.4?1.4:pct>0.25?1.25:pct>0.15?1.1:pct<0.05?0.9:1
+  const owners=rosters.filter(r=>r.film_id===film.id&&r.phase===phase&&r.active).length
+  const pct=owners/totalPlayers
+  // Scale: 0.8 (undiscovered) → 1.3 (hot)
+  // Curve is deliberately gentle — ownership is one signal, performance is the main price driver
+  const demandMult=
+    pct>=0.7?1.30:
+    pct>=0.55?1.22:
+    pct>=0.40?1.15:
+    pct>=0.25?1.08:
+    pct>=0.10?1.00:
+    pct>=0.02?0.92:
+    0.80 // truly undiscovered — meaningful discount to reward early movers
+  // Pre-result RT nudge — if RT score is known before opening weekend,
+  // nudge price slightly so critics consensus is priced in
+  const rtNudge=film.rt!=null&&!film.hasResult
+    ?(film.rt>=90?1.08:film.rt>=75?1.04:film.rt<40?0.92:film.rt<55?0.96:1.0)
+    :1.0
+  return Math.round(demandMult*rtNudge*100)/100
 }
 function timeAgo(ts){
   const d=Date.now()-new Date(ts).getTime()
@@ -206,6 +224,16 @@ async function dbUpsertWeekly(filmId,wk,g){
 }
 async function logActivity(uid,type,payload,leagueId){
   try{await supabase.from('activity_feed').insert({user_id:uid,type,payload,league_id:leagueId||null})}catch{}
+}
+
+async function sendNotification(type,payload){
+  try{
+    await fetch(`${SUPABASE_URL}/functions/v1/send-notification`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${SUPABASE_ANON_KEY}`},
+      body:JSON.stringify({type,payload})
+    })
+  }catch{}
 }
 
 // ── TIMERS ─────────────────────────────────────────────────────────────────────
@@ -499,6 +527,7 @@ function TradeModal({profile,players,rosters,films,filmVal,curPhase,onClose,noti
     const{error}=await supabase.from('trades').insert({proposer_id:profile.id,receiver_id:target,proposer_film_id:myFilm,receiver_film_id:theirFilm,status:'pending',phase:ph,league_id:league?.id})
     if(error) return notify(error.message,T.red)
     await logActivity(profile.id,'trade_proposed',{player_name:profile.name,my_film:mf?.title,their_film:tf?.title},league?.id)
+    await sendNotification('trade_proposed',{trade_id:data?.id,proposer_name:profile.name,receiver_id:target,proposer_film:mf?.title,receiver_film:tf?.title})
     notify('Trade proposal sent!',T.blue);onDone()
   }
   return(
@@ -808,6 +837,7 @@ function CreateProfile({session,onCreated,notify}){
 export default function App(){
   const[session,setSession]=useState(null)
   const[loading,setLoading]=useState(true)
+  const[dataLoading,setDataLoading]=useState(false)
   const[profile,setProfile]=useState(null)
   const[page,setPage]=useState('market')
   const[players,setPlayers]=useState([])
@@ -869,6 +899,14 @@ export default function App(){
     setMeta('apple-mobile-web-app-title','BOXD')
     setMeta('viewport','width=device-width,initial-scale=1,viewport-fit=cover')
     document.title='BOXD · Fantasy Box Office'
+    // Inject manifest link
+    if(!document.querySelector('link[rel="manifest"]')){
+      const lnk=document.createElement('link');lnk.rel='manifest';lnk.href='/manifest.json';document.head.appendChild(lnk)
+    }
+    // Register service worker
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register('/sw.js').catch(()=>{})
+    }
     return()=>document.head.removeChild(el)
   },[])
   useEffect(()=>{supabase.auth.getSession().then(({data:{session}})=>{setSession(session);setLoading(false)});supabase.auth.onAuthStateChange((_,s)=>setSession(s))},[])
@@ -934,6 +972,7 @@ export default function App(){
 
   const loadData=async(leagueId)=>{
     const lid=leagueId||league?.id;if(!lid)return
+    setDataLoading(true)
     const memberIds=(await supabase.from('league_members').select('user_id').eq('league_id',lid)).data?.map(m=>m.user_id)||[]
     const[{data:ps},{data:rs},{data:res},{data:fv},{data:cf},{data:wg},{data:ch},{data:fc},{data:op},{data:ad},{data:ww},{data:pb},{data:fl}]=await Promise.all([
       supabase.from('profiles').select('*').in('id',memberIds.length?memberIds:['none']),
@@ -974,6 +1013,7 @@ export default function App(){
       tmdbId:f.tmdb_id||null,
     })))
     loadTrades(lid)
+    setDataLoading(false)
   }
 
   // ── BUDGET ──────────────────────────────────────────────────────────────────
@@ -1008,6 +1048,8 @@ export default function App(){
       }).eq('league_id',league?.id)
       // 3. Log it
       await logActivity(session.user.id,'phase_advance',{from_phase:curPhase(),to_phase:nextPhase,league:league?.name},league?.id)
+      // Notify all league members
+      await sendNotification('phase_advance',{league_id:league?.id,from_phase:curPhase(),to_phase:nextPhase,players:players.map(p=>({id:p.id}))})
       notify(`✅ Phase ${nextPhase} started · budgets banked`,T.green)
       loadData(league?.id)
     }catch(e){notify(`Phase transition failed: ${e.message}`,T.red)}
@@ -1037,9 +1079,9 @@ export default function App(){
       if(auteurOn(pid,film.id))op=Math.round(op*1.1)
       t+=op+Math.round(calcWeeklyPts(weeklyG[film.id]||{}))+calcLegsBonus(actual,weeklyG[film.id]?.[2])+wwBonus(film.id)+shortBonus(pid,film.id)
     })
-    return t+forecasterBonus(pid,ph)
+    return t
   }
-  const calcPoints=(pid)=>{let t=[1,2,3,4,5].reduce((s,ph)=>s+calcPhasePoints(pid,ph),0);if(oscarPreds.find(o=>o.player_id===pid)?.correct)t+=75;return t+seasonForecasterBonus(pid)}
+  const calcPoints=(pid)=>{let t=[1,2,3,4,5].reduce((s,ph)=>s+calcPhasePoints(pid,ph),0);if(oscarPreds.find(o=>o.player_id===pid)?.correct)t+=75;return t}
 
   // ── BUY / SELL ──────────────────────────────────────────────────────────────
   const buyFilm=async(film)=>{
@@ -1287,7 +1329,17 @@ export default function App(){
                     {film.franchise&&<Pill>{film.franchise.split(':')[0]}</Pill>}
                     {film.rt!=null&&<Pill color={film.rt>=90?T.green:film.rt>=75?T.gold:T.red}>🍅 {film.rt}%</Pill>}
                   </div>
-                  {ownCount>0&&<div style={{fontSize:'12px',color:demandPct>=40?T.red:demandPct>=25?T.orange:T.textSub}}>{demandPct>=40?'🔥 ':demandPct>=15?'📈 ':''}{ownCount} own · {demandPct}%</div>}
+                  {ownCount>0&&(()=>{
+                    const mult=calcDemandMult(film,rosters,ph,players.length)
+                    return(
+                      <div style={{display:'flex',gap:'6px',alignItems:'center',flexWrap:'wrap'}}>
+                        <span style={{fontSize:'12px',color:demandPct>=55?T.red:demandPct>=40?T.orange:demandPct>=25?T.gold:T.textSub}}>
+                          {demandPct>=55?'🔥 ':demandPct>=40?'📈 ':''}{ownCount}/{players.length} own · {demandPct}%
+                        </span>
+                        {mult!==1&&<span style={{fontSize:'11px',fontWeight:700,color:mult>1?T.orange:T.blue,background:mult>1?`${T.orange}18`:`${T.blue}18`,padding:'2px 7px',borderRadius:'6px'}}>×{mult.toFixed(2)}</span>}
+                      </div>
+                    )
+                  })()}
                   {actual!=null&&(
                     <div style={{background:T.surfaceUp,borderRadius:'9px',padding:'9px 11px',cursor:owned?'pointer':'default'}} onClick={()=>owned&&setScoreModal({film,holding:owned})}>
                       <div style={{fontSize:'13px',color:T.green,fontWeight:600}}>${actual}M actual</div>
@@ -1296,10 +1348,9 @@ export default function App(){
                     </div>
                   )}
                   <div style={{display:'flex',gap:'6px'}}>
+                    <button onClick={()=>setFilmDetail(film)} style={{...S.btn,background:T.surfaceUp,color:T.textSub,fontSize:'12px',padding:'8px 12px',flex:1,textTransform:'none',letterSpacing:0,gap:'5px'}}>💬 Details</button>
                     <PickButton filmId={film.id} userId={profile.id} allPicks={allPicks} onToggle={togglePick} size="sm"/>
-                    <button onClick={()=>setFilmDetail(film)} style={{...S.btn,background:T.surfaceUp,color:T.textSub,fontSize:'13px',padding:'8px',flex:1}}>💬</button>
-                    <button onClick={e=>{e.stopPropagation();setShowtimesFilm(film)}} style={{...S.btn,background:T.surfaceUp,color:T.textSub,fontSize:'13px',padding:'8px',flex:1}}>🎟</button>
-                    {film.trailer?.length>5&&<button onClick={e=>{e.stopPropagation();setTrailerFilm(film)}} style={{...S.btn,background:T.surfaceUp,color:T.textSub,fontSize:'13px',padding:'8px',flex:1}}>▶</button>}
+                    {film.trailer?.length>5&&<button onClick={e=>{e.stopPropagation();setTrailerFilm(film)}} style={{...S.btn,background:T.surfaceUp,color:T.textSub,fontSize:'14px',padding:'8px 10px'}}>▶</button>}
                   </div>
                   {owned?<Btn onClick={()=>sellFilm(film)} variant="outline" color={T.red} full size="md">Drop{win?' FREE':` · $${Math.max(0,val-cfg.tx_fee)}M`}</Btn>:<Btn onClick={()=>buyFilm(film)} color={T.gold} full size="md">Acquire · {cur}{val}M</Btn>}
                 </div>
@@ -1323,6 +1374,7 @@ export default function App(){
       {myRoster.length===0?<div style={{...S.card,textAlign:'center',padding:'48px 24px'}}><div style={{fontSize:'32px',marginBottom:'12px'}}>🎬</div><div style={{fontSize:'14px',color:T.textSub}}>No films this phase.</div><div style={{fontSize:'12px',color:T.textDim,marginTop:'6px'}}>Head to Market to acquire.</div></div>:<div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(auto-fill,minmax(340px,1fr))',gap:'10px'}}>{myRoster.map(h=>{
         const film=films.find(f=>f.id===h.film_id);if(!film)return null
         const val=filmVal(film),actual=results[film.id],pnl=val-h.bought_price
+        const mult=calcDemandMult(film,rosters,ph,players.length)
         const gc=GENRE_COL[film.genre]||T.textSub
         const wp=actual!=null?Math.round(calcWeeklyPts(weeklyG[film.id]||{})):0
         const eb=isEarlyBird(h),ao=analystOn(profile.id,film.id),au=auteurOn(profile.id,film.id)
@@ -1337,7 +1389,7 @@ export default function App(){
               <div style={{fontSize:'12px',color:T.textSub,marginBottom:'10px'}}>{film.dist} · W{film.week}</div>
               <div style={{display:'flex',gap:'16px',flexWrap:'wrap',marginBottom:'8px'}}>
                 <div><div style={S.label}>Paid</div><div style={{fontSize:'15px',fontWeight:600,marginTop:'3px'}}>{cur}{h.bought_price}M</div></div>
-                <div><div style={S.label}>Now</div><div style={{fontSize:'15px',fontWeight:600,color:pnl>=0?T.green:T.red,marginTop:'3px'}}>{cur}{val}M</div></div>
+                <div><div style={S.label}>Now</div><div style={{fontSize:'15px',fontWeight:600,color:pnl>=0?T.green:T.red,marginTop:'3px'}}>{cur}{val}M{mult>1?<span style={{fontSize:'10px',color:T.red,marginLeft:'4px'}}>×{mult.toFixed(2)}</span>:null}</div></div>
                 <div><div style={S.label}>P&L</div><div style={{fontSize:'15px',fontWeight:700,color:pnl>=0?T.green:T.red,marginTop:'3px'}}>{pnl>=0?'+':''}{pnl}M</div></div>
                 {actual!=null&&<div><div style={S.label}>Pts</div><div style={{fontSize:'15px',fontWeight:700,color:T.gold,marginTop:'3px'}}>{total}</div></div>}
               </div>
@@ -1572,33 +1624,133 @@ export default function App(){
     )
   }
 
-  const ForecasterPage=()=>(
-    <div>
-      <div style={S.pageTitle}>Forecaster</div>
-      <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px',marginBottom:'20px'}}>Best phase accuracy = +15pts · Best season = +50pts</div>
-      {films.filter(f=>!results[f.id]).map(film=>{const fc=forecasts[film.id];return(
-        <div key={film.id} style={{...S.card,display:'flex',alignItems:'center',gap:'12px',flexWrap:'wrap',marginBottom:'8px'}}>
-          <FilmPoster film={film} width={36} height={54} radius={6}/>
-          <div style={{flex:2,minWidth:'120px'}}><div style={{fontSize:'14px',fontWeight:500}}>{film.title}</div><div style={{fontSize:'12px',color:T.textSub}}>Est ${film.estM}M · Ph{film.phase}</div></div>
-          <input type="number" step="0.1" defaultValue={fc||''} placeholder="$M" id={`fc-${film.id}`} style={{...S.inp,width:'90px'}}/>
-          <Btn color={T.blue} textColor="#fff" onClick={()=>{const v=parseFloat(document.getElementById(`fc-${film.id}`).value);if(isNaN(v))return notify('Enter a number',T.red);saveForecast(film.id,v)}}>Lock</Btn>
-          {fc&&<span style={{fontSize:'13px',color:T.blue}}>${fc}M</span>}
+  const ForecasterPage=()=>{
+    const[fcTab,setFcTab]=useState('predict')
+    // Standalone accuracy score — lower is better (mean absolute % error)
+    const fcScore=(pid)=>{
+      const scored=films.filter(f=>results[f.id]!=null)
+      const preds=allForecasts.filter(f=>f.player_id===pid&&scored.find(sf=>sf.id===f.film_id))
+      if(!preds.length)return null
+      return Math.round(preds.reduce((s,fc)=>s+Math.abs(fc.predicted_m-results[fc.film_id])/results[fc.film_id]*100,0)/preds.length)
+    }
+    const leaderboard=[...players].map(p=>({p,score:fcScore(p.id),count:allForecasts.filter(f=>f.player_id===p.id).length})).filter(x=>x.score!=null).sort((a,b)=>a.score-b.score)
+    const myScore=fcScore(profile.id)
+    const myRank=leaderboard.findIndex(x=>x.p.id===profile.id)+1
+    const upcomingFilms=films.filter(f=>!results[f.id])
+    const resultedFilms=films.filter(f=>results[f.id]!=null)
+    return(
+      <div>
+        <div style={{display:'flex',alignItems:'baseline',gap:'10px',marginBottom:'3px'}}>
+          <div style={S.pageTitle}>📊 Forecaster</div>
+          <Badge color={T.blue}>Side Game</Badge>
         </div>
-      )})}
-      {films.filter(f=>results[f.id]).length>0&&<div style={{marginTop:'28px'}}>
-        <div style={{...S.sectionTitle,marginBottom:'14px'}}>Results</div>
-        {films.filter(f=>results[f.id]).map(film=>{const actual=results[film.id],pfc=allForecasts.filter(f=>f.film_id===film.id);return(
-          <div key={film.id} style={{...S.card,marginBottom:'10px'}}>
-            <div style={{fontSize:'14px',fontWeight:600,marginBottom:'10px'}}>{film.title} <span style={{color:T.green,fontWeight:400}}>— ${actual}M</span></div>
-            <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
-              {pfc.map(fc=>{const p=players.find(pl=>pl.id===fc.player_id),pct=Math.round((Math.abs(fc.predicted_m-actual)/actual)*100);return<div key={fc.id} style={{background:T.surfaceUp,borderRadius:'9px',padding:'5px 12px',fontSize:'12px'}}><span style={{color:p?.color||T.gold}}>{p?.name}</span><span style={{color:T.textSub}}> ${fc.predicted_m}M </span><span style={{color:pct<=10?T.green:T.red}}>{pct<=10?'✅ ':''}{pct}% off</span></div>})}
-              {!pfc.length&&<div style={{fontSize:'12px',color:T.textSub}}>No predictions</div>}
-            </div>
+        <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px',marginBottom:'4px'}}>Predict opening weekends · separate from main league standings</div>
+        <div style={{fontSize:'12px',color:T.textDim,marginBottom:'20px'}}>Accuracy scored as mean absolute % error — lower is better</div>
+
+        {/* My score card */}
+        {myScore!=null&&<div style={{...S.card,border:`1px solid ${T.blue}44`,marginBottom:'20px',display:'flex',gap:'20px',alignItems:'center'}}>
+          <div style={{textAlign:'center',flexShrink:0}}>
+            <div style={{fontSize:'48px',fontWeight:900,color:myScore<=10?T.green:myScore<=25?T.gold:T.red,lineHeight:1,fontFamily:T.mono}}>{myScore}%</div>
+            <div style={{...S.label,marginTop:'4px'}}>avg error</div>
           </div>
-        )})}
-      </div>}
-    </div>
-  )
+          <div style={{flex:1}}>
+            <div style={{fontSize:'15px',fontWeight:700,marginBottom:'6px'}}>Your Forecasting Record</div>
+            <div style={{fontSize:'13px',color:T.textSub,marginBottom:'4px'}}>{allForecasts.filter(f=>f.player_id===profile.id).length} predictions made · {allForecasts.filter(f=>f.player_id===profile.id&&results[f.film_id]!=null&&Math.abs(f.predicted_m-results[f.film_id])/results[f.film_id]<=0.1).length} within 10%</div>
+            {myRank>0&&<div style={{fontSize:'13px',color:myRank===1?T.gold:T.textSub}}>#{myRank} of {leaderboard.length} forecasters</div>}
+          </div>
+        </div>}
+
+        {/* Tab bar */}
+        <div style={{display:'flex',borderBottom:`1px solid ${T.border}`,marginBottom:'20px'}}>
+          {[['predict','🎯 Make Picks'],['results','📋 Results'],['board','🏆 Leaderboard']].map(([id,label])=>(
+            <button key={id} onClick={()=>setFcTab(id)} style={{...S.btn,background:'none',border:'none',fontSize:'13px',fontWeight:fcTab===id?700:400,color:fcTab===id?T.blue:T.textSub,padding:'10px 16px',borderBottom:`2px solid ${fcTab===id?T.blue:'transparent'}`,borderRadius:0,textTransform:'none',letterSpacing:0}}>{label}</button>
+          ))}
+        </div>
+
+        {fcTab==='predict'&&<div>
+          {upcomingFilms.length===0&&<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>All films have results — nothing left to predict.</div>}
+          {upcomingFilms.map(film=>{
+            const fc=forecasts[film.id]
+            const gc=GENRE_COL[film.genre]||T.textSub
+            return(
+              <div key={film.id} style={{...S.card,display:'flex',gap:'14px',alignItems:'center',marginBottom:'10px',flexWrap:'wrap'}}>
+                <FilmPoster film={film} width={44} height={66} radius={7}/>
+                <div style={{flex:2,minWidth:'140px'}}>
+                  <div style={{fontSize:'14px',fontWeight:600,marginBottom:'3px'}}>{film.title}</div>
+                  <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
+                    <Pill color={gc}>{film.genre}</Pill>
+                    <Pill color={T.textSub}>Est ${film.estM}M</Pill>
+                    <Pill color={T.textSub}>W{film.week}</Pill>
+                  </div>
+                </div>
+                <div style={{display:'flex',gap:'8px',alignItems:'center',flexShrink:0}}>
+                  <input type="number" step="0.1" defaultValue={fc||''} placeholder="$M prediction" id={`fc-${film.id}`} style={{...S.inp,width:'130px'}}/>
+                  <Btn color={T.blue} textColor="#fff" onClick={()=>{const v=parseFloat(document.getElementById(`fc-${film.id}`).value);if(isNaN(v))return notify('Enter a number',T.red);saveForecast(film.id,v)}}>Lock</Btn>
+                </div>
+                {fc&&<div style={{width:'100%',fontSize:'12px',color:T.blue,paddingLeft:'58px'}}>🔒 Locked at ${fc}M</div>}
+              </div>
+            )
+          })}
+        </div>}
+
+        {fcTab==='results'&&<div>
+          {resultedFilms.length===0&&<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No results yet.</div>}
+          {resultedFilms.map(film=>{
+            const actual=results[film.id]
+            const pfc=allForecasts.filter(f=>f.film_id===film.id).map(fc=>{
+              const p=players.find(pl=>pl.id===fc.player_id)
+              const pct=Math.round(Math.abs(fc.predicted_m-actual)/actual*100)
+              return{...fc,p,pct}
+            }).sort((a,b)=>a.pct-b.pct)
+            const gc=GENRE_COL[film.genre]||T.textSub
+            return(
+              <div key={film.id} style={{...S.card,marginBottom:'12px'}}>
+                <div style={{display:'flex',gap:'14px',alignItems:'center',marginBottom:'12px'}}>
+                  <FilmPoster film={film} width={40} height={60} radius={6}/>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:'14px',fontWeight:600}}>{film.title}</div>
+                    <div style={{fontSize:'13px',color:T.green,fontWeight:700,marginTop:'2px'}}>Actual: ${actual}M <span style={{color:T.textSub,fontWeight:400}}>· Est was ${film.estM}M</span></div>
+                  </div>
+                </div>
+                {pfc.length>0?<div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
+                  {pfc.map((fc,i)=>(
+                    <div key={fc.id} style={{display:'flex',alignItems:'center',gap:'10px',padding:'8px 12px',background:i===0?`${T.green}12`:T.surfaceUp,borderRadius:'9px',border:`1px solid ${i===0?T.green+'44':T.border}`}}>
+                      {i===0&&<span style={{fontSize:'14px'}}>🎯</span>}
+                      <div style={{width:'24px',height:'24px',borderRadius:'50%',background:fc.p?.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',fontWeight:900,color:'#0D0A08',flexShrink:0}}>{fc.p?.name?.[0]}</div>
+                      <div style={{flex:1,fontSize:'13px',color:fc.p?.color||T.gold,fontWeight:500}}>{fc.p?.name}</div>
+                      <div style={{fontSize:'13px',color:T.textSub}}>${fc.predicted_m}M</div>
+                      <div style={{fontSize:'13px',fontWeight:700,color:fc.pct<=5?T.green:fc.pct<=15?T.gold:T.red,minWidth:'50px',textAlign:'right'}}>{fc.pct<=5?'🎯 ':''}{fc.pct}% off</div>
+                    </div>
+                  ))}
+                </div>:<div style={{fontSize:'12px',color:T.textSub}}>No predictions made</div>}
+              </div>
+            )
+          })}
+        </div>}
+
+        {fcTab==='board'&&<div>
+          <div style={{...S.card,border:`1px solid ${T.blue}33`,marginBottom:'16px',padding:'16px 20px'}}>
+            <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.6}}>Ranked by mean absolute % error across all predicted films. Lower = more accurate. Only players with at least one prediction are shown.</div>
+          </div>
+          {leaderboard.length===0&&<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No predictions yet — be the first to forecast!</div>}
+          {leaderboard.map(({p,score,count},i)=>(
+            <div key={p.id} style={{...S.card,display:'flex',alignItems:'center',gap:'14px',marginBottom:'8px',border:`1px solid ${i===0?T.gold+'44':T.border}`}}>
+              <div style={{fontSize:'22px',minWidth:'28px',textAlign:'center'}}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`}</div>
+              <div style={{width:'34px',height:'34px',borderRadius:'50%',background:p.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'13px',fontWeight:900,color:'#0D0A08',flexShrink:0}}>{p.name?.[0]}</div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:'14px',fontWeight:600,color:p.color||T.gold}}>{p.name}</div>
+                <div style={{fontSize:'12px',color:T.textSub,marginTop:'2px'}}>{count} prediction{count!==1?'s':''}</div>
+              </div>
+              <div style={{textAlign:'right'}}>
+                <div style={{fontSize:'28px',fontWeight:900,color:score<=10?T.green:score<=25?T.gold:T.red,fontFamily:T.mono,lineHeight:1}}>{score}%</div>
+                <div style={{...S.label,marginTop:'2px'}}>avg error</div>
+              </div>
+            </div>
+          ))}
+        </div>}
+      </div>
+    )
+  }
 
   const OscarPage=()=>(
     <div>
@@ -1650,6 +1802,7 @@ export default function App(){
                 await dbUpsert('film_values','film_id',film.id,{current_value:nv})
                 await resolveChips(film.id,v)
                 await logActivity(session.user.id,'result',{film_title:film.title,actual_m:v})
+                await sendNotification('result_in',{film_title:film.title,actual_m:v,players:players.map(p=>({id:p.id}))})
                 notify(`✅ ${film.title} · $${nv} · ${calcOpeningPts(film,v)}pts`,T.gold);loadData(league?.id)
               }}>Save</Btn>
               <button style={{...S.btn,background:isWinner?T.gold:T.surfaceUp,border:isWinner?'none':`1px solid ${T.border}`,color:isWinner?'#0D0A08':T.textSub,fontSize:'12px',padding:'9px 12px'}} onClick={async()=>{
@@ -1871,7 +2024,7 @@ export default function App(){
     const runIngest=async()=>{
       setIngesting(true)
       try{
-        const res=await fetch(`${SUPABASE_URL}/functions/v1/ingest-results`,{headers:{apikey:supabase.supabaseKey,Authorization:`Bearer ${supabase.supabaseKey}`}})
+        const res=await fetch(`${SUPABASE_URL}/functions/v1/ingest-results`,{headers:{apikey:SUPABASE_ANON_KEY,Authorization:`Bearer ${SUPABASE_ANON_KEY}`}})
         const data=await res.json();setIngestLog(data)
         notify(`✅ Ingested ${data.matched?.length||0} results · ${data.unmatched?.length||0} unmatched`,T.green);loadData(league?.id)
       }catch(e){notify(`Ingest failed: ${e.message}`,T.red)}
@@ -1917,6 +2070,11 @@ export default function App(){
           <Btn color={draftWindowOpen?T.red:T.purple} textColor="#fff" size="sm" onClick={async()=>{
             const deadline=new Date(Date.now()+14*86400000).toISOString()
             await supabase.from('league_config').update({draft_window_open:!draftWindowOpen,draft_deadline:!draftWindowOpen?deadline:null}).eq('league_id',league?.id)
+            if(!draftWindowOpen){
+              // Send draft open notification to all players
+              const draftPlayers=players.map(p=>{const picks=rosters.filter(r=>r.player_id===p.id&&r.phase===ph&&r.active&&films.find(f=>f.id===r.film_id)).length;return{id:p.id,picks,shortfall:Math.max(0,DRAFT_MIN-picks)}}).filter(p=>p.shortfall>0)
+              if(draftPlayers.length>0) await sendNotification('draft_reminder',{league_id:league?.id,deadline,players:draftPlayers})
+            }
             notify(draftWindowOpen?'Draft window closed':'🎬 Draft window open · 14 days',T.purple);loadData(league?.id)
           }}>{draftWindowOpen?'Close Draft Window':'Open Draft Window (14 days)'}</Btn>
           {draftWindowOpen&&cfg.draft_deadline&&<div style={{background:`${T.purple}18`,borderRadius:'9px',padding:'10px 14px',marginTop:'12px'}}>
@@ -2172,7 +2330,13 @@ export default function App(){
 
         {/* ── PAGE CONTENT ────────────────────────────────────────────────── */}
         <div style={{flex:1,minWidth:0,padding:isMobile?'16px 14px 100px':'28px 36px 56px',overflowX:'hidden'}}>
-          <div style={{maxWidth:'1400px',margin:'0 auto'}}>
+          <div style={{maxWidth:'1400px',margin:'0 auto',position:'relative'}}>
+            {dataLoading&&<div style={{position:'absolute',inset:0,zIndex:10,background:`${T.bg}CC`,backdropFilter:'blur(2px)',display:'flex',alignItems:'flex-start',justifyContent:'center',paddingTop:'80px',borderRadius:'12px'}}>
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'12px'}}>
+                <div style={{width:'32px',height:'32px',border:`3px solid ${T.border}`,borderTopColor:T.gold,borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>
+                <div style={{fontSize:'12px',color:T.textSub,letterSpacing:'1px'}}>Loading…</div>
+              </div>
+            </div>}
             {renderPage()}
           </div>
         </div>
@@ -2267,7 +2431,7 @@ export default function App(){
           onClose={()=>setShowtimesFilm(null)}
           onBookingClick={trackBookingClick}
           supabaseUrl={SUPABASE_URL}
-          anonKey={supabase.supabaseKey}
+          anonKey={SUPABASE_ANON_KEY}
         />
       )}
 
