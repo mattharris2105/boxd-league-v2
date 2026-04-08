@@ -1,13 +1,12 @@
 {
-  "name": "BOXD Fantasy Box Office",
+  "name": "BOXD · Fantasy Box Office",
   "short_name": "BOXD",
   "description": "Fantasy box office league manager",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0D0B0A",
-  "theme_color": "#0D0B0A",
+  "background_color": "#0D0A08",
+  "theme_color": "#0D0A08",
   "orientation": "portrait-primary",
-  "scope": "/",
   "icons": [
     {
       "src": "/icon-192.png",
@@ -22,6 +21,29 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["entertainment", "games"],
+  "shortcuts": [
+    {
+      "name": "Market",
+      "short_name": "Market",
+      "description": "Browse and acquire films",
+      "url": "/?page=market",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "My Roster",
+      "short_name": "Roster",
+      "description": "View your current roster",
+      "url": "/?page=roster",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "League",
+      "short_name": "League",
+      "description": "See league standings",
+      "url": "/?page=league",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "categories": ["games", "entertainment", "sports"],
   "lang": "en-GB"
 }
