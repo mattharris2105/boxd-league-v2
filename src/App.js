@@ -1386,7 +1386,21 @@ export default function App(){
                     <div style={{fontSize:'20px',fontWeight:800,color:owned?T.gold:T.text,lineHeight:1,fontFamily:T.mono}}>{cur}{val}M</div>
                     {actual!=null
                       ?<div style={{fontSize:'11px',color:T.green,marginTop:'2px',fontWeight:600}}>${actual}M actual · {op+(wp||0)}pts</div>
-                      :<div style={{fontSize:'11px',color:diff>0?T.green:diff<0?T.red:T.textSub,marginTop:'2px'}}>{diff===0?'—':diff>0?`▲ ${cur}${diff}`:`▼ ${cur}${Math.abs(diff)}`} IPO</div>
+                      :(()=>{
+                        // Early bird countdown — show if within 5 weeks of cutoff
+                        const weeksLeft=film.week-cfg.current_week
+                        const ebCutoff=EARLY_BIRD_WEEKS
+                        const isEbEligible=weeksLeft>=ebCutoff
+                        const almostExpired=weeksLeft===ebCutoff
+                        if(isEbEligible){
+                          return <div style={{fontSize:'11px',color:almostExpired?T.orange:T.green,marginTop:'2px',fontWeight:600}}>
+                            🐦 Early Bird{almostExpired?' — last week!':` · ${weeksLeft-ebCutoff+1}wk window`}
+                          </div>
+                        }
+                        return <div style={{fontSize:'11px',color:diff>0?T.green:diff<0?T.red:T.textSub,marginTop:'2px'}}>
+                          {diff===0?'—':diff>0?`▲ ${cur}${diff}`:`▼ ${cur}${Math.abs(diff)}`} IPO
+                        </div>
+                      })()
                     }
                   </div>
                   {/* Top badges — only the most important ones */}
@@ -1400,21 +1414,40 @@ export default function App(){
                   {demandPct>=25&&<div style={{position:'absolute',bottom:'10px',right:'10px'}}><Badge color={demandPct>=55?T.red:demandPct>=40?T.orange:T.gold}>{demandPct>=55?'🔥':demandPct>=40?'📈':''} {demandPct}%</Badge></div>}
                 </div>
 
-                {/* Card body — simplified */}
+                {/* Card body */}
                 <div style={{padding:'10px 12px 12px',flex:1,display:'flex',flexDirection:'column',gap:'8px'}}>
                   <div>
                     <div style={{fontSize:'13px',fontWeight:600,lineHeight:1.3,color:T.text}}>{film.title}</div>
-                    <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px',display:'flex',gap:'6px',alignItems:'center'}}>
+                    <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px',display:'flex',gap:'6px',alignItems:'center',flexWrap:'wrap'}}>
                       <span>{film.dist}</span>
                       {film.rt!=null&&<><span style={{color:T.textDim}}>·</span><span style={{color:film.rt>=75?T.green:film.rt>=55?T.gold:T.red}}>RT {film.rt}%</span></>}
-                      {film.franchise&&<><span style={{color:T.textDim}}>·</span><span style={{color:T.textDim}}>{film.franchise.split(':')[0]}</span></>}
                     </div>
+                  </div>
+
+                  {/* Estimate vs price — the key gameplay decision */}
+                  <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
+                    <div style={{background:T.surfaceUp,borderRadius:'8px',padding:'5px 10px',flex:1,textAlign:'center'}}>
+                      <div style={{fontSize:'9px',color:T.textDim,letterSpacing:'1px',textTransform:'uppercase',marginBottom:'2px'}}>Est</div>
+                      <div style={{fontSize:'13px',fontWeight:700,color:T.text,fontFamily:T.mono}}>${film.estM}M</div>
+                    </div>
+                    <div style={{fontSize:'16px',color:T.textDim}}>→</div>
+                    <div style={{background:T.surfaceUp,borderRadius:'8px',padding:'5px 10px',flex:1,textAlign:'center'}}>
+                      <div style={{fontSize:'9px',color:T.textDim,letterSpacing:'1px',textTransform:'uppercase',marginBottom:'2px'}}>Price</div>
+                      <div style={{fontSize:'13px',fontWeight:700,color:owned?T.gold:T.text,fontFamily:T.mono}}>${val}M</div>
+                    </div>
+                    {/* Value ratio pill — green if cheap vs estimate, red if expensive */}
+                    {(()=>{
+                      const ratio=val/film.estM
+                      const col=ratio<0.6?T.green:ratio<0.85?T.gold:ratio>1.2?T.red:T.textSub
+                      const label=ratio<0.6?'cheap':ratio<0.85?'fair':ratio>1.2?'pricey':'—'
+                      return <div style={{fontSize:'10px',color:col,background:`${col}18`,padding:'3px 8px',borderRadius:'8px',fontWeight:600,whiteSpace:'nowrap'}}>{label}</div>
+                    })()}
                   </div>
 
                   {/* Single action row */}
                   <div style={{display:'flex',gap:'6px',marginTop:'auto'}}>
                     <button onClick={()=>setFilmDetail(film)} style={{...S.btn,background:T.surfaceUp,color:T.textSub,fontSize:'12px',padding:'8px 10px',flex:'0 0 auto',textTransform:'none',letterSpacing:0,gap:'4px'}}>
-                      💬 {actual!=null?'Score':'Info'}
+                      {actual!=null?'📊':'💬'}
                     </button>
                     {film.trailer?.length>5&&<button onClick={e=>{e.stopPropagation();setTrailerFilm(film)}} style={{...S.btn,background:T.surfaceUp,color:T.textSub,fontSize:'13px',padding:'8px 10px',flex:'0 0 auto'}}>▶</button>}
                     {owned
@@ -1432,48 +1465,132 @@ export default function App(){
     )
   }
 
-  const RosterPage=()=>(
+  const RosterPage=()=>{
+    const totalPts=calcPhasePoints(profile.id,ph)
+    const projectedPts=myRoster.reduce((s,h)=>{
+      const film=films.find(f=>f.id===h.film_id);if(!film)return s
+      // rough projection: estM as actual
+      const proj=calcOpeningPts(film,film.estM,isEarlyBird(h),analystOn(profile.id,film.id))
+      return s+proj
+    },0)
+    return(
     <div>
       <div style={S.pageTitle}>My Roster</div>
-      <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px',marginBottom:'4px'}}>Phase {ph} · {PHASE_NAMES[ph]}</div>
-      <div style={{fontSize:'13px',color:T.textSub,marginBottom:'20px'}}>{myRoster.length}/{MAX_ROSTER} films · {cur}{myBudget}M left{phaseBanked(profile.id,ph)>0?` (incl. ${cur}${phaseBanked(profile.id,ph)}M banked)`:''}</div>
-      <div style={{display:'flex',gap:'6px',marginBottom:'20px',overflowX:'auto',paddingBottom:'2px'}}>
-        {[1,2,3,4,5].map(p=>{const pts=calcPhasePoints(profile.id,p),nr=rosters.filter(r=>r.player_id===profile.id&&r.phase===p&&films.find(f=>f.id===r.film_id)).length;return <div key={p} style={{background:p===ph?`${T.gold}18`:T.surfaceUp,border:`1px solid ${p===ph?T.gold+'55':T.border}`,borderRadius:'10px',padding:'10px 14px',textAlign:'center',flexShrink:0,minWidth:'60px'}}><div style={{...S.label,color:p===ph?T.gold:T.textDim,marginBottom:'4px'}}>PH{p}</div><div style={{fontSize:'16px',fontWeight:700,color:p===ph?T.gold:T.text}}>{pts}</div><div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>{nr} films</div></div>})}
-      </div>
-      {myRoster.length===0?<div style={{...S.card,textAlign:'center',padding:'48px 24px'}}><div style={{fontSize:'32px',marginBottom:'12px'}}>🎬</div><div style={{fontSize:'14px',color:T.textSub}}>No films this phase.</div><div style={{fontSize:'12px',color:T.textDim,marginTop:'6px'}}>Head to Market to acquire.</div></div>:<div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(auto-fill,minmax(340px,1fr))',gap:'10px'}}>{myRoster.map(h=>{
-        const film=films.find(f=>f.id===h.film_id);if(!film)return null
-        const val=filmVal(film),actual=results[film.id],pnl=val-h.bought_price
-        const mult=calcDemandMult(film,rosters,ph,players.length)
-        const gc=GENRE_COL[film.genre]||T.textSub
-        const wp=actual!=null?Math.round(calcWeeklyPts(weeklyG[film.id]||{})):0
-        const eb=isEarlyBird(h),ao=analystOn(profile.id,film.id),au=auteurOn(profile.id,film.id)
-        let op=actual!=null?calcOpeningPts(film,actual,eb,ao):0;if(au&&actual!=null)op=Math.round(op*1.1)
-        const lb=calcLegsBonus(actual,weeklyG[film.id]?.[2]),wb=wwBonus(film.id),sb=shortBonus(profile.id,film.id)
-        const total=op+wp+lb+wb+sb
-        return(
-          <div key={h.id} className="hoverable" style={{...S.card,display:'flex',gap:'14px',alignItems:'flex-start',marginBottom:'10px',cursor:actual!=null?'pointer':'default'}} onClick={()=>actual!=null&&setScoreModal({film,holding:h})}>
-            <div style={{position:'relative',flexShrink:0}}><FilmPoster film={film} width={56} height={84} radius={9}/><div style={{position:'absolute',top:0,left:0,right:0,height:'3px',background:gc,borderRadius:'9px 9px 0 0'}}/></div>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:'15px',fontWeight:700,marginBottom:'3px',lineHeight:1.3}}>{film.title}</div>
-              <div style={{fontSize:'12px',color:T.textSub,marginBottom:'10px'}}>{film.dist} · W{film.week}</div>
-              <div style={{display:'flex',gap:'16px',flexWrap:'wrap',marginBottom:'8px'}}>
-                <div><div style={S.label}>Paid</div><div style={{fontSize:'15px',fontWeight:600,marginTop:'3px'}}>{cur}{h.bought_price}M</div></div>
-                <div><div style={S.label}>Now</div><div style={{fontSize:'15px',fontWeight:600,color:pnl>=0?T.green:T.red,marginTop:'3px'}}>{cur}{val}M{mult>1?<span style={{fontSize:'10px',color:T.red,marginLeft:'4px'}}>×{mult.toFixed(2)}</span>:null}</div></div>
-                <div><div style={S.label}>P&L</div><div style={{fontSize:'15px',fontWeight:700,color:pnl>=0?T.green:T.red,marginTop:'3px'}}>{pnl>=0?'+':''}{pnl}M</div></div>
-                {actual!=null&&<div><div style={S.label}>Pts</div><div style={{fontSize:'15px',fontWeight:700,color:T.gold,marginTop:'3px'}}>{total}</div></div>}
-              </div>
-              <div style={{display:'flex',gap:'5px',flexWrap:'wrap'}}>
-                {eb&&<Badge color={T.green}>🐦 early bird</Badge>}
-                {ao&&<Badge color={T.blue}>🎯 +60</Badge>}
-                {au&&<Badge color={T.orange}>🎭 +10%</Badge>}
-                {actual!=null&&<span style={{fontSize:'11px',color:T.textDim,alignSelf:'center'}}>tap for breakdown →</span>}
-              </div>
-            </div>
+      <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px',marginBottom:'16px'}}>Phase {ph} · {PHASE_NAMES[ph]}</div>
+
+      {/* Phase summary bar */}
+      <div style={{display:'flex',gap:'8px',marginBottom:'20px'}}>
+        <div style={{flex:1,background:T.surfaceUp,borderRadius:'12px',padding:'12px 14px'}}>
+          <div style={S.label}>Budget left</div>
+          <div style={{fontSize:'22px',fontWeight:900,color:myBudget<20?T.red:T.green,fontFamily:T.mono,marginTop:'3px'}}>{cur}{myBudget}M</div>
+          <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>{myRoster.length}/{MAX_ROSTER} slots used</div>
+        </div>
+        <div style={{flex:1,background:T.surfaceUp,borderRadius:'12px',padding:'12px 14px'}}>
+          <div style={S.label}>Phase pts</div>
+          <div style={{fontSize:'22px',fontWeight:900,color:T.gold,fontFamily:T.mono,marginTop:'3px'}}>{totalPts}</div>
+          {myRoster.filter(h=>!results[h.film_id]).length>0&&<div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>~{projectedPts} projected</div>}
+        </div>
+        {phaseBanked(profile.id,ph)>0&&(
+          <div style={{flex:1,background:T.surfaceUp,borderRadius:'12px',padding:'12px 14px'}}>
+            <div style={S.label}>Banked</div>
+            <div style={{fontSize:'22px',fontWeight:900,color:T.orange,fontFamily:T.mono,marginTop:'3px'}}>{cur}{phaseBanked(profile.id,ph)}M</div>
+            <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>from last phase</div>
           </div>
-        )
-      })}</div>}
+        )}
+      </div>
+
+      {/* Phase tabs */}
+      <div style={{display:'flex',gap:'6px',marginBottom:'20px',overflowX:'auto',paddingBottom:'2px'}}>
+        {[1,2,3,4,5].map(p=>{
+          const pts=calcPhasePoints(profile.id,p)
+          const nr=rosters.filter(r=>r.player_id===profile.id&&r.phase===p&&films.find(f=>f.id===r.film_id)).length
+          return(
+            <div key={p} style={{background:p===ph?`${T.gold}18`:T.surfaceUp,border:`1px solid ${p===ph?T.gold+'55':T.border}`,borderRadius:'10px',padding:'10px 14px',textAlign:'center',flexShrink:0,minWidth:'60px'}}>
+              <div style={{...S.label,color:p===ph?T.gold:T.textDim,marginBottom:'4px'}}>PH{p}</div>
+              <div style={{fontSize:'16px',fontWeight:700,color:p===ph?T.gold:pts>0?T.text:T.textDim}}>{pts||'—'}</div>
+              <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>{nr} films</div>
+            </div>
+          )
+        })}
+      </div>
+
+      {myRoster.length===0
+        ?<div style={{...S.card,textAlign:'center',padding:'48px 24px'}}>
+          <div style={{fontSize:'32px',marginBottom:'12px'}}>🎬</div>
+          <div style={{fontSize:'14px',color:T.textSub}}>No films this phase.</div>
+          <div style={{fontSize:'12px',color:T.textDim,marginTop:'6px'}}>Head to Market to acquire.</div>
+        </div>
+        :<div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(auto-fill,minmax(340px,1fr))',gap:'10px'}}>
+          {myRoster.map(h=>{
+            const film=films.find(f=>f.id===h.film_id);if(!film)return null
+            const val=filmVal(film),actual=results[film.id],pnl=val-h.bought_price
+            const gc=GENRE_COL[film.genre]||T.textSub
+            const wp=actual!=null?Math.round(calcWeeklyPts(weeklyG[film.id]||{})):0
+            const eb=isEarlyBird(h),ao=analystOn(profile.id,film.id),au=auteurOn(profile.id,film.id)
+            let op=actual!=null?calcOpeningPts(film,actual,eb,ao):0;if(au&&actual!=null)op=Math.round(op*1.1)
+            const lb=calcLegsBonus(actual,weeklyG[film.id]?.[2]),wb=wwBonus(film.id),sb=shortBonus(profile.id,film.id)
+            const total=op+wp+lb+wb+sb
+            // Weeks until release
+            const weeksToRelease=film.week-cfg.current_week
+            const hasResult=actual!=null
+            const sellProceeds=Math.max(0,val-(win?0:cfg.tx_fee))
+            const sellLoss=sellProceeds-h.bought_price
+            return(
+              <div key={h.id} className="hoverable" style={{...S.card,display:'flex',gap:'14px',alignItems:'flex-start',cursor:hasResult?'pointer':'default',padding:'14px'}} onClick={()=>hasResult&&setScoreModal({film,holding:h})}>
+                <div style={{position:'relative',flexShrink:0}}>
+                  <FilmPoster film={film} width={60} height={90} radius={9}/>
+                  <div style={{position:'absolute',top:0,left:0,right:0,height:'3px',background:gc,borderRadius:'9px 9px 0 0'}}/>
+                  {/* Week countdown badge */}
+                  {!hasResult&&weeksToRelease>0&&(
+                    <div style={{position:'absolute',bottom:'-6px',left:'50%',transform:'translateX(-50%)',background:T.surface,border:`1px solid ${T.border}`,borderRadius:'8px',padding:'2px 6px',fontSize:'9px',color:T.textSub,whiteSpace:'nowrap',fontWeight:600}}>W{film.week}</div>
+                  )}
+                  {hasResult&&(
+                    <div style={{position:'absolute',bottom:'-6px',left:'50%',transform:'translateX(-50%)',background:T.green,borderRadius:'8px',padding:'2px 6px',fontSize:'9px',color:'#0D0A08',whiteSpace:'nowrap',fontWeight:700}}>SCORED</div>
+                  )}
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:'14px',fontWeight:700,marginBottom:'2px',lineHeight:1.3}}>{film.title}</div>
+                  <div style={{fontSize:'11px',color:T.textSub,marginBottom:'10px'}}>{film.dist} · Est ${film.estM}M</div>
+
+                  {hasResult?(
+                    // Post-result: show pts breakdown
+                    <div style={{display:'flex',gap:'12px',flexWrap:'wrap',marginBottom:'8px'}}>
+                      <div><div style={S.label}>Actual</div><div style={{fontSize:'14px',fontWeight:700,color:T.green,marginTop:'2px'}}>${actual}M</div></div>
+                      <div><div style={S.label}>Ratio</div><div style={{fontSize:'14px',fontWeight:700,color:actual/film.estM>=1?T.green:T.red,marginTop:'2px'}}>{(actual/film.estM).toFixed(2)}×</div></div>
+                      <div><div style={S.label}>Points</div><div style={{fontSize:'18px',fontWeight:900,color:T.gold,marginTop:'2px',fontFamily:T.mono}}>{total}</div></div>
+                    </div>
+                  ):(
+                    // Pre-result: show paid vs current value + sell info
+                    <div style={{marginBottom:'8px'}}>
+                      <div style={{display:'flex',gap:'12px',flexWrap:'wrap',marginBottom:'6px'}}>
+                        <div><div style={S.label}>Paid</div><div style={{fontSize:'14px',fontWeight:600,marginTop:'2px'}}>{cur}{h.bought_price}M</div></div>
+                        <div><div style={S.label}>Now</div><div style={{fontSize:'14px',fontWeight:600,color:pnl>=0?T.green:T.red,marginTop:'2px'}}>{cur}{val}M</div></div>
+                        <div><div style={S.label}>P&L</div><div style={{fontSize:'14px',fontWeight:700,color:pnl>=0?T.green:T.red,marginTop:'2px'}}>{pnl>=0?'+':''}{pnl}M</div></div>
+                        {weeksToRelease>0&&<div><div style={S.label}>Opens</div><div style={{fontSize:'14px',fontWeight:600,color:eb?T.green:T.textSub,marginTop:'2px'}}>Wk {film.week}</div></div>}
+                      </div>
+                      {/* Sell warning — show if selling at a loss */}
+                      {sellLoss<0&&!win&&(
+                        <div style={{fontSize:'11px',color:T.red,background:`${T.red}10`,border:`1px solid ${T.red}22`,borderRadius:'7px',padding:'5px 9px'}}>
+                          ⚠️ Selling now returns {cur}{sellProceeds}M — {cur}{Math.abs(sellLoss)}M loss
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div style={{display:'flex',gap:'5px',flexWrap:'wrap',alignItems:'center'}}>
+                    {eb&&<Badge color={T.green}>🐦 early bird</Badge>}
+                    {ao&&<Badge color={T.blue}>🎯 +60</Badge>}
+                    {au&&<Badge color={T.orange}>🎭 +10%</Badge>}
+                    {hasResult&&<span style={{fontSize:'11px',color:T.textDim}}>tap for breakdown →</span>}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      }
     </div>
-  )
+  )}
 
   const ChipsPage=()=>{
     const myAuteur=auteurDecl.find(a=>a.player_id===profile.id&&a.phase===ph)
@@ -1720,38 +1837,91 @@ export default function App(){
   const FeedPage=()=>{
     const getItem=item=>{
       const p=item.payload||{},pl=players.find(pl=>pl.id===item.user_id)
-      const pName=p.player_name||pl?.name||'Someone',pCol=pl?.color||T.gold
-      const pSpan=<span style={{color:pCol,fontWeight:600}}>{pName}</span>
+      const pCol=pl?.color||T.gold
+      const film=films.find(f=>f.id===p.film_id)
       switch(item.type){
-        case 'buy':return{icon:'🎬',text:<>{pSpan} acquired <b style={{color:T.text}}>{p.film_title}</b> for <span style={{color:T.green}}>${p.price}M</span></>,col:T.green}
-        case 'sell':return{icon:'💸',text:<>{pSpan} dropped <b style={{color:T.text}}>{p.film_title}</b></>,col:T.gold}
-        case 'chip_recut':return{icon:'🎬',text:<>{pSpan} activated <span style={{color:T.purple,fontWeight:700}}>THE RECUT</span></>,col:T.purple}
-        case 'chip_short':return{icon:'📉',text:<>{pSpan} shorted <b>{p.film_title}</b> at <span style={{color:T.red}}>${p.prediction}M</span></>,col:T.red}
-        case 'chip_analyst':return{icon:'🎯',text:<>{pSpan} went Analyst on <b>{p.film_title}</b> at <span style={{color:T.blue}}>${p.prediction}M</span></>,col:T.blue}
-        case 'auteur':return{icon:'🎭',text:<>{pSpan} declared Auteur — <span style={{color:T.orange,fontWeight:600}}>{p.actor}</span></>,col:T.orange}
-        case 'forecast':return{icon:'📊',text:<>{pSpan} forecast <b>{p.film_title}</b> at <span style={{color:T.blue}}>${p.predicted_m}M</span></>,col:T.blue}
-        case 'oscar':return{icon:'🏆',text:<>{pSpan} locked Best Picture — <span style={{color:T.gold,fontWeight:600}}>{p.film_title}</span></>,col:T.gold}
-        case 'phase_advance':return{icon:'🚀',text:<>{pSpan} advanced league to <span style={{color:T.gold,fontWeight:700}}>Phase {p.to_phase}</span></>,col:T.gold}
-        case 'trade_proposed':return{icon:'🔄',text:<>{pSpan} proposed a trade</>,col:T.blue}
-        case 'trade_accepted':return{icon:'🤝',text:<>Trade complete — <span style={{color:T.green}}>{p.film_received}</span></>,col:T.green}
-        default:return{icon:'📡',text:pSpan,col:T.textSub}
+        case 'buy':return{icon:'🎬',col:T.green,film,
+          title:<><span style={{color:pCol,fontWeight:700}}>{pl?.name}</span> acquired</>,
+          sub:<><b style={{color:T.text}}>{p.film_title}</b> · <span style={{color:T.green,fontWeight:600}}>${p.price}M</span></>}
+        case 'sell':return{icon:'💸',col:T.gold,film,
+          title:<><span style={{color:pCol,fontWeight:700}}>{pl?.name}</span> dropped</>,
+          sub:<b style={{color:T.text}}>{p.film_title}</b>}
+        case 'chip_recut':return{icon:'🎬',col:T.purple,
+          title:<><span style={{color:pCol,fontWeight:700}}>{pl?.name}</span> activated</>,
+          sub:<span style={{color:T.purple,fontWeight:700}}>THE RECUT — full roster cleared</span>}
+        case 'chip_short':return{icon:'📉',col:T.red,film,
+          title:<><span style={{color:pCol,fontWeight:700}}>{pl?.name}</span> shorted</>,
+          sub:<><b style={{color:T.text}}>{p.film_title}</b> · calling under ${p.prediction}M</>}
+        case 'chip_analyst':return{icon:'🎯',col:T.blue,film,
+          title:<><span style={{color:pCol,fontWeight:700}}>{pl?.name}</span> went Analyst</>,
+          sub:<><b style={{color:T.text}}>{p.film_title}</b> · predicting ${p.prediction}M</>}
+        case 'auteur':return{icon:'🎭',col:T.orange,
+          title:<><span style={{color:pCol,fontWeight:700}}>{pl?.name}</span> declared Auteur</>,
+          sub:<>⭐ <span style={{color:T.orange,fontWeight:600}}>{p.actor}</span> · {p.film_count} films</>}
+        case 'forecast':return{icon:'📊',col:T.blue,film,
+          title:<><span style={{color:pCol,fontWeight:700}}>{pl?.name}</span> forecast</>,
+          sub:<><b style={{color:T.text}}>{p.film_title}</b> · ${p.predicted_m}M</>}
+        case 'oscar':return{icon:'🏆',col:T.gold,film,
+          title:<><span style={{color:pCol,fontWeight:700}}>{pl?.name}</span> locked Best Picture</>,
+          sub:<span style={{color:T.gold,fontWeight:600}}>{p.film_title}</span>}
+        case 'result':return{icon:'📋',col:T.green,film,
+          title:<span style={{color:T.green,fontWeight:700}}>Results in</span>,
+          sub:<><b style={{color:T.text}}>{p.film_title}</b> · <span style={{color:T.green}}>${p.actual_m}M</span> opening</>}
+        case 'trade_proposed':return{icon:'🔄',col:T.blue,
+          title:<><span style={{color:pCol,fontWeight:700}}>{pl?.name}</span> proposed a trade</>,
+          sub:<span style={{color:T.textSub}}>waiting for response…</span>}
+        case 'trade_accepted':return{icon:'🤝',col:T.green,
+          title:<><span style={{color:pCol,fontWeight:700}}>{pl?.name}</span> accepted a trade</>,
+          sub:<><span style={{color:T.green}}>{p.film_received}</span> → roster</>}
+        default:return{icon:'📡',col:T.textSub,
+          title:<span style={{color:pCol,fontWeight:700}}>{pl?.name||'League'}</span>,sub:null}
       }
     }
-    const grouped=feedItems.reduce((acc,item)=>{const day=new Date(item.created_at).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short'});if(!acc[day])acc[day]=[];acc[day].push(item);return acc},{})
+    const grouped=feedItems.reduce((acc,item)=>{
+      const day=new Date(item.created_at).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short'})
+      if(!acc[day])acc[day]=[]
+      acc[day].push(item)
+      return acc
+    },{})
     return(
       <div>
-        <div style={S.pageTitle}>League Feed</div>
-        <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px',marginBottom:'20px'}}>Live · updates in real time</div>
-        {feedItems.length===0&&<div style={{...S.card,textAlign:'center',padding:'48px 24px'}}><div style={{fontSize:'32px',marginBottom:'12px'}}>📡</div><div style={{fontSize:'14px',color:T.textSub}}>No activity yet</div></div>}
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'20px'}}>
+          <div>
+            <div style={S.pageTitle}>📡 Feed</div>
+            <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px'}}>Live · {feedItems.length} events</div>
+          </div>
+          <div style={{width:'8px',height:'8px',borderRadius:'50%',background:T.green,marginTop:'8px',boxShadow:`0 0 0 3px ${T.green}33`,animation:'pulse 2s ease-in-out infinite'}}/>
+        </div>
+        {feedItems.length===0&&(
+          <div style={{...S.card,textAlign:'center',padding:'48px 24px'}}>
+            <div style={{fontSize:'32px',marginBottom:'12px'}}>📡</div>
+            <div style={{fontSize:'14px',color:T.textSub}}>No activity yet — be the first to make a move</div>
+          </div>
+        )}
         {Object.entries(grouped).map(([day,items])=>(
           <div key={day}>
-            <div style={{...S.label,margin:'20px 0 10px'}}>{day}</div>
-            {items.map(item=>{const{icon,text,col}=getItem(item);return(
-              <div key={item.id} style={{...S.card,padding:'13px 15px',marginBottom:'8px',borderLeft:`3px solid ${col}55`,display:'flex',gap:'14px',alignItems:'flex-start'}}>
-                <div style={{fontSize:'18px',flexShrink:0,marginTop:'1px'}}>{icon}</div>
-                <div style={{flex:1}}><div style={{fontSize:'13px',lineHeight:1.6,color:T.text}}>{text}</div><div style={{fontSize:'11px',color:T.textDim,marginTop:'4px'}}>{timeAgo(item.created_at)} ago</div></div>
-              </div>
-            )})}
+            <div style={{...S.label,margin:'20px 0 10px',display:'flex',alignItems:'center',gap:'8px'}}>
+              {day}
+              <div style={{flex:1,height:'1px',background:T.border}}/>
+            </div>
+            {items.map(item=>{
+              const{icon,title,sub,col,film}=getItem(item)
+              return(
+                <div key={item.id} style={{...S.card,padding:'12px 14px',marginBottom:'8px',borderLeft:`3px solid ${col}55`,display:'flex',gap:'12px',alignItems:'center'}}>
+                  {film
+                    ?<div style={{flexShrink:0,cursor:'pointer'}} onClick={()=>setFilmDetail(film)}>
+                      <FilmPoster film={film} width={36} height={54} radius={6}/>
+                    </div>
+                    :<div style={{width:'36px',height:'54px',borderRadius:'6px',background:`${col}18`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'20px',flexShrink:0}}>{icon}</div>
+                  }
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:'13px',lineHeight:1.5,color:T.text}}>{title}</div>
+                    {sub&&<div style={{fontSize:'12px',color:T.textSub,marginTop:'2px',lineHeight:1.4}}>{sub}</div>}
+                    <div style={{fontSize:'10px',color:T.textDim,marginTop:'4px'}}>{timeAgo(item.created_at)} ago</div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         ))}
       </div>
@@ -2462,8 +2632,12 @@ export default function App(){
           {draftWindowOpen&&<div style={{display:'flex',flexDirection:'column',alignItems:'center',lineHeight:1,cursor:'pointer'}} onClick={()=>navigate('market')}>
             <DraftTimer deadline={draftDeadline} shortfall={draftShortfall} draftMin={DRAFT_MIN}/>
           </div>}
-          <div style={{background:myBudget<20?`${T.red}22`:`${T.gold}18`,border:`1px solid ${myBudget<20?T.red+'55':T.gold+'55'}`,borderRadius:'20px',padding:'6px 14px',fontSize:'14px',fontWeight:700,color:myBudget<20?T.red:T.gold,whiteSpace:'nowrap',cursor:'pointer',fontFamily:T.mono}} onClick={()=>navigate('roster')}>
-            {cur}{myBudget}M
+          <div style={{background:myBudget<20?`${T.red}18`:`${T.gold}14`,border:`1px solid ${myBudget<20?T.red+'55':T.gold+'44'}`,borderRadius:'12px',padding:'6px 14px',cursor:'pointer',minWidth:'80px'}} onClick={()=>navigate('roster')}>
+            <div style={{fontSize:'10px',color:T.textDim,letterSpacing:'1px',marginBottom:'2px'}}>BUDGET</div>
+            <div style={{fontSize:'16px',fontWeight:900,color:myBudget<20?T.red:myBudget<50?T.orange:T.gold,fontFamily:T.mono,lineHeight:1}}>{cur}{myBudget}M</div>
+            <div style={{height:'2px',background:T.border,borderRadius:'2px',marginTop:'5px',overflow:'hidden'}}>
+              <div style={{height:'100%',width:`${Math.min(100,Math.round((1-myBudget/Math.max(1,phaseAlloc(profile.id,ph)))*100))}%`,background:myBudget<20?T.red:myBudget<50?T.orange:T.gold,borderRadius:'2px'}}/>
+            </div>
           </div>
           {pendingForMe.length>0&&<div style={{background:`${T.blue}22`,border:`1px solid ${T.blue}55`,borderRadius:'20px',padding:'6px 12px',fontSize:'13px',color:T.blue,cursor:'pointer',whiteSpace:'nowrap',fontWeight:600}} onClick={()=>navigate('trades')}>
             🔄 {pendingForMe.length}
