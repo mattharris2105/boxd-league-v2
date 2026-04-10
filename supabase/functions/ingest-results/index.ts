@@ -1,182 +1,153 @@
 // supabase/functions/ingest-results/index.ts
-// Runs nightly at 23:00 GMT via pg_cron or Supabase scheduled functions
-// Scrapes The Numbers weekend box office + TMDB for RT scores
-// Deploy: supabase functions deploy ingest-results
+// Monday night auto-ingest: weekend box office only
+// RT scores entered manually via Commissioner Panel
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const TMDB_TOKEN = Deno.env.get('TMDB_TOKEN')!
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-
-// Normalise title for fuzzy matching
-function normalise(s: string) {
-  return s.toLowerCase()
-    .replace(/[^a-z0-9\s]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
-function similarity(a: string, b: string): number {
-  const na = normalise(a), nb = normalise(b)
-  if (na === nb) return 1
-  if (na.includes(nb) || nb.includes(na)) return 0.9
-  // Word overlap
-  const wa = new Set(na.split(' ')), wb = new Set(nb.split(' '))
-  const inter = [...wa].filter(w => wb.has(w)).length
-  return inter / Math.max(wa.size, wb.size)
-}
-
-async function fetchBoxOfficeData(): Promise<{ title: string, gross: number }[]> {
-  // The Numbers weekend chart — free, no auth needed
-  const url = 'https://www.the-numbers.com/box-office-chart/weekend/latest'
-  const res = await fetch(url, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BOXD/1.0)' }
-  })
-  const html = await res.text()
-
-  const results: { title: string, gross: number }[] = []
-
-  // Parse table rows — The Numbers uses a standard table format
-  const rowRegex = /<td[^>]*>.*?<b><a[^>]*>([^<]+)<\/a><\/b>.*?<\/td>.*?<td[^>]*>\$([0-9,]+)<\/td>/gs
-  let match
-  while ((match = rowRegex.exec(html)) !== null) {
-    const title = match[1].trim()
-    const gross = parseFloat(match[2].replace(/,/g, '')) / 1_000_000 // to $M
-    if (title && gross > 0) results.push({ title, gross })
-  }
-
-  // Fallback: try mojo-style parsing
-  if (results.length === 0) {
-    const mojoRegex = /class="a-text-left mojo-header-column[^"]*"[^>]*>.*?<a[^>]*>([^<]+)<\/a>.*?<td[^>]*>\$([0-9,]+)/gs
-    while ((match = mojoRegex.exec(html)) !== null) {
-      results.push({ title: match[1].trim(), gross: parseFloat(match[2].replace(/,/g,''))/1_000_000 })
-    }
-  }
-
-  return results.slice(0, 20) // top 20
-}
-
-async function fetchRTScore(tmdbId: string | null, title: string): Promise<number | null> {
-  if (!TMDB_TOKEN) return null
-  try {
-    let movieId = tmdbId
-    if (!movieId) {
-      const search = await fetch(
-        `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(title)}&language=en-US`,
-        { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }
-      )
-      const data = await search.json()
-      movieId = data.results?.[0]?.id?.toString()
-    }
-    if (!movieId) return null
-
-    // TMDB doesn't serve RT scores directly — use vote_average as proxy
-    // For real RT, you'd need a paid Rotten Tomatoes API key
-    const detail = await fetch(
-      `https://api.themoviedb.org/3/movie/${movieId}?language=en-US`,
-      { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }
-    )
-    const d = await detail.json()
-    // Convert TMDB 0-10 vote to 0-100 RT-style percentage
-    if (d.vote_count > 20) return Math.round(d.vote_average * 10)
-    return null
-  } catch { return null }
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
 serve(async (req) => {
-  const headers = { 'Content-Type': 'application/json' }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
+
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  )
 
   try {
-    // 1. Load all active films
+    // ── Load films ────────────────────────────────────────────────────────────
     const { data: films } = await supabase
       .from('films')
-      .select('id, title, est_m, phase, tmdb_id, rt')
-      .eq('active', true)
+      .select('id, title, est_m, base_price, rt, phase')
+    if (!films?.length) throw new Error('No films in DB')
 
-    if (!films?.length) {
-      return new Response(JSON.stringify({ error: 'No active films' }), { headers })
+    // ── Box office: scrape The Numbers ────────────────────────────────────────
+    let boxRows: { title: string; actualM: number }[] = []
+    try {
+      const tnRes = await fetch('https://www.the-numbers.com/weekend-box-office-chart', {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BOXD/1.0)', Accept: 'text/html' },
+        signal: AbortSignal.timeout(10000),
+      })
+      if (tnRes.ok) boxRows = parseBoxOfficeTable(await tnRes.text())
+    } catch (e) {
+      console.log('Box office scrape failed:', e)
     }
 
-    // 2. Fetch weekend box office
-    const boxOffice = await fetchBoxOfficeData()
-
-    const matched: { matched: string, title: string, actualM: number }[] = []
+    const matched: any[] = []
     const unmatched: string[] = []
-    const rtUpdates: { id: string, rt: number }[] = []
 
-    // 3. Match each box office result to a film
-    for (const bo of boxOffice) {
-      let bestFilm = null, bestScore = 0
+    for (const row of boxRows) {
+      const film = fuzzyMatch(row.title, films)
+      if (!film) { unmatched.push(row.title); continue }
 
-      for (const film of films) {
-        const score = similarity(bo.title, film.title)
-        if (score > bestScore) { bestScore = score; bestFilm = film }
-      }
+      const ratio  = row.actualM / (film.est_m || 1)
+      const perf   = ratio>=2?2:ratio>=1.5?1.6:ratio>=1.3?1.35:ratio>=1.1?1.15:ratio>=0.95?1:ratio>=0.8?0.85:ratio>=0.6?0.65:0.45
+      const newVal = Math.round(Math.max(film.base_price * 0.15, Math.min(film.base_price * 3, film.base_price * perf)))
 
-      if (bestFilm && bestScore >= 0.7) {
-        // Check if result already exists
-        const { data: existing } = await supabase
-          .from('results')
-          .select('id')
-          .eq('film_id', bestFilm.id)
-          .maybeSingle()
+      await supabase.from('results').upsert(
+        { film_id: film.id, actual_m: row.actualM },
+        { onConflict: 'film_id' }
+      )
+      await supabase.from('film_values').upsert(
+        { film_id: film.id, current_value: newVal },
+        { onConflict: 'film_id' }
+      )
 
-        if (!existing) {
-          await supabase.from('results').insert({ film_id: bestFilm.id, actual_m: bo.gross })
-
-          // Also update film_values
-          const ratio = bo.gross / (bestFilm.est_m || 1)
-          const perf = ratio >= 2 ? 2 : ratio >= 1.5 ? 1.6 : ratio >= 1.1 ? 1.15 : ratio >= 0.95 ? 1 : ratio >= 0.7 ? 0.8 : 0.5
-          const newVal = Math.round(Math.max(bestFilm.est_m * 0.15, Math.min(bestFilm.est_m * 3, bestFilm.est_m * perf)))
-          await supabase.from('film_values').upsert({ film_id: bestFilm.id, current_value: newVal }, { onConflict: 'film_id' })
-
-          matched.push({ matched: bestFilm.title, title: bo.title, actualM: Math.round(bo.gross * 10) / 10 })
-        }
-
-        // Update RT score if missing
-        if (!bestFilm.rt) {
-          const rt = await fetchRTScore(bestFilm.tmdb_id, bestFilm.title)
-          if (rt) {
-            await supabase.from('films').update({ rt }).eq('id', bestFilm.id)
-            rtUpdates.push({ id: bestFilm.id, rt })
-          }
-        }
-      } else {
-        unmatched.push(bo.title)
-      }
+      matched.push({ title: film.title, actualM: row.actualM, newVal })
     }
 
-    // 4. Also refresh RT scores for upcoming films with no score
-    const filmsNoRT = films.filter(f => !f.rt).slice(0, 10) // rate-limit
-    for (const film of filmsNoRT) {
-      const rt = await fetchRTScore(film.tmdb_id, film.title)
-      if (rt) {
-        await supabase.from('films').update({ rt }).eq('id', film.id)
-        rtUpdates.push({ id: film.id, rt })
-      }
-    }
-
-    // 5. Log the ingest run
+    // ── Activity log ──────────────────────────────────────────────────────────
     await supabase.from('activity_feed').insert({
       user_id: null,
       type: 'auto_ingest',
-      payload: { matched_count: matched.length, unmatched_count: unmatched.length, rt_updated: rtUpdates.length },
-      league_id: null
+      payload: {
+        matched: matched.length,
+        unmatched: unmatched.length,
+        run_at: new Date().toISOString()
+      }
     })
 
-    return new Response(JSON.stringify({
-      ok: true,
-      matched,
-      unmatched,
-      rtUpdates,
-      timestamp: new Date().toISOString()
-    }), { headers })
+    return new Response(
+      JSON.stringify({ success: true, matched, unmatched }, null, 2),
+      { headers: { ...CORS, 'Content-Type': 'application/json' } }
+    )
 
-  } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers })
+  } catch (err: any) {
+    return new Response(
+      JSON.stringify({ error: err.message }),
+      { status: 500, headers: CORS }
+    )
   }
 })
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function parseBoxOfficeTable(html: string): { title: string; actualM: number }[] {
+  const results: { title: string; actualM: number }[] = []
+  const rows = html.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi) || []
+
+  for (const row of rows) {
+    const cells = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)]
+      .map(m => m[1].replace(/<[^>]+>/g, '').trim())
+    if (cells.length < 4) continue
+
+    let title = '', gross = 0
+    for (const cell of cells) {
+      if (
+        !title &&
+        cell.length > 2 &&
+        !/^\d+$/.test(cell) &&
+        !cell.startsWith('$') &&
+        !cell.includes('%') &&
+        isNaN(Number(cell.replace(/,/g, '')))
+      ) {
+        title = cell.replace(/&amp;/g, '&').replace(/&#39;/g, "'").trim()
+      }
+      if (cell.startsWith('$') && cell.includes(',')) {
+        const n = parseFloat(cell.replace(/[$,]/g, ''))
+        if (n > 100000) gross = Math.round(n / 1_000_000 * 10) / 10
+      }
+    }
+    if (title && gross > 0) results.push({ title, actualM: gross })
+  }
+
+  // Deduplicate
+  const seen = new Set<string>()
+  return results.filter(r => {
+    if (seen.has(r.title)) return false
+    seen.add(r.title)
+    return true
+  })
+}
+
+function fuzzyMatch(scraped: string, films: any[]): any | null {
+  const clean = (s: string) =>
+    s.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim()
+  const t = clean(scraped)
+
+  // Exact match
+  let m = films.find(f => clean(f.title) === t)
+  if (m) return m
+
+  // Substring match
+  m = films.find(f => {
+    const ft = clean(f.title)
+    return t.includes(ft) || ft.includes(t)
+  })
+  if (m) return m
+
+  // Word overlap
+  const tw = t.split(' ').filter((w: string) => w.length > 2)
+  let best = 0, bestMatch = null
+  for (const f of films) {
+    const fw = clean(f.title).split(' ').filter((w: string) => w.length > 2)
+    const score = tw.filter((w: string) => fw.includes(w)).length /
+      Math.max(tw.length, fw.length, 1)
+    if (score > best) { best = score; bestMatch = f }
+  }
+  return best >= 0.6 ? bestMatch : null
+}
