@@ -70,25 +70,80 @@ const CHAIN_META = {
 const GLOBAL_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&display=swap');
   *,*::before,*::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html,body{margin:0;padding:0;background:#0D0A08;}
+  html,body{margin:0;padding:0;background:#0D0A08;overscroll-behavior-y:none;}
   ::-webkit-scrollbar{width:4px;height:4px;}
   ::-webkit-scrollbar-track{background:transparent;}
   ::-webkit-scrollbar-thumb{background:#2A2420;border-radius:4px;}
   ::-webkit-scrollbar-thumb:hover{background:#382E28;}
   input:focus,select:focus,textarea:focus{outline:none;border-color:#E8A02066 !important;}
+
+  /* Ambient background — changes per phase */
+  .ambient-bg{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:0.5;transition:opacity 1.2s ease, background 1.2s ease;}
+  .ambient-p1{background:radial-gradient(ellipse 80% 50% at 20% 10%, #4A9EF515 0%, transparent 60%), radial-gradient(ellipse 60% 50% at 85% 95%, #74C0FC10 0%, transparent 60%);}
+  .ambient-p2{background:radial-gradient(ellipse 80% 50% at 20% 10%, #F0803018 0%, transparent 60%), radial-gradient(ellipse 60% 50% at 85% 95%, #F5C84215 0%, transparent 60%);}
+  .ambient-p3{background:radial-gradient(ellipse 80% 50% at 20% 10%, #B06EF020 0%, transparent 60%), radial-gradient(ellipse 60% 50% at 85% 95%, #F04F5A12 0%, transparent 60%);}
+  .ambient-p4{background:radial-gradient(ellipse 80% 50% at 20% 10%, #E8A02020 0%, transparent 60%), radial-gradient(ellipse 60% 50% at 85% 95%, #B06EF012 0%, transparent 60%);}
+  .ambient-p5{background:radial-gradient(ellipse 80% 50% at 20% 10%, #E8A02025 0%, transparent 60%), radial-gradient(ellipse 60% 50% at 85% 95%, #F5C84215 0%, transparent 60%);}
+
+  /* Animations */
   @keyframes shimmer{0%{transform:translateX(-100%);}100%{transform:translateX(200%);}}
   @keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
   @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
   @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+  @keyframes pulseGlow{0%,100%{box-shadow:0 0 0 0 currentColor;opacity:1;}50%{box-shadow:0 0 0 6px transparent;opacity:0.85;}}
   @keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
   @keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
-  .hoverable{transition:border-color .15s,transform .12s,background .15s,box-shadow .15s;}
-  .hoverable:hover{border-color:#382E28 !important;box-shadow:0 4px 20px #00000044;}
-  .hoverable:active{transform:scale(0.985);opacity:0.9;}
-  .pressable:active{transform:scale(0.96);opacity:0.8;}
+  @keyframes bounceIn{0%{opacity:0;transform:scale(0.3);}50%{opacity:1;transform:scale(1.08);}70%{transform:scale(0.96);}100%{transform:scale(1);}}
+  @keyframes bloom{0%{transform:scale(1);}40%{transform:scale(1.15);filter:brightness(1.3);}100%{transform:scale(1);}}
+  @keyframes confettiFall{0%{transform:translateY(-100vh) rotate(0deg);opacity:1;}100%{transform:translateY(100vh) rotate(720deg);opacity:0;}}
+  @keyframes goldGlow{0%,100%{filter:drop-shadow(0 0 0 #E8A02000);}50%{filter:drop-shadow(0 0 12px #E8A02088);}}
+  @keyframes breathe{0%,100%{transform:scale(1);}50%{transform:scale(1.015);}}
+  @keyframes slideInRight{from{opacity:0;transform:translateX(30px);}to{opacity:1;transform:translateX(0);}}
+  @keyframes priceUp{0%{color:inherit;text-shadow:none;}30%{color:#3DD68C;text-shadow:0 0 14px #3DD68C88;}100%{color:inherit;text-shadow:none;}}
+  @keyframes priceDown{0%{color:inherit;text-shadow:none;}30%{color:#F04F5A;text-shadow:0 0 14px #F04F5A88;}100%{color:inherit;text-shadow:none;}}
+
+  /* Hoverable cards */
+  .hoverable{transition:border-color .2s,transform .15s,background .2s,box-shadow .2s;}
+  .hoverable:hover{border-color:#382E28 !important;box-shadow:0 8px 28px #00000066;transform:translateY(-2px);}
+  .hoverable:active{transform:scale(0.985) translateY(0);opacity:0.95;}
+  .pressable{transition:transform .1s ease, opacity .1s ease;}
+  .pressable:active{transform:scale(0.94);opacity:0.85;}
+
+  /* Film card tilt on desktop */
+  @media(hover:hover){
+    .film-card-tilt{transition:transform .25s cubic-bezier(.2,.9,.3,1.2), box-shadow .25s ease;transform-style:preserve-3d;will-change:transform;}
+    .film-card-tilt:hover{transform:translateY(-6px) scale(1.02);box-shadow:0 20px 40px #00000088, 0 0 0 1px #E8A02022;}
+    .film-card-tilt:hover .poster-shine{opacity:1;}
+    .film-card-tilt:hover .film-card-info{transform:translateY(-4px);}
+  }
+  .film-card-tilt{transform:translateZ(0);}
+  .film-card-info{transition:transform .3s ease;}
+
+  /* Poster shine effect (owned films) */
+  .poster-shine{position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg, transparent 30%, #E8A02020 48%, #E8A02040 50%, #E8A02020 52%, transparent 70%);transform:translateX(-100%);animation:shine 3s ease-in-out infinite;opacity:0.7;}
+  @keyframes shine{0%{transform:translateX(-100%);}60%,100%{transform:translateX(100%);}}
+
+  /* Glassmorphism */
+  .glass{backdrop-filter:blur(16px) saturate(1.5);-webkit-backdrop-filter:blur(16px) saturate(1.5);background:rgba(22,18,16,0.65);border:1px solid rgba(255,255,255,0.06);}
+
+  /* Bloom on score updates */
+  .bloom{animation:bloom .6s ease-out;}
+  .gold-glow{animation:goldGlow 2s ease-in-out infinite;}
+  .breathe{animation:breathe 3.5s ease-in-out infinite;}
+  .bounce-in{animation:bounceIn .4s cubic-bezier(.2,.9,.3,1.3);}
+
+  /* Skeleton shimmer */
+  .skeleton{background:linear-gradient(90deg, #1E1916 0%, #2A2420 50%, #1E1916 100%);background-size:200% 100%;animation:shimmer 1.6s ease-in-out infinite;border-radius:8px;}
+
   button:focus-visible{outline:2px solid #E8A02066;outline-offset:2px;}
   @media(min-width:768px){
     .film-grid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))!important;}
+  }
+
+  /* Respect reduced motion */
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{animation-duration:0.01ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important;}
+    .film-card-tilt:hover{transform:none;}
   }
 `
 
@@ -104,12 +159,106 @@ const S = {
 function Btn({children,onClick,color=T.gold,textColor='#0D0A08',variant='solid',size='md',disabled,full,sx={}}){
   const pad=size==='sm'?'8px 14px':size==='lg'?'14px 24px':'10px 18px'
   const fs=size==='sm'?'11px':size==='lg'?'13px':'12px'
-  return <button onClick={onClick} disabled={disabled} className="pressable" style={{...S.btn,padding:pad,fontSize:fs,background:variant==='solid'?color:'transparent',color:variant==='solid'?textColor:color,border:variant==='outline'?`1px solid ${color}55`:'none',opacity:disabled?0.35:1,cursor:disabled?'not-allowed':'pointer',width:full?'100%':undefined,...sx}}>{children}</button>
+  const handleClick=(e)=>{
+    if(disabled||!onClick)return
+    // Haptic on mobile
+    if(navigator.vibrate)navigator.vibrate(8)
+    onClick(e)
+  }
+  return <button onClick={handleClick} disabled={disabled} className="pressable" style={{...S.btn,padding:pad,fontSize:fs,background:variant==='solid'?color:'transparent',color:variant==='solid'?textColor:color,border:variant==='outline'?`1px solid ${color}55`:'none',opacity:disabled?0.35:1,cursor:disabled?'not-allowed':'pointer',width:full?'100%':undefined,...sx}}>{children}</button>
 }
 function Badge({children,color=T.gold}){return <span style={{fontSize:'10px',fontWeight:500,color,background:`${color}20`,padding:'2px 8px',borderRadius:'20px',display:'inline-flex',alignItems:'center',gap:'3px',lineHeight:1.5}}>{children}</span>}
 function Pill({children,color=T.textSub}){return <span style={{fontSize:'11px',color,background:`${color}18`,padding:'3px 9px',borderRadius:'20px',display:'inline-block',lineHeight:1.4,whiteSpace:'nowrap'}}>{children}</span>}
 function Divider({my=12}){return <div style={{height:'1px',background:T.border,margin:`${my}px 0`}}/>}
 function StatBox({label,value,color=T.text,sub}){return <div style={{background:T.surfaceUp,borderRadius:'10px',padding:'12px 14px',flex:1,minWidth:0}}><div style={{...S.label,marginBottom:'5px'}}>{label}</div><div style={{fontSize:'22px',fontWeight:700,color,lineHeight:1,fontFamily:T.mono}}>{value}</div>{sub&&<div style={{fontSize:'11px',color:T.textSub,marginTop:'3px'}}>{sub}</div>}</div>}
+
+// ── ANIMATED COUNTUP ──────────────────────────────────────────────────────────
+function CountUp({value,duration=700,suffix='',prefix='',className='',style={}}){
+  const[display,setDisplay]=useState(value)
+  const prevRef=useRef(value)
+  const rafRef=useRef(null)
+  useEffect(()=>{
+    const from=prevRef.current,to=value
+    if(from===to)return
+    const start=performance.now()
+    const tick=(now)=>{
+      const t=Math.min(1,(now-start)/duration)
+      // ease-out cubic
+      const eased=1-Math.pow(1-t,3)
+      const cur=Math.round(from+(to-from)*eased)
+      setDisplay(cur)
+      if(t<1)rafRef.current=requestAnimationFrame(tick)
+      else prevRef.current=to
+    }
+    rafRef.current=requestAnimationFrame(tick)
+    return()=>{if(rafRef.current)cancelAnimationFrame(rafRef.current)}
+  },[value,duration])
+  return <span className={className} style={style}>{prefix}{display}{suffix}</span>
+}
+
+// ── CONFETTI BURST ───────────────────────────────────────────────────────────
+function ConfettiBurst({active,colors=['#E8A020','#3DD68C','#F5C842','#F08030']}){
+  if(!active)return null
+  const pieces=Array.from({length:30},(_,i)=>({
+    id:i,
+    left:Math.random()*100,
+    delay:Math.random()*0.4,
+    dur:1.4+Math.random()*1.2,
+    color:colors[i%colors.length],
+    size:6+Math.random()*6,
+  }))
+  return(
+    <div style={{position:'fixed',inset:0,pointerEvents:'none',zIndex:9999,overflow:'hidden'}}>
+      {pieces.map(p=>(
+        <div key={p.id} style={{
+          position:'absolute',
+          left:`${p.left}%`,
+          top:'-20px',
+          width:`${p.size}px`,
+          height:`${p.size*1.5}px`,
+          background:p.color,
+          borderRadius:'2px',
+          animation:`confettiFall ${p.dur}s ${p.delay}s ease-in forwards`,
+        }}/>
+      ))}
+    </div>
+  )
+}
+
+// ── SKELETON LOADER ──────────────────────────────────────────────────────────
+function Skeleton({width,height,radius=8,style={}}){
+  const w=typeof width==='number'?`${width}px`:width
+  const h=typeof height==='number'?`${height}px`:height
+  return <div className="skeleton" style={{width:w,height:h,borderRadius:radius,...style}}/>
+}
+
+function PageSkeleton(){
+  return(
+    <div style={{animation:'fadeIn .3s ease'}}>
+      <Skeleton width="40%" height={26} style={{marginBottom:14}}/>
+      <Skeleton width="60%" height={14} style={{marginBottom:24}}/>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))',gap:14}}>
+        {[1,2,3,4,5,6].map(i=>(
+          <div key={i} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:14,overflow:'hidden'}}>
+            <Skeleton width="100%" height={200} radius={0}/>
+            <div style={{padding:12}}>
+              <Skeleton width="80%" height={14} style={{marginBottom:8}}/>
+              <Skeleton width="60%" height={11} style={{marginBottom:12}}/>
+              <Skeleton width="100%" height={36}/>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── HAPTIC HELPER ───────────────────────────────────────────────────────────
+const haptic={
+  tap:()=>{try{navigator.vibrate&&navigator.vibrate(8)}catch{}},
+  success:()=>{try{navigator.vibrate&&navigator.vibrate([15,30,15])}catch{}},
+  warn:()=>{try{navigator.vibrate&&navigator.vibrate([30,50,30])}catch{}},
+}
 
 // ── TMDB POSTER ────────────────────────────────────────────────────────────────
 const posterCache = {}
@@ -137,10 +286,11 @@ async function fetchTMDBPoster(title,tmdbId){
   return null
 }
 
-function FilmPoster({film,width,height,radius=8,imgStyle={}}){
+function FilmPoster({film,width,height,radius=8,imgStyle={},owned=false,scored=false,tilt=false}){
   const key=film?.tmdbId?`id:${film.tmdbId}`:film?.title
   const [url,setUrl]=useState(posterCache[key]!==undefined?posterCache[key]:undefined)
   const gc=GENRE_COL[film?.genre]||T.textSub
+  const containerRef=useRef(null)
   useEffect(()=>{
     if(!film?.title){setUrl(null);return}
     if(posterCache[key]!==undefined) return
@@ -148,13 +298,29 @@ function FilmPoster({film,width,height,radius=8,imgStyle={}}){
     fetchTMDBPoster(film.title,film.tmdbId).then(u=>{if(!cancelled)setUrl(u)})
     return()=>{cancelled=true}
   },[film?.title,film?.tmdbId])
+  // Tilt handlers for desktop
+  const onMouseMove=tilt?(e)=>{
+    const el=containerRef.current;if(!el)return
+    const r=el.getBoundingClientRect()
+    const x=(e.clientX-r.left)/r.width-0.5
+    const y=(e.clientY-r.top)/r.height-0.5
+    el.style.transform=`perspective(600px) rotateY(${x*8}deg) rotateX(${-y*8}deg) translateZ(4px)`
+  }:undefined
+  const onMouseLeave=tilt?()=>{
+    const el=containerRef.current;if(!el)return
+    el.style.transform='perspective(600px) rotateY(0) rotateX(0) translateZ(0)'
+  }:undefined
   const w=typeof width==='number'?`${width}px`:width
   const h=typeof height==='number'?`${height}px`:height
   return(
-    <div style={{width:w,height:h,borderRadius:radius,flexShrink:0,overflow:'hidden',position:'relative',contain:'strict',transform:'translateZ(0)',isolation:'isolate'}}>
-      {url===undefined&&<div style={{position:'absolute',inset:0,background:`linear-gradient(90deg,${T.surfaceUp} 25%,${T.border} 50%,${T.surfaceUp} 75%)`,animation:'shimmer 1.6s ease-in-out infinite'}}/>}
+    <div ref={containerRef} onMouseMove={onMouseMove} onMouseLeave={onMouseLeave} style={{width:w,height:h,borderRadius:radius,flexShrink:0,overflow:'hidden',position:'relative',contain:'strict',transform:'translateZ(0)',isolation:'isolate',transition:tilt?'transform .2s ease':'none',willChange:tilt?'transform':'auto'}}>
+      {url===undefined&&<div style={{position:'absolute',inset:0,background:`linear-gradient(90deg,${T.surfaceUp} 25%,${T.border} 50%,${T.surfaceUp} 75%)`,backgroundSize:'200% 100%',animation:'shimmer 1.6s ease-in-out infinite'}}/>}
       {url===null&&<div style={{position:'absolute',inset:0,background:`linear-gradient(145deg,${gc}28 0%,${T.surfaceUp} 100%)`,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:5}}><div style={{fontSize:typeof width==='number'?Math.max(16,width*0.28):20,lineHeight:1}}>🎬</div><div style={{fontSize:'9px',color:gc,textAlign:'center',padding:'0 6px',lineHeight:1.2}}>{film?.genre}</div></div>}
       {url&&<img src={url} alt={film?.title} style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',display:'block',...imgStyle}} onError={()=>setUrl(null)}/>}
+      {/* Gold shine for owned films */}
+      {owned&&url&&<div className="poster-shine"/>}
+      {/* Green tint for scored films */}
+      {scored&&url&&<div style={{position:'absolute',inset:0,background:`linear-gradient(to top, ${T.green}44, transparent 60%)`,pointerEvents:'none'}}/>}
     </div>
   )
 }
@@ -888,6 +1054,12 @@ export default function App(){
   const[phaseTransitioning,setPhaseTransitioning]=useState(false)
   const[phaseCeremony,setPhaseCeremony]=useState(null) // {phase, winner, mvp, bestChip}
   const[shareCardFilm,setShareCardFilm]=useState(null)
+  const[confettiActive,setConfettiActive]=useState(false)
+  const triggerConfetti=()=>{
+    setConfettiActive(true)
+    setTimeout(()=>setConfettiActive(false),3000)
+    haptic.success()
+  }
   const nowRef=useRef(Date.now())
   const isMobile=/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
 
@@ -1060,6 +1232,7 @@ export default function App(){
       await sendNotification('phase_advance',{league_id:league?.id,from_phase:completedPhase,to_phase:nextPhase,players:players.map(p=>({id:p.id}))})
       // 5. Show ceremony
       setPhaseCeremony({phase:completedPhase,scores:phaseScores,winner:phaseWinner,mvp:mvpHolding,chipWinner,chipWin})
+      if(phaseWinner?.pts>0)triggerConfetti()
       loadData(league?.id)
     }catch(e){notify(`Phase transition failed: ${e.message}`,T.red)}
     setPhaseTransitioning(false)
@@ -1096,16 +1269,17 @@ export default function App(){
   const buyFilm=async(film)=>{
     if(!profile)return notify('Create a profile first',T.red)
     const ph=curPhase()
-    if(film.phase!==ph)return notify(`Film is Phase ${film.phase} — you are in Phase ${ph}`,T.red)
-    if(rosters.find(r=>r.player_id===profile.id&&r.film_id===film.id&&r.active))return notify('Already in your roster',T.red)
-    if(rosters.filter(r=>r.player_id===profile.id&&r.phase===ph&&r.active&&films.find(f=>f.id===r.film_id)).length>=MAX_ROSTER)return notify(`Phase roster full (${MAX_ROSTER} max)`,T.red)
+    if(film.phase!==ph){haptic.warn();return notify(`Film is Phase ${film.phase} — you are in Phase ${ph}`,T.red)}
+    if(rosters.find(r=>r.player_id===profile.id&&r.film_id===film.id&&r.active)){haptic.warn();return notify('Already in your roster',T.red)}
+    if(rosters.filter(r=>r.player_id===profile.id&&r.phase===ph&&r.active&&films.find(f=>f.id===r.film_id)).length>=MAX_ROSTER){haptic.warn();return notify(`Phase roster full (${MAX_ROSTER} max)`,T.red)}
     const price=filmVal(film),left=budgetLeft(profile.id)
-    if(price>left)return notify(`Not enough budget — need $${price}M, have $${left}M`,T.red)
+    if(price>left){haptic.warn();return notify(`Not enough budget — need $${price}M, have $${left}M`,T.red)}
     const{error}=await supabase.from('rosters').insert({player_id:profile.id,film_id:film.id,bought_price:price,bought_week:cfg.current_week,acquired_week:cfg.current_week,phase:ph,active:true,league_id:league?.id})
-    if(error)return notify(error.message,T.red)
+    if(error){haptic.warn();return notify(error.message,T.red)}
     await supabase.from('transactions').insert({player_id:profile.id,film_id:film.id,type:'buy',price,week:cfg.current_week,league_id:league?.id})
     await logActivity(profile.id,'buy',{film_id:film.id,film_title:film.title,price,player_name:profile.name},league?.id)
-    notify(`Acquired ${film.title} · $${price}M`,T.green);loadData(league?.id)
+    haptic.success()
+    notify(`✨ Acquired ${film.title} · $${price}M`,T.green);loadData(league?.id)
   }
   const sellFilm=async(film)=>{
     const h=rosters.find(r=>r.player_id===profile.id&&r.film_id===film.id&&r.active);if(!h)return
@@ -1113,6 +1287,7 @@ export default function App(){
     await supabase.from('rosters').update({active:false,sold_price:proceeds,sold_week:cfg.current_week}).eq('id',h.id)
     await supabase.from('transactions').insert([{player_id:profile.id,film_id:film.id,type:'sell',price:proceeds,week:cfg.current_week},...(fee>0?[{player_id:profile.id,film_id:film.id,type:'fee',price:fee,week:cfg.current_week}]:[])])
     await logActivity(profile.id,'sell',{film_id:film.id,film_title:film.title,proceeds,player_name:profile.name},league?.id)
+    haptic.tap()
     notify(`Dropped ${film.title} · $${proceeds}M${win?' (free)':''}`,T.gold);loadData(league?.id)
   }
 
@@ -1141,7 +1316,7 @@ export default function App(){
     if(chips)await supabase.from('chips').update({recut_used:true}).eq('player_id',profile.id).eq('league_id',league?.id)
     else await supabase.from('chips').insert({player_id:profile.id,recut_used:true,league_id:league?.id})
     await logActivity(profile.id,'chip_recut',{player_name:profile.name},league?.id)
-    notify('🎬 RECUT activated',T.purple);setChipModal(null);loadData(league?.id)
+    notify('🎬 RECUT activated',T.purple);triggerConfetti();setChipModal(null);loadData(league?.id)
   }
   const activateShort=async(filmId,pred)=>{
     if(chips?.short_film_id)return notify('Short already used',T.red)
@@ -1150,7 +1325,7 @@ export default function App(){
     else await supabase.from('chips').insert({player_id:profile.id,short_film_id:filmId,short_phase:curPhase(),short_prediction:pred,league_id:league?.id})
     const ft=films.find(f=>f.id===filmId)?.title
     await logActivity(profile.id,'chip_short',{film_title:ft,prediction:pred,player_name:profile.name},league?.id)
-    notify(`📉 SHORT on ${ft}`,T.red);setChipModal(null);loadData(league?.id)
+    notify(`📉 SHORT on ${ft}`,T.red);triggerConfetti();setChipModal(null);loadData(league?.id)
   }
   const activateAnalyst=async(filmId,pred)=>{
     if(chips?.analyst_film_id)return notify('Analyst already used',T.red)
@@ -1160,7 +1335,7 @@ export default function App(){
     else await supabase.from('chips').insert({player_id:profile.id,analyst_film_id:filmId,analyst_phase:curPhase(),analyst_prediction:pred,league_id:league?.id})
     const ft=films.find(f=>f.id===filmId)?.title
     await logActivity(profile.id,'chip_analyst',{film_title:ft,prediction:pred,player_name:profile.name},league?.id)
-    notify(`🎯 ANALYST on ${ft}`,T.blue);setChipModal(null);loadData(league?.id)
+    notify(`🎯 ANALYST on ${ft}`,T.blue);triggerConfetti();setChipModal(null);loadData(league?.id)
   }
   const resolveChips=async(filmId,actualM)=>{
     const film=films.find(f=>f.id===filmId);if(!film)return
@@ -1330,7 +1505,7 @@ export default function App(){
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'12px',flexWrap:'wrap',gap:'8px'}}>
               <div>
                 <div style={{fontSize:'12px',color:T.green,fontWeight:700,letterSpacing:'1px',textTransform:'uppercase',marginBottom:'3px'}}>Latest Results</div>
-                <div style={{fontSize:'22px',fontWeight:900,color:T.green,fontFamily:T.mono,lineHeight:1}}>+{myNewPts} pts</div>
+                <div style={{fontSize:'22px',fontWeight:900,color:T.green,fontFamily:T.mono,lineHeight:1}}>+<CountUp value={myNewPts}/> pts</div>
                 <div style={{fontSize:'12px',color:T.textSub,marginTop:'3px'}}>from {myNewResults.length} film{myNewResults.length!==1?'s':''} · #{myRank} of {players.length}</div>
               </div>
               <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
@@ -1350,6 +1525,92 @@ export default function App(){
             </div>
           </div>
         )}
+
+        {/* ── RELEASE CALENDAR ────────────────────────────────────────────── */}
+        {(()=>{
+          // Group ALL films by week across all phases
+          const allWeeks=[...new Set(films.map(f=>f.week))].sort((a,b)=>a-b)
+          const calRef=React.useRef(null)
+          // Auto-scroll to current week on mount
+          React.useEffect(()=>{
+            if(!calRef.current)return
+            const el=calRef.current.querySelector(`[data-week="${cfg.current_week}"]`)
+            if(el)el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})
+          },[cfg.current_week])
+          if(!allWeeks.length)return null
+          const minW=allWeeks[0],maxW=allWeeks[allWeeks.length-1]
+          const weekRange=Array.from({length:maxW-minW+1},(_,i)=>minW+i)
+          return(
+            <div style={{marginBottom:'20px'}}>
+              <div style={{...S.label,marginBottom:'10px',display:'flex',alignItems:'center',gap:'8px'}}>
+                Release Calendar
+                <span style={{color:T.textDim,fontWeight:400,fontSize:'10px',textTransform:'none',letterSpacing:0}}>· W{cfg.current_week} now</span>
+              </div>
+              <div ref={calRef} style={{display:'flex',gap:'0',overflowX:'auto',paddingBottom:'8px',scrollSnapType:'x mandatory',WebkitOverflowScrolling:'touch',margin:'0 -16px',padding:'0 16px 8px'}}>
+                {weekRange.map(wk=>{
+                  const weekFilms=films.filter(f=>f.week===wk)
+                  const isPast=wk<cfg.current_week
+                  const isCurrent=wk===cfg.current_week
+                  const isNear=wk===cfg.current_week+1
+                  return(
+                    <div key={wk} data-week={wk} style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0,scrollSnapAlign:'start',position:'relative',marginRight:'2px'}}>
+                      {/* Timeline track */}
+                      <div style={{display:'flex',alignItems:'center',width:'100%',marginBottom:'8px',minWidth:weekFilms.length?`${weekFilms.length*72+24}px`:'52px'}}>
+                        <div style={{flex:1,height:'2px',background:isPast?T.gold:isCurrent?T.green:T.border}}/>
+                        <div style={{width:isCurrent?'12px':'8px',height:isCurrent?'12px':'8px',borderRadius:'50%',background:isPast?T.gold:isCurrent?T.green:isNear?T.blue:T.border,flexShrink:0,boxShadow:isCurrent?`0 0 0 3px ${T.green}33`:isNear?`0 0 0 3px ${T.blue}22`:'none',transition:'all .2s'}}/>
+                        <div style={{flex:1,height:'2px',background:isPast?T.gold:T.border}}/>
+                      </div>
+                      {/* Week label */}
+                      <div style={{fontSize:'10px',fontWeight:isCurrent?700:500,color:isCurrent?T.green:isNear?T.blue:isPast?T.gold:T.textDim,letterSpacing:'0.5px',marginBottom:'6px',background:isCurrent?`${T.green}18`:isNear?`${T.blue}12`:'transparent',padding:'2px 6px',borderRadius:'6px',whiteSpace:'nowrap'}}>
+                        {isCurrent?'▶ NOW':'W'+wk}
+                      </div>
+                      {/* Film pills for this week */}
+                      {weekFilms.length>0?(
+                        <div style={{display:'flex',gap:'6px',paddingBottom:'4px'}}>
+                          {weekFilms.map(f=>{
+                            const owned=myRoster.find(r=>r.film_id===f.id)
+                            const hasResult=results[f.id]!=null
+                            const gc=GENRE_COL[f.genre]||T.textSub
+                            const eb=!hasResult&&(f.week-cfg.current_week)>=EARLY_BIRD_WEEKS
+                            return(
+                              <div key={f.id} onClick={()=>setFilmDetail(f)} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'4px',cursor:'pointer',opacity:isPast&&!hasResult?0.5:1,transition:'opacity .15s'}}>
+                                <div style={{position:'relative'}}>
+                                  <FilmPoster film={f} width={56} height={84} radius={8}/>
+                                  {/* Genre colour border */}
+                                  <div style={{position:'absolute',inset:0,borderRadius:'8px',border:`2px solid ${owned?T.gold:hasResult?T.green:eb?T.green+'88':gc+'44'}`,pointerEvents:'none'}}/>
+                                  {/* Status dot */}
+                                  {hasResult&&<div style={{position:'absolute',top:'4px',right:'4px',width:'8px',height:'8px',borderRadius:'50%',background:T.green,border:`2px solid ${T.surface}`}}/>}
+                                  {owned&&!hasResult&&<div style={{position:'absolute',top:'4px',right:'4px',width:'8px',height:'8px',borderRadius:'50%',background:T.gold,border:`2px solid ${T.surface}`}}/>}
+                                  {eb&&!owned&&<div style={{position:'absolute',top:'4px',left:'4px'}}><span style={{fontSize:'9px'}}>🐦</span></div>}
+                                </div>
+                                <div style={{fontSize:'9px',color:owned?T.gold:hasResult?T.green:T.textSub,fontWeight:owned||hasResult?600:400,maxWidth:'56px',textAlign:'center',lineHeight:1.2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.title.split(':')[0].split(' ').slice(0,2).join(' ')}</div>
+                                {hasResult&&<div style={{fontSize:'9px',color:T.green,fontWeight:700}}>${results[f.id]}M</div>}
+                                {!hasResult&&<div style={{fontSize:'9px',color:T.textDim}}>Est ${f.estM}M</div>}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ):(
+                        <div style={{width:'40px',height:'60px',borderRadius:'8px',border:`1px dashed ${T.border}`,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                          <div style={{fontSize:'10px',color:T.textDim}}>—</div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              {/* Legend */}
+              <div style={{display:'flex',gap:'12px',flexWrap:'wrap',marginTop:'4px'}}>
+                {[['gold border','Owned'],['green dot','Scored'],['🐦','Early Bird window']].map(([icon,label])=>(
+                  <div key={label} style={{display:'flex',gap:'5px',alignItems:'center',fontSize:'10px',color:T.textDim}}>
+                    <span>{icon.includes('border')?<div style={{width:'10px',height:'10px',borderRadius:'2px',border:`2px solid ${T.gold}`}}/>:icon.includes('dot')?<div style={{width:'8px',height:'8px',borderRadius:'50%',background:T.green}}/>:<span style={{fontSize:'11px'}}>{icon}</span>}</span>
+                    <span>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* ── HEADER ──────────────────────────────────────────────────────── */}
         <div style={{marginBottom:'20px'}}>
@@ -1384,11 +1645,11 @@ export default function App(){
             const vel7=pickVelocity(film.id,allPicks,7)
             const eb=owned&&isEarlyBird(owned)
             return(
-              <div key={film.id} className="hoverable" style={{background:owned?`linear-gradient(155deg,${T.gold}14 0%,${T.surface} 55%)`:T.surface,border:`1px solid ${owned?T.gold+'55':T.border}`,borderRadius:'14px',overflow:'hidden',display:'flex',flexDirection:'column'}}>
+              <div key={film.id} className="hoverable film-card-tilt" style={{background:owned?`linear-gradient(155deg,${T.gold}14 0%,${T.surface} 55%)`:T.surface,border:`1px solid ${owned?T.gold+'55':T.border}`,borderRadius:'14px',overflow:'hidden',display:'flex',flexDirection:'column'}}>
                 <div style={{height:'3px',background:gc,flexShrink:0}}/>
                 {/* Poster */}
                 <div style={{position:'relative',cursor:'pointer',flexShrink:0}} onClick={()=>setFilmDetail(film)}>
-                  <FilmPoster film={film} width="100%" height={isMobile?160:210} radius={0} imgStyle={{width:'100%'}}/>
+                  <FilmPoster film={film} width="100%" height={isMobile?160:210} radius={0} imgStyle={{width:'100%'}} tilt={false} owned={!!owned} scored={actual!=null}/>
                   <div style={{position:'absolute',inset:0,background:'linear-gradient(to bottom,transparent 40%,rgba(13,10,8,0.96) 100%)'}}/>
                   {/* Price overlay */}
                   <div style={{position:'absolute',bottom:'10px',left:'12px'}}>
@@ -1496,7 +1757,7 @@ export default function App(){
         </div>
         <div style={{flex:1,background:T.surfaceUp,borderRadius:'12px',padding:'12px 14px'}}>
           <div style={S.label}>Phase pts</div>
-          <div style={{fontSize:'22px',fontWeight:900,color:T.gold,fontFamily:T.mono,marginTop:'3px'}}>{totalPts}</div>
+          <div style={{fontSize:'22px',fontWeight:900,color:T.gold,fontFamily:T.mono,marginTop:'3px'}}><CountUp value={totalPts}/></div>
           {myRoster.filter(h=>!results[h.film_id]).length>0&&<div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>~{projectedPts} projected</div>}
         </div>
         {phaseBanked(profile.id,ph)>0&&(
@@ -1749,7 +2010,7 @@ export default function App(){
                   <div style={{width:'44px',height:'44px',borderRadius:'50%',background:p.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'18px',fontWeight:900,color:'#0D0A08',boxShadow:`0 0 0 3px ${T.surface},0 0 0 5px ${p.color||T.gold}44`}}>{p.name?.[0]}</div>
                   <div style={{fontSize:'12px',fontWeight:600,color:p.color||T.gold,textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',width:'100%'}}>{p.name}</div>
                   <div style={{width:'100%',background:`${p.color||T.gold}22`,border:`1px solid ${p.color||T.gold}44`,borderRadius:'10px 10px 0 0',padding:'14px 8px',textAlign:'center',height:'100px',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
-                    <div style={{fontSize:'28px',fontWeight:900,color:p.color||T.gold,fontFamily:T.mono,lineHeight:1}}>{pts}</div>
+                    <div style={{fontSize:'28px',fontWeight:900,color:p.color||T.gold,fontFamily:T.mono,lineHeight:1}}><CountUp value={pts}/></div>
                     <div style={{...S.label,marginTop:'4px'}}>🥈</div>
                   </div>
                 </div>
@@ -1761,7 +2022,7 @@ export default function App(){
                   <div style={{width:'52px',height:'52px',borderRadius:'50%',background:p.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'22px',fontWeight:900,color:'#0D0A08',boxShadow:`0 0 0 3px ${T.surface},0 0 0 5px ${T.gold},0 8px 24px ${T.gold}44`}}>{p.name?.[0]}</div>
                   <div style={{fontSize:'13px',fontWeight:700,color:T.gold,textAlign:'center'}}>{p.name}</div>
                   <div style={{width:'100%',background:`${T.gold}22`,border:`1px solid ${T.gold}55`,borderRadius:'10px 10px 0 0',padding:'14px 8px',textAlign:'center',height:'130px',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
-                    <div style={{fontSize:'38px',fontWeight:900,color:T.gold,fontFamily:T.mono,lineHeight:1,letterSpacing:'-1px'}}>{pts}</div>
+                    <div style={{fontSize:'38px',fontWeight:900,color:T.gold,fontFamily:T.mono,lineHeight:1,letterSpacing:'-1px'}}><CountUp value={pts}/></div>
                     <div style={{...S.label,color:T.gold,marginTop:'4px'}}>🥇 pts</div>
                   </div>
                 </div>
@@ -1773,7 +2034,7 @@ export default function App(){
                   <div style={{width:'40px',height:'40px',borderRadius:'50%',background:p.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'16px',fontWeight:900,color:'#0D0A08',boxShadow:`0 0 0 3px ${T.surface},0 0 0 5px ${p.color||T.gold}44`}}>{p.name?.[0]}</div>
                   <div style={{fontSize:'12px',fontWeight:600,color:p.color||T.gold,textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',width:'100%'}}>{p.name}</div>
                   <div style={{width:'100%',background:`${p.color||T.gold}22`,border:`1px solid ${p.color||T.gold}44`,borderRadius:'10px 10px 0 0',padding:'14px 8px',textAlign:'center',height:'80px',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
-                    <div style={{fontSize:'24px',fontWeight:900,color:p.color||T.gold,fontFamily:T.mono,lineHeight:1}}>{pts}</div>
+                    <div style={{fontSize:'24px',fontWeight:900,color:p.color||T.gold,fontFamily:T.mono,lineHeight:1}}><CountUp value={pts}/></div>
                     <div style={{...S.label,marginTop:'4px'}}>🥉</div>
                   </div>
                 </div>
@@ -1832,7 +2093,7 @@ export default function App(){
                       </div>
                     </div>
                     <div style={{textAlign:'right',flexShrink:0}}>
-                      <div style={{fontSize:'26px',fontWeight:900,color:i===0?T.gold:T.text,lineHeight:1,fontFamily:T.mono}}>{pts}</div>
+                      <div style={{fontSize:'26px',fontWeight:900,color:i===0?T.gold:T.text,lineHeight:1,fontFamily:T.mono}}><CountUp value={pts}/></div>
                       {i>0&&<div style={{fontSize:'10px',color:T.textDim,marginTop:'1px'}}>−{gap}</div>}
                     </div>
                   </div>
@@ -2311,7 +2572,22 @@ export default function App(){
 
   const DistributorPage=()=>{
     const[selFilm,setSelFilm]=useState(films[0]?.id||'')
+    const[selDist,setSelDist]=useState('All')
     const[newEvt,setNewEvt]=useState({event_type:'trailer',label:'',event_date:'',notes:''})
+
+    // All unique distributors
+    const allDists=['All',...[...new Set(films.map(f=>f.dist).filter(Boolean))].sort()]
+    // Filter films by selected distributor
+    const filteredFilms=selDist==='All'?films:films.filter(f=>f.dist===selDist)
+
+    // Reset film selection when distributor changes
+    React.useEffect(()=>{
+      if(selDist!=='All'){
+        const first=filteredFilms[0]
+        if(first&&first.id!==selFilm)setSelFilm(first.id)
+      }
+    },[selDist])
+
     const selF=films.find(f=>f.id===selFilm)
     const filmPicks=allPicks.filter(p=>p.film_id===selFilm)
     const total=filmPicks.length
@@ -2325,8 +2601,10 @@ export default function App(){
       const lift=before>0?Math.round((after-before)/before*100):after>0?100:0
       return{ev,before,after,lift}
     })
-    const filmRanking=[...films].map(f=>({f,total:allPicks.filter(p=>p.film_id===f.id).length,vel:pickVelocity(f.id,allPicks,7)})).sort((a,b)=>b.total-a.total)
-    const benchmarks=selF?filmRanking.filter(x=>x.f.id!==selFilm&&(x.f.genre===selF.genre||Math.abs(x.f.estM-(selF.estM||0))<30)).slice(0,3):[]
+    // Ranking filtered by distributor
+    const filmRanking=[...filteredFilms].map(f=>({f,total:allPicks.filter(p=>p.film_id===f.id).length,vel:pickVelocity(f.id,allPicks,7)})).sort((a,b)=>b.total-a.total)
+    const allFilmsRanking=[...films].map(f=>({f,total:allPicks.filter(p=>p.film_id===f.id).length,vel:pickVelocity(f.id,allPicks,7)})).sort((a,b)=>b.total-a.total)
+    const benchmarks=selF?allFilmsRanking.filter(x=>x.f.id!==selFilm&&(x.f.genre===selF.genre||Math.abs(x.f.estM-(selF.estM||0))<30)).slice(0,3):[]
     const roiScore=(()=>{
       if(!selF||total===0)return null
       const avgBenchmarkPicks=benchmarks.length?benchmarks.reduce((s,b)=>s+b.total,0)/benchmarks.length:total
@@ -2337,21 +2615,84 @@ export default function App(){
     })()
     const roiColor=roiScore===null?T.textSub:roiScore>=70?T.green:roiScore>=40?T.gold:T.red
     const roiLabel=roiScore===null?'—':roiScore>=70?'Strong':roiScore>=40?'Building':'Weak'
+
+    // Distributor aggregate stats
+    const distStats=selDist!=='All'?(()=>{
+      const distFilms=films.filter(f=>f.dist===selDist)
+      const distPicks=allPicks.filter(p=>distFilms.find(f=>f.id===p.film_id))
+      const distClicks=bookingClicks.filter(b=>distFilms.find(f=>f.id===b.film_id))
+      const distVel=distFilms.reduce((s,f)=>s+pickVelocity(f.id,allPicks,7),0)
+      const topFilm=distFilms.map(f=>({f,picks:allPicks.filter(p=>p.film_id===f.id).length})).sort((a,b)=>b.picks-a.picks)[0]
+      return{films:distFilms.length,picks:distPicks.length,clicks:distClicks.length,vel7:distVel,topFilm}
+    })():null
+
     const exportCSV=()=>{
       const rows=[['Film','Distributor','Genre','Phase','Week','Est $M','Total Picks','7d Velocity','24h Picks','Booking Clicks'],...filmRanking.map(({f,total,vel})=>[f.title,f.dist,f.genre,f.phase,f.week,f.estM,total,vel,pickVelocity(f.id,allPicks,1),bookingClicks.filter(b=>b.film_id===f.id).length])]
       const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')
-      const blob=new Blob([csv],{type:'text/csv'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='boxd-intent-data.csv';a.click();URL.revokeObjectURL(url)
+      const blob=new Blob([csv],{type:'text/csv'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`boxd-intent-${selDist==='All'?'all':selDist.toLowerCase().replace(/\s+/g,'-')}.csv`;a.click();URL.revokeObjectURL(url)
     }
     return(
       <div>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'4px'}}>
           <div style={S.pageTitle}>📈 Distributor Insights</div>
-          <Btn onClick={exportCSV} color={T.textSub} variant="outline" size="sm">↓ Export CSV</Btn>
+          <Btn onClick={exportCSV} color={T.textSub} variant="outline" size="sm">↓ CSV</Btn>
         </div>
-        <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px',marginBottom:'20px'}}>Audience intent data · pick velocity vs marketing events</div>
+        <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px',marginBottom:'20px'}}>Audience intent · pick velocity · marketing impact</div>
+
+        {/* ── DISTRIBUTOR FILTER ── */}
         <div style={{marginBottom:'20px'}}>
-          <div style={{...S.label,marginBottom:'6px'}}>Select Film</div>
-          <select value={selFilm} onChange={e=>setSelFilm(e.target.value)} style={S.inp}>{films.map(f=><option key={f.id} value={f.id}>{f.title} (Ph{f.phase})</option>)}</select>
+          <div style={{...S.label,marginBottom:'8px'}}>Filter by Distributor</div>
+          <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
+            {allDists.map(d=>{
+              const isActive=selDist===d
+              const distFilmCount=d==='All'?films.length:films.filter(f=>f.dist===d).length
+              const distPickCount=d==='All'?allPicks.length:allPicks.filter(p=>films.find(f=>f.id===p.film_id&&f.dist===d)).length
+              return(
+                <button key={d} onClick={()=>setSelDist(d)} style={{...S.btn,background:isActive?`${T.blue}22`:T.surfaceUp,border:`1px solid ${isActive?T.blue+'66':T.border}`,color:isActive?T.blue:T.textSub,padding:'7px 14px',fontSize:'12px',textTransform:'none',letterSpacing:0,gap:'6px',flexShrink:0}}>
+                  {d}
+                  {distPickCount>0&&<span style={{fontSize:'10px',color:isActive?T.blue:T.textDim,background:isActive?`${T.blue}22`:T.border,padding:'1px 5px',borderRadius:'8px'}}>{distPickCount}</span>}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* ── DISTRIBUTOR AGGREGATE when filtered ── */}
+        {distStats&&(
+          <div style={{background:`linear-gradient(135deg,${T.blue}10,${T.surface})`,border:`1px solid ${T.blue}33`,borderRadius:'16px',padding:'18px 20px',marginBottom:'20px'}}>
+            <div style={{fontSize:'12px',color:T.blue,fontWeight:700,letterSpacing:'1px',marginBottom:'12px'}}>{selDist.toUpperCase()} · SLATE OVERVIEW</div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'8px',marginBottom:distStats.topFilm?'14px':'0'}}>
+              {[
+                {label:'Films',value:distStats.films,color:T.text},
+                {label:'Total picks',value:distStats.picks,color:T.gold},
+                {label:'7d velocity',value:distStats.vel7,color:distStats.vel7>=5?T.red:distStats.vel7>=2?T.orange:T.text},
+                {label:'Booking clicks',value:distStats.clicks,color:T.blue},
+              ].map(({label,value,color})=>(
+                <div key={label} style={{background:'#00000018',borderRadius:'10px',padding:'10px 8px',textAlign:'center'}}>
+                  <div style={{fontSize:'20px',fontWeight:900,color,fontFamily:T.mono,lineHeight:1}}>{value}</div>
+                  <div style={{fontSize:'10px',color:T.textDim,marginTop:'3px'}}>{label}</div>
+                </div>
+              ))}
+            </div>
+            {distStats.topFilm&&distStats.topFilm.picks>0&&(
+              <div style={{display:'flex',gap:'10px',alignItems:'center',background:'#00000018',borderRadius:'10px',padding:'10px 12px'}}>
+                <FilmPoster film={distStats.topFilm.f} width={32} height={48} radius={5}/>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:'10px',color:T.blue,fontWeight:700,letterSpacing:'1px',marginBottom:'2px'}}>TOP FILM</div>
+                  <div style={{fontSize:'13px',fontWeight:600}}>{distStats.topFilm.f.title}</div>
+                  <div style={{fontSize:'11px',color:T.textSub}}>{distStats.topFilm.picks} picks · Est ${distStats.topFilm.f.estM}M</div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── FILM SELECTOR ── */}
+        <div style={{marginBottom:'20px'}}>
+          <div style={{...S.label,marginBottom:'6px'}}>Select Film {selDist!=='All'?`· ${filteredFilms.length} from ${selDist}`:''}</div>
+          <select value={selFilm} onChange={e=>setSelFilm(e.target.value)} style={S.inp}>
+            {filteredFilms.map(f=><option key={f.id} value={f.id}>{f.title} — {f.dist} (Ph{f.phase})</option>)}
+          </select>
         </div>
         {selF&&<>
           <div style={{...S.card,marginBottom:'16px',display:'flex',gap:'16px',alignItems:'center'}}>
@@ -2415,7 +2756,9 @@ export default function App(){
             }}>Log Event</Btn>
           </div>}
         </>}
-        <div style={{fontSize:'13px',fontWeight:600,color:T.textSub,margin:'8px 0 12px'}}>All Films — Audience Intent Ranking</div>
+        <div style={{fontSize:'13px',fontWeight:600,color:T.textSub,margin:'8px 0 12px'}}>
+          {selDist==='All'?'All Films':'Films from '+selDist} — Audience Intent Ranking
+        </div>
         {filmRanking.filter(x=>x.total>0).map(({f,total,vel},i)=>(
           <div key={f.id} className="hoverable" style={{display:'flex',gap:'12px',alignItems:'center',padding:'10px 12px',background:T.surface,border:`1px solid ${T.border}`,borderRadius:'10px',marginBottom:'6px',cursor:'pointer'}} onClick={()=>setSelFilm(f.id)}>
             <div style={{fontSize:'16px',minWidth:'24px',textAlign:'center',color:T.textDim,fontWeight:700}}>#{i+1}</div>
@@ -2756,6 +3099,9 @@ export default function App(){
   return(
     <div style={{minHeight:'100vh',background:T.bg,color:T.text,fontFamily:T.mono,fontSize:'14px'}}>
 
+      {/* ── AMBIENT PHASE BACKGROUND ─────────────────────────────────────────── */}
+      <div className={`ambient-bg ambient-p${ph}`}/>
+
       {/* ── TOP BAR ─────────────────────────────────────────────────────────── */}
       <div style={{position:'sticky',top:0,zIndex:200,background:`${T.bg}F2`,backdropFilter:'blur(14px)',borderBottom:`1px solid ${T.border}`,padding:'0 20px',height:'56px',display:'flex',alignItems:'center',gap:'14px'}}>
         <button onClick={()=>setSidebarOpen(o=>!o)} style={{background:'none',border:'none',color:T.textSub,cursor:'pointer',fontSize:'18px',padding:'4px 6px',flexShrink:0,display:isMobile?'none':'flex',alignItems:'center',justifyContent:'center',borderRadius:'6px',lineHeight:1}}>☰</button>
@@ -2770,7 +3116,7 @@ export default function App(){
           </div>}
           <div style={{background:myBudget<20?`${T.red}18`:`${T.gold}14`,border:`1px solid ${myBudget<20?T.red+'55':T.gold+'44'}`,borderRadius:'12px',padding:'6px 14px',cursor:'pointer',minWidth:'80px'}} onClick={()=>navigate('roster')}>
             <div style={{fontSize:'10px',color:T.textDim,letterSpacing:'1px',marginBottom:'2px'}}>BUDGET</div>
-            <div style={{fontSize:'16px',fontWeight:900,color:myBudget<20?T.red:myBudget<50?T.orange:T.gold,fontFamily:T.mono,lineHeight:1}}>{cur}{myBudget}M</div>
+            <div style={{fontSize:'16px',fontWeight:900,color:myBudget<20?T.red:myBudget<50?T.orange:T.gold,fontFamily:T.mono,lineHeight:1}}>{cur}<CountUp value={myBudget}/>M</div>
             <div style={{height:'2px',background:T.border,borderRadius:'2px',marginTop:'5px',overflow:'hidden'}}>
               <div style={{height:'100%',width:`${Math.min(100,Math.round((1-myBudget/Math.max(1,phaseAlloc(profile.id,ph)))*100))}%`,background:myBudget<20?T.red:myBudget<50?T.orange:T.gold,borderRadius:'2px'}}/>
             </div>
@@ -2864,12 +3210,15 @@ export default function App(){
         {/* ── PAGE CONTENT ────────────────────────────────────────────────── */}
         <div style={{flex:1,minWidth:0,padding:isMobile?'16px 14px 100px':'28px 36px 56px',overflowX:'hidden'}}>
           <div style={{maxWidth:'1400px',margin:'0 auto',position:'relative'}}>
-            {dataLoading&&<div style={{position:'absolute',inset:0,zIndex:10,background:`${T.bg}CC`,backdropFilter:'blur(2px)',display:'flex',alignItems:'flex-start',justifyContent:'center',paddingTop:'80px',borderRadius:'12px'}}>
-              <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'12px'}}>
-                <div style={{width:'32px',height:'32px',border:`3px solid ${T.border}`,borderTopColor:T.gold,borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>
-                <div style={{fontSize:'12px',color:T.textSub,letterSpacing:'1px'}}>Loading…</div>
+            {dataLoading&&(films.length===0
+              ?<div style={{padding:'8px 0'}}><PageSkeleton/></div>
+              :<div style={{position:'absolute',inset:0,zIndex:10,background:`${T.bg}CC`,backdropFilter:'blur(2px)',display:'flex',alignItems:'flex-start',justifyContent:'center',paddingTop:'80px',borderRadius:'12px'}}>
+                <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'12px'}}>
+                  <div style={{width:'32px',height:'32px',border:`3px solid ${T.border}`,borderTopColor:T.gold,borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>
+                  <div style={{fontSize:'12px',color:T.textSub,letterSpacing:'1px'}}>Loading…</div>
+                </div>
               </div>
-            </div>}
+            )}
             {renderPage()}
           </div>
         </div>
@@ -3237,6 +3586,10 @@ export default function App(){
           </div>
         )
       })()}
+
+      {/* ── CONFETTI ─────────────────────────────────────────────────────── */}
+      <ConfettiBurst active={confettiActive}/>
+
     </div>
   )
 }
