@@ -467,6 +467,80 @@ function VelocitySparkline({filmId,allPicks,marketingEvents=[],width=200,height=
 }
 
 
+// ── PRICE SPARKLINE ──────────────────────────────────────────────────────────
+function PriceSparkline({film,rosters,filmValues,width=60,height=20}){
+  const filmR=rosters.filter(r=>r.film_id===film.id&&r.bought_price)
+  const ipo=film.basePrice,cur=filmValues[film.id]||ipo
+  if(!filmR.length){
+    // Flat line if no transactions
+    const col=cur>ipo?T.green:cur<ipo?T.red:T.textDim
+    return <svg width={width} height={height} style={{overflow:'visible'}}><line x1={0} y1={height/2} x2={width} y2={height/2} stroke={col} strokeWidth="1.5" opacity="0.6"/></svg>
+  }
+  const byWeek={}
+  filmR.forEach(r=>{const wk=r.bought_week||1;if(!byWeek[wk]||r.bought_price>byWeek[wk])byWeek[wk]=r.bought_price})
+  const wks=Object.keys(byWeek).map(Number).sort((a,b)=>a-b)
+  const series=[{p:ipo},...wks.map(w=>({p:byWeek[w]})),{p:cur}]
+  const prices=series.map(s=>s.p),mn=Math.min(...prices),mx=Math.max(...prices),range=mx-mn||1
+  const pts=series.map((s,i)=>{
+    const x=(i/(series.length-1))*width
+    const y=height-4-((s.p-mn)/range)*(height-8)
+    return `${x.toFixed(1)},${y.toFixed(1)}`
+  }).join(' ')
+  const col=cur>ipo?T.green:cur<ipo?T.red:T.textDim
+  return <svg width={width} height={height} style={{overflow:'visible'}}><polyline points={pts} fill="none" stroke={col} strokeWidth="1.5" strokeLinejoin="round" opacity="0.9"/></svg>
+}
+
+// ── INVITE LANDING (pre-auth) ─────────────────────────────────────────────────
+function InviteLanding({code,onLogin}){
+  const[lgData,setLgData]=useState(null)
+  const[loading,setLoading]=useState(true)
+  useEffect(()=>{
+    supabase.from('leagues').select('*').eq('invite_code',code).maybeSingle().then(({data})=>{setLgData(data);setLoading(false)})
+  },[code])
+  return(
+    <div style={{minHeight:'100vh',background:T.bg,color:T.text,fontFamily:T.mono,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'24px'}}>
+      <div style={{width:'100%',maxWidth:'440px'}}>
+        <div style={{textAlign:'center',marginBottom:'32px'}}>
+          <div style={{fontSize:'52px',fontWeight:900,color:T.gold,letterSpacing:'-2px',lineHeight:1,marginBottom:'6px'}}>BOXD</div>
+          <div style={{fontSize:'11px',color:T.textDim,letterSpacing:'3px'}}>FANTASY BOX OFFICE</div>
+        </div>
+        {loading?<div style={{textAlign:'center',color:T.textSub}}>Loading…</div>:(
+          lgData?(
+            <div>
+              <div style={{background:`linear-gradient(135deg,${T.gold}14,${T.surface})`,border:`1px solid ${T.gold}44`,borderRadius:'20px',padding:'28px 24px',marginBottom:'20px',textAlign:'center'}}>
+                <div style={{fontSize:'32px',marginBottom:'12px'}}>🎬</div>
+                <div style={{fontSize:'13px',color:T.gold,fontWeight:700,letterSpacing:'2px',marginBottom:'8px',textTransform:'uppercase'}}>You're invited to join</div>
+                <div style={{fontSize:'26px',fontWeight:800,color:T.text,marginBottom:'6px'}}>{lgData.name}</div>
+                <div style={{fontSize:'12px',color:T.textSub,marginBottom:'20px'}}>Pick films · Score pts · Beat your league</div>
+                <div style={{display:'flex',gap:'16px',justifyContent:'center',marginBottom:'20px'}}>
+                  {[['5','Phases'],['6','Films/Phase'],['4','Chips']].map(([n,l])=>(
+                    <div key={l} style={{textAlign:'center'}}>
+                      <div style={{fontSize:'22px',fontWeight:900,color:T.gold,fontFamily:T.mono}}>{n}</div>
+                      <div style={{fontSize:'10px',color:T.textSub,marginTop:'2px'}}>{l}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{background:T.surfaceUp,borderRadius:'10px',padding:'10px 14px',fontSize:'13px',color:T.textSub,marginBottom:'16px'}}>
+                  Invite code: <span style={{color:T.gold,fontWeight:700,letterSpacing:'2px'}}>{code}</span>
+                </div>
+                <button onClick={onLogin} style={{width:'100%',background:T.gold,color:'#0D0A08',border:'none',borderRadius:'12px',padding:'14px',fontSize:'14px',fontWeight:700,cursor:'pointer',fontFamily:T.mono,letterSpacing:'0.5px'}}>Sign in to join →</button>
+              </div>
+              <div style={{fontSize:'12px',color:T.textDim,textAlign:'center'}}>Already have an account? Sign in and you'll be taken straight to the league.</div>
+            </div>
+          ):(
+            <div style={{textAlign:'center'}}>
+              <div style={{fontSize:'40px',marginBottom:'16px'}}>🎬</div>
+              <div style={{fontSize:'16px',fontWeight:700,marginBottom:'8px'}}>Invalid invite code</div>
+              <div style={{fontSize:'13px',color:T.textSub,marginBottom:'20px'}}>Code <span style={{color:T.gold}}>{code}</span> not found. Check the link and try again.</div>
+              <button onClick={onLogin} style={{background:'none',border:`1px solid ${T.border}`,color:T.textSub,borderRadius:'10px',padding:'10px 20px',cursor:'pointer',fontFamily:T.mono,fontSize:'12px'}}>Back to sign in</button>
+            </div>
+          )
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── SCORE BREAKDOWN MODAL ──────────────────────────────────────────────────────
 function ScoreBreakdownModal({film,holding,results,weeklyGrosses,allChips,auteurDeclarations,weekendWinners,isEarlyBird,onClose}){
   const actual=results[film.id],weeks=weeklyGrosses[film.id]||{},pid=holding.player_id
@@ -570,7 +644,7 @@ function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEven
   return(
     <div style={{position:'fixed',inset:0,background:'#000000CC',display:'flex',alignItems:'center',justifyContent:'center',zIndex:800,padding:'12px'}} onClick={onClose}>
       <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'20px',width:'100%',maxWidth:'700px',height:'min(92vh,860px)',display:'flex',flexDirection:'column',animation:'fadeUp .2s ease'}} onClick={e=>e.stopPropagation()}>
-        <div style={{padding:'24px 24px 0',flexShrink:0}}>
+        <div style={{padding:'24px 24px 0',flexShrink:0,background:`linear-gradient(150deg,${gc}18 0%,transparent 55%)`,borderRadius:'20px 20px 0 0'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'14px'}}>
             <div style={{height:'3px',background:gc,borderRadius:'2px',flex:1,marginRight:'16px'}}/>
             <button onClick={onClose} style={{background:'none',border:`1px solid ${T.border}`,color:T.textSub,borderRadius:'8px',padding:'6px 14px',cursor:'pointer',fontFamily:T.mono,fontSize:'12px',flexShrink:0}}>✕</button>
@@ -1055,6 +1129,8 @@ export default function App(){
   const[phaseCeremony,setPhaseCeremony]=useState(null) // {phase, winner, mvp, bestChip}
   const[shareCardFilm,setShareCardFilm]=useState(null)
   const[confettiActive,setConfettiActive]=useState(false)
+  const[standingsSnapshot,setStandingsSnapshot]=useState({})
+  const[wrappedOpen,setWrappedOpen]=useState(false)
   const triggerConfetti=()=>{
     setConfettiActive(true)
     setTimeout(()=>setConfettiActive(false),3000)
@@ -1171,6 +1247,7 @@ export default function App(){
     if(fv){const m={};fv.forEach(v=>m[v.film_id]=v.current_value);setFilmValues(m)}
     // cf may be null if no config row — use defaults
     setCfg(cf||{current_week:1,current_phase:1,currency:'$',tx_fee:5,phase_window_active:false,phase_window_opened_at:null,draft_window_open:false,draft_deadline:null,sealed_bid_window_open:false,sealed_bid_deadline:null})
+    setStandingsSnapshot(cf?.standings_snapshot||{})
     if(wg){const m={};wg.forEach(w=>{if(!m[w.film_id])m[w.film_id]={};m[w.film_id][w.week_num]=w.gross_m});setWeeklyG(m)}
     if(ch){setAllChips(ch);setChips(ch.find(c=>c.player_id===session?.user?.id)||null)}
     if(fc){setAllForecasts(fc);const m={};fc.filter(f=>f.player_id===session?.user?.id).forEach(f=>m[f.film_id]=f.predicted_m);setForecasts(m)}
@@ -1368,8 +1445,13 @@ export default function App(){
   }
 
   // ── AUTH SCREENS ─────────────────────────────────────────────────────────────
+  // Invite landing — pre-auth beautiful page
+  const inviteFromUrl=(()=>{const p=window.location.pathname,q=new URLSearchParams(window.location.search);return p.match(/\/join\/([A-Z0-9-]+)/i)?.[1]?.toUpperCase()||q.get('invite')?.toUpperCase()||null})()
+  if(inviteFromUrl&&!session&&!loading)return <InviteLanding code={inviteFromUrl} onLogin={()=>{setInviteCode(inviteFromUrl)}}/>
   if(loading)return(<div style={{minHeight:'100vh',background:T.bg,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:T.mono}}><div style={{textAlign:'center'}}><div style={{fontSize:'52px',fontWeight:900,color:T.gold,letterSpacing:'-2px',marginBottom:'16px'}}>BOXD</div><div style={{width:'40px',height:'3px',background:T.gold,borderRadius:'2px',margin:'0 auto',animation:'pulse 1.2s ease-in-out infinite'}}/></div></div>)
   if(!session)return<Login/>
+  // Pre-fill invite code if arrived via invite URL
+  if(inviteFromUrl&&inviteCode!==inviteFromUrl)setInviteCode(inviteFromUrl)
   if(!profile)return<CreateProfile session={session} onCreated={()=>{loadProfile();loadLeagues()}} notify={notify}/>
 
   // ── LEAGUE LOBBY ─────────────────────────────────────────────────────────────
@@ -1442,7 +1524,11 @@ export default function App(){
     {id:'forecaster',icon:'📊',label:'Forecaster'},
     {id:'oscar',icon:'🏆',label:'Oscars'},
     {id:'results',icon:'📋',label:'Results'},
-    ...(isCommissioner?[{id:'commissioner',icon:'⚙️',label:'Panel'},{id:'distributor',icon:'📈',label:'Insights'}]:[])
+    {id:'howto',icon:'❓',label:'How to Play'},
+    {id:'slate',icon:'🗺',label:'Slate Map'},
+    {id:'report',icon:'📰',label:'Match Report'},
+    {id:'intelligence',icon:'📡',label:'Intelligence'},
+    ...(isCommissioner?[{id:'warroom',icon:'⚡',label:'War Room'},{id:'commissioner',icon:'⚙️',label:'Panel'},{id:'distributor',icon:'📈',label:'Insights'}]:[])
   ]
 
 
@@ -1504,9 +1590,9 @@ export default function App(){
           <div style={{background:`linear-gradient(135deg,${T.green}10,${T.surface})`,border:`1px solid ${T.green}33`,borderRadius:'16px',padding:'18px 20px',marginBottom:'20px',animation:'fadeUp .25s ease'}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'12px',flexWrap:'wrap',gap:'8px'}}>
               <div>
-                <div style={{fontSize:'12px',color:T.green,fontWeight:700,letterSpacing:'1px',textTransform:'uppercase',marginBottom:'3px'}}>Latest Results</div>
+                <div style={{fontSize:'12px',color:T.green,fontWeight:700,letterSpacing:'1px',textTransform:'uppercase',marginBottom:'3px'}}>Phase Scorecard</div>
                 <div style={{fontSize:'22px',fontWeight:900,color:T.green,fontFamily:T.mono,lineHeight:1}}>+<CountUp value={myNewPts}/> pts</div>
-                <div style={{fontSize:'12px',color:T.textSub,marginTop:'3px'}}>from {myNewResults.length} film{myNewResults.length!==1?'s':''} · #{myRank} of {players.length}</div>
+                <div style={{fontSize:'12px',color:T.textSub,marginTop:'3px'}}>across {myNewResults.length} scored film{myNewResults.length!==1?'s':''} · #{myRank} of {players.length}</div>
               </div>
               <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
                 {myNewResults.map(f=>{
@@ -1618,10 +1704,25 @@ export default function App(){
             <div style={S.pageTitle}>Phase {ph}</div>
             <div style={{fontSize:'14px',color:T.gold,fontWeight:500}}>{PHASE_NAMES[ph]}</div>
           </div>
-          <div style={{display:'flex',gap:'16px',alignItems:'center',flexWrap:'wrap'}}>
-            <span style={{fontSize:'13px',color:T.textSub}}>{cur}{myBudget}M budget · {myRoster.length}/{MAX_ROSTER} slots</span>
+          <div style={{display:'flex',gap:'16px',alignItems:'center',flexWrap:'wrap',marginBottom:'12px'}}>
+            <span style={{fontSize:'13px',color:T.textSub}}>{cur}{myBudget}M remaining · {myRoster.length}/{MAX_ROSTER} slots</span>
             {win&&<Pill color={T.orange}>🔓 Free drops · <WindowTimer openedAt={cfg.phase_window_opened_at} short/></Pill>}
           </div>
+          {(()=>{
+            const total=phaseAlloc(profile.id,ph),spent=total-myBudget,pct=Math.min(100,Math.round(spent/Math.max(1,total)*100))
+            const barCol=myBudget<20?T.red:myBudget<50?T.orange:T.gold
+            return(
+              <div>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'5px'}}>
+                  <div style={{fontSize:'10px',color:T.textDim,letterSpacing:'1.2px',textTransform:'uppercase'}}>Phase spend</div>
+                  <div style={{fontSize:'10px',color:T.textSub,fontFamily:T.mono}}>{cur}{spent}M / {cur}{total}M · {pct}%</div>
+                </div>
+                <div style={{height:'4px',background:T.border,borderRadius:'2px',overflow:'hidden'}}>
+                  <div style={{height:'100%',width:`${pct}%`,background:`linear-gradient(90deg,${barCol}88,${barCol})`,borderRadius:'2px',transition:'width .5s ease'}}/>
+                </div>
+              </div>
+            )
+          })()}
         </div>
 
         <div style={{display:'flex',gap:'8px',marginBottom:'16px'}}>
@@ -1680,6 +1781,12 @@ export default function App(){
                     {chips?.short_film_id===film.id&&<Badge color={T.red}>📉</Badge>}
                     {chips?.analyst_film_id===film.id&&<Badge color={T.blue}>🎯</Badge>}
                   </div>
+                  {/* Scored pts badge — top left, shown when owned and result is in */}
+                  {owned&&actual!=null&&(
+                    <div style={{position:'absolute',top:'8px',left:'8px',background:`${T.green}EE`,backdropFilter:'blur(4px)',borderRadius:'9px',padding:'4px 9px',fontSize:'12px',fontWeight:800,color:'#0D0A08',fontFamily:T.mono,lineHeight:1,boxShadow:'0 2px 8px #00000044'}}>
+                      +{op+(wp||0)}pts
+                    </div>
+                  )}
                   {/* Demand badge — bottom right */}
                   {demandPct>=25&&<div style={{position:'absolute',bottom:'10px',right:'10px'}}><Badge color={demandPct>=55?T.red:demandPct>=40?T.orange:T.gold}>{demandPct>=55?'🔥':demandPct>=40?'📈':''} {demandPct}%</Badge></div>}
                 </div>
@@ -1713,6 +1820,15 @@ export default function App(){
                       return <div style={{fontSize:'10px',color:col,background:`${col}18`,padding:'3px 8px',borderRadius:'8px',fontWeight:600,whiteSpace:'nowrap'}}>{label}</div>
                     })()}
                   </div>
+
+                  {/* Price history sparkline */}
+                  {rosters.filter(r=>r.film_id===film.id).length>0&&(
+                    <div style={{display:'flex',alignItems:'center',gap:'8px',padding:'6px 8px',background:T.surfaceUp,borderRadius:'8px'}}>
+                      <div style={{fontSize:'9px',color:T.textDim,letterSpacing:'1px',textTransform:'uppercase',flexShrink:0}}>Price history</div>
+                      <div style={{flex:1}}><PriceSparkline film={film} rosters={rosters} filmValues={filmValues} width={isMobile?60:80} height={18}/></div>
+                      <div style={{fontSize:'9px',color:T.textDim,flexShrink:0}}>IPO ${film.basePrice}M</div>
+                    </div>
+                  )}
 
                   {/* Single action row */}
                   <div style={{display:'flex',gap:'6px',marginTop:'auto'}}>
@@ -1985,6 +2101,175 @@ export default function App(){
     )
   }
 
+  const HowToPlayPage=()=>{
+    const[openSection,setOpenSection]=useState('premise')
+    const PHASE_COLS_HTP={1:T.blue,2:T.orange,3:T.purple,4:T.gold,5:T.gold}
+    const Section=({id,icon,title,children})=>{
+      const isOpen=openSection===id
+      return(
+        <div style={{background:T.surface,border:`1px solid ${isOpen?T.gold+'44':T.border}`,borderRadius:'14px',marginBottom:'10px',overflow:'hidden',transition:'border-color .2s'}}>
+          <button onClick={()=>setOpenSection(isOpen?null:id)} style={{...S.btn,width:'100%',background:'none',border:'none',display:'flex',alignItems:'center',gap:'12px',padding:'16px 18px',textTransform:'none',letterSpacing:0,color:T.text,fontSize:'14px',fontWeight:700,borderRadius:0,justifyContent:'flex-start'}}>
+            <span style={{fontSize:'18px',lineHeight:1,flexShrink:0}}>{icon}</span>
+            <span style={{flex:1,textAlign:'left'}}>{title}</span>
+            <span style={{color:isOpen?T.gold:T.textDim,transition:'transform .2s',display:'inline-block',transform:isOpen?'rotate(180deg)':'rotate(0)',fontSize:'16px'}}>▾</span>
+          </button>
+          {isOpen&&(
+            <div style={{padding:'0 18px 20px',animation:'fadeUp .15s ease'}}>
+              <div style={{height:'1px',background:T.border,marginBottom:'16px'}}/>
+              {children}
+            </div>
+          )}
+        </div>
+      )
+    }
+    const Rule=({icon,title,desc,color=T.gold})=>(
+      <div style={{display:'flex',gap:'12px',padding:'10px 0',borderBottom:`1px solid ${T.border}`}}>
+        <span style={{fontSize:'18px',flexShrink:0,lineHeight:1.6}}>{icon}</span>
+        <div><div style={{fontSize:'13px',fontWeight:600,color,marginBottom:'3px'}}>{title}</div><div style={{fontSize:'12px',color:T.textSub,lineHeight:1.7}}>{desc}</div></div>
+      </div>
+    )
+    return(
+      <div>
+        {/* Hero */}
+        <div style={{marginBottom:'24px'}}>
+          <div style={S.pageTitle}>How to Play</div>
+          <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px'}}>Everything you need to beat your league</div>
+        </div>
+        <div style={{background:`linear-gradient(135deg,${T.gold}14,${T.surface})`,border:`1px solid ${T.gold}44`,borderRadius:'16px',padding:'20px 24px',marginBottom:'20px',display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'16px',textAlign:'center'}}>
+          {[['6','Max films per phase'],['5','Phases per season'],['4','Chips available']].map(([n,l])=>(
+            <div key={l}>
+              <div style={{fontSize:'34px',fontWeight:900,color:T.gold,fontFamily:T.mono,lineHeight:1}}>{n}</div>
+              <div style={{fontSize:'11px',color:T.textSub,marginTop:'5px',lineHeight:1.4}}>{l}</div>
+            </div>
+          ))}
+        </div>
+
+        <Section id="premise" icon="🎬" title="The Premise">
+          <div style={{fontSize:'13px',color:T.textSub,lineHeight:1.8,marginBottom:'12px'}}>BOXD is a fantasy league where your portfolio is film. You use a seasonal budget to acquire films before their opening weekends, earn points based on how they perform vs pre-release estimates, and compete against your league across 5 phases of the calendar year.</div>
+          <div style={{background:T.surfaceUp,borderRadius:'12px',padding:'14px 16px'}}>
+            <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.8}}>Unlike fantasy sport, you're not just picking winners — you're identifying <span style={{color:T.gold,fontWeight:700}}>mispriced films</span>. An unknown that doubles its estimate earns more than a blockbuster that merely meets expectations. Read the market, time your picks, use your chips wisely.</div>
+          </div>
+        </Section>
+
+        <Section id="phases" icon="📅" title="The 5 Phases">
+          <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px',lineHeight:1.7}}>Each phase covers a distinct box office window with its own budget allocation. Films belong to their phase — you can only buy Phase 2 films during Phase 2. Unspent budget banks automatically and carries over to the next phase.</div>
+          <div style={{display:'flex',flexDirection:'column',gap:'6px',marginBottom:'14px'}}>
+            {[1,2,3,4,5].map(p=>{
+              const col=PHASE_COLS_HTP[p],isCur=p===ph
+              return(
+                <div key={p} style={{display:'flex',alignItems:'center',gap:'12px',padding:'10px 14px',background:isCur?`${col}14`:T.surfaceUp,borderRadius:'10px',border:`1px solid ${isCur?col+'44':T.border}`}}>
+                  <div style={{width:'26px',height:'26px',borderRadius:'50%',background:`${col}22`,border:`2px solid ${col}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',fontWeight:900,color:col,flexShrink:0}}>{p}</div>
+                  <div style={{flex:1,fontSize:'13px',fontWeight:600}}>{PHASE_NAMES[p]}</div>
+                  <div style={{fontSize:'15px',fontWeight:800,color:col,fontFamily:T.mono}}>${PHASE_BUDGETS[p]}M</div>
+                  {isCur&&<span style={{fontSize:'10px',background:col,color:'#0D0A08',padding:'2px 8px',borderRadius:'8px',fontWeight:700}}>NOW</span>}
+                </div>
+              )
+            })}
+          </div>
+          <div style={{fontSize:'11px',color:T.textDim,lineHeight:1.7}}>You can hold up to <strong style={{color:T.text}}>{MAX_ROSTER} films per phase</strong>. Selling costs ${cfg.tx_fee||5}M in transaction fees outside the free trade window.</div>
+        </Section>
+
+        <Section id="scoring" icon="🏆" title="How Scoring Works">
+          <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px',lineHeight:1.7}}>Points are calculated each Monday after box office results come in. The formula rewards outperformance — a film doing 2× its estimate scores dramatically more than one that just meets it.</div>
+          <div style={{background:T.surfaceUp,borderRadius:'12px',padding:'14px 16px',marginBottom:'14px'}}>
+            <div style={{...S.label,marginBottom:'10px'}}>Opening Points: actual$M × perf × RT</div>
+            <div style={{display:'flex',flexDirection:'column',gap:'7px'}}>
+              {[
+                ['≥ 2× estimate','×2.0','🔥',T.green],
+                ['1.5–2× estimate','×1.6','💪',T.green],
+                ['1.1–1.5× estimate','×1.15–1.35','✅',T.gold],
+                ['~estimate (±5%)','×1.0','➡️',T.textSub],
+                ['0.8–0.95× estimate','×0.85','📉',T.orange],
+                ['Under 0.6× estimate','×0.45–0.65','💀',T.red],
+              ].map(([range,mult,icon,col])=>(
+                <div key={range} style={{display:'flex',alignItems:'center',gap:'10px',fontSize:'12px'}}>
+                  <span style={{flexShrink:0,fontSize:'14px'}}>{icon}</span>
+                  <span style={{flex:1,color:T.textSub}}>{range}</span>
+                  <span style={{color:col,fontFamily:T.mono,fontWeight:700,minWidth:'60px',textAlign:'right'}}>{mult}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{background:T.surfaceUp,borderRadius:'12px',padding:'14px 16px',marginBottom:'14px'}}>
+            <div style={{...S.label,marginBottom:'10px'}}>Rotten Tomatoes Multiplier</div>
+            {[['90%+ critic score','×1.25',T.green],['75–89%','×1.1',T.gold],['50–74%','×1.0 (no change)',T.textSub],['Under 50%','×0.85',T.red]].map(([range,mult,col])=>(
+              <div key={range} style={{display:'flex',justifyContent:'space-between',fontSize:'12px',padding:'4px 0',borderBottom:`1px solid ${T.border}`}}>
+                <span style={{color:T.textSub}}>{range}</span>
+                <span style={{color:col,fontFamily:T.mono,fontWeight:700}}>{mult}</span>
+              </div>
+            ))}
+          </div>
+          <Rule icon="📅" title="Weekly Grosses (W2+)" desc="Earn 1pt per $1M each week your film stays in cinemas. Week 4+ earns ×1.1. Entered by the commissioner each Monday." color={T.blue}/>
+          <Rule icon="🦵" title="Legs Bonus +25pts" desc="If your film's Week 2 drop is less than 30% from opening, it earns the 'legs' bonus. Rewards audience favourites over front-loaded blockbusters." color={T.green}/>
+          <Rule icon="🥇" title="Weekend Winner +15pts" desc="The highest-grossing film on any given opening weekend earns its owner +15pts extra. Always worth tracking the competition." color={T.gold}/>
+        </Section>
+
+        <Section id="earlybird" icon="🐦" title="Early Bird Bonus">
+          <div style={{background:`${T.green}12`,border:`1px solid ${T.green}44`,borderRadius:'12px',padding:'14px 16px',marginBottom:'14px'}}>
+            <div style={{fontSize:'14px',fontWeight:700,color:T.green,marginBottom:'6px'}}>+10% opening pts bonus</div>
+            <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.7}}>Buy a film at least <strong style={{color:T.text}}>{EARLY_BIRD_WEEKS} weeks before its release week</strong> AND the film opens at ≥110% of estimate — your opening pts get a 10% bonus. Rewards research and conviction over last-minute bandwagon buying.</div>
+          </div>
+          <div style={{fontSize:'12px',color:T.textDim,lineHeight:1.7}}>The 🐦 badge on film cards shows when the Early Bird window is open. The release calendar highlights the window with a countdown. Once a film is within {EARLY_BIRD_WEEKS-1} weeks of release, the window closes permanently.</div>
+        </Section>
+
+        <Section id="chips" icon="⚡" title="Chips — One of Each Per Season">
+          <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px',lineHeight:1.7}}>Each player gets one of each chip per season. High-risk, high-reward plays that create the most dramatic moments in the league. Use them at the right time and they can flip the standings.</div>
+          {[
+            {icon:'🎬',col:T.purple,name:'THE RECUT',tagline:'Nuclear option',desc:'Wipe your entire roster instantly — zero fees, full refund at market value. Best deployed when your phase picks have all bombed and you need to restart from scratch.'},
+            {icon:'📉',col:T.red,name:'THE SHORT',tagline:'Call the bomb',desc:'Bet against a film before release. Under 60% of estimate = +100pts. If it outperforms = −30pts. Only play this when you have genuine conviction a film is priced too high.'},
+            {icon:'🎯',col:T.blue,name:'THE ANALYST',tagline:'Precision prediction',desc:'Predict the opening weekend of a film you own within ±10% of the actual gross. If you nail it = +60pts flat on top of your normal scoring. Requires strong conviction.'},
+            {icon:'🎭',col:T.orange,name:'THE AUTEUR',tagline:'Star power play',desc:'Declare 2+ films in your roster that share the same star actor. Each film earns +10% on its opening pts. Check the Star Actor field on each film in the market.'},
+          ].map(({icon,col,name,tagline,desc})=>(
+            <div key={name} style={{background:T.surfaceUp,borderRadius:'12px',padding:'14px 16px',marginBottom:'10px',borderLeft:`3px solid ${col}`}}>
+              <div style={{display:'flex',gap:'10px',alignItems:'center',marginBottom:'7px'}}>
+                <span style={{fontSize:'22px',lineHeight:1}}>{icon}</span>
+                <div>
+                  <div style={{fontSize:'13px',fontWeight:700,color:col}}>{name}</div>
+                  <div style={{fontSize:'10px',color:T.textDim,fontWeight:600,letterSpacing:'1px',textTransform:'uppercase'}}>{tagline}</div>
+                </div>
+              </div>
+              <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.7}}>{desc}</div>
+            </div>
+          ))}
+        </Section>
+
+        <Section id="budget" icon="💰" title="Budget, Buying & Selling">
+          <Rule icon="🛒" title="Buying Films" desc={`Films have an IPO price. The live price includes a demand multiplier — more owners = higher price. Undiscovered films can trade 20% below IPO. You can hold up to ${MAX_ROSTER} films per phase.`}/>
+          <Rule icon="💸" title="Selling Films" desc={`Selling costs $${cfg.tx_fee||5}M in transaction fees. During the commissioner's free trade window (72hr), drops are free. Check your P&L on each Roster card before you sell.`}/>
+          <Rule icon="🏦" title="Banking Budget" desc="Unspent budget banks automatically when a phase ends. Stack early phases to enter the Summer Slate or Awards Season with a war chest." color={T.orange}/>
+          <Rule icon="📈" title="Demand Pricing" desc="Films owned by 40%+ of the league are priced 15–30% above IPO. Films with under 2% ownership trade at a 20% discount. Early movers get the best prices." color={T.blue}/>
+        </Section>
+
+        <Section id="trading" icon="🔄" title="Trades & Sealed Bids">
+          <Rule icon="🔄" title="Player-to-Player Trades" desc="Propose a straight film-for-film swap with any league member from the Trades page. Instant on acceptance. Phase restrictions apply — current phase films only."/>
+          <Rule icon="🔒" title="Sealed Bid Auction" desc="When the commissioner opens a sealed bid window (48hrs), all players submit a blind bid for a single film. Highest bid wins and pays their price. Bids are hidden until the window closes." color={T.purple}/>
+        </Section>
+
+        <Section id="sidegames" icon="📊" title="Side Games: Forecaster & Oscars">
+          <Rule icon="📊" title="Forecaster" desc="Predict the opening weekend gross of any upcoming film. Separate from main league scoring. Best accuracy per phase earns +15pts. Best season accuracy overall earns +50pts. Lower mean absolute % error = better." color={T.blue}/>
+          <Rule icon="🏆" title="Oscar Prediction" desc="Lock in your Best Picture pick before Oscar night. Correct prediction = +75pts added to your grand total. One pick per season, locks immediately, cannot be changed." color={T.gold}/>
+        </Section>
+
+        <Section id="tips" icon="💡" title="Tips & Strategy">
+          {[
+            ['Buy early, bet on underdogs','Undiscovered films cost less. An unknown that doubles estimates gives you double benefit: higher pts multiplier and you bought cheaper.'],
+            ['Stack the Early Bird window','Use the release calendar to identify strong upcoming films with 5–6 weeks to release. Buying now locks the bonus window.'],
+            ['Don\'t overpay for certainties','A guaranteed blockbuster that meets expectations scores OK. A sleeper that doubles its number can win your phase outright.'],
+            ['Save chips for conviction moments','Your Short is once per season — wait until you have a strong read on an overpriced, overhyped film close to release.'],
+            ['Watch the demand meter','Films showing 40%+ owned are being price-pushed. Consider selling into the hype if results haven\'t come in yet.'],
+            ['Bank budget strategically','Maxed out your roster with budget remaining? Trim weaker picks and bank the rest. Every $M unspent carries over.'],
+            ['Track RT scores on film cards','A strong critic consensus before opening weekend pushes the RT multiplier to ×1.25. High-quality films double-dip on scoring.'],
+          ].map(([title,desc])=>(
+            <div key={title} style={{display:'flex',gap:'10px',padding:'10px 0',borderBottom:`1px solid ${T.border}`}}>
+              <span style={{color:T.gold,flexShrink:0,fontWeight:700,fontSize:'14px',lineHeight:1.6}}>→</span>
+              <div><div style={{fontSize:'13px',fontWeight:600,color:T.text,marginBottom:'3px'}}>{title}</div><div style={{fontSize:'12px',color:T.textSub,lineHeight:1.7}}>{desc}</div></div>
+            </div>
+          ))}
+        </Section>
+      </div>
+    )
+  }
+
   const LeaguePage=()=>{
     const sorted=[...players].sort((a,b)=>calcPoints(b.id)-calcPoints(a.id))
     const leader=sorted[0],leaderPts=leader?calcPoints(leader.id):0
@@ -1997,7 +2282,10 @@ export default function App(){
             <div style={S.pageTitle}>{league?.name}</div>
             <div style={{fontSize:'13px',color:T.textSub,marginTop:'3px'}}>W{cfg.current_week} · Phase {ph} · {players.length} players</div>
           </div>
-          <Btn onClick={()=>setShareCardFilm('share')} color={T.surfaceUp} variant="outline" size="sm" sx={{border:`1px solid ${T.border}`,color:T.textSub}}>📤 Share</Btn>
+          <div style={{display:'flex',gap:'6px'}}>
+            <Btn onClick={()=>setWrappedOpen(true)} color={T.surfaceUp} variant="outline" size="sm" sx={{border:`1px solid ${T.border}`,color:T.gold}}>🎬 Wrapped</Btn>
+            <Btn onClick={()=>setShareCardFilm('share')} color={T.surfaceUp} variant="outline" size="sm" sx={{border:`1px solid ${T.border}`,color:T.textSub}}>📤 Share</Btn>
+          </div>
         </div>
         {/* Podium — top 3 */}
         {sorted.length>=2&&(
@@ -2075,6 +2363,8 @@ export default function App(){
               const pc=allChips.find(c=>c.player_id===player.id)
               const pa=auteurDecl.find(a=>a.player_id===player.id&&a.phase===ph)
               const barW=leaderPts>0?Math.round((pts/leaderPts)*100):0
+              const prevRank=standingsSnapshot[player.id]||null
+              const move=prevRank?prevRank-(i+1):0
               return(
                 <div key={player.id} className="hoverable" style={{...S.card,marginBottom:'8px',cursor:'pointer',padding:'14px 16px'}} onClick={()=>goToProfile(player)}>
                   <div style={{display:'flex',alignItems:'center',gap:'12px',marginBottom:'10px'}}>
@@ -2094,7 +2384,8 @@ export default function App(){
                     </div>
                     <div style={{textAlign:'right',flexShrink:0}}>
                       <div style={{fontSize:'26px',fontWeight:900,color:i===0?T.gold:T.text,lineHeight:1,fontFamily:T.mono}}><CountUp value={pts}/></div>
-                      {i>0&&<div style={{fontSize:'10px',color:T.textDim,marginTop:'1px'}}>−{gap}</div>}
+                      {move!==0&&<div style={{fontSize:'11px',fontWeight:700,color:move>0?T.green:T.red,marginTop:'2px'}}>{move>0?`▲${move}`:`▼${Math.abs(move)}`}</div>}
+                      {move===0&&i>0&&<div style={{fontSize:'10px',color:T.textDim,marginTop:'1px'}}>−{gap}</div>}
                     </div>
                   </div>
                   {/* Score bar */}
@@ -2730,16 +3021,89 @@ export default function App(){
             <div style={{overflowX:'auto'}}><VelocitySparkline filmId={selFilm} allPicks={allPicks} marketingEvents={marketingEvents} width={Math.max(320,Math.min(600,(typeof window!=='undefined'?window.innerWidth:500)-80))} height={80}/></div>
           </div>}
           {marketingImpact.length>0&&<div style={{...S.card,marginBottom:'16px'}}>
-            <div style={{fontSize:'13px',fontWeight:600,color:T.textSub,marginBottom:'14px'}}>Marketing Event Impact</div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr auto auto auto',gap:'8px',marginBottom:'8px',padding:'0 4px'}}>{['Event','−7d','+7d','Lift'].map(h=><div key={h} style={S.label}>{h}</div>)}</div>
-            {marketingImpact.map(({ev,before,after,lift})=>{const evType=MARKETING_EVENT_TYPES.find(t=>t.id===ev.event_type);return(
-              <div key={ev.id} style={{display:'grid',gridTemplateColumns:'1fr auto auto auto',gap:'8px',padding:'10px 4px',borderTop:`1px solid ${T.border}`,alignItems:'center'}}>
-                <div><div style={{fontSize:'13px',fontWeight:500}}>{evType?.icon} {ev.label}</div><div style={{fontSize:'11px',color:T.textSub}}>{new Date(ev.event_date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div></div>
-                <div style={{fontSize:'14px',fontWeight:600,textAlign:'right'}}>{before}</div>
-                <div style={{fontSize:'14px',fontWeight:600,textAlign:'right'}}>{after}</div>
-                <div style={{fontSize:'14px',fontWeight:700,color:lift>0?T.green:lift<0?T.red:T.textSub,textAlign:'right'}}>{lift>0?'+':''}{lift}%</div>
-              </div>
-            )})}
+            <div style={{fontSize:'13px',fontWeight:600,color:T.textSub,marginBottom:'16px'}}>Marketing Event Lift Analysis</div>
+            {(()=>{
+              // Build a 60-day pick timeline around events
+              const now=Date.now()
+              const earliestEv=eventsForFilm.length?Math.min(...eventsForFilm.map(e=>new Date(e.event_date).getTime())):now-30*86400000
+              const start=Math.min(earliestEv-10*86400000,now-60*86400000)
+              const days=Math.ceil((now-start)/86400000)+10
+              const buckets=Array.from({length:days},(_,i)=>{
+                const dayMs=start+i*86400000
+                return filmPicks.filter(p=>{const t=new Date(p.picked_at).getTime();return t>=dayMs&&t<dayMs+86400000}).length
+              })
+              const W=Math.min(520,typeof window!=='undefined'?window.innerWidth-80:400),H=110
+              const pad={t:8,r:12,b:28,l:28}
+              const cW=W-pad.l-pad.r,cH=H-pad.t-pad.b
+              const maxB=Math.max(1,...buckets)
+              const scX=(i)=>pad.l+(i/Math.max(1,days-1))*cW
+              const scY=(v)=>pad.t+cH-(v/maxB)*cH
+              const pts=buckets.map((b,i)=>`${scX(i).toFixed(1)},${scY(b).toFixed(1)}`).join(' ')
+              const fillPts=`${pad.l},${pad.t+cH} ${pts} ${scX(days-1).toFixed(1)},${pad.t+cH}`
+              const evColors={trailer:T.blue,poster:T.gold,premiere:T.purple,cast_post:T.green,press:T.orange,other:T.textSub}
+              return(
+                <div style={{overflowX:'auto'}}>
+                  <svg width={W} height={H} style={{fontFamily:T.mono,overflow:'visible',display:'block'}}>
+                    {/* Area fill */}
+                    <polygon points={fillPts} fill={`${T.gold}18`}/>
+                    {/* Pick velocity line */}
+                    <polyline points={pts} fill="none" stroke={T.gold} strokeWidth="2" strokeLinejoin="round" opacity="0.9"/>
+                    {/* Y gridlines */}
+                    {[0,Math.round(maxB/2),maxB].map(v=>(
+                      <g key={v}>
+                        <line x1={pad.l} y1={scY(v)} x2={W-pad.r} y2={scY(v)} stroke={T.border} strokeWidth="1" opacity="0.8"/>
+                        <text x={pad.l-3} y={scY(v)+4} fill={T.textDim} fontSize="8" textAnchor="end">{v}</text>
+                      </g>
+                    ))}
+                    {/* Event markers */}
+                    {eventsForFilm.map((ev,i)=>{
+                      const evMs=new Date(ev.event_date).getTime()
+                      const dayIdx=Math.round((evMs-start)/86400000)
+                      if(dayIdx<0||dayIdx>=days)return null
+                      const x=scX(dayIdx)
+                      const col=evColors[ev.event_type]||T.textSub
+                      const evType=MARKETING_EVENT_TYPES.find(t=>t.id===ev.event_type)
+                      const impact=marketingImpact.find(m=>m.ev.id===ev.id)
+                      return(
+                        <g key={ev.id}>
+                          {/* Impact window shading */}
+                          <rect x={x} y={pad.t} width={Math.min(7/days*cW,cW-x+pad.l)} height={cH} fill={`${col}14`}/>
+                          {/* Event line */}
+                          <line x1={x} y1={pad.t} x2={x} y2={pad.t+cH} stroke={col} strokeWidth="1.5" strokeDasharray="3,2" opacity="0.9"/>
+                          {/* Icon + label */}
+                          <text x={x} y={pad.t-2} fill={col} fontSize="10" textAnchor="middle">{evType?.icon}</text>
+                          {/* Lift badge */}
+                          {impact&&impact.lift!==0&&(
+                            <text x={x+3} y={pad.t+14} fill={impact.lift>0?T.green:T.red} fontSize="8" fontWeight="700">{impact.lift>0?'+':''}{impact.lift}%</text>
+                          )}
+                        </g>
+                      )
+                    })}
+                    {/* X axis label */}
+                    <text x={pad.l} y={H-4} fill={T.textDim} fontSize="8">{new Date(start).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</text>
+                    <text x={W-pad.r} y={H-4} fill={T.textDim} fontSize="8" textAnchor="end">Today</text>
+                  </svg>
+                </div>
+              )
+            })()}
+            {/* Impact table below chart */}
+            <div style={{marginTop:'12px',display:'flex',flexDirection:'column',gap:'6px'}}>
+              {marketingImpact.map(({ev,before,after,lift})=>{
+                const evType=MARKETING_EVENT_TYPES.find(t=>t.id===ev.event_type)
+                const col=lift>50?T.green:lift>0?T.gold:lift<0?T.red:T.textSub
+                return(
+                  <div key={ev.id} style={{display:'flex',alignItems:'center',gap:'10px',padding:'8px 12px',background:T.surfaceUp,borderRadius:'9px'}}>
+                    <span style={{fontSize:'14px'}}>{evType?.icon}</span>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:'12px',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ev.label}</div>
+                      <div style={{fontSize:'10px',color:T.textDim,marginTop:'1px'}}>{new Date(ev.event_date).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</div>
+                    </div>
+                    <div style={{fontSize:'11px',color:T.textSub,flexShrink:0}}>−7d: {before} · +7d: {after}</div>
+                    <div style={{fontSize:'13px',fontWeight:800,color:col,flexShrink:0,minWidth:'44px',textAlign:'right'}}>{lift>0?'+':''}{lift}%</div>
+                  </div>
+                )
+              })}
+            </div>
           </div>}
           {isCommissioner&&<div style={{...S.card,border:`1px solid ${T.blue}33`,marginBottom:'24px'}}>
             <div style={{fontSize:'13px',fontWeight:600,color:T.blue,marginBottom:'14px'}}>+ Log Marketing Event for {selF.title}</div>
@@ -2806,7 +3170,7 @@ export default function App(){
               <div style={{fontSize:'22px',fontWeight:800,color:T.text}}>Control Centre</div>
             </div>
             <div style={{display:'flex',gap:'8px'}}>
-              <Btn onClick={()=>{navigator.clipboard?.writeText(`${window.location.origin}/join/${league?.invite_code||''}`);notify('Invite link copied!',T.green)}} color={T.gold} size="sm">🔗 Copy Invite</Btn>
+              <Btn onClick={()=>{navigator.clipboard?.writeText(`${window.location.origin}${window.location.pathname}?invite=${league?.invite_code||''}`);notify('Invite link copied!',T.green)}} color={T.gold} size="sm">🔗 Copy Invite</Btn>
             </div>
           </div>
           {/* League health stats */}
@@ -2866,7 +3230,11 @@ export default function App(){
                 <div style={{background:T.surfaceUp,borderRadius:'10px',padding:'12px'}}>
                   <div style={S.label}>Current Week</div>
                   <div style={{fontSize:'24px',fontWeight:900,color:T.text,fontFamily:T.mono,marginTop:'4px'}}>W{cfg.current_week}</div>
-                  <Btn color={T.gold} size="sm" sx={{marginTop:'10px',width:'100%'}} onClick={async()=>{await supabase.from('league_config').update({current_week:cfg.current_week+1}).eq('league_id',league?.id);notify(`Week ${cfg.current_week+1}`,T.green);loadData(league?.id)}}>Advance Week →</Btn>
+                  <Btn color={T.gold} size="sm" sx={{marginTop:'10px',width:'100%'}} onClick={async()=>{
+                    const snap={};[...players].sort((a,b)=>calcPoints(b.id)-calcPoints(a.id)).forEach((p,i)=>{snap[p.id]=i+1})
+                    await supabase.from('league_config').update({current_week:cfg.current_week+1,standings_snapshot:snap}).eq('league_id',league?.id)
+                    notify(`Week ${cfg.current_week+1} · snapshot saved`,T.green);loadData(league?.id)
+                  }}>Advance Week →</Btn>
                 </div>
                 <div style={{background:T.surfaceUp,borderRadius:'10px',padding:'12px'}}>
                   <div style={S.label}>Drop Window</div>
@@ -3072,6 +3440,574 @@ export default function App(){
     )
   }
   // ── RENDER ────────────────────────────────────────────────────────────────────
+
+  // ── SLATE HEATMAP PAGE ───────────────────────────────────────────────────────
+  const SlatePage=()=>{
+    const[heatPhase,setHeatPhase]=useState(0) // 0 = all
+    const[heatSort,setHeatSort]=useState('sentiment') // sentiment | estM | title
+    const shown=films.filter(f=>heatPhase===0||f.phase===heatPhase)
+    const totalP=players.length||1
+    const scored=(f)=>results[f.id]!=null
+    const sentiment=(f)=>{
+      const picks=allPicks.filter(p=>p.film_id===f.id).length
+      const ratio=picks/totalP // picks per player — 1.0 = every player picked it
+      return Math.min(ratio*2,1) // normalize 0-1, cap at 1
+    }
+    const perf=(f)=>scored(f)?results[f.id]/f.estM:null
+    const sorted=[...shown].sort((a,b)=>{
+      if(heatSort==='estM')return b.estM-a.estM
+      if(heatSort==='title')return a.title.localeCompare(b.title)
+      return sentiment(b)-sentiment(a)
+    })
+    const lerpColor=(t,from,to)=>{
+      const f=parseInt(from.slice(1),16),ti=parseInt(to.slice(1),16)
+      const fr=f>>16,fg=(f>>8)&255,fb=f&255
+      const tr=ti>>16,tg=(ti>>8)&255,tb=ti&255
+      const r=Math.round(fr+(tr-fr)*t),g=Math.round(fg+(tg-fg)*t),bv=Math.round(fb+(tb-fb)*t)
+      return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${bv.toString(16).padStart(2,'0')}`
+    }
+    const tileCol=(f)=>{
+      const p=perf(f)
+      if(p!=null)return p>=1.5?'#3DD68C':p>=1.1?'#80ED99':p>=0.9?'#E8A020':p>=0.6?'#F08030':'#F04F5A'
+      const s=sentiment(f)
+      return lerpColor(s,'#2A2420','#E8A020')
+    }
+    const maxEst=Math.max(...films.map(f=>f.estM),1)
+    return(
+      <div>
+        <div style={{marginBottom:'20px'}}>
+          <div style={S.pageTitle}>🗺 Slate Heatmap</div>
+          <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px'}}>Colour = audience sentiment · size = estimate · green fill = overperformed</div>
+        </div>
+        <div style={{display:'flex',gap:'8px',flexWrap:'wrap',marginBottom:'16px'}}>
+          {[[0,'All Phases'],[1,'Dead Zone'],[2,'Summer Slate'],[3,'Horror Window'],[4,'Awards Season'],[5,'Oscar Sprint']].map(([p,label])=>(
+            <button key={p} onClick={()=>setHeatPhase(Number(p))} style={{...S.btn,background:heatPhase===Number(p)?`${T.gold}22`:T.surfaceUp,border:`1px solid ${heatPhase===Number(p)?T.gold+'66':T.border}`,color:heatPhase===Number(p)?T.gold:T.textSub,padding:'6px 12px',fontSize:'11px',textTransform:'none',letterSpacing:0}}>{label}</button>
+          ))}
+          <div style={{marginLeft:'auto',display:'flex',gap:'6px'}}>
+            {[['sentiment','🔥 Sentiment'],['estM','$ Size'],['title','A–Z']].map(([s,l])=>(
+              <button key={s} onClick={()=>setHeatSort(s)} style={{...S.btn,background:heatSort===s?T.surfaceUp:'transparent',border:`1px solid ${heatSort===s?T.border:'transparent'}`,color:heatSort===s?T.text:T.textDim,padding:'6px 10px',fontSize:'10px',textTransform:'none',letterSpacing:0}}>{l}</button>
+            ))}
+          </div>
+        </div>
+        {/* Legend */}
+        <div style={{display:'flex',gap:'12px',flexWrap:'wrap',marginBottom:'20px',padding:'12px 16px',background:T.surface,border:`1px solid ${T.border}`,borderRadius:'12px'}}>
+          {[['#2A2420','Low interest'],['#E8A020','High interest'],['#3DD68C','2×+ over'],['#80ED99','Outperformed'],['#F08030','Underperformed'],['#F04F5A','Bomb']].map(([col,l])=>(
+            <div key={l} style={{display:'flex',alignItems:'center',gap:'6px',fontSize:'11px',color:T.textSub}}>
+              <div style={{width:'14px',height:'14px',borderRadius:'4px',background:col,flexShrink:0}}/>
+              {l}
+            </div>
+          ))}
+        </div>
+        {/* Heatmap grid */}
+        <div style={{display:'flex',flexWrap:'wrap',gap:'8px',alignItems:'flex-end'}}>
+          {sorted.map(f=>{
+            const s=sentiment(f),col=tileCol(f)
+            const normEst=f.estM/maxEst
+            const tileW=Math.max(70,Math.round(normEst*180))
+            const tileH=Math.max(60,Math.round(normEst*140))
+            const picks=allPicks.filter(p=>p.film_id===f.id).length
+            const actual=results[f.id]
+            const gc=GENRE_COL[f.genre]||T.textSub
+            return(
+              <div key={f.id} className="hoverable" onClick={()=>setFilmDetail(f)} style={{width:`${tileW}px`,height:`${tileH}px`,borderRadius:'12px',background:`${col}22`,border:`2px solid ${col}66`,cursor:'pointer',position:'relative',overflow:'hidden',display:'flex',flexDirection:'column',justifyContent:'flex-end',padding:'8px',transition:'all .2s'}}>
+                <div style={{position:'absolute',inset:0,background:`linear-gradient(to bottom,transparent 30%,${col}44 100%)`,pointerEvents:'none'}}/>
+                <div style={{position:'absolute',top:'6px',left:'6px',width:'8px',height:'8px',borderRadius:'50%',background:gc}}/>
+                {picks>0&&<div style={{position:'absolute',top:'5px',right:'6px',fontSize:'9px',color:col,fontWeight:700,fontFamily:T.mono}}>{picks}👁</div>}
+                {actual!=null&&<div style={{position:'absolute',top:'18px',right:'6px',fontSize:'9px',color:results[f.id]>=f.estM?'#3DD68C':'#F04F5A',fontWeight:700}}>${actual}M</div>}
+                <div style={{fontSize:'10px',fontWeight:700,color:T.text,lineHeight:1.3,wordBreak:'break-word',position:'relative'}}>{f.title.split(':')[0]}</div>
+                <div style={{fontSize:'9px',color:T.textSub,marginTop:'2px',position:'relative'}}>${f.estM}M est</div>
+              </div>
+            )
+          })}
+        </div>
+        {sorted.length===0&&<div style={{...S.card,textAlign:'center',padding:'48px',color:T.textSub}}>No films in this phase yet.</div>}
+      </div>
+    )
+  }
+
+  // ── SEASON WRAPPED MODAL ─────────────────────────────────────────────────────
+  const WrappedModal=({onClose})=>{
+    const allMyHoldings=rosters.filter(r=>r.player_id===profile.id&&films.find(f=>f.id===r.film_id))
+    const scoredHoldings=allMyHoldings.map(h=>{
+      const film=films.find(f=>f.id===h.film_id);if(!film||results[film.id]==null)return null
+      let op=calcOpeningPts(film,results[film.id],isEarlyBird(h),analystOn(profile.id,film.id))
+      if(auteurOn(profile.id,film.id))op=Math.round(op*1.1)
+      const wp=Math.round(calcWeeklyPts(weeklyG[film.id]||{}))
+      const lb=calcLegsBonus(results[film.id],weeklyG[film.id]?.[2])
+      const wb=wwBonus(film.id),sb=shortBonus(profile.id,film.id)
+      return{h,film,total:op+wp+lb+wb+sb,op}
+    }).filter(Boolean).sort((a,b)=>b.total-a.total)
+    const best=scoredHoldings[0],worst=scoredHoldings[scoredHoldings.length-1]
+    const totalPts=calcPoints(profile.id)
+    const myRank=myGlobalRank
+    const phasesLed=[1,2,3,4,5].filter(p=>{const sc=[...players].map(pl=>({id:pl.id,pts:calcPhasePoints(pl.id,p)})).sort((a,b)=>b.pts-a.pts);return sc[0]?.id===profile.id&&sc[0]?.pts>0})
+    const filmsBought=allMyHoldings.length
+    const chipsUsed=[chips?.recut_used,chips?.short_film_id,chips?.analyst_film_id,auteurDecl.find(a=>a.player_id===profile.id)].filter(Boolean).length
+    const fcPreds=allForecasts.filter(f=>f.player_id===profile.id)
+    const fcWithin10=fcPreds.filter(fc=>results[fc.film_id]!=null&&Math.abs(fc.predicted_m-results[fc.film_id])/results[fc.film_id]<=0.1).length
+    const pc=profile.color||T.gold
+    return(
+      <div style={{position:'fixed',inset:0,background:'#000000DD',display:'flex',alignItems:'center',justifyContent:'center',zIndex:900,padding:'16px'}} onClick={onClose}>
+        <div style={{background:T.surface,border:`1px solid ${T.gold}44`,borderRadius:'24px',width:'100%',maxWidth:'460px',maxHeight:'92vh',overflowY:'auto',animation:'bounceIn .4s cubic-bezier(.2,.9,.3,1.3)'}} onClick={e=>e.stopPropagation()}>
+          {/* Header */}
+          <div style={{background:`linear-gradient(135deg,${pc}22,${T.surface})`,padding:'28px 24px 20px',textAlign:'center',borderBottom:`1px solid ${T.border}`,position:'relative',borderRadius:'24px 24px 0 0'}}>
+            <div style={{position:'absolute',top:0,left:0,right:0,height:'4px',background:`linear-gradient(90deg,${pc},${T.gold})`,borderRadius:'24px 24px 0 0'}}/>
+            <div style={{width:'60px',height:'60px',borderRadius:'50%',background:pc,margin:'0 auto 10px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'26px',fontWeight:900,color:'#0D0A08',boxShadow:`0 0 0 4px ${T.surface},0 0 0 6px ${pc}44`}}>{profile.name?.[0]}</div>
+            <div style={{fontSize:'20px',fontWeight:800,color:pc,marginBottom:'3px'}}>{profile.name}</div>
+            <div style={{fontSize:'11px',color:T.textDim,letterSpacing:'2px',textTransform:'uppercase',marginBottom:'16px'}}>Season So Far</div>
+            <div style={{display:'flex',gap:'20px',justifyContent:'center'}}>
+              <div style={{textAlign:'center'}}><div style={{fontSize:'44px',fontWeight:900,color:T.gold,fontFamily:T.mono,lineHeight:1,letterSpacing:'-2px'}}>{totalPts}</div><div style={{fontSize:'10px',color:T.textSub,marginTop:'4px',letterSpacing:'1px'}}>GRAND PTS</div></div>
+              <div style={{width:'1px',background:T.border}}/>
+              <div style={{textAlign:'center'}}><div style={{fontSize:'44px',fontWeight:900,color:myRank===1?T.gold:T.text,fontFamily:T.mono,lineHeight:1}}>{myRank===1?'👑':`#${myRank}`}</div><div style={{fontSize:'10px',color:T.textSub,marginTop:'4px',letterSpacing:'1px'}}>OF {players.length}</div></div>
+            </div>
+          </div>
+          <div style={{padding:'20px 24px'}}>
+            {/* Stats grid */}
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',marginBottom:'16px'}}>
+              {[
+                {label:'Films acquired',value:filmsBought,color:T.text},
+                {label:'Chips used',value:`${chipsUsed}/4`,color:T.purple},
+                {label:'Phases led',value:phasesLed.length,color:T.gold},
+                {label:'Forecasts within 10%',value:fcWithin10,color:T.blue},
+              ].map(({label,value,color})=>(
+                <div key={label} style={{background:T.surfaceUp,borderRadius:'10px',padding:'12px 14px'}}>
+                  <div style={{...S.label,marginBottom:'5px'}}>{label}</div>
+                  <div style={{fontSize:'22px',fontWeight:700,color,fontFamily:T.mono}}>{value}</div>
+                </div>
+              ))}
+            </div>
+            {/* Best pick */}
+            {best&&<div style={{background:`${T.green}12`,border:`1px solid ${T.green}33`,borderRadius:'14px',padding:'14px 16px',marginBottom:'10px',display:'flex',gap:'12px',alignItems:'center'}}>
+              <FilmPoster film={best.film} width={48} height={72} radius={7}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:'10px',color:T.green,fontWeight:700,letterSpacing:'1.5px',marginBottom:'4px'}}>🏆 BEST PICK</div>
+                <div style={{fontSize:'14px',fontWeight:700,marginBottom:'2px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{best.film.title}</div>
+                <div style={{fontSize:'12px',color:T.textSub}}>${results[best.film.id]}M actual</div>
+              </div>
+              <div style={{fontSize:'32px',fontWeight:900,color:T.green,fontFamily:T.mono,flexShrink:0}}>+{best.total}</div>
+            </div>}
+            {/* Worst pick */}
+            {worst&&worst.film.id!==best?.film.id&&<div style={{background:`${T.red}12`,border:`1px solid ${T.red}22`,borderRadius:'14px',padding:'14px 16px',marginBottom:'16px',display:'flex',gap:'12px',alignItems:'center'}}>
+              <FilmPoster film={worst.film} width={48} height={72} radius={7}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:'10px',color:T.red,fontWeight:700,letterSpacing:'1.5px',marginBottom:'4px'}}>💀 WORST PICK</div>
+                <div style={{fontSize:'14px',fontWeight:700,marginBottom:'2px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{worst.film.title}</div>
+                <div style={{fontSize:'12px',color:T.textSub}}>${results[worst.film.id]}M actual</div>
+              </div>
+              <div style={{fontSize:'32px',fontWeight:900,color:T.red,fontFamily:T.mono,flexShrink:0}}>{worst.total}</div>
+            </div>}
+            {/* Phase breakdown */}
+            <div style={{...S.label,marginBottom:'8px'}}>Phase Breakdown</div>
+            <div style={{display:'flex',gap:'5px',marginBottom:'16px'}}>
+              {[1,2,3,4,5].map(p=>{const pts=calcPhasePoints(profile.id,p),isLed=phasesLed.includes(p);return(
+                <div key={p} style={{flex:1,background:isLed?`${T.gold}18`:T.surfaceUp,border:`1px solid ${isLed?T.gold+'44':T.border}`,borderRadius:'9px',padding:'8px 4px',textAlign:'center'}}>
+                  <div style={{fontSize:'9px',color:isLed?T.gold:T.textDim,fontWeight:700,marginBottom:'4px'}}>PH{p}{isLed?' 👑':''}</div>
+                  <div style={{fontSize:'15px',fontWeight:800,color:pts>0?isLed?T.gold:T.text:T.textDim,fontFamily:T.mono}}>{pts||'—'}</div>
+                </div>
+              )})}
+            </div>
+            <div style={{display:'flex',gap:'8px'}}>
+              <Btn onClick={()=>{const text=`🎬 BOXD Season Update\n${profile.name} · #${myRank} of ${players.length}\n${totalPts} pts · Best pick: ${best?.film.title||'—'} (+${best?.total||0}pts)\nfantasy box office`;navigator.share?navigator.share({title:'My BOXD Season',text}).catch(()=>{}):navigator.clipboard?.writeText(text).then(()=>notify('Copied!',T.gold))}} color={T.gold} sx={{flex:2}} size="lg">{navigator.share?'📤 Share Season':'📋 Copy'}</Btn>
+              <Btn onClick={onClose} variant="outline" color={T.textSub} sx={{flex:1}} size="lg">Close</Btn>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── MATCH REPORT PAGE ────────────────────────────────────────────────────────
+  const MatchReportPage=()=>{
+    const thisWeek=cfg.current_week-1
+    const justOpened=films.filter(f=>f.week===thisWeek&&results[f.id]!=null)
+    const upcoming=films.filter(f=>f.week===cfg.current_week&&results[f.id]==null)
+    const sorted=[...players].sort((a,b)=>calcPoints(b.id)-calcPoints(a.id))
+    const prevRankOf=(pid)=>standingsSnapshot[pid]||null
+    const thisWeekPts=players.map(p=>{
+      const weekFilmPts=justOpened.reduce((s,f)=>{
+        const h=rosters.find(r=>r.player_id===p.id&&r.film_id===f.id)
+        if(!h)return s
+        let op=calcOpeningPts(f,results[f.id],isEarlyBird(h),analystOn(p.id,f.id))
+        if(auteurOn(p.id,f.id))op=Math.round(op*1.1)
+        return s+op+Math.round(calcWeeklyPts(weeklyG[f.id]||{}))+calcLegsBonus(results[f.id],weeklyG[f.id]?.[2])+wwBonus(f.id)+shortBonus(p.id,f.id)
+      },0)
+      return{p,weekPts:weekFilmPts}
+    }).sort((a,b)=>b.weekPts-a.weekPts)
+    const biggestMover=sorted.reduce((best,{id},curRank)=>{const prev=prevRankOf(id);if(!prev)return best;const moved=prev-(curRank+1);return moved>best.moved?{moved,p:players.find(pl=>pl.id===id)}:best},{moved:-99,p:null})
+    return(
+      <div>
+        <div style={{marginBottom:'24px'}}>
+          <div style={{...S.label,color:T.gold,marginBottom:'4px',letterSpacing:'2px'}}>WEEK {thisWeek} REPORT</div>
+          <div style={S.pageTitle}>Match Report</div>
+          <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px'}}>Auto-generated · {new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</div>
+        </div>
+        {/* Films that opened */}
+        {justOpened.length>0&&<>
+          <div style={{...S.label,marginBottom:'10px'}}>🎬 Opened This Week</div>
+          {justOpened.map(f=>{
+            const actual=results[f.id],ratio=actual/f.estM,pts=calcOpeningPts(f,actual),gc=GENRE_COL[f.genre]||T.textSub
+            const col=ratio>=1.5?T.green:ratio>=1.1?T.gold:ratio>=0.9?T.textSub:T.red
+            const ownedBy=players.filter(p=>rosters.find(r=>r.player_id===p.id&&r.film_id===f.id&&r.active))
+            return(
+              <div key={f.id} style={{...S.card,marginBottom:'10px'}}>
+                <div style={{display:'flex',gap:'14px',alignItems:'flex-start'}}>
+                  <FilmPoster film={f} width={52} height={78} radius={8}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:'15px',fontWeight:700,marginBottom:'3px'}}>{f.title}</div>
+                    <div style={{fontSize:'12px',color:T.textSub,marginBottom:'10px'}}>{f.dist} · {f.genre}</div>
+                    <div style={{display:'flex',gap:'14px',flexWrap:'wrap',marginBottom:'8px'}}>
+                      <div><div style={S.label}>Est</div><div style={{fontSize:'14px',fontWeight:600,marginTop:'2px'}}>${f.estM}M</div></div>
+                      <div><div style={S.label}>Actual</div><div style={{fontSize:'14px',fontWeight:700,color:col,marginTop:'2px'}}>${actual}M</div></div>
+                      <div><div style={S.label}>vs Estimate</div><div style={{fontSize:'14px',fontWeight:700,color:col,marginTop:'2px'}}>{ratio>=1?'+':''}{((ratio-1)*100).toFixed(0)}%</div></div>
+                      <div><div style={S.label}>Base pts</div><div style={{fontSize:'14px',fontWeight:700,color:T.gold,marginTop:'2px'}}>{pts}</div></div>
+                    </div>
+                    {ownedBy.length>0&&<div style={{display:'flex',gap:'4px',flexWrap:'wrap'}}>
+                      {ownedBy.map(p=><div key={p.id} style={{fontSize:'10px',background:`${p.color||T.gold}22`,color:p.color||T.gold,padding:'2px 7px',borderRadius:'8px',fontWeight:600}}>{p.name.split(' ')[0]}</div>)}
+                    </div>}
+                  </div>
+                </div>
+                <div style={{height:'3px',background:T.border,borderRadius:'2px',marginTop:'12px',overflow:'hidden'}}>
+                  <div style={{height:'100%',width:`${Math.min(100,Math.round(ratio*50))}%`,background:`linear-gradient(90deg,${col}88,${col})`,borderRadius:'2px'}}/>
+                </div>
+              </div>
+            )
+          })}
+        </>}
+        {/* This week's pts gainers */}
+        {thisWeekPts.filter(x=>x.weekPts>0).length>0&&<>
+          <div style={{...S.label,marginBottom:'10px',marginTop:'20px'}}>⚡ Week {thisWeek} Points</div>
+          {thisWeekPts.filter(x=>x.weekPts>0).map(({p,weekPts},i)=>(
+            <div key={p.id} style={{display:'flex',alignItems:'center',gap:'12px',padding:'10px 14px',background:i===0?`${T.gold}12`:T.surface,border:`1px solid ${i===0?T.gold+'44':T.border}`,borderRadius:'10px',marginBottom:'6px'}}>
+              <div style={{fontSize:'16px'}}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`}</div>
+              <div style={{width:'28px',height:'28px',borderRadius:'50%',background:p.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',fontWeight:900,color:'#0D0A08',flexShrink:0}}>{p.name?.[0]}</div>
+              <div style={{flex:1,fontSize:'13px',fontWeight:600,color:p.color||T.gold}}>{p.name}</div>
+              <div style={{fontSize:'20px',fontWeight:900,color:i===0?T.gold:T.text,fontFamily:T.mono}}>+{weekPts}</div>
+            </div>
+          ))}
+        </>}
+        {/* Standings with movement */}
+        <div style={{...S.label,marginBottom:'10px',marginTop:'20px'}}>📊 Current Standings</div>
+        {sorted.map(({id},i)=>{
+          const p=players.find(pl=>pl.id===id),pts=calcPoints(id),prev=prevRankOf(id),move=prev?prev-(i+1):0
+          return(
+            <div key={id} style={{display:'flex',alignItems:'center',gap:'10px',padding:'10px 14px',background:T.surface,border:`1px solid ${T.border}`,borderRadius:'10px',marginBottom:'6px'}}>
+              <div style={{fontSize:'15px',minWidth:'28px'}}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`}</div>
+              <div style={{width:'26px',height:'26px',borderRadius:'50%',background:p?.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',fontWeight:900,color:'#0D0A08',flexShrink:0}}>{p?.name?.[0]}</div>
+              <div style={{flex:1,fontSize:'13px',fontWeight:600,color:p?.color||T.gold}}>{p?.name}</div>
+              {move!==0&&<div style={{fontSize:'11px',color:move>0?T.green:T.red,fontWeight:700,minWidth:'28px',textAlign:'right'}}>{move>0?`▲${move}`:`▼${Math.abs(move)}`}</div>}
+              <div style={{fontSize:'18px',fontWeight:900,color:i===0?T.gold:T.text,fontFamily:T.mono,minWidth:'40px',textAlign:'right'}}>{pts}</div>
+            </div>
+          )
+        })}
+        {/* Next week preview */}
+        {upcoming.length>0&&<>
+          <div style={{...S.label,marginBottom:'10px',marginTop:'20px'}}>📅 Opening Next — W{cfg.current_week}</div>
+          <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
+            {upcoming.map(f=>{const picks=allPicks.filter(p=>p.film_id===f.id).length,gc=GENRE_COL[f.genre]||T.textSub;return(
+              <div key={f.id} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'12px',overflow:'hidden',width:'110px',flexShrink:0,cursor:'pointer'}} onClick={()=>setFilmDetail(f)}>
+                <FilmPoster film={f} width={110} height={130} radius={0}/>
+                <div style={{padding:'8px'}}>
+                  <div style={{fontSize:'11px',fontWeight:600,lineHeight:1.3,marginBottom:'3px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.title.split(':')[0]}</div>
+                  <div style={{fontSize:'10px',color:T.textSub}}>${f.estM}M · {picks} picks</div>
+                </div>
+              </div>
+            )})}
+          </div>
+        </>}
+        {justOpened.length===0&&<div style={{...S.card,textAlign:'center',padding:'48px',color:T.textSub}}>No results in yet for W{thisWeek}. Check back after the commissioner enters the weekend box office.</div>}
+      </div>
+    )
+  }
+
+  // ── WAR ROOM PAGE ────────────────────────────────────────────────────────────
+  const WarRoomPage=()=>{
+    const[entries,setEntries]=useState({})
+    const[winners,setWinners]=useState({})
+    const[submitting,setSubmitting]=useState(false)
+    const[submitted,setSubmitted]=useState(false)
+    const thisWeekFilms=films.filter(f=>f.week===cfg.current_week&&results[f.id]==null)
+    const allFilmsWithInput=[...thisWeekFilms,...films.filter(f=>f.week===cfg.current_week-1&&results[f.id]==null)]
+    const uniqueFilms=[...new Map(allFilmsWithInput.map(f=>[f.id,f])).values()]
+    const submitAll=async()=>{
+      const toSubmit=Object.entries(entries).filter(([,v])=>v!==''&&!isNaN(parseFloat(v)))
+      if(!toSubmit.length)return notify('Enter at least one result',T.red)
+      setSubmitting(true)
+      for(const[filmId,val] of toSubmit){
+        const v=parseFloat(val),film=films.find(f=>f.id===filmId)
+        if(!film)continue
+        const nv=calcMarketValue(film,v)
+        await dbUpsert('results','film_id',filmId,{actual_m:v})
+        await dbUpsert('film_values','film_id',filmId,{current_value:nv})
+        await resolveChips(filmId,v)
+        await logActivity(session.user.id,'result',{film_title:film.title,actual_m:v})
+      }
+      for(const[filmId,isW] of Object.entries(winners)){
+        if(!isW)continue
+        const film=films.find(f=>f.id===filmId);if(!film)continue
+        const ex=await supabase.from('weekend_winners').select('id').eq('week',film.week).maybeSingle()
+        if(ex.data)await supabase.from('weekend_winners').update({film_id:filmId,phase:ph}).eq('week',film.week)
+        else await supabase.from('weekend_winners').insert({film_id:filmId,week:film.week,phase:ph,league_id:league?.id})
+      }
+      await sendNotification('result_in',{players:players.map(p=>({id:p.id}))})
+      setSubmitting(false);setSubmitted(true)
+      triggerConfetti();notify(`✅ ${toSubmit.length} result${toSubmit.length!==1?'s':''} saved`,T.green)
+      loadData(league?.id)
+    }
+    const topEntry=Object.entries(entries).find(([fid,v])=>v!==''&&winners[fid])?.[0]||Object.keys(entries)[0]
+    return(
+      <div>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'20px'}}>
+          <div>
+            <div style={{...S.label,color:T.red,letterSpacing:'2px',marginBottom:'4px'}}>COMMISSIONER ONLY</div>
+            <div style={S.pageTitle}>⚡ War Room</div>
+            <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px'}}>Batch weekend results entry · W{cfg.current_week}</div>
+          </div>
+          <Btn onClick={submitAll} color={T.green} textColor="#0D0A08" size="lg" disabled={submitting||submitted}>
+            {submitting?'⏳ Saving…':submitted?'✅ Saved':'Submit Weekend →'}
+          </Btn>
+        </div>
+        {uniqueFilms.length===0&&<div style={{...S.card,textAlign:'center',padding:'48px',color:T.textSub}}>No unresuled films for W{cfg.current_week}. All results already entered!</div>}
+        <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(auto-fill,minmax(300px,1fr))',gap:'12px'}}>
+          {uniqueFilms.map(film=>{
+            const val=entries[film.id]||'',isW=winners[film.id]||false,gc=GENRE_COL[film.genre]||T.textSub
+            const estPts=val&&!isNaN(parseFloat(val))?calcOpeningPts(film,parseFloat(val)):null
+            return(
+              <div key={film.id} style={{...S.card,border:`2px solid ${isW?T.gold:val?T.green+'55':T.border}`,transition:'border-color .2s'}}>
+                <div style={{display:'flex',gap:'12px',alignItems:'flex-start',marginBottom:'12px'}}>
+                  <div style={{position:'relative',flexShrink:0}}>
+                    <FilmPoster film={film} width={56} height={84} radius={8}/>
+                    <div style={{position:'absolute',top:0,left:0,right:0,height:'3px',background:gc,borderRadius:'8px 8px 0 0'}}/>
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:'14px',fontWeight:700,lineHeight:1.3,marginBottom:'2px'}}>{film.title}</div>
+                    <div style={{fontSize:'11px',color:T.textSub,marginBottom:'8px'}}>{film.dist} · Est ${film.estM}M</div>
+                    <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
+                      <input
+                        type="number" step="0.1" value={val}
+                        placeholder="$M actual"
+                        onChange={e=>setEntries(prev=>({...prev,[film.id]:e.target.value}))}
+                        style={{...S.inp,flex:1,fontSize:'18px',padding:'10px 12px',fontWeight:700,color:val?T.green:T.text}}
+                      />
+                      <button onClick={()=>setWinners(prev=>({...prev,[film.id]:!isW}))} style={{...S.btn,background:isW?T.gold:T.surfaceUp,border:`1px solid ${isW?T.gold:T.border}`,color:isW?'#0D0A08':T.textSub,padding:'10px 12px',fontSize:'14px',flexShrink:0}}>🥇</button>
+                    </div>
+                  </div>
+                </div>
+                {estPts!=null&&(
+                  <div style={{background:T.surfaceUp,borderRadius:'9px',padding:'8px 12px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                    <div style={{fontSize:'12px',color:T.textSub}}>
+                      {parseFloat(val)/film.estM>=1?'▲':'▼'} {((parseFloat(val)/film.estM-1)*100).toFixed(0)}% vs est
+                    </div>
+                    <div style={{fontSize:'15px',fontWeight:800,color:T.gold,fontFamily:T.mono}}>~{estPts}pts</div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+        {uniqueFilms.length>0&&<div style={{marginTop:'20px',padding:'16px 20px',background:`${T.green}12`,border:`1px solid ${T.green}33`,borderRadius:'14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div style={{fontSize:'13px',color:T.textSub}}>{Object.values(entries).filter(v=>v!==''&&!isNaN(parseFloat(v))).length} of {uniqueFilms.length} results entered</div>
+          <Btn onClick={submitAll} color={T.green} textColor="#0D0A08" size="lg" disabled={submitting||submitted}>
+            {submitting?'⏳':'⚡'} {submitting?'Saving…':submitted?'✅ All saved':'Submit All →'}
+          </Btn>
+        </div>}
+      </div>
+    )
+  }
+
+  // ── INTELLIGENCE PAGE ────────────────────────────────────────────────────────
+  const IntelligencePage=()=>{
+    const[intTab,setIntTab]=useState('signals')
+    const totalP=players.length||1
+    // Sentiment score per film: picks/player, normalized
+    const filmSignals=[...films].map(f=>{
+      const picks=allPicks.filter(p=>p.film_id===f.id).length
+      const vel7=pickVelocity(f.id,allPicks,7)
+      const vel1=pickVelocity(f.id,allPicks,1)
+      const pickRatio=picks/totalP
+      const actual=results[f.id]
+      const perf=actual!=null?actual/f.estM:null
+      return{f,picks,vel7,vel1,pickRatio,actual,perf}
+    })
+    const upcoming=filmSignals.filter(s=>s.actual==null).sort((a,b)=>b.pickRatio-a.pickRatio)
+    const resulted=filmSignals.filter(s=>s.actual!=null).sort((a,b)=>b.picks-a.picks)
+    // Validation data: for each resulted film, was high pickRatio predictive?
+    const validationData=resulted.filter(s=>s.picks>0).map(s=>({
+      title:s.f.title.split(':')[0],
+      pickPct:Math.round(s.pickRatio*100),
+      perf:s.perf,
+      gc:GENRE_COL[s.f.genre]||T.textSub,
+      dist:s.f.dist,
+    }))
+    const maxPickPct=Math.max(...validationData.map(d=>d.pickPct),1)
+    const maxPerf=Math.max(...validationData.map(d=>d.perf),2)
+    // Copy intelligence URL
+    const shareIntelUrl=()=>{
+      const url=`${window.location.origin}${window.location.pathname}?page=intelligence`
+      navigator.clipboard?.writeText(url).then(()=>notify('Intelligence URL copied!',T.blue))
+    }
+    return(
+      <div>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'20px',flexWrap:'wrap',gap:'12px'}}>
+          <div>
+            <div style={{...S.label,color:T.blue,letterSpacing:'2px',marginBottom:'4px'}}>LIVE DATA</div>
+            <div style={S.pageTitle}>📡 BOXD Intelligence</div>
+            <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px'}}>Audience sentiment · {allPicks.length} signals · {players.length} players tracking</div>
+          </div>
+          <Btn onClick={shareIntelUrl} color={T.blue} textColor="#fff" size="sm">🔗 Share URL</Btn>
+        </div>
+        {/* Summary stats */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'8px',marginBottom:'20px'}}>
+          {[
+            {label:'Films tracked',value:films.length,color:T.text},
+            {label:'Total signals',value:allPicks.length,color:T.gold},
+            {label:'Active players',value:totalP,color:T.blue},
+            {label:'Results in',value:resulted.length,color:T.green},
+          ].map(({label,value,color})=>(
+            <div key={label} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'12px',padding:'12px 14px',textAlign:'center'}}>
+              <div style={{fontSize:'24px',fontWeight:900,color,fontFamily:T.mono,lineHeight:1}}>{value}</div>
+              <div style={{fontSize:'10px',color:T.textDim,marginTop:'4px',letterSpacing:'0.5px'}}>{label}</div>
+            </div>
+          ))}
+        </div>
+        {/* Tabs */}
+        <div style={{display:'flex',borderBottom:`1px solid ${T.border}`,marginBottom:'20px',overflowX:'auto'}}>
+          {[['signals','📊 Sentiment'],['validation','🎯 Validation'],['marketing','📈 Marketing']].map(([id,label])=>(
+            <button key={id} onClick={()=>setIntTab(id)} style={{...S.btn,background:'none',border:'none',fontSize:'13px',fontWeight:intTab===id?700:400,color:intTab===id?T.blue:T.textSub,padding:'10px 16px',borderBottom:`2px solid ${intTab===id?T.blue:'transparent'}`,borderRadius:0,textTransform:'none',letterSpacing:0,flexShrink:0}}>{label}</button>
+          ))}
+        </div>
+
+        {intTab==='signals'&&(
+          <div>
+            <div style={{...S.label,marginBottom:'10px'}}>🔥 Most Tracked — Upcoming</div>
+            {upcoming.slice(0,8).map(({f,picks,vel7,vel1,pickRatio},i)=>{
+              const barW=Math.max(4,Math.round(pickRatio*100))
+              const gc=GENRE_COL[f.genre]||T.textSub
+              return(
+                <div key={f.id} className="hoverable" onClick={()=>setFilmDetail(f)} style={{...S.card,marginBottom:'8px',cursor:'pointer',padding:'12px 14px'}}>
+                  <div style={{display:'flex',gap:'12px',alignItems:'center',marginBottom:'8px'}}>
+                    <div style={{fontSize:'16px',minWidth:'24px',color:T.textDim,fontFamily:T.mono}}>{i+1}</div>
+                    <FilmPoster film={f} width={36} height={54} radius={6}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:'13px',fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.title}</div>
+                      <div style={{fontSize:'11px',color:T.textSub}}>{f.dist} · Est ${f.estM}M · W{f.week}</div>
+                    </div>
+                    <div style={{textAlign:'right',flexShrink:0}}>
+                      <div style={{fontSize:'15px',fontWeight:700,color:T.gold,fontFamily:T.mono}}>{picks}</div>
+                      <div style={{fontSize:'10px',color:T.textDim}}>picks</div>
+                    </div>
+                    {vel7>0&&<div style={{fontSize:'11px',color:vel7>=5?T.red:T.orange,fontWeight:600,flexShrink:0}}>+{vel7}/wk</div>}
+                  </div>
+                  <div style={{height:'3px',background:T.border,borderRadius:'2px',overflow:'hidden'}}>
+                    <div style={{height:'100%',width:`${barW}%`,background:`linear-gradient(90deg,${gc}88,${gc})`,borderRadius:'2px'}}/>
+                  </div>
+                </div>
+              )
+            })}
+            {upcoming.length===0&&<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No upcoming films with intent signals yet.</div>}
+            {resulted.length>0&&<>
+              <div style={{...S.label,marginBottom:'10px',marginTop:'24px'}}>✅ Resulted Films</div>
+              {resulted.slice(0,5).map(({f,picks,pickRatio,actual,perf})=>{
+                const col=perf>=1.5?T.green:perf>=1.1?T.gold:perf>=0.9?T.textSub:T.red
+                return(
+                  <div key={f.id} style={{...S.card,marginBottom:'6px',display:'flex',gap:'12px',alignItems:'center'}}>
+                    <FilmPoster film={f} width={28} height={42} radius={5}/>
+                    <div style={{flex:1,fontSize:'13px',fontWeight:500}}>{f.title.split(':')[0]}</div>
+                    <div style={{fontSize:'11px',color:T.textSub}}>{picks} picks</div>
+                    <div style={{fontSize:'13px',fontWeight:700,color:col}}>${actual}M ({perf>=1?'+':''}{((perf-1)*100).toFixed(0)}%)</div>
+                  </div>
+                )
+              })}
+            </>}
+          </div>
+        )}
+
+        {intTab==='validation'&&(
+          <div>
+            <div style={{...S.card,border:`1px solid ${T.blue}33`,marginBottom:'20px',padding:'16px 18px'}}>
+              <div style={{fontSize:'13px',fontWeight:700,color:T.blue,marginBottom:'6px'}}>Pick Velocity as a Leading Indicator</div>
+              <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.7}}>Each dot is a film with results. X axis = % of players who picked it before release. Y axis = actual vs estimate ratio. Films above the 1.0 line outperformed.</div>
+            </div>
+            {validationData.length>=2?(()=>{
+              const W=Math.min(520,typeof window!=='undefined'?window.innerWidth-80:400),H=280
+              const pad={t:20,r:20,b:40,l:45}
+              const chartW=W-pad.l-pad.r,chartH=H-pad.t-pad.b
+              const scX=(v)=>pad.l+(v/Math.max(maxPickPct,1))*chartW
+              const scY=(v)=>pad.t+chartH-(Math.min(v,maxPerf)/maxPerf)*chartH
+              const baselineY=scY(1)
+              return(
+                <div style={{overflowX:'auto',marginBottom:'20px'}}>
+                  <svg width={W} height={H} style={{fontFamily:T.mono,overflow:'visible'}}>
+                    {/* Grid */}
+                    {[0,0.5,1,1.5,2].map(v=>(
+                      <g key={v}>
+                        <line x1={pad.l} y1={scY(v)} x2={W-pad.r} y2={scY(v)} stroke={v===1?T.gold:T.border} strokeWidth={v===1?1.5:1} strokeDasharray={v===1?'4,3':'2,4'} opacity="0.7"/>
+                        <text x={pad.l-4} y={scY(v)+4} fill={T.textDim} fontSize="9" textAnchor="end">{v}×</text>
+                      </g>
+                    ))}
+                    {/* Axis labels */}
+                    <text x={pad.l+chartW/2} y={H-4} fill={T.textDim} fontSize="9" textAnchor="middle">% of players tracking</text>
+                    <text x={12} y={pad.t+chartH/2} fill={T.textDim} fontSize="9" textAnchor="middle" transform={`rotate(-90,12,${pad.t+chartH/2})`}>actual vs estimate</text>
+                    {/* Baseline label */}
+                    <text x={W-pad.r-2} y={baselineY-4} fill={T.gold} fontSize="8" textAnchor="end" opacity="0.8">estimate</text>
+                    {/* Dots */}
+                    {validationData.map((d,i)=>{
+                      const cx=scX(d.pickPct),cy=scY(d.perf)
+                      const col=d.perf>=1.5?T.green:d.perf>=1.1?T.gold:d.perf>=0.9?T.textSub:T.red
+                      return(
+                        <g key={i}>
+                          <circle cx={cx} cy={cy} r={6} fill={col} opacity="0.85"/>
+                          {i<5&&<text x={cx} y={cy-9} fill={T.text} fontSize="8" textAnchor="middle">{d.title.split(' ').slice(0,2).join(' ')}</text>}
+                        </g>
+                      )
+                    })}
+                  </svg>
+                </div>
+              )
+            })():<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>Need at least 2 resulted films with pick data to show validation chart.</div>}
+            {/* Insights */}
+            {validationData.length>=3&&(()=>{
+              const avg=validationData.reduce((s,d)=>s+d.perf,0)/validationData.length
+              const highPick=validationData.filter(d=>d.pickPct>=50)
+              const lowPick=validationData.filter(d=>d.pickPct<50)
+              const highAvg=highPick.length?highPick.reduce((s,d)=>s+d.perf,0)/highPick.length:null
+              const lowAvg=lowPick.length?lowPick.reduce((s,d)=>s+d.perf,0)/lowPick.length:null
+              return(
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px'}}>
+                  <div style={{background:T.surfaceUp,borderRadius:'12px',padding:'14px'}}>
+                    <div style={{...S.label,marginBottom:'6px'}}>Avg performance</div>
+                    <div style={{fontSize:'24px',fontWeight:900,color:avg>=1?T.green:T.red,fontFamily:T.mono}}>{avg.toFixed(2)}×</div>
+                    <div style={{fontSize:'11px',color:T.textSub,marginTop:'3px'}}>across {validationData.length} films</div>
+                  </div>
+                  {highAvg&&lowAvg&&<div style={{background:T.surfaceUp,borderRadius:'12px',padding:'14px'}}>
+                    <div style={{...S.label,marginBottom:'6px'}}>High vs low intent</div>
+                    <div style={{fontSize:'15px',fontWeight:700,color:T.green}}>{highAvg.toFixed(2)}× tracked</div>
+                    <div style={{fontSize:'15px',fontWeight:700,color:T.textSub}}>{lowAvg.toFixed(2)}× untracked</div>
+                  </div>}
+                </div>
+              )
+            })()}
+          </div>
+        )}
+
+        {intTab==='marketing'&&(
+          <div>
+            <div style={{...S.label,marginBottom:'10px'}}>Select Film</div>
+            <select style={{...S.inp,marginBottom:'16px'}} onChange={e=>{const f=films.find(fl=>fl.id===e.target.value);f&&setFilmDetail(f)}}>
+              <option value="">Choose a film to view marketing data…</option>
+              {films.filter(f=>marketingEvents.some(ev=>ev.film_id===f.id)).map(f=><option key={f.id} value={f.id}>{f.title}</option>)}
+            </select>
+            {marketingEvents.length===0&&<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No marketing events logged yet. Add them via the film detail modal.</div>}
+            <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.7}}>Select a film above to view full marketing impact analysis, or navigate to Distributor Insights for the full dashboard view.</div>
+            <div style={{marginTop:'16px'}}>
+              <Btn onClick={()=>navigate('distributor')} color={T.blue} textColor="#fff" size="lg">→ Open Distributor Insights</Btn>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── RENDER ────────────────────────────────────────────────────────────────────
   const renderPage=()=>{
     if(page==='profile'&&profilePlayer) return <PlayerProfilePage player={profilePlayer} films={films} rosters={rosters} results={results} weeklyG={weeklyG} allChips={allChips} auteurDecl={auteurDecl} wwWinners={wwWinners} oscarPreds={oscarPreds} calcPoints={calcPoints} calcPhasePoints={calcPhasePoints} budgetLeft={budgetLeft} cur={cur} isEarlyBird={isEarlyBird} analystActive={analystOn} auteurBonus={auteurOn} shortBonus={shortBonus} wwBonus={wwBonus} curPhase_ref={ph} onBack={()=>{setPage(prevPage);setProfilePlayer(null)}}/>
     switch(page){
@@ -3085,7 +4021,12 @@ export default function App(){
       case 'forecaster': return <ForecasterPage/>
       case 'oscar':      return <OscarPage/>
       case 'results':    return <ResultsPage/>
+      case 'howto':      return <HowToPlayPage/>
       case 'sealed':     return <SealedBidPage/>
+      case 'slate':      return <SlatePage/>
+      case 'report':     return <MatchReportPage/>
+      case 'intelligence': return <IntelligencePage/>
+      case 'warroom':    return isCommissioner?<WarRoomPage/>:<MarketPage/>
       case 'commissioner': return <CommissionerPage/>
       case 'distributor':  return <DistributorPage/>
       default:           return <MarketPage/>
@@ -3093,6 +4034,9 @@ export default function App(){
   }
 
   const navigate=(id)=>{setPage(id);setMoreOpen(false);window.scrollTo({top:0,behavior:'smooth'})}
+
+  const rankSorted=[...players].sort((a,b)=>calcPoints(b.id)-calcPoints(a.id))
+  const myGlobalRank=rankSorted.findIndex(p=>p.id===profile.id)+1
 
   const draftBannerVisible=draftWindowOpen&&draftShortfall>0
 
@@ -3124,8 +4068,11 @@ export default function App(){
           {pendingForMe.length>0&&<div style={{background:`${T.blue}22`,border:`1px solid ${T.blue}55`,borderRadius:'20px',padding:'6px 12px',fontSize:'13px',color:T.blue,cursor:'pointer',whiteSpace:'nowrap',fontWeight:600}} onClick={()=>navigate('trades')}>
             🔄 {pendingForMe.length}
           </div>}
-          <div onClick={()=>goToProfile(profile)} style={{width:'34px',height:'34px',borderRadius:'50%',background:profile?.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'14px',fontWeight:900,color:'#0D0A08',cursor:'pointer',flexShrink:0,boxShadow:`0 0 0 2px ${T.bg},0 0 0 3px ${profile?.color||T.gold}44`}}>
-            {profile?.name?.[0]||'?'}
+          <div style={{position:'relative',flexShrink:0,cursor:'pointer'}} onClick={()=>goToProfile(profile)}>
+            <div style={{width:'34px',height:'34px',borderRadius:'50%',background:profile?.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'14px',fontWeight:900,color:'#0D0A08',boxShadow:`0 0 0 2px ${T.bg},0 0 0 3px ${profile?.color||T.gold}44`}}>
+              {profile?.name?.[0]||'?'}
+            </div>
+            {players.length>1&&<div style={{position:'absolute',bottom:'-5px',right:'-5px',background:myGlobalRank===1?T.gold:T.surfaceUp,border:`1px solid ${myGlobalRank===1?T.gold:T.border}`,borderRadius:'8px',padding:'1px 5px',fontSize:'9px',fontWeight:700,color:myGlobalRank===1?'#0D0A08':T.textSub,lineHeight:1.2,whiteSpace:'nowrap'}}>#{myGlobalRank}</div>}
           </div>
         </div>
       </div>
@@ -3168,6 +4115,10 @@ export default function App(){
               {id:'forecaster',icon:'📊',label:'Forecaster'},
               {id:'oscar',icon:'🏆',label:'Oscars'},
               {id:'results',icon:'📋',label:'Results'},
+              {id:'howto',icon:'❓',label:'How to Play'},
+              {id:'slate',icon:'🗺',label:'Slate Map'},
+              {id:'report',icon:'📰',label:'Match Report'},
+              {id:'intelligence',icon:'📡',label:'Intelligence'},
               ...(sealedWindowOpen?[{id:'sealed',icon:'🔒',label:'Sealed Bid',badge:null}]:[]),
             ].map(({id,icon,label,badge})=>{
               const active=page===id
@@ -3182,6 +4133,7 @@ export default function App(){
             {isCommissioner&&<>
               <div style={{height:'1px',background:T.border,margin:'8px 4px'}}/>
               {[
+                {id:'warroom',icon:'⚡',label:'War Room'},
                 {id:'commissioner',icon:'⚙️',label:'Panel'},
                 {id:'distributor',icon:'📈',label:'Insights'},
               ].map(({id,icon,label})=>{
@@ -3195,6 +4147,27 @@ export default function App(){
               })}
             </>}
             <div style={{marginTop:'auto',paddingTop:'12px',borderTop:`1px solid ${T.border}`}}>
+              {/* Phase season progress */}
+              <div style={{marginBottom:'12px',padding:'0 4px'}}>
+                <div style={{...S.label,marginBottom:'8px'}}>Season Progress</div>
+                <div style={{display:'flex',gap:'4px',alignItems:'center'}}>
+                  {[1,2,3,4,5].map((p,i)=>{
+                    const done=p<ph,cur=p===ph
+                    const col=done?T.gold:cur?T.gold:T.border
+                    return(
+                      <React.Fragment key={p}>
+                        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'4px',flex:1}}>
+                          <div style={{width:'100%',height:'3px',background:done?T.gold:cur?T.gold:T.border,borderRadius:'2px',position:'relative',overflow:cur?'visible':'hidden'}}>
+                            {cur&&<div style={{position:'absolute',inset:0,background:T.gold,borderRadius:'2px',animation:'breathe 2s ease-in-out infinite'}}/>}
+                          </div>
+                          <div style={{fontSize:'8px',color:cur?T.gold:done?T.textSub:T.textDim,fontWeight:cur?700:400,letterSpacing:'0.5px'}}>Ph{p}</div>
+                        </div>
+                        {i<4&&<div style={{width:'4px',height:'3px',background:p<ph?T.gold:T.border,flexShrink:0,marginBottom:'14px'}}/>}
+                      </React.Fragment>
+                    )
+                  })}
+                </div>
+              </div>
               {/* Phase indicator */}
               <div style={{background:T.surfaceUp,borderRadius:'10px',padding:'10px 12px',marginBottom:'8px'}}>
                 <div style={{fontSize:'10px',color:T.textDim,letterSpacing:'1.5px',textTransform:'uppercase',marginBottom:'4px'}}>Current Phase</div>
@@ -3553,7 +4526,8 @@ export default function App(){
       {shareCardFilm&&(()=>{
         const myRank=[...players].sort((a,b)=>calcPoints(b.id)-calcPoints(a.id)).findIndex(p=>p.id===profile.id)+1
         const myPts=calcPoints(profile.id)
-        const shareText=`🎬 I'm #${myRank} in my BOXD league with ${myPts}pts\nJoin us: ${window.location.origin}/join/${league?.invite_code||''}`
+        const inviteUrl=`${window.location.origin}${window.location.pathname}?invite=${league?.invite_code||''}`
+        const shareText=`🎬 I'm #${myRank} in my BOXD league with ${myPts}pts\nJoin us: ${inviteUrl}`
         return(
           <div style={{position:'fixed',inset:0,background:'#000000CC',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:900}} onClick={()=>setShareCardFilm(null)}>
             <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'20px 20px 0 0',width:'100%',maxWidth:'480px',padding:'28px',animation:'slideUp .25s ease',paddingBottom:'calc(28px + env(safe-area-inset-bottom))'}} onClick={e=>e.stopPropagation()}>
@@ -3578,7 +4552,7 @@ export default function App(){
                 </div>
                 <div style={{marginTop:'20px',fontSize:'11px',color:T.textDim}}>{window.location.origin}</div>
               </div>
-              <Btn onClick={()=>{navigator.share?navigator.share({title:'BOXD Fantasy Box Office',text:shareText,url:`${window.location.origin}/join/${league?.invite_code||''}`}).catch(()=>{}):navigator.clipboard?.writeText(shareText).then(()=>notify('Copied to clipboard!',T.gold))}} color={T.gold} full size="lg">
+              <Btn onClick={()=>{navigator.share?navigator.share({title:'BOXD Fantasy Box Office',text:shareText,url:inviteUrl}).catch(()=>{}):navigator.clipboard?.writeText(shareText).then(()=>notify('Copied to clipboard!',T.gold))}} color={T.gold} full size="lg">
                 {navigator.share?'📤 Share':'📋 Copy share text'}
               </Btn>
               <Btn onClick={()=>setShareCardFilm(null)} variant="outline" color={T.textSub} full size="md" sx={{marginTop:'8px'}}>Close</Btn>
@@ -3586,6 +4560,9 @@ export default function App(){
           </div>
         )
       })()}
+
+      {/* ── SEASON WRAPPED MODAL ─────────────────────────────────────────── */}
+      {wrappedOpen&&<WrappedModal onClose={()=>setWrappedOpen(false)}/>}
 
       {/* ── CONFETTI ─────────────────────────────────────────────────────── */}
       <ConfettiBurst active={confettiActive}/>
