@@ -4483,10 +4483,6 @@ export default function App(){
     )
   }
 
-        )}
-      </div>
-    )
-  }
 
   // ── PROFILE EDIT MODAL ───────────────────────────────────────────────────────
   const ProfileEditModal=({onClose})=>{
