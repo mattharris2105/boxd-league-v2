@@ -1280,6 +1280,13 @@ export default function App(){
   const[polls,setPolls]=useState([])
   const[pollVotes,setPollVotes]=useState([])
   const[newPollOpen,setNewPollOpen]=useState(false)
+  const[resultsDismissedWk,setResultsDismissedWk]=useState(null)
+  // Bulk slate builder state
+  const[bulkFilmsCsv,setBulkFilmsCsv]=useState('')
+  const[bulkFilmsPreview,setBulkFilmsPreview]=useState(null)
+  const[bulkGrossesCsv,setBulkGrossesCsv]=useState('')
+  const[bulkGrossesPreview,setBulkGrossesPreview]=useState(null)
+  const[bulkBusy,setBulkBusy]=useState(false)
   const triggerConfetti=()=>{
     setConfettiActive(true)
     setTimeout(()=>setConfettiActive(false),3000)
@@ -1308,6 +1315,14 @@ export default function App(){
   useEffect(()=>{supabase.auth.getSession().then(({data:{session}})=>{setSession(session);setLoading(false)});supabase.auth.onAuthStateChange((_,s)=>setSession(s))},[])
   useEffect(()=>{if(session){loadProfile();loadLeagues();loadPicks();loadMarketingEvents();loadBookingClicks()}},[session])
   useEffect(()=>{const t=setInterval(()=>{nowRef.current=Date.now()},1000);return()=>clearInterval(t)},[])
+  // Sync the dismissed-banner state from localStorage whenever current_week changes
+  useEffect(()=>{
+    if(typeof localStorage==='undefined')return
+    const wk=cfg?.current_week
+    if(wk==null)return
+    const key=`boxd_results_seen_w${wk-1}`
+    setResultsDismissedWk(localStorage.getItem(key)==='1'?wk-1:null)
+  },[cfg?.current_week])
   useEffect(()=>{
     if(!session) return
     const ch=supabase.channel('rt')
@@ -1621,7 +1636,6 @@ export default function App(){
   if(inviteFromUrl&&!session&&!loading)return <InviteLanding code={inviteFromUrl} onLogin={()=>{setInviteCode(inviteFromUrl)}}/>
   if(loading)return(<div style={{minHeight:'100vh',background:T.bg,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:T.mono}}><div style={{textAlign:'center'}}><div style={{fontSize:'52px',fontWeight:900,color:T.gold,letterSpacing:'-2px',marginBottom:'16px'}}>BOXD</div><div style={{width:'40px',height:'3px',background:T.gold,borderRadius:'2px',margin:'0 auto',animation:'pulse 1.2s ease-in-out infinite'}}/></div></div>)
   if(!session)return<Login/>
-  if(inviteFromUrl&&inviteCode!==inviteFromUrl)setInviteCode(inviteFromUrl)
   if(!profile)return<CreateProfile session={session} onCreated={()=>{loadProfile();loadLeagues()}} notify={notify}/>
 
   if(!league)return(
@@ -2658,7 +2672,7 @@ export default function App(){
       <div style={{animation:'fadeUp .2s ease'}}>
         <div style={S.pageTitle}>⚙️ Commissioner Panel</div>
         <div style={{display:'flex',gap:'2px',borderBottom:`1px solid ${T.border}`,marginBottom:'14px',overflowX:'auto'}}>
-          <TabBtn id="phase" label="Phase"/><TabBtn id="windows" label="Windows"/><TabBtn id="films" label="Films"/><TabBtn id="advanced" label="Advanced"/>
+          <TabBtn id="phase" label="Phase"/><TabBtn id="windows" label="Windows"/><TabBtn id="films" label="Films"/><TabBtn id="bulk" label="Bulk Import"/><TabBtn id="advanced" label="Advanced"/>
         </div>
 
         {tab==='phase'&&<>
@@ -2762,6 +2776,197 @@ export default function App(){
               <Btn onClick={()=>setAddFilm(true)} color={T.gold} size="sm">+ Add Film</Btn>
             </div>
             <div style={{fontSize:'11px',color:T.textSub}}>Use War Room to enter weekend results in bulk.</div>
+          </div>
+        </>}
+
+        {tab==='bulk'&&<>
+          {/* ── BULK FILM IMPORT ───────────────────────────────────────────── */}
+          <div style={{...S.card,marginBottom:'12px',border:`1px solid ${T.gold}33`}}>
+            <div style={{fontSize:'14px',fontWeight:700,color:T.gold,marginBottom:'6px'}}>🎬 Bulk Add Films</div>
+            <div style={{fontSize:'11px',color:T.textSub,marginBottom:'10px',lineHeight:1.5}}>
+              Paste one film per line, comma or tab separated. Columns in this order:<br/>
+              <strong style={{color:T.text,fontFamily:T.mono}}>title, dist, genre, phase, week, base_price, est_m, rt, tmdb_id, star_actor</strong><br/>
+              Last 3 columns optional. Header row gets auto-skipped if present. Films are added with active=true.
+            </div>
+            <textarea
+              value={bulkFilmsCsv}
+              onChange={e=>{setBulkFilmsCsv(e.target.value);setBulkFilmsPreview(null)}}
+              placeholder={`Avatar: Fire and Ash, 20th Century Studios, Sci-Fi, 5, 51, 65, 250, , 76600, Sam Worthington\nWicked: For Good, Universal, Family, 5, 47, 50, 180, , , Cynthia Erivo`}
+              style={{...S.inp,minHeight:'140px',fontFamily:T.mono,fontSize:'11px',resize:'vertical',whiteSpace:'pre',marginBottom:'10px'}}
+            />
+            <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
+              <Btn onClick={()=>{
+                const lines=bulkFilmsCsv.split('\n').map(l=>l.trim()).filter(Boolean)
+                if(lines.length===0)return notify('Nothing to parse',T.red)
+                // Auto-detect delimiter (tab vs comma)
+                const delim=lines[0].includes('\t')?'\t':','
+                const parsed=[];const errs=[]
+                lines.forEach((line,i)=>{
+                  // Skip header row
+                  if(i===0&&/^title/i.test(line))return
+                  const cols=line.split(delim).map(c=>c.trim())
+                  if(cols.length<7){errs.push(`Line ${i+1}: only ${cols.length} columns (need ≥7)`);return}
+                  const[title,dist,genre,phase,week,basePrice,estM,rt,tmdbId,starActor]=cols
+                  if(!title||!dist){errs.push(`Line ${i+1}: missing title or distributor`);return}
+                  const phN=Number(phase),wkN=Number(week),bpN=Number(basePrice),emN=Number(estM)
+                  if(isNaN(phN)||isNaN(wkN)||isNaN(bpN)||isNaN(emN)){errs.push(`Line ${i+1}: non-numeric phase/week/price/est`);return}
+                  parsed.push({
+                    title,dist,genre:genre||'Drama',phase:phN,week:wkN,
+                    base_price:bpN,est_m:emN,
+                    rt:rt&&!isNaN(Number(rt))?Number(rt):null,
+                    tmdb_id:tmdbId||null,
+                    star_actor:starActor||null,
+                  })
+                })
+                setBulkFilmsPreview({rows:parsed,errs})
+                notify(`Parsed ${parsed.length} film${parsed.length!==1?'s':''}${errs.length?` · ${errs.length} error${errs.length!==1?'s':''}`:''}`,errs.length?T.orange:T.green)
+              }} color={T.gold} size="sm" disabled={!bulkFilmsCsv.trim()}>Parse Preview</Btn>
+              <Btn onClick={async()=>{
+                if(!bulkFilmsPreview?.rows?.length)return notify('Parse first',T.red)
+                if(!confirm(`Insert ${bulkFilmsPreview.rows.length} films into the database?`))return
+                setBulkBusy(true)
+                let added=0,skipped=0
+                for(const row of bulkFilmsPreview.rows){
+                  const id=row.title.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,50)+'-'+Math.random().toString(36).slice(2,6)
+                  // Check for existing film with same title + phase
+                  const{data:ex}=await supabase.from('films').select('id').ilike('title',row.title).eq('phase',row.phase).maybeSingle()
+                  if(ex){skipped++;continue}
+                  const{error}=await supabase.from('films').insert({id,...row,active:true})
+                  if(!error)added++
+                }
+                setBulkBusy(false)
+                notify(`✓ Added ${added}${skipped?` · ${skipped} skipped (duplicate)`:''}`,T.green)
+                setBulkFilmsCsv('');setBulkFilmsPreview(null)
+                loadData(league?.id)
+              }} color={T.green} textColor="#0D0A08" size="sm" disabled={!bulkFilmsPreview?.rows?.length||bulkBusy}>{bulkBusy?'Importing…':`Import ${bulkFilmsPreview?.rows?.length||0} Films`}</Btn>
+              {bulkFilmsPreview&&<Btn onClick={()=>setBulkFilmsPreview(null)} variant="outline" color={T.textSub} size="sm">Clear Preview</Btn>}
+            </div>
+            {bulkFilmsPreview&&<div style={{marginTop:'12px',maxHeight:'240px',overflowY:'auto',background:T.surfaceUp,borderRadius:'8px',padding:'10px'}}>
+              {bulkFilmsPreview.errs.length>0&&<div style={{marginBottom:'10px'}}>
+                <div style={{fontSize:'11px',color:T.red,fontWeight:700,marginBottom:'4px'}}>Errors ({bulkFilmsPreview.errs.length})</div>
+                {bulkFilmsPreview.errs.map((e,i)=><div key={i} style={{fontSize:'10px',color:T.red,fontFamily:T.mono,marginBottom:'2px'}}>{e}</div>)}
+              </div>}
+              {bulkFilmsPreview.rows.length>0&&<>
+                <div style={{fontSize:'11px',color:T.green,fontWeight:700,marginBottom:'6px'}}>To import ({bulkFilmsPreview.rows.length})</div>
+                {bulkFilmsPreview.rows.slice(0,30).map((r,i)=>(
+                  <div key={i} style={{fontSize:'11px',color:T.text,fontFamily:T.mono,padding:'3px 0',borderBottom:`1px solid ${T.border}`,display:'flex',gap:'8px'}}>
+                    <span style={{color:T.gold,minWidth:'30px'}}>P{r.phase}W{r.week}</span>
+                    <span style={{flex:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{r.title}</span>
+                    <span style={{color:T.textSub}}>{r.dist}</span>
+                    <span style={{color:T.green}}>${r.est_m}M</span>
+                  </div>
+                ))}
+                {bulkFilmsPreview.rows.length>30&&<div style={{fontSize:'10px',color:T.textDim,marginTop:'6px'}}>… and {bulkFilmsPreview.rows.length-30} more</div>}
+              </>}
+            </div>}
+          </div>
+
+          {/* ── BULK WEEKLY GROSSES IMPORT ─────────────────────────────────── */}
+          <div style={{...S.card,marginBottom:'12px',border:`1px solid ${T.green}33`}}>
+            <div style={{fontSize:'14px',fontWeight:700,color:T.green,marginBottom:'6px'}}>📊 Bulk Add Weekly Box Office Data</div>
+            <div style={{fontSize:'11px',color:T.textSub,marginBottom:'10px',lineHeight:1.5}}>
+              Paste one row per week per film. Columns in this order:<br/>
+              <strong style={{color:T.text,fontFamily:T.mono}}>film_title, week_num, gross_m</strong><br/>
+              Title matched fuzzy (case-insensitive). Use <strong>week_num=1</strong> for opening weekend (sets the result + market value).<br/>
+              Week 2+ rows go into weekly_grosses for legs scoring.
+            </div>
+            <textarea
+              value={bulkGrossesCsv}
+              onChange={e=>{setBulkGrossesCsv(e.target.value);setBulkGrossesPreview(null)}}
+              placeholder={`Avatar: Fire and Ash, 1, 145\nAvatar: Fire and Ash, 2, 78\nAvatar: Fire and Ash, 3, 42\nWicked: For Good, 1, 92`}
+              style={{...S.inp,minHeight:'140px',fontFamily:T.mono,fontSize:'11px',resize:'vertical',whiteSpace:'pre',marginBottom:'10px'}}
+            />
+            <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
+              <Btn onClick={()=>{
+                const lines=bulkGrossesCsv.split('\n').map(l=>l.trim()).filter(Boolean)
+                if(lines.length===0)return notify('Nothing to parse',T.red)
+                const delim=lines[0].includes('\t')?'\t':','
+                const matched=[];const unmatched=[];const errs=[]
+                lines.forEach((line,i)=>{
+                  if(i===0&&/film_title|title/i.test(line.split(delim)[0]))return
+                  const cols=line.split(delim).map(c=>c.trim())
+                  if(cols.length<3){errs.push(`Line ${i+1}: need 3 columns`);return}
+                  const[titleRaw,wkRaw,grossRaw]=cols
+                  const wk=Number(wkRaw),gross=Number(grossRaw)
+                  if(isNaN(wk)||isNaN(gross)){errs.push(`Line ${i+1}: non-numeric week or gross`);return}
+                  // Fuzzy match
+                  const norm=s=>s.toLowerCase().replace(/[^a-z0-9]/g,'')
+                  const target=norm(titleRaw)
+                  const hit=films.find(f=>norm(f.title)===target)||films.find(f=>norm(f.title).includes(target)||target.includes(norm(f.title)))
+                  if(hit)matched.push({film:hit,week:wk,gross,title_raw:titleRaw})
+                  else unmatched.push({title_raw:titleRaw,week:wk,gross})
+                })
+                setBulkGrossesPreview({matched,unmatched,errs})
+                notify(`Matched ${matched.length} · Unmatched ${unmatched.length}`,unmatched.length||errs.length?T.orange:T.green)
+              }} color={T.green} textColor="#0D0A08" size="sm" disabled={!bulkGrossesCsv.trim()}>Parse & Match</Btn>
+              <Btn onClick={async()=>{
+                if(!bulkGrossesPreview?.matched?.length)return notify('Nothing matched',T.red)
+                if(!confirm(`Import ${bulkGrossesPreview.matched.length} gross rows?`))return
+                setBulkBusy(true)
+                let openings=0,weekly=0
+                for(const row of bulkGrossesPreview.matched){
+                  if(row.week===1){
+                    // Opening weekend: write to results + recalc film_values + resolve chips
+                    await dbUpsert('results','film_id',row.film.id,{actual_m:row.gross})
+                    await dbUpsert('film_values','film_id',row.film.id,{current_value:calcMarketValue(row.film,row.gross)})
+                    await resolveChips(row.film.id,row.gross)
+                    openings++
+                  }else{
+                    // Week 2+ → weekly_grosses
+                    await dbUpsertWeekly(row.film.id,row.week,row.gross)
+                    weekly++
+                  }
+                }
+                setBulkBusy(false)
+                notify(`✓ ${openings} opening${openings!==1?'s':''} · ${weekly} weekly row${weekly!==1?'s':''}`,T.green)
+                setBulkGrossesCsv('');setBulkGrossesPreview(null)
+                loadData(league?.id)
+              }} color={T.green} textColor="#0D0A08" size="sm" disabled={!bulkGrossesPreview?.matched?.length||bulkBusy}>{bulkBusy?'Importing…':`Import ${bulkGrossesPreview?.matched?.length||0} Rows`}</Btn>
+              {bulkGrossesPreview&&<Btn onClick={()=>setBulkGrossesPreview(null)} variant="outline" color={T.textSub} size="sm">Clear Preview</Btn>}
+            </div>
+            {bulkGrossesPreview&&<div style={{marginTop:'12px',maxHeight:'280px',overflowY:'auto',background:T.surfaceUp,borderRadius:'8px',padding:'10px'}}>
+              {bulkGrossesPreview.errs.length>0&&<div style={{marginBottom:'10px'}}>
+                <div style={{fontSize:'11px',color:T.red,fontWeight:700,marginBottom:'4px'}}>Errors ({bulkGrossesPreview.errs.length})</div>
+                {bulkGrossesPreview.errs.map((e,i)=><div key={i} style={{fontSize:'10px',color:T.red,fontFamily:T.mono,marginBottom:'2px'}}>{e}</div>)}
+              </div>}
+              {bulkGrossesPreview.unmatched.length>0&&<div style={{marginBottom:'10px'}}>
+                <div style={{fontSize:'11px',color:T.orange,fontWeight:700,marginBottom:'4px'}}>Unmatched titles ({bulkGrossesPreview.unmatched.length})</div>
+                <div style={{fontSize:'10px',color:T.textDim,marginBottom:'4px'}}>Add these films first via Bulk Add Films, then re-run.</div>
+                {bulkGrossesPreview.unmatched.slice(0,10).map((r,i)=>(
+                  <div key={i} style={{fontSize:'11px',color:T.orange,fontFamily:T.mono,padding:'2px 0'}}>"{r.title_raw}" · W{r.week} · ${r.gross}M</div>
+                ))}
+                {bulkGrossesPreview.unmatched.length>10&&<div style={{fontSize:'10px',color:T.textDim,marginTop:'4px'}}>… and {bulkGrossesPreview.unmatched.length-10} more</div>}
+              </div>}
+              {bulkGrossesPreview.matched.length>0&&<>
+                <div style={{fontSize:'11px',color:T.green,fontWeight:700,marginBottom:'6px'}}>Matched ({bulkGrossesPreview.matched.length})</div>
+                {bulkGrossesPreview.matched.slice(0,30).map((r,i)=>(
+                  <div key={i} style={{fontSize:'11px',color:T.text,fontFamily:T.mono,padding:'3px 0',borderBottom:`1px solid ${T.border}`,display:'flex',gap:'8px'}}>
+                    <span style={{color:r.week===1?T.gold:T.blue,minWidth:'24px'}}>W{r.week}</span>
+                    <span style={{flex:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{r.film.title}</span>
+                    <span style={{color:T.green}}>${r.gross}M</span>
+                  </div>
+                ))}
+                {bulkGrossesPreview.matched.length>30&&<div style={{fontSize:'10px',color:T.textDim,marginTop:'6px'}}>… and {bulkGrossesPreview.matched.length-30} more</div>}
+              </>}
+            </div>}
+          </div>
+
+          {/* ── EXPORT EXISTING FILMS — for backups / spreadsheet sync ────── */}
+          <div style={{...S.card,marginBottom:'12px',border:`1px solid ${T.blue}33`}}>
+            <div style={{fontSize:'14px',fontWeight:700,color:T.blue,marginBottom:'6px'}}>📥 Export Current Slate</div>
+            <div style={{fontSize:'11px',color:T.textSub,marginBottom:'10px',lineHeight:1.5}}>
+              Copy a CSV of every active film + current week's gross. Paste into Excel/Sheets for a backup.
+            </div>
+            <Btn onClick={()=>{
+              const header='title,dist,genre,phase,week,base_price,est_m,rt,opening_gross_m'
+              const rows=films.map(f=>{
+                const op=results[f.id]??''
+                return[f.title,f.dist,f.genre,f.phase,f.week,f.basePrice,f.estM,f.rt??'',op].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')
+              })
+              const csv=[header,...rows].join('\n')
+              navigator.clipboard.writeText(csv)
+              notify(`📋 ${rows.length} rows copied to clipboard`,T.blue)
+            }} color={T.blue} textColor="#fff" size="sm">Copy CSV to Clipboard</Btn>
           </div>
         </>}
 
@@ -3056,10 +3261,10 @@ export default function App(){
   const navigate=(p)=>{setPage(p);setMoreOpen(false)}
   const draftBannerVisible=draftWindowOpen&&draftShortfall>0
 
-  // Fresh-results banner state
+  // Fresh-results banner state (hooks declared at top of App)
   const dismissKey=`boxd_results_seen_w${cfg.current_week-1}`
-  const[resultsDismissed,setResultsDismissed]=useState(()=>typeof localStorage!=='undefined'&&localStorage.getItem(dismissKey)==='1')
-  useEffect(()=>{setResultsDismissed(typeof localStorage!=='undefined'&&localStorage.getItem(dismissKey)==='1')},[cfg.current_week])
+  const resultsDismissed=resultsDismissedWk===cfg.current_week-1
+  const setResultsDismissed=(v)=>{if(v){localStorage.setItem(dismissKey,'1');setResultsDismissedWk(cfg.current_week-1)}}
   const justScored=films.filter(f=>f.week===cfg.current_week-1&&results[f.id]!=null)
   const myJustScored=justScored.filter(f=>myRoster.find(r=>r.film_id===f.id)||rosters.find(r=>r.player_id===profile.id&&r.film_id===f.id))
   const myJustScoredPts=myJustScored.reduce((s,f)=>{
