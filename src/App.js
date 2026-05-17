@@ -102,14 +102,12 @@ const GLOBAL_CSS = `
   @keyframes priceUp{0%{color:inherit;text-shadow:none;}30%{color:#3DD68C;text-shadow:0 0 14px #3DD68C88;}100%{color:inherit;text-shadow:none;}}
   @keyframes priceDown{0%{color:inherit;text-shadow:none;}30%{color:#F04F5A;text-shadow:0 0 14px #F04F5A88;}100%{color:inherit;text-shadow:none;}}
 
-  /* Hoverable cards */
   .hoverable{transition:border-color .2s,transform .15s,background .2s,box-shadow .2s;}
   .hoverable:hover{border-color:#382E28 !important;box-shadow:0 8px 28px #00000066;transform:translateY(-2px);}
   .hoverable:active{transform:scale(0.985) translateY(0);opacity:0.95;}
   .pressable{transition:transform .1s ease, opacity .1s ease;}
   .pressable:active{transform:scale(0.94);opacity:0.85;}
 
-  /* Film card tilt on desktop */
   @media(hover:hover){
     .film-card-tilt{transition:transform .25s cubic-bezier(.2,.9,.3,1.2), box-shadow .25s ease;transform-style:preserve-3d;will-change:transform;}
     .film-card-tilt:hover{transform:translateY(-6px) scale(1.02);box-shadow:0 20px 40px #00000088, 0 0 0 1px #E8A02022;}
@@ -119,23 +117,18 @@ const GLOBAL_CSS = `
   .film-card-tilt{transform:translateZ(0);}
   .film-card-info{transition:transform .3s ease;}
 
-  /* Poster shine effect (owned films) */
   .poster-shine{position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg, transparent 30%, #E8A02020 48%, #E8A02040 50%, #E8A02020 52%, transparent 70%);transform:translateX(-100%);animation:shine 3s ease-in-out infinite;opacity:0.7;}
   @keyframes shine{0%{transform:translateX(-100%);}60%,100%{transform:translateX(100%);}}
 
-  /* Glassmorphism */
   .glass{backdrop-filter:blur(16px) saturate(1.5);-webkit-backdrop-filter:blur(16px) saturate(1.5);background:rgba(22,18,16,0.65);border:1px solid rgba(255,255,255,0.06);}
 
-  /* Bloom on score updates */
   .bloom{animation:bloom .6s ease-out;}
   .gold-glow{animation:goldGlow 2s ease-in-out infinite;}
   .breathe{animation:breathe 3.5s ease-in-out infinite;}
   .bounce-in{animation:bounceIn .4s cubic-bezier(.2,.9,.3,1.3);}
 
-  /* Skeleton shimmer */
   .skeleton{background:linear-gradient(90deg, #1E1916 0%, #2A2420 50%, #1E1916 100%);background-size:200% 100%;animation:shimmer 1.6s ease-in-out infinite;border-radius:8px;}
 
-  /* News ticker scroll */
   @keyframes tickerScroll{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
 
   button:focus-visible{outline:2px solid #E8A02066;outline-offset:2px;}
@@ -143,7 +136,6 @@ const GLOBAL_CSS = `
     .film-grid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))!important;}
   }
 
-  /* Respect reduced motion */
   @media (prefers-reduced-motion: reduce){
     *,*::before,*::after{animation-duration:0.01ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important;}
     .film-card-tilt:hover{transform:none;}
@@ -164,7 +156,6 @@ function Btn({children,onClick,color=T.gold,textColor='#0D0A08',variant='solid',
   const fs=size==='sm'?'11px':size==='lg'?'13px':'12px'
   const handleClick=(e)=>{
     if(disabled||!onClick)return
-    // Haptic on mobile
     if(navigator.vibrate)navigator.vibrate(8)
     onClick(e)
   }
@@ -175,7 +166,6 @@ function Pill({children,color=T.textSub}){return <span style={{fontSize:'11px',c
 function Divider({my=12}){return <div style={{height:'1px',background:T.border,margin:`${my}px 0`}}/>}
 function StatBox({label,value,color=T.text,sub}){return <div style={{background:T.surfaceUp,borderRadius:'10px',padding:'12px 14px',flex:1,minWidth:0}}><div style={{...S.label,marginBottom:'5px'}}>{label}</div><div style={{fontSize:'22px',fontWeight:700,color,lineHeight:1,fontFamily:T.mono}}>{value}</div>{sub&&<div style={{fontSize:'11px',color:T.textSub,marginTop:'3px'}}>{sub}</div>}</div>}
 
-// ── ANIMATED COUNTUP ──────────────────────────────────────────────────────────
 function CountUp({value,duration=700,suffix='',prefix='',className='',style={}}){
   const[display,setDisplay]=useState(value)
   const prevRef=useRef(value)
@@ -186,7 +176,6 @@ function CountUp({value,duration=700,suffix='',prefix='',className='',style={}})
     const start=performance.now()
     const tick=(now)=>{
       const t=Math.min(1,(now-start)/duration)
-      // ease-out cubic
       const eased=1-Math.pow(1-t,3)
       const cur=Math.round(from+(to-from)*eased)
       setDisplay(cur)
@@ -199,7 +188,6 @@ function CountUp({value,duration=700,suffix='',prefix='',className='',style={}})
   return <span className={className} style={style}>{prefix}{display}{suffix}</span>
 }
 
-// ── CONFETTI BURST ───────────────────────────────────────────────────────────
 function ConfettiBurst({active,colors=['#E8A020','#3DD68C','#F5C842','#F08030']}){
   if(!active)return null
   const pieces=Array.from({length:30},(_,i)=>({
@@ -228,7 +216,6 @@ function ConfettiBurst({active,colors=['#E8A020','#3DD68C','#F5C842','#F08030']}
   )
 }
 
-// ── SKELETON LOADER ──────────────────────────────────────────────────────────
 function Skeleton({width,height,radius=8,style={}}){
   const w=typeof width==='number'?`${width}px`:width
   const h=typeof height==='number'?`${height}px`:height
@@ -256,20 +243,17 @@ function PageSkeleton(){
   )
 }
 
-// ── HAPTIC HELPER ───────────────────────────────────────────────────────────
 const haptic={
   tap:()=>{try{navigator.vibrate&&navigator.vibrate(8)}catch{}},
   success:()=>{try{navigator.vibrate&&navigator.vibrate([15,30,15])}catch{}},
   warn:()=>{try{navigator.vibrate&&navigator.vibrate([30,50,30])}catch{}},
 }
 
-// ── TMDB POSTER ────────────────────────────────────────────────────────────────
 const posterCache = {}
 async function fetchTMDBPoster(title,tmdbId){
   const key = tmdbId?`id:${tmdbId}`:title
   if(posterCache[key]!==undefined) return posterCache[key]
   posterCache[key]=null
-  // If we have a tmdb_id, fetch directly
   if(tmdbId){
     try{
       const res=await fetch(`https://api.themoviedb.org/3/movie/${tmdbId}?language=en-US`,{headers:{Authorization:`Bearer ${TMDB_TOKEN}`}})
@@ -301,7 +285,6 @@ function FilmPoster({film,width,height,radius=8,imgStyle={},owned=false,scored=f
     fetchTMDBPoster(film.title,film.tmdbId).then(u=>{if(!cancelled)setUrl(u)})
     return()=>{cancelled=true}
   },[film?.title,film?.tmdbId])
-  // Tilt handlers for desktop
   const onMouseMove=tilt?(e)=>{
     const el=containerRef.current;if(!el)return
     const r=el.getBoundingClientRect()
@@ -320,15 +303,12 @@ function FilmPoster({film,width,height,radius=8,imgStyle={},owned=false,scored=f
       {url===undefined&&<div style={{position:'absolute',inset:0,background:`linear-gradient(90deg,${T.surfaceUp} 25%,${T.border} 50%,${T.surfaceUp} 75%)`,backgroundSize:'200% 100%',animation:'shimmer 1.6s ease-in-out infinite'}}/>}
       {url===null&&<div style={{position:'absolute',inset:0,background:`linear-gradient(145deg,${gc}28 0%,${T.surfaceUp} 100%)`,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:5}}><div style={{fontSize:typeof width==='number'?Math.max(16,width*0.28):20,lineHeight:1}}>🎬</div><div style={{fontSize:'9px',color:gc,textAlign:'center',padding:'0 6px',lineHeight:1.2}}>{film?.genre}</div></div>}
       {url&&<img src={url} alt={film?.title} style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',display:'block',...imgStyle}} onError={()=>setUrl(null)}/>}
-      {/* Gold shine for owned films */}
       {owned&&url&&<div className="poster-shine"/>}
-      {/* Green tint for scored films */}
       {scored&&url&&<div style={{position:'absolute',inset:0,background:`linear-gradient(to top, ${T.green}44, transparent 60%)`,pointerEvents:'none'}}/>}
     </div>
   )
 }
 
-// ── SCORING ────────────────────────────────────────────────────────────────────
 function calcMarketValue(film,actualM){
   if(actualM==null) return film.basePrice
   const r=actualM/film.estM
@@ -348,87 +328,67 @@ function calcOpeningPts(film,actualM,isEB=false,isAnalyst=false){
 }
 function calcLegsBonus(actualM,week2Gross){return(actualM!=null&&week2Gross!=null&&(actualM-week2Gross)/actualM<0.3)?25:0}
 function calcWeeklyPts(weekMap){return Object.entries(weekMap).reduce((s,[wk,g])=>s+Number(g)*(Number(wk)>=4?1.1:1),0)}
-// ── BUZZ INDEX (0-100 composite signal per film) ────────────────────────────
-// Single number combining watchlist velocity, signal density, ownership concentration,
-// price momentum. Designed to be hard to game, useful as a decision aid for players,
-// and meaningful as a sellable signal to distributors.
+
+// PERF: memo wrapper for calcBuzzIndex — caches by film.id+rosters.length+news.length
+const _buzzCache=new Map()
 function calcBuzzIndex(film,allPicks=[],news=[],rosters=[],totalPlayers=0,currentWeek=null,priceNow=null){
   if(film.hasResult)return null
-
-  // Component 1: Watchlist heat — last 14 days picks normalised by player count
+  const cacheKey=`${film.id}|${allPicks.length}|${news.length}|${rosters.length}|${totalPlayers}|${currentWeek}`
+  if(_buzzCache.has(cacheKey))return _buzzCache.get(cacheKey)
   const cutoff14=Date.now()-14*86400000
   const recentPicks=allPicks.filter(p=>p.film_id===film.id&&new Date(p.picked_at).getTime()>cutoff14).length
-  const watchScore=Math.min(100,(recentPicks/Math.max(1,totalPlayers))*150) // 67% picked = 100
-
-  // Component 2: Signal density — news signals about this film, weighted by recency + sentiment
+  const watchScore=Math.min(100,(recentPicks/Math.max(1,totalPlayers))*150)
   const newsForFilm=news.filter(n=>n.film_id===film.id)
   let signalScore=0
   newsForFilm.forEach(n=>{
     const ageDays=(Date.now()-new Date(n.signal_date).getTime())/86400000
-    const decay=Math.max(0,1-ageDays/21) // 21 day half-life
+    const decay=Math.max(0,1-ageDays/21)
     const sentBoost=n.sentiment==='positive'?1:n.sentiment==='negative'?-0.5:0.4
     signalScore+=decay*sentBoost*15
   })
   signalScore=Math.max(0,Math.min(100,signalScore))
-
-  // Component 3: Ownership intensity in current phase
   let ownerScore=0
   if(totalPlayers>0){
     const owners=rosters.filter(r=>r.film_id===film.id&&r.active).length
     ownerScore=Math.min(100,(owners/totalPlayers)*150)
   }
-
-  // Component 4: Time pressure — closer to release = more urgent
   let timeScore=50
   if(currentWeek!=null&&film.week!=null){
     const weeksOut=film.week-currentWeek
     timeScore=weeksOut<=0?100:weeksOut===1?85:weeksOut<=2?70:weeksOut<=4?55:weeksOut<=6?40:25
   }
-
-  // Weighted composite: watchlist 30%, signals 30%, ownership 20%, time 20%
   const composite=watchScore*0.30+signalScore*0.30+ownerScore*0.20+timeScore*0.20
-  return Math.round(composite)
+  const result=Math.round(composite)
+  if(_buzzCache.size>500)_buzzCache.clear()
+  _buzzCache.set(cacheKey,result)
+  return result
 }
 
-// ── DYNAMIC PRICING ENGINE ─────────────────────────────────────────────────────
-// Price = basePrice × ownership × time-to-release × signals × RT
-// Each driver expressed as a multiplier so we can show breakdown to players.
 function calcPriceDrivers(film,rosters,phase,totalPlayers,currentWeek,filmNews=[],allPicks=[]){
-  // 1. Ownership demand (existing logic, gentler)
   let ownershipMult=1
   if(totalPlayers>0){
     const owners=rosters.filter(r=>r.film_id===film.id&&r.phase===phase&&r.active).length
     const pct=owners/totalPlayers
     ownershipMult=pct>=0.7?1.30:pct>=0.55?1.22:pct>=0.40?1.15:pct>=0.25?1.08:pct>=0.10?1.00:pct>=0.02?0.92:0.80
   }
-
-  // 2. Time-to-release curve — undiscovered far out, peak at release
-  // Films 6+ weeks out trade at a discount, release week trades at a premium
   let timeMult=1
   if(currentWeek!=null&&film.week!=null){
     const weeksOut=film.week-currentWeek
     timeMult=weeksOut>=8?0.78:weeksOut>=6?0.86:weeksOut>=4?0.95:weeksOut>=2?1.00:weeksOut===1?1.10:weeksOut===0?1.18:0.95
   }
-
-  // 3. RT score — strong signal once published
   const rtMult=film.rt!=null
     ?(film.rt>=90?1.15:film.rt>=80?1.08:film.rt>=70?1.03:film.rt>=55?1.00:film.rt>=40?0.93:0.85)
     :1.0
-
-  // 4. News signal momentum — sum of price_impact% from last 14 days for this film
   let signalMult=1
   if(filmNews.length){
     const cutoff=Date.now()-14*86400000
     const recent=filmNews.filter(n=>n.film_id===film.id&&new Date(n.signal_date).getTime()>cutoff&&n.price_impact!=null)
     if(recent.length){
-      // Cap cumulative signal impact at ±25% to prevent runaway pricing
       const cumulative=recent.reduce((s,n)=>s+Number(n.price_impact),0)
       const capped=Math.max(-25,Math.min(25,cumulative))
       signalMult=1+(capped/100)
     }
   }
-
-  // 5. Watchlist heat — soft signal, gentle nudge, gameable so weighted lightly
   let buzzMult=1
   if(allPicks.length&&totalPlayers>0){
     const cutoff=Date.now()-7*86400000
@@ -436,15 +396,16 @@ function calcPriceDrivers(film,rosters,phase,totalPlayers,currentWeek,filmNews=[
     const intensity=recentWatch/Math.max(1,totalPlayers)
     buzzMult=intensity>=0.8?1.06:intensity>=0.5?1.03:intensity>=0.25?1.01:1.00
   }
-
   return{ownershipMult,timeMult,rtMult,signalMult,buzzMult}
 }
+
 function calcDemandMult(film,rosters,phase,totalPlayers,currentWeek=null,filmNews=[],allPicks=[]){
-  if(film.hasResult)return 1 // post-result price set explicitly via film_values
+  if(film.hasResult)return 1
   const d=calcPriceDrivers(film,rosters,phase,totalPlayers,currentWeek,filmNews,allPicks)
   const composite=d.ownershipMult*d.timeMult*d.rtMult*d.signalMult*d.buzzMult
   return Math.round(composite*100)/100
 }
+
 function timeAgo(ts){
   const d=Date.now()-new Date(ts).getTime()
   const m=Math.floor(d/60000),h=Math.floor(d/3600000),dy=Math.floor(d/86400000)
@@ -455,7 +416,6 @@ function pickVelocity(filmId,allPicks,days=7){
   return allPicks.filter(p=>p.film_id===filmId&&new Date(p.picked_at).getTime()>cutoff).length
 }
 
-// ── DB HELPERS ─────────────────────────────────────────────────────────────────
 async function dbUpsert(table,col,val,data){
   const{data:ex}=await supabase.from(table).select(col).eq(col,val)
   if(ex?.length) return supabase.from(table).update(data).eq(col,val)
@@ -480,7 +440,6 @@ async function sendNotification(type,payload){
   }catch{}
 }
 
-// ── TIMERS ─────────────────────────────────────────────────────────────────────
 function WindowTimer({openedAt,short}){
   const[,tick]=useState(0)
   useEffect(()=>{const t=setInterval(()=>tick(n=>n+1),1000);return()=>clearInterval(t)},[])
@@ -544,13 +503,10 @@ function VelocitySparkline({filmId,allPicks,marketingEvents=[],width=200,height=
   )
 }
 
-
-// ── PRICE SPARKLINE ──────────────────────────────────────────────────────────
 function PriceSparkline({film,rosters,filmValues,width=60,height=20}){
   const filmR=rosters.filter(r=>r.film_id===film.id&&r.bought_price)
   const ipo=film.basePrice,cur=filmValues[film.id]||ipo
   if(!filmR.length){
-    // Flat line if no transactions
     const col=cur>ipo?T.green:cur<ipo?T.red:T.textDim
     return <svg width={width} height={height} style={{overflow:'visible'}}><line x1={0} y1={height/2} x2={width} y2={height/2} stroke={col} strokeWidth="1.5" opacity="0.6"/></svg>
   }
@@ -568,7 +524,6 @@ function PriceSparkline({film,rosters,filmValues,width=60,height=20}){
   return <svg width={width} height={height} style={{overflow:'visible'}}><polyline points={pts} fill="none" stroke={col} strokeWidth="1.5" strokeLinejoin="round" opacity="0.9"/></svg>
 }
 
-// ── INVITE LANDING (pre-auth) ─────────────────────────────────────────────────
 function InviteLanding({code,onLogin}){
   const[lgData,setLgData]=useState(null)
   const[loading,setLoading]=useState(true)
@@ -615,6 +570,244 @@ function InviteLanding({code,onLogin}){
           )
         )}
       </div>
+    </div>
+  )
+}
+
+function Login(){
+  const[email,setEmail]=useState('')
+  const[sent,setSent]=useState(false)
+  const[busy,setBusy]=useState(false)
+  const go=async e=>{e.preventDefault();setBusy(true);const{error}=await supabase.auth.signInWithOtp({email,options:{emailRedirectTo:'https://boxd-league-v2.vercel.app'}});if(error)alert(error.message);else setSent(true);setBusy(false)}
+  return(
+    <div style={{minHeight:'100vh',background:T.bg,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:T.mono,padding:'20px'}}>
+      <div style={{width:'100%',maxWidth:'320px'}}>
+        <div style={{fontSize:'56px',fontWeight:900,color:T.gold,letterSpacing:'-3px',marginBottom:'6px',lineHeight:1}}>BOXD</div>
+        <div style={{fontSize:'11px',color:T.textDim,letterSpacing:'3px',marginBottom:'44px'}}>FANTASY BOX OFFICE</div>
+        {sent?<div style={{textAlign:'center'}}><div style={{fontSize:'16px',color:T.text,marginBottom:'8px'}}>Check your email ✉️</div><div style={{fontSize:'13px',color:T.textSub}}>{email}</div></div>:<form onSubmit={go}>
+          <input type="email" placeholder="your@email.com" value={email} onChange={e=>setEmail(e.target.value)} required style={{...S.inp,marginBottom:'12px',fontSize:'14px',padding:'14px 16px'}}/>
+          <button type="submit" disabled={busy} style={{width:'100%',background:T.gold,color:'#0D0A08',border:'none',borderRadius:'10px',padding:'14px',fontSize:'13px',fontWeight:700,cursor:'pointer',letterSpacing:'1px',fontFamily:T.mono}}>{busy?'SENDING…':'SEND MAGIC LINK'}</button>
+        </form>}
+      </div>
+    </div>
+  )
+}
+
+function CreateProfile({session,onCreated,notify}){
+  const[name,setName]=useState('')
+  const[color,setColor]=useState(PLAYER_COLORS[0])
+  const[busy,setBusy]=useState(false)
+  const go=async e=>{e.preventDefault();if(!name.trim())return;setBusy(true);const{error}=await supabase.from('profiles').insert({id:session.user.id,name:name.trim(),color});if(error){notify(error.message,T.red);setBusy(false);return}onCreated()}
+  return(
+    <div style={{minHeight:'100vh',background:T.bg,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:T.mono,padding:'20px'}}>
+      <div style={{width:'100%',maxWidth:'320px'}}>
+        <div style={{fontSize:'56px',fontWeight:900,color:T.gold,letterSpacing:'-3px',marginBottom:'6px',lineHeight:1}}>BOXD</div>
+        <div style={{fontSize:'16px',color:T.text,fontWeight:600,marginBottom:'4px',marginTop:'24px'}}>Create your profile</div>
+        <div style={{fontSize:'13px',color:T.textSub,marginBottom:'28px'}}>{session.user.email}</div>
+        <form onSubmit={go}>
+          <input placeholder="Your name" value={name} onChange={e=>setName(e.target.value)} required style={{...S.inp,marginBottom:'20px',fontSize:'14px',padding:'14px 16px'}}/>
+          <div style={{...S.label,marginBottom:'12px'}}>Pick your colour</div>
+          <div style={{display:'flex',gap:'12px',marginBottom:'28px'}}>
+            {PLAYER_COLORS.map(c=><div key={c} onClick={()=>setColor(c)} style={{width:'34px',height:'34px',borderRadius:'50%',background:c,cursor:'pointer',border:`3px solid ${color===c?'#fff':'transparent'}`,transition:'border .15s',boxSizing:'border-box',flexShrink:0}}/>)}
+          </div>
+          <button type="submit" disabled={busy} style={{width:'100%',background:T.gold,color:'#0D0A08',border:'none',borderRadius:'10px',padding:'14px',fontSize:'13px',fontWeight:700,cursor:'pointer',letterSpacing:'1px',fontFamily:T.mono}}>{busy?'JOINING…':'JOIN LEAGUE'}</button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ── PLAYER TASTE CARD GENERATOR (post-launch feature) ────────────────────────
+// Auto-generates a personality description from a player's picks
+function generateTasteCard(playerId,allPicks,films,results,rosters){
+  const myPicks=allPicks.filter(p=>p.user_id===playerId)
+  const myRosters=rosters.filter(r=>r.player_id===playerId)
+  const filmIds=[...new Set([...myPicks.map(p=>p.film_id),...myRosters.map(r=>r.film_id)])]
+  const myFilms=filmIds.map(id=>films.find(f=>f.id===id)).filter(Boolean)
+  if(myFilms.length<3)return null
+  // Genre breakdown
+  const genreCount={}
+  myFilms.forEach(f=>{genreCount[f.genre]=(genreCount[f.genre]||0)+1})
+  const topGenres=Object.entries(genreCount).sort((a,b)=>b[1]-a[1])
+  // Indie vs blockbuster preference (using estM as proxy)
+  const avgEstM=myFilms.reduce((s,f)=>s+f.estM,0)/myFilms.length
+  const sizeLabel=avgEstM<25?'low-budget indie':avgEstM<60?'mid-tier discovery':avgEstM<120?'theatrical event':'tentpole blockbuster'
+  // Distributor loyalty
+  const distCount={}
+  myFilms.forEach(f=>{distCount[f.dist]=(distCount[f.dist]||0)+1})
+  const topDist=Object.entries(distCount).sort((a,b)=>b[1]-a[1])[0]
+  const distLoyalty=topDist&&topDist[1]>=3?topDist[0]:null
+  // Hit rate on resulted films
+  const resulted=myFilms.filter(f=>results[f.id]!=null)
+  const hits=resulted.filter(f=>results[f.id]/f.estM>=1.1).length
+  const hitRate=resulted.length>=2?Math.round(hits/resulted.length*100):null
+  // Early bird tendency
+  const earlyPicks=myRosters.filter(r=>{
+    const f=films.find(fl=>fl.id===r.film_id);if(!f)return false
+    return f.week-(r.acquired_week||r.bought_week||0)>=EARLY_BIRD_WEEKS
+  }).length
+  const earlyPct=myRosters.length?Math.round(earlyPicks/myRosters.length*100):0
+  const styleLabel=earlyPct>=60?'early-mover scout':earlyPct>=30?'timing-aware':'momentum buyer'
+  return{
+    primaryGenre:topGenres[0]?.[0]||null,
+    secondaryGenre:topGenres[1]?.[0]||null,
+    avgScale:sizeLabel,
+    distLoyalty,
+    hitRate,
+    earlyPct,
+    styleLabel,
+    filmCount:myFilms.length,
+    resultedCount:resulted.length,
+  }
+}
+
+function PlayerProfilePage({player,films,rosters,results,weeklyG,allChips,auteurDecl,wwWinners,oscarPreds,allPicks,calcPoints,calcPhasePoints,budgetLeft,cur,isEarlyBird,analystActive,auteurBonus,shortBonus,wwBonus,curPhase_ref,onBack}){
+  const[activePhase,setActivePhase]=useState(null)
+  const totalPts=calcPoints(player.id)
+  const chip=allChips.find(c=>c.player_id===player.id)
+  const auteur=auteurDecl.find(a=>a.player_id===player.id)
+  const oscar=oscarPreds.find(o=>o.player_id===player.id)
+  const pc=player.color||T.gold
+  const allHoldings=rosters.filter(r=>r.player_id===player.id&&films.find(f=>f.id===r.film_id))
+  const activeNow=allHoldings.filter(r=>r.active)
+  const totalSpend=allHoldings.reduce((s,h)=>s+(h.bought_price||0),0)
+  const scoredHoldings=allHoldings.map(h=>{const film=films.find(f=>f.id===h.film_id);if(!film||results[film.id]==null)return null;const pts=calcOpeningPts(film,results[film.id],isEarlyBird(h),analystActive(player.id,film.id));return{h,film,pts}}).filter(Boolean)
+  const bestPick=scoredHoldings.length?scoredHoldings.reduce((b,x)=>x.pts>b.pts?x:b):null
+  const worstPick=scoredHoldings.length>1?scoredHoldings.reduce((b,x)=>x.pts<b.pts?x:b):null
+  const taste=generateTasteCard(player.id,allPicks||[],films,results,rosters)
+
+  const PhaseView=({ph})=>{
+    const phHoldings=allHoldings.filter(r=>r.phase===ph)
+    const phPts=calcPhasePoints(player.id,ph)
+    return(
+      <div style={{animation:'fadeUp .2s ease'}}>
+        <div style={{display:'flex',alignItems:'center',gap:'12px',marginBottom:'20px'}}>
+          <div style={{flex:1}}><div style={{fontSize:'20px',fontWeight:800,color:pc}}>{PHASE_NAMES[ph]}</div></div>
+          <div style={{textAlign:'right'}}><div style={{fontSize:'40px',fontWeight:900,color:T.gold,letterSpacing:'-1px'}}>{phPts}</div><div style={S.label}>phase pts</div></div>
+        </div>
+        {phHoldings.length===0?<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No films this phase</div>:phHoldings.map(h=>{
+          const film=films.find(f=>f.id===h.film_id);if(!film)return null
+          const actual=results[film.id],gc=GENRE_COL[film.genre]||T.textDim
+          const eb=isEarlyBird(h),aa=analystActive(player.id,film.id),au=auteurBonus(player.id,film.id),sb=shortBonus(player.id,film.id),wb=wwBonus(film.id)
+          let op=calcOpeningPts(film,actual,eb,aa);if(au)op=Math.round(op*1.1)
+          const wp=Math.round(calcWeeklyPts(weeklyG[film.id]||{})),lb=calcLegsBonus(actual,weeklyG[film.id]?.[2])
+          const filmTotal=op+wp+lb+wb+sb
+          const pnl_=h.active?(actual!=null?actual-h.bought_price:0):(h.sold_price||0)-h.bought_price
+          return(
+            <div key={h.id} style={{...S.card,marginBottom:'10px'}}>
+              <div style={{display:'flex',gap:'14px',alignItems:'flex-start'}}>
+                <FilmPoster film={film} width={52} height={78} radius={8}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:'14px',fontWeight:700,lineHeight:1.3,marginBottom:'4px'}}>{film.title}</div>
+                  <div style={{fontSize:'11px',color:T.textSub}}>{film.dist} · W{film.week}</div>
+                  <div style={{display:'flex',gap:'14px',marginTop:'10px',flexWrap:'wrap'}}>
+                    <div><div style={S.label}>Paid</div><div style={{fontSize:'14px',fontWeight:600,marginTop:'2px'}}>${h.bought_price}M</div></div>
+                    {!h.active&&<div><div style={S.label}>Sold</div><div style={{fontSize:'14px',fontWeight:600,color:pnl_>=0?T.green:T.red,marginTop:'2px'}}>${h.sold_price||0}M</div></div>}
+                    {actual!=null&&<div><div style={S.label}>Actual</div><div style={{fontSize:'14px',fontWeight:600,color:T.green,marginTop:'2px'}}>${actual}M</div></div>}
+                    <div><div style={S.label}>P&L</div><div style={{fontSize:'14px',fontWeight:700,color:pnl_>=0?T.green:T.red,marginTop:'2px'}}>{pnl_>=0?'+':''}{pnl_}M</div></div>
+                  </div>
+                  {actual!=null&&<div style={{marginTop:'10px',background:T.surfaceUp,borderRadius:'9px',padding:'10px 12px'}}>
+                    <div style={{display:'flex',gap:'12px',flexWrap:'wrap',alignItems:'flex-end'}}>
+                      <div><div style={S.label}>Opening</div><div style={{fontSize:'13px',fontWeight:600,color:T.gold,marginTop:'2px'}}>+{op}</div></div>
+                      {wp>0&&<div><div style={S.label}>Weekly</div><div style={{fontSize:'13px',fontWeight:600,color:T.blue,marginTop:'2px'}}>+{wp}</div></div>}
+                      {lb>0&&<div><div style={S.label}>Legs 🦵</div><div style={{fontSize:'13px',fontWeight:600,color:T.green,marginTop:'2px'}}>+25</div></div>}
+                      {wb>0&&<div><div style={S.label}>W/E #1 🥇</div><div style={{fontSize:'13px',fontWeight:600,color:T.gold,marginTop:'2px'}}>+15</div></div>}
+                      {sb!==0&&<div><div style={S.label}>Short 📉</div><div style={{fontSize:'13px',fontWeight:600,color:sb>0?T.green:T.red,marginTop:'2px'}}>{sb>0?'+':''}{sb}</div></div>}
+                      <div style={{marginLeft:'auto'}}><div style={S.label}>Total</div><div style={{fontSize:'22px',fontWeight:900,color:T.gold,marginTop:'2px'}}>{filmTotal}pts</div></div>
+                    </div>
+                  </div>}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  const Overview=()=>{
+    const phaseScores=[1,2,3,4,5].map(p=>({ph:p,pts:calcPhasePoints(player.id,p)}))
+    const maxPts=Math.max(1,...phaseScores.map(s=>s.pts))
+    return(
+      <div style={{animation:'fadeUp .2s ease'}}>
+        <div style={{background:T.surfaceUp,borderRadius:'16px',padding:'24px',marginBottom:'16px',position:'relative',overflow:'hidden'}}>
+          <div style={{position:'absolute',top:0,left:0,right:0,height:'4px',background:pc}}/>
+          <div style={{display:'flex',alignItems:'center',gap:'18px'}}>
+            <div style={{width:'68px',height:'68px',borderRadius:'50%',background:pc,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'30px',fontWeight:900,color:'#000',flexShrink:0}}>{player.name?.[0]||'?'}</div>
+            <div style={{flex:1}}><div style={{fontSize:'26px',fontWeight:900,color:pc,letterSpacing:'-0.5px'}}>{player.name}</div><div style={{fontSize:'13px',color:T.textSub,marginTop:'6px'}}>{activeNow.length} films active · {budgetLeft(player.id)}M left</div>{player.bio&&<div style={{fontSize:'12px',color:T.textSub,marginTop:'4px',fontStyle:'italic'}}>"{player.bio}"</div>}</div>
+            <div style={{textAlign:'right'}}><div style={{fontSize:'48px',fontWeight:900,color:T.gold,lineHeight:1,letterSpacing:'-2px'}}>{totalPts}</div><div style={S.label}>grand pts</div></div>
+          </div>
+        </div>
+
+        {/* TASTE CARD — auto-generated personality */}
+        {taste&&(
+          <div style={{background:`linear-gradient(135deg,${pc}10,${T.surface})`,border:`1px solid ${pc}33`,borderRadius:'14px',padding:'16px 18px',marginBottom:'16px'}}>
+            <div style={{...S.label,color:pc,marginBottom:'10px'}}>🎭 Taste Profile</div>
+            <div style={{fontSize:'13px',color:T.text,lineHeight:1.7}}>
+              <strong style={{color:pc}}>{player.name}</strong> is a <strong style={{color:T.gold}}>{taste.styleLabel}</strong>{taste.primaryGenre&&<> who leans <strong style={{color:GENRE_COL[taste.primaryGenre]||T.gold}}>{taste.primaryGenre.toLowerCase()}</strong></>}{taste.secondaryGenre&&<>, with strong picks in <strong style={{color:GENRE_COL[taste.secondaryGenre]||T.gold}}>{taste.secondaryGenre.toLowerCase()}</strong></>}. Tends towards <strong style={{color:T.text}}>{taste.avgScale}</strong> films{taste.distLoyalty&&<>, with <strong style={{color:T.gold}}>{taste.distLoyalty}</strong> as a recurring distributor</>}.
+              {taste.hitRate!=null&&<> Has <strong style={{color:taste.hitRate>=60?T.green:taste.hitRate>=45?T.gold:T.red}}>{taste.hitRate}% overperform rate</strong> across {taste.resultedCount} resulted films.</>}
+            </div>
+            <div style={{display:'flex',gap:'8px',marginTop:'12px',flexWrap:'wrap'}}>
+              {taste.primaryGenre&&<Pill color={GENRE_COL[taste.primaryGenre]||T.gold}>{taste.primaryGenre}</Pill>}
+              {taste.secondaryGenre&&<Pill color={GENRE_COL[taste.secondaryGenre]||T.textSub}>{taste.secondaryGenre}</Pill>}
+              <Pill color={T.orange}>{taste.styleLabel}</Pill>
+              {taste.earlyPct>=50&&<Pill color={T.green}>🐦 {taste.earlyPct}% early</Pill>}
+              {taste.hitRate!=null&&taste.hitRate>=60&&<Pill color={T.green}>🎯 {taste.hitRate}% hit rate</Pill>}
+            </div>
+          </div>
+        )}
+
+        <div style={{display:'flex',gap:'8px',marginBottom:'12px'}}>
+          <StatBox label="Films ever" value={allHoldings.length}/>
+          <StatBox label="Total spend" value={`${cur}${totalSpend}M`} color={T.textSub}/>
+          <StatBox label="Scored" value={scoredHoldings.length}/>
+        </div>
+        {(bestPick||worstPick)&&<div style={{display:'flex',gap:'8px',marginBottom:'16px'}}>
+          {bestPick&&<StatBox label="🏆 Best" value={`+${bestPick.pts}pts`} color={T.gold} sub={bestPick.film.title.split(':')[0]}/>}
+          {worstPick&&worstPick.film.id!==bestPick?.film.id&&<StatBox label="💀 Worst" value={`${worstPick.pts}pts`} color={T.red} sub={worstPick.film.title.split(':')[0]}/>}
+          {scoredHoldings.length>0&&<StatBox label="Avg pts" value={Math.round(scoredHoldings.reduce((s,x)=>s+x.pts,0)/scoredHoldings.length)}/>}
+        </div>}
+        <div style={S.label}>Phase Breakdown — tap to drill in</div>
+        <div style={{display:'flex',flexDirection:'column',gap:'8px',margin:'12px 0 20px'}}>
+          {[1,2,3,4,5].map(ph=>{
+            const phPts=calcPhasePoints(player.id,ph),phAll=allHoldings.filter(r=>r.phase===ph),phSco=phAll.filter(r=>results[r.film_id]!=null),isCur=ph===curPhase_ref
+            return(
+              <div key={ph} onClick={()=>setActivePhase(ph)} style={{background:isCur?`${pc}12`:T.surface,border:`1px solid ${isCur?`${pc}55`:T.border}`,borderRadius:'12px',padding:'14px 16px',cursor:'pointer',display:'flex',alignItems:'center',gap:'14px'}}>
+                <div style={{width:'40px',height:'40px',borderRadius:'10px',background:isCur?`${pc}22`:T.surfaceUp,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'16px',fontWeight:800,color:isCur?pc:T.textSub,flexShrink:0}}>P{ph}</div>
+                <div style={{flex:1}}><div style={{fontSize:'14px',fontWeight:600,color:isCur?pc:T.text}}>{PHASE_NAMES[ph]}</div><div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>{phAll.length} films · {phSco.length} scored{isCur?' · current':''}</div></div>
+                <div style={{textAlign:'right'}}><div style={{fontSize:'26px',fontWeight:900,color:phPts>0?T.gold:T.textDim,letterSpacing:'-0.5px'}}>{phPts}</div><div style={S.label}>pts</div></div>
+                <div style={{color:T.textDim,fontSize:'18px'}}>›</div>
+              </div>
+            )
+          })}
+        </div>
+        {phaseScores.some(s=>s.pts>0)&&<div style={{marginTop:'20px'}}>
+          <div style={S.label}>Performance History</div>
+          <div style={{background:T.surfaceUp,borderRadius:'12px',padding:'16px',marginTop:'10px'}}>
+            <div style={{display:'flex',gap:'8px',alignItems:'flex-end',height:'80px'}}>
+              {phaseScores.map(({ph:p,pts})=>{
+                const barH=pts>0?Math.max(8,Math.round((pts/maxPts)*72)):4,isCurrentPh=p===curPhase_ref
+                return(
+                  <div key={p} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:'4px'}}>
+                    <div style={{fontSize:'10px',color:pts>0?T.gold:T.textDim,fontWeight:700}}>{pts>0?pts:'—'}</div>
+                    <div style={{width:'100%',height:`${barH}px`,background:isCurrentPh?pc:`${pc}55`,borderRadius:'4px 4px 0 0',minHeight:'4px'}}/>
+                    <div style={{fontSize:'9px',color:isCurrentPh?pc:T.textDim}}>P{p}</div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>}
+      </div>
+    )
+  }
+  return(
+    <div style={{animation:'fadeUp .2s ease'}}>
+      <div style={{display:'flex',alignItems:'center',gap:'12px',marginBottom:'20px'}}>
+        <button onClick={activePhase!==null?()=>setActivePhase(null):onBack} style={{background:T.surfaceUp,border:`1px solid ${T.border}`,color:T.textSub,borderRadius:'8px',padding:'8px 16px',cursor:'pointer',fontFamily:T.mono,fontSize:'12px'}}>← {activePhase!==null?'Overview':'Back'}</button>
+        <div style={{fontSize:'13px',color:T.textSub}}>{activePhase!==null?`Phase ${activePhase} · ${PHASE_NAMES[activePhase]}`:`Profile · ${player.name}`}</div>
+      </div>
+      {activePhase!==null?<PhaseView ph={activePhase}/>:<Overview/>}
     </div>
   )
 }
@@ -689,7 +882,6 @@ function ScoreBreakdownModal({film,holding,results,weeklyGrosses,allChips,auteur
   )
 }
 
-// ── FILM DETAIL MODAL ──────────────────────────────────────────────────────────
 function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEvents=[],news=[],rosters=[],filmValues={},currentWeek=null,phase=1,onTogglePick,onBookingClick,onShowtimes,onClose,league}){
   const[comments,setComments]=useState([])
   const[reactions,setReactions]=useState([])
@@ -752,7 +944,6 @@ function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEven
         </div>
         {tab==='info'&&(
           <div style={{flex:1,overflowY:'auto',padding:'16px 24px 24px'}}>
-            {/* ── PRICE BREAKDOWN — explains why this film is priced what it is ── */}
             {results[film.id]==null&&(()=>{
               const drivers=calcPriceDrivers(film,rosters,phase,players.length,currentWeek,news,allPicks)
               const basePrice=filmValues[film.id]??film.basePrice
@@ -867,12 +1058,6 @@ function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEven
               })}
             </div>
             <div style={{padding:'16px 24px 24px',borderTop:`1px solid ${T.border}`,flexShrink:0}}>
-              {text.includes('@')&&(()=>{
-                const atPart=text.split('@').pop().toLowerCase()
-                const matches=players.filter(p=>p.id!==profile.id&&p.name?.toLowerCase().startsWith(atPart)&&atPart.length>0)
-                if(!matches.length) return null
-                return<div style={{display:'flex',gap:'6px',flexWrap:'wrap',marginBottom:'8px'}}>{matches.slice(0,4).map(p=><button key={p.id} onClick={()=>setText(prev=>prev.replace(/@\w*$/,`@${p.name} `))} style={{...S.btn,background:T.surfaceUp,border:`1px solid ${T.border}`,color:p.color||T.gold,fontSize:'12px',padding:'5px 12px',textTransform:'none',letterSpacing:0}}>@{p.name}</button>)}</div>
-              })()}
               <div style={{display:'flex',gap:'12px'}}>
                 <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>e.key==='Enter'&&post()} placeholder="Add a comment… use @ to mention" style={{...S.inp,flex:1,fontSize:'15px',padding:'13px 16px'}}/>
                 <Btn onClick={post} color={T.blue} textColor="#fff" size="lg">Post</Btn>
@@ -885,7 +1070,6 @@ function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEven
   )
 }
 
-// ── TRADE MODAL ────────────────────────────────────────────────────────────────
 function TradeModal({profile,players,rosters,films,filmVal,curPhase,onClose,notify,onDone,league}){
   const[target,setTarget]=useState('')
   const[myFilm,setMyFilm]=useState('')
@@ -896,10 +1080,9 @@ function TradeModal({profile,players,rosters,films,filmVal,curPhase,onClose,noti
   const mf=films.find(f=>f.id===myFilm),tf=films.find(f=>f.id===theirFilm)
   const propose=async()=>{
     if(!target||!myFilm||!theirFilm) return notify('Fill all fields',T.red)
-    const{error}=await supabase.from('trades').insert({proposer_id:profile.id,receiver_id:target,proposer_film_id:myFilm,receiver_film_id:theirFilm,status:'pending',phase:ph,league_id:league?.id})
+    const{data,error}=await supabase.from('trades').insert({proposer_id:profile.id,receiver_id:target,proposer_film_id:myFilm,receiver_film_id:theirFilm,status:'pending',phase:ph,league_id:league?.id}).select().single()
     if(error) return notify(error.message,T.red)
     await logActivity(profile.id,'trade_proposed',{player_name:profile.name,my_film:mf?.title,their_film:tf?.title},league?.id)
-    await sendNotification('trade_proposed',{trade_id:data?.id,proposer_name:profile.name,receiver_id:target,proposer_film:mf?.title,receiver_film:tf?.title})
     notify('Trade proposal sent!',T.blue);onDone()
   }
   return(
@@ -938,7 +1121,7 @@ function TradeModal({profile,players,rosters,films,filmVal,curPhase,onClose,noti
   )
 }
 
-// ── SHOWTIMES MODAL ────────────────────────────────────────────────────────────
+
 function ShowtimesModal({film,onClose,onBookingClick,supabaseUrl,anonKey}){
   const[state,setState]=useState('idle')
   const[error,setError]=useState('')
@@ -1020,7 +1203,6 @@ function ShowtimesModal({film,onClose,onBookingClick,supabaseUrl,anonKey}){
                 </div>
               )
             })}
-            <div style={{marginTop:'16px',textAlign:'center'}}><button onClick={()=>{setState('idle');setCinemas([]);setCoords(null)}} style={{background:'none',border:'none',color:T.textSub,cursor:'pointer',fontFamily:T.mono,fontSize:'12px',textDecoration:'underline'}}>Change location</button></div>
           </>}
         </div>
       </div>
@@ -1029,183 +1211,6 @@ function ShowtimesModal({film,onClose,onBookingClick,supabaseUrl,anonKey}){
 }
 
 
-// ── PLAYER PROFILE PAGE ────────────────────────────────────────────────────────
-function PlayerProfilePage({player,films,rosters,results,weeklyG,allChips,auteurDecl,wwWinners,oscarPreds,calcPoints,calcPhasePoints,budgetLeft,cur,isEarlyBird,analystActive,auteurBonus,shortBonus,wwBonus,curPhase_ref,onBack}){
-  const[activePhase,setActivePhase]=useState(null)
-  const totalPts=calcPoints(player.id)
-  const chip=allChips.find(c=>c.player_id===player.id)
-  const auteur=auteurDecl.find(a=>a.player_id===player.id)
-  const oscar=oscarPreds.find(o=>o.player_id===player.id)
-  const pc=player.color||T.gold
-  const allHoldings=rosters.filter(r=>r.player_id===player.id&&films.find(f=>f.id===r.film_id))
-  const activeNow=allHoldings.filter(r=>r.active)
-  const totalSpend=allHoldings.reduce((s,h)=>s+(h.bought_price||0),0)
-  const scoredHoldings=allHoldings.map(h=>{const film=films.find(f=>f.id===h.film_id);if(!film||results[film.id]==null)return null;const pts=calcOpeningPts(film,results[film.id],isEarlyBird(h),analystActive(player.id,film.id));return{h,film,pts}}).filter(Boolean)
-  const bestPick=scoredHoldings.length?scoredHoldings.reduce((b,x)=>x.pts>b.pts?x:b):null
-  const worstPick=scoredHoldings.length>1?scoredHoldings.reduce((b,x)=>x.pts<b.pts?x:b):null
-
-  const PhaseView=({ph})=>{
-    const phHoldings=allHoldings.filter(r=>r.phase===ph)
-    const phPts=calcPhasePoints(player.id,ph)
-    return(
-      <div style={{animation:'fadeUp .2s ease'}}>
-        <div style={{display:'flex',alignItems:'center',gap:'12px',marginBottom:'20px'}}>
-          <div style={{flex:1}}><div style={{fontSize:'20px',fontWeight:800,color:pc}}>{PHASE_NAMES[ph]}</div></div>
-          <div style={{textAlign:'right'}}><div style={{fontSize:'40px',fontWeight:900,color:T.gold,letterSpacing:'-1px'}}>{phPts}</div><div style={S.label}>phase pts</div></div>
-        </div>
-        {phHoldings.length===0?<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No films this phase</div>:phHoldings.map(h=>{
-          const film=films.find(f=>f.id===h.film_id);if(!film)return null
-          const actual=results[film.id],gc=GENRE_COL[film.genre]||T.textDim
-          const eb=isEarlyBird(h),aa=analystActive(player.id,film.id),au=auteurBonus(player.id,film.id),sb=shortBonus(player.id,film.id),wb=wwBonus(film.id)
-          let op=calcOpeningPts(film,actual,eb,aa);if(au)op=Math.round(op*1.1)
-          const wp=Math.round(calcWeeklyPts(weeklyG[film.id]||{})),lb=calcLegsBonus(actual,weeklyG[film.id]?.[2])
-          const filmTotal=op+wp+lb+wb+sb
-          const pnl_=h.active?(actual!=null?actual-h.bought_price:0):(h.sold_price||0)-h.bought_price
-          return(
-            <div key={h.id} style={{...S.card,marginBottom:'10px'}}>
-              <div style={{display:'flex',gap:'14px',alignItems:'flex-start'}}>
-                <FilmPoster film={film} width={52} height={78} radius={8}/>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:'14px',fontWeight:700,lineHeight:1.3,marginBottom:'4px'}}>{film.title}</div>
-                  <div style={{fontSize:'11px',color:T.textSub}}>{film.dist} · W{film.week}</div>
-                  <div style={{display:'flex',gap:'14px',marginTop:'10px',flexWrap:'wrap'}}>
-                    <div><div style={S.label}>Paid</div><div style={{fontSize:'14px',fontWeight:600,marginTop:'2px'}}>${h.bought_price}M</div></div>
-                    {!h.active&&<div><div style={S.label}>Sold</div><div style={{fontSize:'14px',fontWeight:600,color:pnl_>=0?T.green:T.red,marginTop:'2px'}}>${h.sold_price||0}M</div></div>}
-                    {actual!=null&&<div><div style={S.label}>Actual</div><div style={{fontSize:'14px',fontWeight:600,color:T.green,marginTop:'2px'}}>${actual}M</div></div>}
-                    <div><div style={S.label}>P&L</div><div style={{fontSize:'14px',fontWeight:700,color:pnl_>=0?T.green:T.red,marginTop:'2px'}}>{pnl_>=0?'+':''}{pnl_}M</div></div>
-                  </div>
-                  {actual!=null&&<div style={{marginTop:'10px',background:T.surfaceUp,borderRadius:'9px',padding:'10px 12px'}}>
-                    <div style={{display:'flex',gap:'12px',flexWrap:'wrap',alignItems:'flex-end'}}>
-                      <div><div style={S.label}>Opening</div><div style={{fontSize:'13px',fontWeight:600,color:T.gold,marginTop:'2px'}}>+{op}</div></div>
-                      {wp>0&&<div><div style={S.label}>Weekly</div><div style={{fontSize:'13px',fontWeight:600,color:T.blue,marginTop:'2px'}}>+{wp}</div></div>}
-                      {lb>0&&<div><div style={S.label}>Legs 🦵</div><div style={{fontSize:'13px',fontWeight:600,color:T.green,marginTop:'2px'}}>+25</div></div>}
-                      {wb>0&&<div><div style={S.label}>W/E #1 🥇</div><div style={{fontSize:'13px',fontWeight:600,color:T.gold,marginTop:'2px'}}>+15</div></div>}
-                      {sb!==0&&<div><div style={S.label}>Short 📉</div><div style={{fontSize:'13px',fontWeight:600,color:sb>0?T.green:T.red,marginTop:'2px'}}>{sb>0?'+':''}{sb}</div></div>}
-                      <div style={{marginLeft:'auto'}}><div style={S.label}>Total</div><div style={{fontSize:'22px',fontWeight:900,color:T.gold,marginTop:'2px'}}>{filmTotal}pts</div></div>
-                    </div>
-                  </div>}
-                </div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    )
-  }
-
-  const Overview=()=>{
-    const phaseScores=[1,2,3,4,5].map(p=>({ph:p,pts:calcPhasePoints(player.id,p)}))
-    const maxPts=Math.max(1,...phaseScores.map(s=>s.pts))
-    return(
-      <div style={{animation:'fadeUp .2s ease'}}>
-        <div style={{background:T.surfaceUp,borderRadius:'16px',padding:'24px',marginBottom:'16px',position:'relative',overflow:'hidden'}}>
-          <div style={{position:'absolute',top:0,left:0,right:0,height:'4px',background:pc}}/>
-          <div style={{display:'flex',alignItems:'center',gap:'18px'}}>
-            <div style={{width:'68px',height:'68px',borderRadius:'50%',background:pc,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'30px',fontWeight:900,color:'#000',flexShrink:0}}>{player.name?.[0]||'?'}</div>
-            <div style={{flex:1}}><div style={{fontSize:'26px',fontWeight:900,color:pc,letterSpacing:'-0.5px'}}>{player.name}</div><div style={{fontSize:'13px',color:T.textSub,marginTop:'6px'}}>{activeNow.length} films active · {budgetLeft(player.id)}M left</div></div>
-            <div style={{textAlign:'right'}}><div style={{fontSize:'48px',fontWeight:900,color:T.gold,lineHeight:1,letterSpacing:'-2px'}}>{totalPts}</div><div style={S.label}>grand pts</div></div>
-          </div>
-        </div>
-        <div style={{display:'flex',gap:'8px',marginBottom:'12px'}}>
-          <StatBox label="Films ever" value={allHoldings.length}/>
-          <StatBox label="Total spend" value={`${cur}${totalSpend}M`} color={T.textSub}/>
-          <StatBox label="Scored" value={scoredHoldings.length}/>
-        </div>
-        {(bestPick||worstPick)&&<div style={{display:'flex',gap:'8px',marginBottom:'16px'}}>
-          {bestPick&&<StatBox label="🏆 Best" value={`+${bestPick.pts}pts`} color={T.gold} sub={bestPick.film.title.split(':')[0]}/>}
-          {worstPick&&worstPick.film.id!==bestPick?.film.id&&<StatBox label="💀 Worst" value={`${worstPick.pts}pts`} color={T.red} sub={worstPick.film.title.split(':')[0]}/>}
-          {scoredHoldings.length>0&&<StatBox label="Avg pts" value={Math.round(scoredHoldings.reduce((s,x)=>s+x.pts,0)/scoredHoldings.length)}/>}
-        </div>}
-        <div style={S.label}>Phase Breakdown — tap to drill in</div>
-        <div style={{display:'flex',flexDirection:'column',gap:'8px',margin:'12px 0 20px'}}>
-          {[1,2,3,4,5].map(ph=>{
-            const phPts=calcPhasePoints(player.id,ph),phAll=allHoldings.filter(r=>r.phase===ph),phSco=phAll.filter(r=>results[r.film_id]!=null),isCur=ph===curPhase_ref
-            return(
-              <div key={ph} onClick={()=>setActivePhase(ph)} style={{background:isCur?`${pc}12`:T.surface,border:`1px solid ${isCur?`${pc}55`:T.border}`,borderRadius:'12px',padding:'14px 16px',cursor:'pointer',display:'flex',alignItems:'center',gap:'14px'}}>
-                <div style={{width:'40px',height:'40px',borderRadius:'10px',background:isCur?`${pc}22`:T.surfaceUp,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'16px',fontWeight:800,color:isCur?pc:T.textSub,flexShrink:0}}>P{ph}</div>
-                <div style={{flex:1}}><div style={{fontSize:'14px',fontWeight:600,color:isCur?pc:T.text}}>{PHASE_NAMES[ph]}</div><div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>{phAll.length} films · {phSco.length} scored{isCur?' · current':''}</div></div>
-                <div style={{textAlign:'right'}}><div style={{fontSize:'26px',fontWeight:900,color:phPts>0?T.gold:T.textDim,letterSpacing:'-0.5px'}}>{phPts}</div><div style={S.label}>pts</div></div>
-                <div style={{color:T.textDim,fontSize:'18px'}}>›</div>
-              </div>
-            )
-          })}
-        </div>
-        {phaseScores.some(s=>s.pts>0)&&<div style={{marginTop:'20px'}}>
-          <div style={S.label}>Performance History</div>
-          <div style={{background:T.surfaceUp,borderRadius:'12px',padding:'16px',marginTop:'10px'}}>
-            <div style={{display:'flex',gap:'8px',alignItems:'flex-end',height:'80px'}}>
-              {phaseScores.map(({ph:p,pts})=>{
-                const barH=pts>0?Math.max(8,Math.round((pts/maxPts)*72)):4,isCurrentPh=p===curPhase_ref
-                return(
-                  <div key={p} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:'4px'}}>
-                    <div style={{fontSize:'10px',color:pts>0?T.gold:T.textDim,fontWeight:700}}>{pts>0?pts:'—'}</div>
-                    <div style={{width:'100%',height:`${barH}px`,background:isCurrentPh?pc:`${pc}55`,borderRadius:'4px 4px 0 0',minHeight:'4px'}}/>
-                    <div style={{fontSize:'9px',color:isCurrentPh?pc:T.textDim}}>P{p}</div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>}
-      </div>
-    )
-  }
-  return(
-    <div style={{animation:'fadeUp .2s ease'}}>
-      <div style={{display:'flex',alignItems:'center',gap:'12px',marginBottom:'20px'}}>
-        <button onClick={activePhase!==null?()=>setActivePhase(null):onBack} style={{background:T.surfaceUp,border:`1px solid ${T.border}`,color:T.textSub,borderRadius:'8px',padding:'8px 16px',cursor:'pointer',fontFamily:T.mono,fontSize:'12px'}}>← {activePhase!==null?'Overview':'Back'}</button>
-        <div style={{fontSize:'13px',color:T.textSub}}>{activePhase!==null?`Phase ${activePhase} · ${PHASE_NAMES[activePhase]}`:`Profile · ${player.name}`}</div>
-      </div>
-      {activePhase!==null?<PhaseView ph={activePhase}/>:<Overview/>}
-    </div>
-  )
-}
-
-// ── LOGIN & CREATE PROFILE ─────────────────────────────────────────────────────
-function Login(){
-  const[email,setEmail]=useState('')
-  const[sent,setSent]=useState(false)
-  const[busy,setBusy]=useState(false)
-  const go=async e=>{e.preventDefault();setBusy(true);const{error}=await supabase.auth.signInWithOtp({email,options:{emailRedirectTo:'https://boxd-league-v2.vercel.app'}});if(error)alert(error.message);else setSent(true);setBusy(false)}
-  return(
-    <div style={{minHeight:'100vh',background:T.bg,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:T.mono,padding:'20px'}}>
-      <div style={{width:'100%',maxWidth:'320px'}}>
-        <div style={{fontSize:'56px',fontWeight:900,color:T.gold,letterSpacing:'-3px',marginBottom:'6px',lineHeight:1}}>BOXD</div>
-        <div style={{fontSize:'11px',color:T.textDim,letterSpacing:'3px',marginBottom:'44px'}}>FANTASY BOX OFFICE</div>
-        {sent?<div style={{textAlign:'center'}}><div style={{fontSize:'16px',color:T.text,marginBottom:'8px'}}>Check your email ✉️</div><div style={{fontSize:'13px',color:T.textSub}}>{email}</div></div>:<form onSubmit={go}>
-          <input type="email" placeholder="your@email.com" value={email} onChange={e=>setEmail(e.target.value)} required style={{...S.inp,marginBottom:'12px',fontSize:'14px',padding:'14px 16px'}}/>
-          <button type="submit" disabled={busy} style={{width:'100%',background:T.gold,color:'#0D0A08',border:'none',borderRadius:'10px',padding:'14px',fontSize:'13px',fontWeight:700,cursor:'pointer',letterSpacing:'1px',fontFamily:T.mono}}>{busy?'SENDING…':'SEND MAGIC LINK'}</button>
-        </form>}
-      </div>
-    </div>
-  )
-}
-function CreateProfile({session,onCreated,notify}){
-  const[name,setName]=useState('')
-  const[color,setColor]=useState(PLAYER_COLORS[0])
-  const[busy,setBusy]=useState(false)
-  const go=async e=>{e.preventDefault();if(!name.trim())return;setBusy(true);const{error}=await supabase.from('profiles').insert({id:session.user.id,name:name.trim(),color});if(error){notify(error.message,T.red);setBusy(false);return}onCreated()}
-  return(
-    <div style={{minHeight:'100vh',background:T.bg,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:T.mono,padding:'20px'}}>
-      <div style={{width:'100%',maxWidth:'320px'}}>
-        <div style={{fontSize:'56px',fontWeight:900,color:T.gold,letterSpacing:'-3px',marginBottom:'6px',lineHeight:1}}>BOXD</div>
-        <div style={{fontSize:'16px',color:T.text,fontWeight:600,marginBottom:'4px',marginTop:'24px'}}>Create your profile</div>
-        <div style={{fontSize:'13px',color:T.textSub,marginBottom:'28px'}}>{session.user.email}</div>
-        <form onSubmit={go}>
-          <input placeholder="Your name" value={name} onChange={e=>setName(e.target.value)} required style={{...S.inp,marginBottom:'20px',fontSize:'14px',padding:'14px 16px'}}/>
-          <div style={{...S.label,marginBottom:'12px'}}>Pick your colour</div>
-          <div style={{display:'flex',gap:'12px',marginBottom:'28px'}}>
-            {PLAYER_COLORS.map(c=><div key={c} onClick={()=>setColor(c)} style={{width:'34px',height:'34px',borderRadius:'50%',background:c,cursor:'pointer',border:`3px solid ${color===c?'#fff':'transparent'}`,transition:'border .15s',boxSizing:'border-box',flexShrink:0}}/>)}
-          </div>
-          <button type="submit" disabled={busy} style={{width:'100%',background:T.gold,color:'#0D0A08',border:'none',borderRadius:'10px',padding:'14px',fontSize:'13px',fontWeight:700,cursor:'pointer',letterSpacing:'1px',fontFamily:T.mono}}>{busy?'JOINING…':'JOIN LEAGUE'}</button>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-
-// ── APP ROOT ───────────────────────────────────────────────────────────────────
 export default function App(){
   const[session,setSession]=useState(null)
   const[loading,setLoading]=useState(true)
@@ -1258,7 +1263,7 @@ export default function App(){
   const[newLeagueName,setNewLeagueName]=useState('')
   const[ingestLog,setIngestLog]=useState(null)
   const[phaseTransitioning,setPhaseTransitioning]=useState(false)
-  const[phaseCeremony,setPhaseCeremony]=useState(null) // {phase, winner, mvp, bestChip}
+  const[phaseCeremony,setPhaseCeremony]=useState(null)
   const[shareCardFilm,setShareCardFilm]=useState(null)
   const[confettiActive,setConfettiActive]=useState(false)
   const[standingsSnapshot,setStandingsSnapshot]=useState({})
@@ -1268,6 +1273,13 @@ export default function App(){
   const[news,setNews]=useState([])
   const[fridayForecasts,setFridayForecasts]=useState([])
   const[newSignalOpen,setNewSignalOpen]=useState(false)
+  // Post-launch: Movie of the Week
+  const[movieOfWeek,setMovieOfWeek]=useState(null)
+  const[motwModalOpen,setMotwModalOpen]=useState(false)
+  // Post-launch: Quick polls
+  const[polls,setPolls]=useState([])
+  const[pollVotes,setPollVotes]=useState([])
+  const[newPollOpen,setNewPollOpen]=useState(false)
   const triggerConfetti=()=>{
     setConfettiActive(true)
     setTimeout(()=>setConfettiActive(false),3000)
@@ -1278,7 +1290,6 @@ export default function App(){
 
   useEffect(()=>{
     const el=document.createElement('style');el.textContent=GLOBAL_CSS;document.head.appendChild(el)
-    // PWA / mobile meta
     const setMeta=(name,content,prop='name')=>{let m=document.querySelector(`meta[${prop}="${name}"]`);if(!m){m=document.createElement('meta');m.setAttribute(prop,name);document.head.appendChild(m)}m.setAttribute('content',content)}
     setMeta('theme-color','#0D0A08')
     setMeta('apple-mobile-web-app-capable','yes')
@@ -1286,11 +1297,9 @@ export default function App(){
     setMeta('apple-mobile-web-app-title','BOXD')
     setMeta('viewport','width=device-width,initial-scale=1,viewport-fit=cover')
     document.title='BOXD · Fantasy Box Office'
-    // Inject manifest link
     if(!document.querySelector('link[rel="manifest"]')){
       const lnk=document.createElement('link');lnk.rel='manifest';lnk.href='/manifest.json';document.head.appendChild(lnk)
     }
-    // Register service worker
     if('serviceWorker' in navigator){
       navigator.serviceWorker.register('/sw.js').catch(()=>{})
     }
@@ -1313,7 +1322,6 @@ export default function App(){
   const goToProfile=(player)=>{setPrevPage(page);setProfilePlayer(player);setPage('profile')}
   const isCommissioner=session?.user?.email===COMMISSIONER_EMAIL||league?.commissioner_id===session?.user?.id
 
-  // ── LEAGUE ──────────────────────────────────────────────────────────────────
   const loadProfile=async()=>{const{data}=await supabase.from('profiles').select('*').eq('id',session.user.id).maybeSingle();if(data){setProfile(data);if(data.active_league_id)loadLeagueById(data.active_league_id)}}
   const loadLeagues=async()=>{const{data}=await supabase.from('league_members').select('league_id,role,leagues(*)').eq('user_id',session.user.id);if(data)setMyLeagues(data.map(m=>({...m.leagues,myRole:m.role})))}
   const loadLeagueById=async(leagueId)=>{const{data}=await supabase.from('leagues').select('*').eq('id',leagueId).maybeSingle();if(data){setLeague(data);loadData(leagueId);loadFeed(leagueId);loadTrades(leagueId)}}
@@ -1324,7 +1332,6 @@ export default function App(){
     const{data,error}=await supabase.from('leagues').insert({name:newLeagueName.trim(),commissioner_id:session.user.id,invite_code:code}).select().single()
     if(error) return notify(error.message,T.red)
     await supabase.from('league_members').insert({league_id:data.id,user_id:session.user.id,role:'commissioner'})
-    // Auto-create league_config row to prevent 406
     await supabase.from('league_config').insert({league_id:data.id,current_week:1,current_phase:1,currency:'$',tx_fee:5,phase_window_active:false,draft_window_open:false,sealed_bid_window_open:false})
     notify(`✅ League created! Code: ${code}`,T.green);setNewLeagueName('');loadLeagues();enterLeague(data)
   }
@@ -1366,6 +1373,18 @@ export default function App(){
     const{data}=await supabase.from('friday_forecasts').select('*').eq('league_id',lid).order('week_num',{ascending:false})
     if(data)setFridayForecasts(data)
   }
+  const loadMovieOfWeek=async(leagueId)=>{
+    const lid=leagueId||league?.id;if(!lid)return
+    const{data}=await supabase.from('movie_of_week').select('*').eq('league_id',lid).order('week_num',{ascending:false}).limit(1).maybeSingle()
+    if(data)setMovieOfWeek(data)
+  }
+  const loadPolls=async(leagueId)=>{
+    const lid=leagueId||league?.id;if(!lid)return
+    const{data}=await supabase.from('polls').select('*').eq('league_id',lid).order('created_at',{ascending:false}).limit(10)
+    if(data)setPolls(data)
+    const{data:votes}=await supabase.from('poll_votes').select('*').eq('league_id',lid)
+    if(votes)setPollVotes(votes)
+  }
 
   const togglePick=async(filmId,isPicked)=>{
     if(!profile) return notify('Sign in to pick films',T.red)
@@ -1379,37 +1398,11 @@ export default function App(){
     const lid=leagueId||league?.id;if(!lid)return
     setDataLoading(true)
     const memberIds=(await supabase.from('league_members').select('user_id').eq('league_id',lid)).data?.map(m=>m.user_id)||[]
-    const[{data:ps},{data:rs},{data:res},{data:fv},{data:cf},{data:wg},{data:ch},{data:fc},{data:op},{data:ad},{data:ww},{data:pb},{data:fl}]=await Promise.all([
-      supabase.from('profiles').select('*').in('id',memberIds.length?memberIds:['none']),
-      supabase.from('rosters').select('*').eq('league_id',lid),
-      supabase.from('results').select('*'),
-      supabase.from('film_values').select('*'),
-      // maybeSingle() prevents 406 when no config row exists yet
-      supabase.from('league_config').select('*').eq('league_id',lid).maybeSingle(),
-      supabase.from('weekly_grosses').select('*'),
-      // chips table might not exist yet — catch gracefully
-      supabase.from('chips').select('*').eq('league_id',lid),
-      supabase.from('forecasts').select('*').eq('league_id',lid),
-      supabase.from('oscar_predictions').select('*').eq('league_id',lid),
-      supabase.from('auteur_declarations').select('*').eq('league_id',lid),
-      supabase.from('weekend_winners').select('*').eq('league_id',lid),
-      supabase.from('phase_budgets').select('*').eq('league_id',lid),
+    // CRITICAL: load films FIRST so UI can render, then everything else in parallel
+    const[{data:fl},{data:cf}]=await Promise.all([
       supabase.from('films').select('*').eq('active',true).order('phase').order('week'),
+      supabase.from('league_config').select('*').eq('league_id',lid).maybeSingle(),
     ])
-    if(ps)setPlayers(ps)
-    if(rs)setRosters(rs)
-    if(res){const m={};res.forEach(r=>m[r.film_id]=r.actual_m);setResults(m)}
-    if(fv){const m={};fv.forEach(v=>m[v.film_id]=v.current_value);setFilmValues(m)}
-    // cf may be null if no config row — use defaults
-    setCfg(cf||{current_week:1,current_phase:1,currency:'$',tx_fee:5,phase_window_active:false,phase_window_opened_at:null,draft_window_open:false,draft_deadline:null,sealed_bid_window_open:false,sealed_bid_deadline:null})
-    setStandingsSnapshot(cf?.standings_snapshot||{})
-    if(wg){const m={};wg.forEach(w=>{if(!m[w.film_id])m[w.film_id]={};m[w.film_id][w.week_num]=w.gross_m});setWeeklyG(m)}
-    if(ch){setAllChips(ch);setChips(ch.find(c=>c.player_id===session?.user?.id)||null)}
-    if(fc){setAllForecasts(fc);const m={};fc.filter(f=>f.player_id===session?.user?.id).forEach(f=>m[f.film_id]=f.predicted_m);setForecasts(m)}
-    if(op){setOscarPreds(op);setMyOscar(op.find(o=>o.player_id===session?.user?.id)||null)}
-    if(ad)setAuteurDecl(ad)
-    if(ww){const m={};ww.forEach(w=>m[w.week]=w.film_id);setWwWinners(m)}
-    if(pb)setPhaseBudgets(pb)
     if(fl)setFilms(fl.map(f=>({
       id:f.id,title:f.title,dist:f.dist,genre:f.genre,
       franchise:f.franchise,starActor:f.star_actor,
@@ -1418,13 +1411,46 @@ export default function App(){
       trailer:f.trailer||'',affiliateUrl:f.affiliate_url||'',
       tmdbId:f.tmdb_id||null,
     })))
-    loadTrades(lid)
-    loadNews(lid)
-    loadFridayForecasts(lid)
+    setCfg(cf||{current_week:1,current_phase:1,currency:'$',tx_fee:5,phase_window_active:false,phase_window_opened_at:null,draft_window_open:false,draft_deadline:null,sealed_bid_window_open:false,sealed_bid_deadline:null})
+    setStandingsSnapshot(cf?.standings_snapshot||{})
+    // PERF: drop loading state once films are ready, then fetch remainder non-blocking
     setDataLoading(false)
+    // Background loads
+    Promise.all([
+      supabase.from('profiles').select('*').in('id',memberIds.length?memberIds:['none']),
+      supabase.from('rosters').select('*').eq('league_id',lid),
+      supabase.from('results').select('*'),
+      supabase.from('film_values').select('*'),
+      supabase.from('weekly_grosses').select('*'),
+      supabase.from('chips').select('*').eq('league_id',lid),
+      supabase.from('forecasts').select('*').eq('league_id',lid),
+      supabase.from('oscar_predictions').select('*').eq('league_id',lid),
+      supabase.from('auteur_declarations').select('*').eq('league_id',lid),
+      supabase.from('weekend_winners').select('*').eq('league_id',lid),
+      supabase.from('phase_budgets').select('*').eq('league_id',lid),
+    ]).then(([{data:ps},{data:rs},{data:res},{data:fv},{data:wg},{data:ch},{data:fc},{data:op},{data:ad},{data:ww},{data:pb}])=>{
+      if(ps)setPlayers(ps)
+      if(rs)setRosters(rs)
+      if(res){const m={};res.forEach(r=>m[r.film_id]=r.actual_m);setResults(m)}
+      if(fv){const m={};fv.forEach(v=>m[v.film_id]=v.current_value);setFilmValues(m)}
+      if(wg){const m={};wg.forEach(w=>{if(!m[w.film_id])m[w.film_id]={};m[w.film_id][w.week_num]=w.gross_m});setWeeklyG(m)}
+      if(ch){setAllChips(ch);setChips(ch.find(c=>c.player_id===session?.user?.id)||null)}
+      if(fc){setAllForecasts(fc);const m={};fc.filter(f=>f.player_id===session?.user?.id).forEach(f=>m[f.film_id]=f.predicted_m);setForecasts(m)}
+      if(op){setOscarPreds(op);setMyOscar(op.find(o=>o.player_id===session?.user?.id)||null)}
+      if(ad)setAuteurDecl(ad)
+      if(ww){const m={};ww.forEach(w=>m[w.week]=w.film_id);setWwWinners(m)}
+      if(pb)setPhaseBudgets(pb)
+    })
+    // Even later — news, forecasts, polls
+    setTimeout(()=>{
+      loadTrades(lid)
+      loadNews(lid)
+      loadFridayForecasts(lid)
+      loadMovieOfWeek(lid)
+      loadPolls(lid)
+    },100)
   }
 
-  // ── BUDGET ──────────────────────────────────────────────────────────────────
   const curPhase=()=>cfg.current_phase||1
   const isWindow=()=>cfg.phase_window_active||false
   const phaseBanked=(pid,ph)=>ph<=1?0:phaseBudgets.find(pb=>pb.player_id===pid&&pb.phase===ph-1)?.budget_banked||0
@@ -1438,21 +1464,17 @@ export default function App(){
     else await supabase.from('phase_budgets').insert({player_id:pid,phase:ph,budget_allocated:alloc,budget_spent:spent,budget_banked:banked,league_id:league?.id})
   }
 
-  // ── AUTOMATED PHASE TRANSITION ─────────────────────────────────────────────
   const advancePhase=async()=>{
     if(!confirm(`Advance to Phase ${curPhase()+1}? This will bank budgets for all players.`)) return
     setPhaseTransitioning(true)
     try{
       const completedPhase=curPhase()
-      // 1. Build ceremony data before advancing
       const phaseScores=[...players].map(p=>({p,pts:calcPhasePoints(p.id,completedPhase)})).sort((a,b)=>b.pts-a.pts)
       const phaseWinner=phaseScores[0]
       const mvpHolding=rosters.filter(r=>r.phase===completedPhase&&results[r.film_id]!=null).map(r=>({r,film:films.find(f=>f.id===r.film_id),pts:calcOpeningPts(films.find(f=>f.id===r.film_id)||{},results[r.film_id]||0)})).sort((a,b)=>b.pts-a.pts)[0]
       const chipWin=allChips.find(c=>c.short_result==='win'||c.analyst_result==='win')
       const chipWinner=chipWin?players.find(p=>p.id===chipWin.player_id):null
-      // 2. Bank remaining budgets for all players in current phase
       for(const p of players) await bankBudget(p.id,completedPhase)
-      // 3. Advance phase, close windows
       const nextPhase=completedPhase+1
       await supabase.from('league_config').update({
         current_phase:nextPhase,
@@ -1461,10 +1483,8 @@ export default function App(){
         draft_window_open:false,
         draft_deadline:null,
       }).eq('league_id',league?.id)
-      // 4. Log it
       await logActivity(session.user.id,'phase_advance',{from_phase:completedPhase,to_phase:nextPhase,league:league?.name},league?.id)
       await sendNotification('phase_advance',{league_id:league?.id,from_phase:completedPhase,to_phase:nextPhase,players:players.map(p=>({id:p.id}))})
-      // 5. Show ceremony
       setPhaseCeremony({phase:completedPhase,scores:phaseScores,winner:phaseWinner,mvp:mvpHolding,chipWinner,chipWin})
       if(phaseWinner?.pts>0)triggerConfetti()
       loadData(league?.id)
@@ -1472,7 +1492,6 @@ export default function App(){
     setPhaseTransitioning(false)
   }
 
-  // ── SCORING ──────────────────────────────────────────────────────────────────
   const filmVal=(film)=>Math.round((filmValues[film.id]??film.basePrice)*calcDemandMult(film,rosters,curPhase(),players.length,cfg.current_week,news,allPicks))
   const isEarlyBird=(h)=>{const f=films.find(fl=>fl.id===h.film_id);return f?f.week-(h.acquired_week||h.bought_week||0)>=EARLY_BIRD_WEEKS:false}
   const auteurOn=(pid,fid)=>auteurDecl.find(a=>a.player_id===pid&&a.phase===curPhase())?.film_ids?.includes(fid)||false
@@ -1499,7 +1518,6 @@ export default function App(){
   }
   const calcPoints=(pid)=>{let t=[1,2,3,4,5].reduce((s,ph)=>s+calcPhasePoints(pid,ph),0);if(oscarPreds.find(o=>o.player_id===pid)?.correct)t+=75;return t}
 
-  // ── BUY / SELL ──────────────────────────────────────────────────────────────
   const buyFilm=async(film)=>{
     if(!profile)return notify('Create a profile first',T.red)
     const ph=curPhase()
@@ -1525,7 +1543,6 @@ export default function App(){
     notify(`Dropped ${film.title} · $${proceeds}M${win?' (free)':''}`,T.gold);loadData(league?.id)
   }
 
-  // ── TRADES ──────────────────────────────────────────────────────────────────
   const acceptTrade=async(trade)=>{
     const myH=rosters.find(r=>r.player_id===trade.receiver_id&&r.film_id===trade.receiver_film_id&&r.active)
     const theirH=rosters.find(r=>r.player_id===trade.proposer_id&&r.film_id===trade.proposer_film_id&&r.active)
@@ -1541,7 +1558,6 @@ export default function App(){
   const rejectTrade=async(trade)=>{await supabase.from('trades').update({status:'rejected',resolved_at:new Date().toISOString()}).eq('id',trade.id);notify('Trade rejected',T.red);loadTrades()}
   const cancelTrade=async(trade)=>{await supabase.from('trades').update({status:'cancelled',resolved_at:new Date().toISOString()}).eq('id',trade.id);notify('Trade cancelled',T.gold);loadTrades()}
 
-  // ── CHIPS ────────────────────────────────────────────────────────────────────
   const activateRecut=async()=>{
     if(chips?.recut_used)return notify('Recut already used',T.red)
     if(!confirm('Activate THE RECUT? Your roster clears — zero fees.'))return
@@ -1601,17 +1617,13 @@ export default function App(){
     notify(`Forecast saved — $${predicted}M`,T.blue);loadData(league?.id)
   }
 
-  // ── AUTH SCREENS ─────────────────────────────────────────────────────────────
-  // Invite landing — pre-auth beautiful page
   const inviteFromUrl=(()=>{const p=window.location.pathname,q=new URLSearchParams(window.location.search);return p.match(/\/join\/([A-Z0-9-]+)/i)?.[1]?.toUpperCase()||q.get('invite')?.toUpperCase()||null})()
   if(inviteFromUrl&&!session&&!loading)return <InviteLanding code={inviteFromUrl} onLogin={()=>{setInviteCode(inviteFromUrl)}}/>
   if(loading)return(<div style={{minHeight:'100vh',background:T.bg,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:T.mono}}><div style={{textAlign:'center'}}><div style={{fontSize:'52px',fontWeight:900,color:T.gold,letterSpacing:'-2px',marginBottom:'16px'}}>BOXD</div><div style={{width:'40px',height:'3px',background:T.gold,borderRadius:'2px',margin:'0 auto',animation:'pulse 1.2s ease-in-out infinite'}}/></div></div>)
   if(!session)return<Login/>
-  // Pre-fill invite code if arrived via invite URL
   if(inviteFromUrl&&inviteCode!==inviteFromUrl)setInviteCode(inviteFromUrl)
   if(!profile)return<CreateProfile session={session} onCreated={()=>{loadProfile();loadLeagues()}} notify={notify}/>
 
-  // ── LEAGUE LOBBY ─────────────────────────────────────────────────────────────
   if(!league)return(
     <div style={{minHeight:'100vh',background:T.bg,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:T.mono,padding:'20px'}}>
       <div style={{width:'100%',maxWidth:'480px'}}>
@@ -1635,7 +1647,6 @@ export default function App(){
           <div style={{...S.label,marginBottom:'8px'}}>League Name</div>
           <input value={newLeagueName} onChange={e=>setNewLeagueName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&createLeague()} placeholder="e.g. The Box Office Boyz" style={{...S.inp,marginBottom:'12px',fontSize:'15px',padding:'14px 16px'}}/>
           <Btn onClick={createLeague} color={T.gold} full size="lg">Create League</Btn>
-          <div style={{fontSize:'12px',color:T.textSub,marginTop:'10px',textAlign:'center'}}>You'll get a unique invite code to share with players</div>
         </div>}
         {leaguePage==='join'&&<div style={{animation:'fadeUp .2s ease'}}>
           <div style={{...S.label,marginBottom:'8px'}}>Invite Code</div>
@@ -1647,7 +1658,6 @@ export default function App(){
     </div>
   )
 
-  // ── DERIVED STATE — myRoster FIRST to avoid TDZ ───────────────────────────
   const ph=curPhase()
   const win=isWindow()
   const cur=cfg.currency||'$'
@@ -1656,6 +1666,7 @@ export default function App(){
   const myBudget=budgetLeft(profile.id)
   const pendingForMe=trades.filter(t=>t.receiver_id===profile.id&&t.status==='pending')
   const myPicks=allPicks.filter(p=>p.user_id===profile.id)
+  const hasEverBought=rosters.some(r=>r.player_id===profile.id)
   const recutUsed=chips?.recut_used||false
   const shortUsed=!!chips?.short_film_id
   const analystUsed=!!chips?.analyst_film_id
@@ -1669,6 +1680,12 @@ export default function App(){
   const draftPenalty=draftShortfall*DRAFT_PENALTY
   const wMs=cfg.phase_window_opened_at?Math.max(0,72*3600000-(nowRef.current-new Date(cfg.phase_window_opened_at).getTime())):0
 
+  // PAGE VISIBILITY — hide empty pages so first-time view isn't broken
+  const hasNews=news.length>0
+  const hasResults=Object.keys(results).length>0
+  const hasFridayForecasts=fridayForecasts.length>0
+  const hasPicks=allPicks.length>0
+
   const ALL_PAGES=[
     {id:'market',icon:'🎬',label:'Market'},
     {id:'roster',icon:'📁',label:'Roster'},
@@ -1676,8 +1693,9 @@ export default function App(){
     {id:'league',icon:'🥇',label:'League'},
     {id:'community',icon:'👥',label:'Community'},
     {id:'feed',icon:'📡',label:'Feed'},
-    {id:'signals',icon:'⚡',label:'Signals'},
-    {id:'friday',icon:'🎯',label:'Friday Forecast'},
+    ...(hasNews?[{id:'signals',icon:'⚡',label:'Signals'}]:[]),
+    ...(hasFridayForecasts||hasResults?[{id:'friday',icon:'🎯',label:'Weekend Forecast'}]:[]),
+    ...(polls.length>0?[{id:'polls',icon:'🗳',label:'Polls'}]:[]),
     {id:'intent',icon:'👁️',label:'Watchlist'},
     {id:'trades',icon:'🔄',label:'Trades'},
     ...(sealedWindowOpen?[{id:'sealed',icon:'🔒',label:'Sealed Bid'}]:[]),
@@ -1685,172 +1703,98 @@ export default function App(){
     {id:'oscar',icon:'🏆',label:'Oscars'},
     {id:'results',icon:'📋',label:'Results'},
     {id:'howto',icon:'❓',label:'How to Play'},
-    {id:'slate',icon:'🗺',label:'Slate Map'},
-    {id:'report',icon:'📰',label:'Match Report'},
-    {id:'intelligence',icon:'📡',label:'Intelligence'},
+    ...(hasPicks&&films.length>0?[{id:'slate',icon:'🗺',label:'Slate Map'}]:[]),
+    ...(hasResults?[{id:'report',icon:'📰',label:'Match Report'}]:[]),
+    ...(hasPicks?[{id:'intelligence',icon:'📡',label:'Intelligence'}]:[]),
     ...(isCommissioner?[{id:'warroom',icon:'⚡',label:'War Room'},{id:'commissioner',icon:'⚙️',label:'Panel'},{id:'distributor',icon:'📈',label:'Insights'}]:[])
   ]
 
 
-  // ── PAGE COMPONENTS ──────────────────────────────────────────────────────────
-
-  const MarketPage=()=>{
-    const genres=['All',...Object.keys(GENRE_COL)]
-    const visible=phaseFilms.filter(f=>{
-      const ms=!marketSearch||f.title.toLowerCase().includes(marketSearch.toLowerCase())||f.dist.toLowerCase().includes(marketSearch.toLowerCase())
-      return ms&&(marketGenre==='All'||f.genre===marketGenre)
-    })
-
-    // This Weekend — new results since last week
-    const newResults=phaseFilms.filter(f=>results[f.id]!=null)
-    const myNewResults=newResults.filter(f=>myRoster.find(r=>r.film_id===f.id))
-    const myNewPts=myNewResults.reduce((s,f)=>{
-      const h=myRoster.find(r=>r.film_id===f.id)
-      if(!h)return s
-      let op=calcOpeningPts(f,results[f.id],isEarlyBird(h),analystOn(profile.id,f.id))
-      if(auteurOn(profile.id,f.id))op=Math.round(op*1.1)
-      return s+op+Math.round(calcWeeklyPts(weeklyG[f.id]||{}))+calcLegsBonus(results[f.id],weeklyG[f.id]?.[2])+wwBonus(f.id)+shortBonus(profile.id,f.id)
-    },0)
-    const sorted=[...players].sort((a,b)=>calcPoints(b.id)-calcPoints(a.id))
-    const myRank=sorted.findIndex(p=>p.id===profile.id)+1
-
-    // Onboarding — show if player has never bought a film
-    const hasEverBought=rosters.some(r=>r.player_id===profile.id)
-    const [onboardingDismissed,setOnboardingDismissed]=useState(()=>localStorage.getItem('boxd_onboarded')==='1')
-    const dismissOnboarding=()=>{localStorage.setItem('boxd_onboarded','1');setOnboardingDismissed(true)}
-
+  // ── NEWS TICKER STRIP ────────────────────────────────────────────────────
+  const NewsTickerStrip=()=>{
+    if(news.length===0)return null
+    const recent=news.slice(0,8)
+    const items=[...recent,...recent] // duplicate for seamless scroll
     return(
-      <div>
-        {/* ── ONBOARDING WELCOME ──────────────────────────────────────────── */}
-        {!hasEverBought&&!onboardingDismissed&&(
-          <div style={{background:`linear-gradient(135deg,${T.gold}14,${T.surface})`,border:`1px solid ${T.gold}44`,borderRadius:'16px',padding:'20px',marginBottom:'20px',position:'relative',animation:'fadeUp .3s ease'}}>
-            <button onClick={dismissOnboarding} style={{position:'absolute',top:'12px',right:'12px',background:'none',border:'none',color:T.textDim,cursor:'pointer',fontSize:'16px',padding:'4px 8px'}}>✕</button>
-            <div style={{fontSize:'24px',marginBottom:'8px'}}>👋</div>
-            <div style={{fontSize:'16px',fontWeight:700,color:T.gold,marginBottom:'8px'}}>Welcome to BOXD</div>
-            <div style={{fontSize:'13px',color:T.textSub,lineHeight:1.7,marginBottom:'14px'}}>Fantasy box office — pick films, score points, beat your league.</div>
-            <div style={{display:'flex',flexDirection:'column',gap:'8px',marginBottom:'16px'}}>
-              {[
-                ['🎬','Acquire films from the current phase using your budget'],
-                ['📅','Earn points based on opening weekend performance vs estimate'],
-                ['⚡','Use chips — The Short, Analyst, Auteur — for big bonus pts'],
-                ['🐦','Buy early (4+ weeks before release) for an Early Bird bonus'],
-              ].map(([icon,text])=>(
-                <div key={text} style={{display:'flex',gap:'10px',alignItems:'flex-start'}}>
-                  <span style={{fontSize:'14px',flexShrink:0,marginTop:'1px'}}>{icon}</span>
-                  <span style={{fontSize:'12px',color:T.text,lineHeight:1.5}}>{text}</span>
-                </div>
-              ))}
-            </div>
-            <Btn onClick={dismissOnboarding} color={T.gold} full>Got it — let's play</Btn>
-          </div>
-        )}
-
-        {/* ── THIS WEEKEND ────────────────────────────────────────────────── */}
-        {myNewResults.length>0&&(
-          <div style={{background:`linear-gradient(135deg,${T.green}10,${T.surface})`,border:`1px solid ${T.green}33`,borderRadius:'16px',padding:'18px 20px',marginBottom:'20px',animation:'fadeUp .25s ease'}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'12px',flexWrap:'wrap',gap:'8px'}}>
-              <div>
-                <div style={{fontSize:'12px',color:T.green,fontWeight:700,letterSpacing:'1px',textTransform:'uppercase',marginBottom:'3px'}}>Phase Scorecard</div>
-                <div style={{fontSize:'22px',fontWeight:900,color:T.green,fontFamily:T.mono,lineHeight:1}}>+<CountUp value={myNewPts}/> pts</div>
-                <div style={{fontSize:'12px',color:T.textSub,marginTop:'3px'}}>across {myNewResults.length} scored film{myNewResults.length!==1?'s':''} · #{myRank} of {players.length}</div>
-              </div>
-              <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
-                {myNewResults.map(f=>{
-                  const actual=results[f.id]
-                  const ratio=actual/f.estM
-                  const col=ratio>=1.1?T.green:ratio>=0.9?T.gold:T.red
-                  return(
-                    <div key={f.id} style={{background:T.surfaceUp,borderRadius:'10px',padding:'8px 12px',minWidth:'80px',textAlign:'center'}}>
-                      <div style={{fontSize:'11px',color:T.textSub,marginBottom:'3px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:'100px'}}>{f.title.split(':')[0]}</div>
-                      <div style={{fontSize:'15px',fontWeight:800,color:col,fontFamily:T.mono}}>${actual}M</div>
-                      <div style={{fontSize:'10px',color:col,marginTop:'1px'}}>{ratio>=1.1?'▲':ratio>=0.9?'—':'▼'} {(ratio*100).toFixed(0)}%</div>
-                    </div>
-                  )
-                })}
-              </div>
+      <div style={{background:T.surface,borderTop:`1px solid ${T.red}33`,borderBottom:`1px solid ${T.red}33`,overflow:'hidden',position:'relative',marginBottom:'12px'}}>
+        <div style={{display:'flex',alignItems:'center'}}>
+          <div style={{background:`${T.red}22`,padding:'8px 14px',fontSize:'10px',color:T.red,fontWeight:700,letterSpacing:'2px',flexShrink:0,fontFamily:T.mono,borderRight:`1px solid ${T.red}33`}}>📡 SIGNALS</div>
+          <div style={{flex:1,overflow:'hidden',whiteSpace:'nowrap',padding:'8px 0'}}>
+            <div style={{display:'inline-block',animation:'tickerScroll 60s linear infinite',whiteSpace:'nowrap'}}>
+              {items.map((n,i)=>{
+                const film=films.find(f=>f.id===n.film_id)
+                const col=n.sentiment==='positive'?T.green:n.sentiment==='negative'?T.red:T.textSub
+                return(
+                  <span key={i} onClick={()=>setPage('signals')} style={{display:'inline-block',marginRight:'40px',cursor:'pointer'}}>
+                    <span style={{color:col,marginRight:'8px'}}>●</span>
+                    <span style={{color:T.text,fontSize:'13px',fontWeight:500}}>{n.headline}</span>
+                    {film&&<span style={{color:T.textDim,fontSize:'11px',marginLeft:'8px'}}>· {film.title}</span>}
+                    {n.price_impact!=null&&Math.abs(n.price_impact)>=2&&<span style={{color:col,fontSize:'11px',marginLeft:'8px',fontWeight:700,fontFamily:T.mono}}>{n.price_impact>0?'▲':'▼'}{Math.abs(n.price_impact).toFixed(0)}%</span>}
+                  </span>
+                )
+              })}
             </div>
           </div>
-        )}
+        </div>
+      </div>
+    )
+  }
 
-        {/* ── RELEASE CALENDAR ────────────────────────────────────────────── */}
-        {(()=>{
-          // Group ALL films by week across all phases
-          const allWeeks=[...new Set(films.map(f=>f.week))].sort((a,b)=>a-b)
-          const calRef=React.useRef(null)
-          // Auto-scroll to current week on mount
-          React.useEffect(()=>{
-            if(!calRef.current)return
-            const el=calRef.current.querySelector(`[data-week="${cfg.current_week}"]`)
-            if(el)el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})
-          },[cfg.current_week])
-          if(!allWeeks.length)return null
-          const minW=allWeeks[0],maxW=allWeeks[allWeeks.length-1]
-          const weekRange=Array.from({length:maxW-minW+1},(_,i)=>minW+i)
+  // ── MARKET PAGE ─────────────────────────────────────────────────────────
+  const MarketPage=()=>{
+    const visible=phaseFilms.filter(f=>{
+      if(marketGenre!=='All'&&f.genre!==marketGenre)return false
+      if(marketSearch&&!f.title.toLowerCase().includes(marketSearch.toLowerCase())&&!f.dist.toLowerCase().includes(marketSearch.toLowerCase()))return false
+      return true
+    })
+    return(
+      <div style={{animation:'fadeUp .2s ease'}}>
+        {/* MOVIE OF THE WEEK pinned card */}
+        {movieOfWeek&&movieOfWeek.week_num===cfg.current_week&&(()=>{
+          const mowFilm=films.find(f=>f.id===movieOfWeek.film_id);if(!mowFilm)return null
           return(
-            <div style={{marginBottom:'20px'}}>
-              <div style={{...S.label,marginBottom:'10px',display:'flex',alignItems:'center',gap:'8px'}}>
-                Release Calendar
-                <span style={{color:T.textDim,fontWeight:400,fontSize:'10px',textTransform:'none',letterSpacing:0}}>· W{cfg.current_week} now</span>
+            <div onClick={()=>setFilmDetail(mowFilm)} style={{background:`linear-gradient(135deg,${T.gold}18,${T.surface})`,border:`1px solid ${T.gold}44`,borderRadius:'14px',padding:'14px',marginBottom:'14px',cursor:'pointer',display:'flex',gap:'14px',alignItems:'flex-start'}}>
+              <FilmPoster film={mowFilm} width={64} height={96} radius={8}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{...S.label,color:T.gold,marginBottom:'4px'}}>🎬 Movie of the Week</div>
+                <div style={{fontSize:'14px',fontWeight:700,marginBottom:'4px',lineHeight:1.3}}>{mowFilm.title}</div>
+                {movieOfWeek.headline&&<div style={{fontSize:'12px',color:T.text,marginBottom:'6px',fontStyle:'italic'}}>"{movieOfWeek.headline}"</div>}
+                <div style={{display:'flex',gap:'8px',marginTop:'6px',flexWrap:'wrap'}}>
+                  {movieOfWeek.bull_case&&<div style={{fontSize:'10px',color:T.green,background:`${T.green}18`,padding:'2px 8px',borderRadius:'4px'}}>🐂 Bull case</div>}
+                  {movieOfWeek.bear_case&&<div style={{fontSize:'10px',color:T.red,background:`${T.red}18`,padding:'2px 8px',borderRadius:'4px'}}>🐻 Bear case</div>}
+                </div>
               </div>
-              <div ref={calRef} style={{display:'flex',gap:'0',overflowX:'auto',paddingBottom:'8px',scrollSnapType:'x mandatory',WebkitOverflowScrolling:'touch',margin:'0 -16px',padding:'0 16px 8px'}}>
-                {weekRange.map(wk=>{
-                  const weekFilms=films.filter(f=>f.week===wk)
-                  const isPast=wk<cfg.current_week
-                  const isCurrent=wk===cfg.current_week
-                  const isNear=wk===cfg.current_week+1
-                  return(
-                    <div key={wk} data-week={wk} style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0,scrollSnapAlign:'start',position:'relative',marginRight:'2px'}}>
-                      {/* Timeline track */}
-                      <div style={{display:'flex',alignItems:'center',width:'100%',marginBottom:'8px',minWidth:weekFilms.length?`${weekFilms.length*72+24}px`:'52px'}}>
-                        <div style={{flex:1,height:'2px',background:isPast?T.gold:isCurrent?T.green:T.border}}/>
-                        <div style={{width:isCurrent?'12px':'8px',height:isCurrent?'12px':'8px',borderRadius:'50%',background:isPast?T.gold:isCurrent?T.green:isNear?T.blue:T.border,flexShrink:0,boxShadow:isCurrent?`0 0 0 3px ${T.green}33`:isNear?`0 0 0 3px ${T.blue}22`:'none',transition:'all .2s'}}/>
-                        <div style={{flex:1,height:'2px',background:isPast?T.gold:T.border}}/>
-                      </div>
-                      {/* Week label */}
-                      <div style={{fontSize:'10px',fontWeight:isCurrent?700:500,color:isCurrent?T.green:isNear?T.blue:isPast?T.gold:T.textDim,letterSpacing:'0.5px',marginBottom:'6px',background:isCurrent?`${T.green}18`:isNear?`${T.blue}12`:'transparent',padding:'2px 6px',borderRadius:'6px',whiteSpace:'nowrap'}}>
-                        {isCurrent?'▶ NOW':'W'+wk}
-                      </div>
-                      {/* Film pills for this week */}
-                      {weekFilms.length>0?(
-                        <div style={{display:'flex',gap:'6px',paddingBottom:'4px'}}>
-                          {weekFilms.map(f=>{
-                            const owned=myRoster.find(r=>r.film_id===f.id)
-                            const hasResult=results[f.id]!=null
-                            const gc=GENRE_COL[f.genre]||T.textSub
-                            const eb=!hasResult&&(f.week-cfg.current_week)>=EARLY_BIRD_WEEKS
-                            return(
-                              <div key={f.id} onClick={()=>setFilmDetail(f)} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'4px',cursor:'pointer',opacity:isPast&&!hasResult?0.5:1,transition:'opacity .15s'}}>
-                                <div style={{position:'relative'}}>
-                                  <FilmPoster film={f} width={56} height={84} radius={8}/>
-                                  {/* Genre colour border */}
-                                  <div style={{position:'absolute',inset:0,borderRadius:'8px',border:`2px solid ${owned?T.gold:hasResult?T.green:eb?T.green+'88':gc+'44'}`,pointerEvents:'none'}}/>
-                                  {/* Status dot */}
-                                  {hasResult&&<div style={{position:'absolute',top:'4px',right:'4px',width:'8px',height:'8px',borderRadius:'50%',background:T.green,border:`2px solid ${T.surface}`}}/>}
-                                  {owned&&!hasResult&&<div style={{position:'absolute',top:'4px',right:'4px',width:'8px',height:'8px',borderRadius:'50%',background:T.gold,border:`2px solid ${T.surface}`}}/>}
-                                  {eb&&!owned&&<div style={{position:'absolute',top:'4px',left:'4px'}}><span style={{fontSize:'9px'}}>🐦</span></div>}
-                                </div>
-                                <div style={{fontSize:'9px',color:owned?T.gold:hasResult?T.green:T.textSub,fontWeight:owned||hasResult?600:400,maxWidth:'56px',textAlign:'center',lineHeight:1.2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.title.split(':')[0].split(' ').slice(0,2).join(' ')}</div>
-                                {hasResult&&<div style={{fontSize:'9px',color:T.green,fontWeight:700}}>${results[f.id]}M</div>}
-                                {!hasResult&&<div style={{fontSize:'9px',color:T.textDim}}>Est ${f.estM}M</div>}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      ):(
-                        <div style={{width:'40px',height:'60px',borderRadius:'8px',border:`1px dashed ${T.border}`,display:'flex',alignItems:'center',justifyContent:'center'}}>
-                          <div style={{fontSize:'10px',color:T.textDim}}>—</div>
-                        </div>
-                      )}
+              <div style={{color:T.gold,fontSize:'18px'}}>›</div>
+            </div>
+          )
+        })()}
+
+        {/* NEWS TICKER · hidden until first buy */}
+        {hasEverBought&&<NewsTickerStrip/>}
+
+        {/* WEEKEND LIVE — Fri 5pm-Sun 11pm · hidden until player has bought first film */}
+        {hasEverBought&&(()=>{
+          const now=new Date()
+          const day=now.getDay();const hr=now.getHours()
+          const isWeekendLive=(day===5&&hr>=17)||day===6||(day===0&&hr<=23)
+          if(!isWeekendLive)return null
+          const opening=films.filter(f=>f.week===cfg.current_week&&results[f.id]==null).slice(0,4)
+          if(opening.length===0)return null
+          return(
+            <div style={{background:`linear-gradient(135deg,${T.red}18,${T.surface})`,border:`1px solid ${T.red}55`,borderRadius:'14px',padding:'14px',marginBottom:'14px'}}>
+              <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'10px'}}>
+                <div style={{width:'8px',height:'8px',borderRadius:'50%',background:T.red,animation:'pulse 1.5s infinite'}}/>
+                <div style={{...S.label,color:T.red}}>🔴 WEEKEND LIVE</div>
+                <div style={{fontSize:'11px',color:T.textSub,marginLeft:'auto'}}>{day===5?'Friday':day===6?'Saturday':'Sunday'} · estimates landing</div>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:'8px'}}>
+                {opening.map(f=>(
+                  <div key={f.id} onClick={()=>setFilmDetail(f)} style={{background:T.surfaceUp,borderRadius:'8px',padding:'10px',cursor:'pointer',display:'flex',gap:'10px',alignItems:'center'}}>
+                    <FilmPoster film={f} width={36} height={54} radius={5}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:'12px',fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{f.title.split(':')[0]}</div>
+                      <div style={{fontSize:'10px',color:T.textSub}}>est ${f.estM}M</div>
                     </div>
-                  )
-                })}
-              </div>
-              {/* Legend */}
-              <div style={{display:'flex',gap:'12px',flexWrap:'wrap',marginTop:'4px'}}>
-                {[['gold border','Owned'],['green dot','Scored'],['🐦','Early Bird window']].map(([icon,label])=>(
-                  <div key={label} style={{display:'flex',gap:'5px',alignItems:'center',fontSize:'10px',color:T.textDim}}>
-                    <span>{icon.includes('border')?<div style={{width:'10px',height:'10px',borderRadius:'2px',border:`2px solid ${T.gold}`}}/>:icon.includes('dot')?<div style={{width:'8px',height:'8px',borderRadius:'50%',background:T.green}}/>:<span style={{fontSize:'11px'}}>{icon}</span>}</span>
-                    <span>{label}</span>
                   </div>
                 ))}
               </div>
@@ -1858,1324 +1802,1048 @@ export default function App(){
           )
         })()}
 
-        {/* ── NEWS TICKER ─────────────────────────────────────────────────── */}
-        <NewsTickerStrip/>
+        {/* THE PULSE — daily check-in · hidden until player has bought first film */}
+        {hasEverBought&&(()=>{
+          const cutoff=Date.now()-48*3600000
+          const movers=films.filter(f=>results[f.id]==null).map(f=>{
+            const recent=news.filter(n=>n.film_id===f.id&&new Date(n.signal_date).getTime()>cutoff&&n.price_impact!=null)
+            const move=recent.reduce((s,n)=>s+Number(n.price_impact),0)
+            return{f,move}
+          }).filter(x=>Math.abs(x.move)>=3).sort((a,b)=>Math.abs(b.move)-Math.abs(a.move)).slice(0,3)
+          const openingWeek=films.filter(f=>f.week===cfg.current_week&&results[f.id]==null).slice(0,3)
+          const heating=films.filter(f=>results[f.id]==null).map(f=>({f,buzz:calcBuzzIndex({...f,hasResult:false},allPicks,news,rosters,players.length,cfg.current_week)||0})).sort((a,b)=>b.buzz-a.buzz).slice(0,3)
+          if(movers.length===0&&openingWeek.length===0&&heating.length===0)return null
+          return(
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:'10px',marginBottom:'14px'}}>
+              {movers.length>0&&<div style={{...S.card,padding:'12px'}}>
+                <div style={{...S.label,marginBottom:'8px',color:T.gold}}>📊 Movers (48h)</div>
+                {movers.map(({f,move})=>(
+                  <div key={f.id} onClick={()=>setFilmDetail(f)} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',cursor:'pointer'}}>
+                    <span style={{fontSize:'12px',color:T.text,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:'70%'}}>{f.title.split(':')[0]}</span>
+                    <span style={{fontSize:'12px',color:move>0?T.green:T.red,fontFamily:T.mono,fontWeight:700}}>{move>0?'▲':'▼'}{Math.abs(move).toFixed(0)}%</span>
+                  </div>
+                ))}
+              </div>}
+              {openingWeek.length>0&&<div style={{...S.card,padding:'12px'}}>
+                <div style={{...S.label,marginBottom:'8px',color:T.green}}>🎬 Opening This Week</div>
+                {openingWeek.map(f=>(
+                  <div key={f.id} onClick={()=>setFilmDetail(f)} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',cursor:'pointer'}}>
+                    <span style={{fontSize:'12px',color:T.text,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:'70%'}}>{f.title.split(':')[0]}</span>
+                    <span style={{fontSize:'11px',color:T.textSub,fontFamily:T.mono}}>${f.estM}M</span>
+                  </div>
+                ))}
+              </div>}
+              {heating.length>0&&<div style={{...S.card,padding:'12px'}}>
+                <div style={{...S.label,marginBottom:'8px',color:T.orange}}>🔥 Heating Up</div>
+                {heating.map(({f,buzz})=>(
+                  <div key={f.id} onClick={()=>setFilmDetail(f)} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',cursor:'pointer'}}>
+                    <span style={{fontSize:'12px',color:T.text,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:'70%'}}>{f.title.split(':')[0]}</span>
+                    <span style={{fontSize:'11px',color:T.orange,fontFamily:T.mono,fontWeight:700}}>{buzz}</span>
+                  </div>
+                ))}
+              </div>}
+            </div>
+          )
+        })()}
 
-        {/* ── ONBOARDING (first-time players only) ────────────────────────── */}
-        {myRoster.length===0&&myPicks.length===0&&calcPoints(profile.id)===0&&(
-          <div style={{background:`linear-gradient(135deg,${T.gold}14,${T.surface})`,border:`1px solid ${T.gold}44`,borderRadius:'18px',padding:'20px 22px',marginBottom:'20px',position:'relative',overflow:'hidden'}}>
-            <div style={{position:'absolute',top:0,left:0,right:0,height:'3px',background:`linear-gradient(90deg,${T.gold},${T.orange})`}}/>
-            <div style={{fontSize:'22px',fontWeight:800,color:T.gold,marginBottom:'4px'}}>Welcome to BOXD 🎬</div>
-            <div style={{fontSize:'13px',color:T.textSub,marginBottom:'16px',lineHeight:1.6}}>You have <strong style={{color:T.text}}>{cur}{myBudget}M budget</strong> this phase. Pick films before their opening weekend — earn points based on how they outperform studio estimates.</div>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'10px',marginBottom:'16px'}}>
-              {[
-                {icon:'🎬',label:'Browse & buy',desc:'Find undervalued films. Early movers get cheaper prices.'},
-                {icon:'💰',label:'Up to 6 films',desc:'Spend your budget wisely. Underdogs earn the most pts.'},
-                {icon:'📊',label:'Score on Monday',desc:'Box office results drop each week. The market decides.'},
-              ].map(({icon,label,desc})=>(
-                <div key={label} style={{background:'#00000022',borderRadius:'12px',padding:'12px 10px',textAlign:'center'}}>
-                  <div style={{fontSize:'22px',marginBottom:'6px'}}>{icon}</div>
-                  <div style={{fontSize:'12px',fontWeight:700,color:T.text,marginBottom:'4px',lineHeight:1.3}}>{label}</div>
-                  <div style={{fontSize:'10px',color:T.textSub,lineHeight:1.5}}>{desc}</div>
-                </div>
-              ))}
+        {!hasEverBought&&(
+          <div style={{background:`linear-gradient(135deg,${T.gold}14,${T.surface})`,border:`1px solid ${T.gold}44`,borderRadius:'14px',padding:'18px 20px',marginBottom:'14px'}}>
+            <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'8px'}}>
+              <span style={{fontSize:'20px'}}>👋</span>
+              <div style={{fontSize:'15px',fontWeight:700,color:T.gold}}>Welcome to BOXD</div>
             </div>
-            <div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}}>
-              <Btn onClick={()=>navigate('howto')} variant="outline" color={T.gold} size="sm" sx={{border:`1px solid ${T.gold}66`}}>📖 Full guide</Btn>
-              <div style={{fontSize:'12px',color:T.textDim}}>👇 Tap any film below to get started</div>
-            </div>
+            <div style={{fontSize:'13px',color:T.text,lineHeight:1.6}}>Pick up to <strong>{MAX_ROSTER} films</strong> this phase. You have <strong style={{color:T.gold}}>${myBudget}M</strong> to spend. Films pay out when results land Monday — opening points + weekly grosses + bonuses. <span style={{color:T.textSub}}>Tap any card to start.</span></div>
           </div>
         )}
 
-        {/* ── WEEKEND LIVE — Fri 5pm to Sun 11pm only ─────────────────────── */}
-        {(()=>{
-          const now=new Date()
-          const day=now.getDay() // 0=Sun, 5=Fri, 6=Sat
-          const hr=now.getHours()
-          const isWeekendLive=(day===5&&hr>=17)||day===6||(day===0&&hr<=23)
-          if(!isWeekendLive)return null
-
-          // Films opening this weekend (current_week)
-          const openingNow=films.filter(f=>f.week===cfg.current_week&&results[f.id]==null)
-          // Films that just got results this week
-          const justResulted=films.filter(f=>f.week===cfg.current_week&&results[f.id]!=null)
-
-          if(!openingNow.length&&!justResulted.length)return null
-
-          // Calculate my projected pts gain from this weekend
-          const myWeekendPts=justResulted.reduce((s,f)=>{
-            const h=myRoster.find(r=>r.film_id===f.id)
-            if(!h)return s
-            const eb=isEarlyBird(h),ao=analystOn(profile.id,f.id),au=auteurOn(profile.id,f.id)
-            let op=calcOpeningPts(f,results[f.id],eb,ao);if(au)op=Math.round(op*1.1)
-            return s+op
-          },0)
-
-          return(
-            <div style={{...S.card,marginBottom:'18px',padding:'18px 20px',border:`1px solid ${T.red}55`,background:`linear-gradient(135deg,${T.red}11,${T.surface})`}}>
-              <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'14px'}}>
-                <div style={{width:'10px',height:'10px',borderRadius:'50%',background:T.red,animation:'pulse 1.2s ease-in-out infinite',boxShadow:`0 0 0 4px ${T.red}33`}}/>
-                <div style={{...S.label,color:T.red,letterSpacing:'2px',fontWeight:700}}>WEEKEND LIVE · {now.toLocaleDateString('en-GB',{weekday:'long'})} {now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</div>
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:'14px'}}>
-                {/* Opening tracker */}
-                <div>
-                  <div style={{...S.label,marginBottom:'8px',color:T.gold}}>🎬 Opening this weekend</div>
-                  {openingNow.length===0?<div style={{fontSize:'12px',color:T.textDim,padding:'8px 0'}}>All weekend films have results in</div>:openingNow.map(f=>{
-                    const h=myRoster.find(r=>r.film_id===f.id)
-                    return(
-                      <div key={f.id} className="hoverable" onClick={()=>setFilmDetail(f)} style={{display:'flex',alignItems:'center',gap:'10px',padding:'8px 0',borderBottom:`1px solid ${T.border}`,cursor:'pointer'}}>
-                        <FilmPoster film={f} width={32} height={48} radius={5}/>
-                        <div style={{flex:1,minWidth:0}}>
-                          <div style={{fontSize:'13px',fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.title}</div>
-                          <div style={{fontSize:'10px',color:T.textDim}}>Est ${f.estM}M · {f.dist}{h&&<span style={{color:T.gold,fontWeight:700,marginLeft:'6px'}}>· YOU OWN</span>}</div>
-                        </div>
-                        <div style={{fontSize:'10px',color:T.red,fontWeight:700,letterSpacing:'1px',flexShrink:0}}>LIVE</div>
-                      </div>
-                    )
-                  })}
-                </div>
-                {/* Your weekend */}
-                <div>
-                  <div style={{...S.label,marginBottom:'8px',color:T.green}}>⚡ Your weekend score</div>
-                  {justResulted.length===0?<div style={{fontSize:'12px',color:T.textDim,padding:'8px 0'}}>Awaiting first results — check back Sunday</div>:<>
-                    <div style={{fontSize:'34px',fontWeight:900,color:myWeekendPts>0?T.green:T.textSub,fontFamily:T.mono,lineHeight:1,letterSpacing:'-1px',marginBottom:'4px'}}>+<CountUp value={myWeekendPts}/></div>
-                    <div style={{fontSize:'11px',color:T.textSub,marginBottom:'10px'}}>across {justResulted.filter(f=>myRoster.find(r=>r.film_id===f.id)).length} of your films</div>
-                    {justResulted.filter(f=>myRoster.find(r=>r.film_id===f.id)).slice(0,3).map(f=>{
-                      const h=myRoster.find(r=>r.film_id===f.id)
-                      const eb=isEarlyBird(h),ao=analystOn(profile.id,f.id)
-                      const op=calcOpeningPts(f,results[f.id],eb,ao)
-                      return(
-                        <div key={f.id} style={{display:'flex',alignItems:'center',gap:'8px',padding:'5px 0',fontSize:'12px'}}>
-                          <FilmPoster film={f} width={20} height={30} radius={3}/>
-                          <div style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',color:T.text}}>{f.title.split(':')[0]}</div>
-                          <span style={{color:T.green,fontWeight:700,fontFamily:T.mono}}>+{op}</span>
-                        </div>
-                      )
-                    })}
-                  </>}
-                </div>
-              </div>
-            </div>
-          )
-        })()}
-
-        {/* ── THE PULSE — daily check-in dashboard ────────────────────────── */}
-        {(()=>{
-          // Build top movers based on signal-driven price changes in last 48h
-          const cutoff=Date.now()-48*3600000
-          const moversData=films.filter(f=>results[f.id]==null&&f.phase===ph).map(f=>{
-            const recentSignals=news.filter(n=>n.film_id===f.id&&new Date(n.signal_date).getTime()>cutoff&&n.price_impact!=null)
-            const move=recentSignals.reduce((s,n)=>s+Number(n.price_impact),0)
-            const buzz=calcBuzzIndex({...f,hasResult:false},allPicks,news,rosters,players.length,cfg.current_week,filmVal(f))
-            const latestSignal=recentSignals.sort((a,b)=>new Date(b.signal_date)-new Date(a.signal_date))[0]
-            return{f,move,buzz,latestSignal}
-          })
-          const movers=moversData.filter(x=>Math.abs(x.move)>=2).sort((a,b)=>Math.abs(b.move)-Math.abs(a.move)).slice(0,3)
-
-          // Films you own opening this week
-          const owned=myRoster.map(h=>films.find(f=>f.id===h.film_id)).filter(f=>f&&f.week===cfg.current_week)
-
-          // Films releasing soon you don't own — high buzz
-          const watchTargets=moversData.filter(({f,buzz})=>!myRoster.find(r=>r.film_id===f.id)&&f.week-cfg.current_week<=3&&f.week-cfg.current_week>=0&&buzz>=50).sort((a,b)=>b.buzz-a.buzz).slice(0,2)
-
-          if(!movers.length&&!owned.length&&!watchTargets.length)return null
-
-          return(
-            <div style={{...S.card,marginBottom:'18px',padding:'18px 20px'}}>
-              <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'14px'}}>
-                <div style={{width:'8px',height:'8px',borderRadius:'50%',background:T.green,animation:'pulse 1.6s ease-in-out infinite',boxShadow:`0 0 0 3px ${T.green}33`}}/>
-                <div style={{...S.label,color:T.green,letterSpacing:'2px'}}>THE PULSE · {new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}</div>
-              </div>
-
-              <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(3,1fr)',gap:'12px'}}>
-                {/* Movers */}
-                <div>
-                  <div style={{...S.label,marginBottom:'8px',color:T.gold}}>📈 Movers (48h)</div>
-                  {movers.length===0?<div style={{fontSize:'12px',color:T.textDim,padding:'12px 0'}}>No price moves yet — quiet day</div>:movers.map(({f,move,latestSignal})=>{
-                    const moveCol=move>0?T.green:T.red
-                    return(
-                      <div key={f.id} className="hoverable" onClick={()=>setFilmDetail(f)} style={{display:'flex',alignItems:'center',gap:'8px',padding:'7px 0',borderBottom:`1px solid ${T.border}`,cursor:'pointer'}}>
-                        <FilmPoster film={f} width={26} height={39} radius={4}/>
-                        <div style={{flex:1,minWidth:0}}>
-                          <div style={{fontSize:'12px',fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.title.split(':')[0]}</div>
-                          {latestSignal&&<div style={{fontSize:'10px',color:T.textDim,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{latestSignal.headline}</div>}
-                        </div>
-                        <div style={{fontSize:'13px',fontWeight:800,color:moveCol,fontFamily:T.mono,flexShrink:0}}>{move>0?'▲':'▼'}{Math.abs(move).toFixed(0)}%</div>
-                      </div>
-                    )
-                  })}
-                </div>
-
-                {/* Your position this week */}
-                <div>
-                  <div style={{...S.label,marginBottom:'8px',color:T.blue}}>🎬 Opening This Week</div>
-                  {owned.length===0?<div style={{fontSize:'12px',color:T.textDim,padding:'12px 0'}}>No films of yours open this week</div>:owned.map(f=>{
-                    const days=Math.max(0,5-(new Date().getDay()===0?7:new Date().getDay())) // approx days to next Friday
-                    return(
-                      <div key={f.id} className="hoverable" onClick={()=>setFilmDetail(f)} style={{display:'flex',alignItems:'center',gap:'8px',padding:'7px 0',borderBottom:`1px solid ${T.border}`,cursor:'pointer'}}>
-                        <FilmPoster film={f} width={26} height={39} radius={4}/>
-                        <div style={{flex:1,minWidth:0}}>
-                          <div style={{fontSize:'12px',fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.title.split(':')[0]}</div>
-                          <div style={{fontSize:'10px',color:T.textDim}}>Est ${f.estM}M{f.rt!=null?` · RT ${f.rt}%`:''}</div>
-                        </div>
-                        <div style={{fontSize:'11px',color:T.blue,fontWeight:700,flexShrink:0}}>OPENS</div>
-                      </div>
-                    )
-                  })}
-                </div>
-
-                {/* Watch — high buzz films you don't own */}
-                <div>
-                  <div style={{...S.label,marginBottom:'8px',color:T.orange}}>👀 Heating Up</div>
-                  {watchTargets.length===0?<div style={{fontSize:'12px',color:T.textDim,padding:'12px 0'}}>Nothing new heating up</div>:watchTargets.map(({f,buzz})=>(
-                    <div key={f.id} className="hoverable" onClick={()=>setFilmDetail(f)} style={{display:'flex',alignItems:'center',gap:'8px',padding:'7px 0',borderBottom:`1px solid ${T.border}`,cursor:'pointer'}}>
-                      <FilmPoster film={f} width={26} height={39} radius={4}/>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontSize:'12px',fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.title.split(':')[0]}</div>
-                        <div style={{fontSize:'10px',color:T.textDim}}>${filmVal(f)}M · W{f.week}</div>
-                      </div>
-                      <div style={{fontSize:'13px',fontWeight:800,color:T.orange,fontFamily:T.mono,flexShrink:0}}>{buzz}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )
-        })()}
-
-        {/* ── HEADER ──────────────────────────────────────────────────────── */}
-        <div style={{marginBottom:'20px'}}>
-          <div style={{display:'flex',alignItems:'baseline',gap:'10px',marginBottom:'3px'}}>
-            <div style={S.pageTitle}>Phase {ph}</div>
-            <div style={{fontSize:'14px',color:T.gold,fontWeight:500}}>{PHASE_NAMES[ph]}</div>
-          </div>
-          <div style={{display:'flex',gap:'16px',alignItems:'center',flexWrap:'wrap',marginBottom:'12px'}}>
-            <span style={{fontSize:'13px',color:T.textSub}}>{cur}{myBudget}M remaining · {myRoster.length}/{MAX_ROSTER} slots</span>
-            {win&&<Pill color={T.orange}>🔓 Free drops · <WindowTimer openedAt={cfg.phase_window_opened_at} short/></Pill>}
-          </div>
-          {(()=>{
-            const total=phaseAlloc(profile.id,ph),spent=total-myBudget,pct=Math.min(100,Math.round(spent/Math.max(1,total)*100))
-            const barCol=myBudget<20?T.red:myBudget<50?T.orange:T.gold
-            return(
-              <div>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'5px'}}>
-                  <div style={{fontSize:'10px',color:T.textDim,letterSpacing:'1.2px',textTransform:'uppercase'}}>Phase spend</div>
-                  <div style={{fontSize:'10px',color:T.textSub,fontFamily:T.mono}}>{cur}{spent}M / {cur}{total}M · {pct}%</div>
-                </div>
-                <div style={{height:'4px',background:T.border,borderRadius:'2px',overflow:'hidden'}}>
-                  <div style={{height:'100%',width:`${pct}%`,background:`linear-gradient(90deg,${barCol}88,${barCol})`,borderRadius:'2px',transition:'width .5s ease'}}/>
-                </div>
-              </div>
-            )
-          })()}
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'12px'}}>
+          <div style={S.pageTitle}>The Market</div>
+          <div style={{fontSize:'12px',color:T.textSub}}>{visible.length} films · Phase {ph}</div>
         </div>
-
-        <div style={{display:'flex',gap:'8px',marginBottom:'16px'}}>
-          <input value={marketSearch} onChange={e=>setMarketSearch(e.target.value)} placeholder="Search films…" style={{...S.inp,flex:1}}/>
-          <select value={marketGenre} onChange={e=>setMarketGenre(e.target.value)} style={{...S.inp,flex:'0 0 auto',width:'100px',fontSize:'12px'}}>
-            {genres.map(g=><option key={g} value={g}>{g}</option>)}
+        <div style={{background:T.surfaceUp,borderRadius:'12px',padding:'12px',marginBottom:'14px',display:'flex',gap:'8px',flexWrap:'wrap',alignItems:'center'}}>
+          <input value={marketSearch} onChange={e=>setMarketSearch(e.target.value)} placeholder="🔍 Search films or distributors…" style={{...S.inp,flex:'1 1 200px',minWidth:'160px',fontSize:'13px',padding:'10px 14px'}}/>
+          <select value={marketGenre} onChange={e=>setMarketGenre(e.target.value)} style={{...S.inp,width:'auto',fontSize:'12px',padding:'10px 14px'}}>
+            <option value="All">All genres</option>
+            {Object.keys(GENRE_COL).map(g=><option key={g}>{g}</option>)}
           </select>
         </div>
 
-        {/* ── FILM GRID ────────────────────────────────────────────────────── */}
-        <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(auto-fill,minmax(220px,1fr))',gap:'14px'}}>
+        <div className="film-grid" style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:'10px'}}>
           {visible.map(film=>{
-            const owned=myRoster.find(r=>r.film_id===film.id)
-            const val=filmVal(film),actual=results[film.id]
+            const actual=results[film.id]
+            const val=filmVal(film)
+            const owned=rosters.find(r=>r.player_id===profile.id&&r.film_id===film.id&&r.active)
+            const isPicked=allPicks.some(p=>p.film_id===film.id&&p.user_id===profile.id)
             const gc=GENRE_COL[film.genre]||T.textSub
-            const ipo=film.basePrice,diff=(filmValues[film.id]??ipo)-ipo
-            const op=actual!=null?calcOpeningPts(film,actual,owned?isEarlyBird(owned):false,analystOn(profile.id,film.id)):0
-            const wp=actual!=null?Math.round(calcWeeklyPts(weeklyG[film.id]||{})):0
-            const ownCount=rosters.filter(r=>r.film_id===film.id&&r.phase===ph&&r.active).length
-            const demandPct=players.length?Math.round(ownCount/players.length*100):0
-            const vel7=pickVelocity(film.id,allPicks,7)
-            const eb=owned&&isEarlyBird(owned)
             return(
-              <div key={film.id} className="hoverable film-card-tilt" style={{background:owned?`linear-gradient(155deg,${T.gold}14 0%,${T.surface} 55%)`:T.surface,border:`1px solid ${owned?T.gold+'55':T.border}`,borderRadius:'14px',overflow:'hidden',display:'flex',flexDirection:'column'}}>
-                <div style={{height:'3px',background:gc,flexShrink:0}}/>
-                {/* Poster */}
-                <div style={{position:'relative',cursor:'pointer',flexShrink:0}} onClick={()=>setFilmDetail(film)}>
-                  <FilmPoster film={film} width="100%" height={isMobile?160:210} radius={0} imgStyle={{width:'100%'}} tilt={false} owned={!!owned} scored={actual!=null}/>
-                  <div style={{position:'absolute',inset:0,background:'linear-gradient(to bottom,transparent 40%,rgba(13,10,8,0.96) 100%)'}}/>
-                  {/* Price overlay */}
-                  <div style={{position:'absolute',bottom:'10px',left:'12px'}}>
-                    <div style={{fontSize:'20px',fontWeight:800,color:owned?T.gold:T.text,lineHeight:1,fontFamily:T.mono}}>{cur}{val}M</div>
-                    {actual!=null
-                      ?<div style={{fontSize:'11px',color:T.green,marginTop:'2px',fontWeight:600}}>${actual}M actual · {op+(wp||0)}pts</div>
-                      :(()=>{
-                        // Early bird countdown — show if within 5 weeks of cutoff
-                        const weeksLeft=film.week-cfg.current_week
-                        const ebCutoff=EARLY_BIRD_WEEKS
-                        const isEbEligible=weeksLeft>=ebCutoff
-                        const almostExpired=weeksLeft===ebCutoff
-                        if(isEbEligible){
-                          return <div style={{fontSize:'11px',color:almostExpired?T.orange:T.green,marginTop:'2px',fontWeight:600}}>
-                            🐦 Early Bird{almostExpired?' — last week!':` · ${weeksLeft-ebCutoff+1}wk window`}
-                          </div>
-                        }
-                        return <div style={{fontSize:'11px',color:diff>0?T.green:diff<0?T.red:T.textSub,marginTop:'2px'}}>
-                          {diff===0?'—':diff>0?`▲ ${cur}${diff}`:`▼ ${cur}${Math.abs(diff)}`} IPO
-                        </div>
-                      })()
-                    }
-                  </div>
-                  {/* Top badges — only the most important ones */}
-                  <div style={{position:'absolute',top:'8px',right:'8px',display:'flex',flexDirection:'column',gap:'4px',alignItems:'flex-end'}}>
-                    {eb&&<Badge color={T.green}>🐦 early</Badge>}
-                    {film.sleeper&&!eb&&<Badge color={T.blue}>💤 sleeper</Badge>}
-                    {chips?.short_film_id===film.id&&<Badge color={T.red}>📉</Badge>}
-                    {chips?.analyst_film_id===film.id&&<Badge color={T.blue}>🎯</Badge>}
-                  </div>
-                  {/* Scored pts badge — top left, shown when owned and result is in */}
-                  {owned&&actual!=null&&(
-                    <div style={{position:'absolute',top:'8px',left:'8px',background:`${T.green}EE`,backdropFilter:'blur(4px)',borderRadius:'9px',padding:'4px 9px',fontSize:'12px',fontWeight:800,color:'#0D0A08',fontFamily:T.mono,lineHeight:1,boxShadow:'0 2px 8px #00000044'}}>
-                      +{op+(wp||0)}pts
-                    </div>
-                  )}
-                  {/* Demand badge — bottom right */}
-                  {demandPct>=25&&<div style={{position:'absolute',bottom:'10px',right:'10px'}}><Badge color={demandPct>=55?T.red:demandPct>=40?T.orange:T.gold}>{demandPct>=55?'🔥':demandPct>=40?'📈':''} {demandPct}%</Badge></div>}
+              <div key={film.id} className="film-card-tilt hoverable" onClick={()=>setFilmDetail(film)} style={{background:T.surface,border:`1px solid ${owned?T.gold+'66':T.border}`,borderRadius:'14px',overflow:'hidden',cursor:'pointer',position:'relative',display:'flex',flexDirection:'column'}}>
+                <div style={{position:'relative',width:'100%',aspectRatio:'2/3'}}>
+                  <FilmPoster film={film} width="100%" height="100%" radius={0} owned={!!owned}/>
+                  {owned&&<div style={{position:'absolute',top:'8px',right:'8px',background:T.gold,color:'#000',borderRadius:'4px',padding:'2px 6px',fontSize:'10px',fontWeight:700,fontFamily:T.mono}}>OWNED</div>}
+                  {actual!=null&&<div style={{position:'absolute',top:'8px',left:'8px',background:T.green,color:'#000',borderRadius:'4px',padding:'2px 6px',fontSize:'10px',fontWeight:700,fontFamily:T.mono}}>${actual}M</div>}
                 </div>
-
-                {/* Card body */}
-                <div style={{padding:'10px 12px 12px',flex:1,display:'flex',flexDirection:'column',gap:'8px'}}>
+                <div style={{padding:'10px 12px',flex:1,display:'flex',flexDirection:'column'}}>
                   <div>
-                    <div style={{fontSize:'13px',fontWeight:600,lineHeight:1.3,color:T.text}}>{film.title}</div>
+                    <div style={{fontSize:'13px',fontWeight:600,lineHeight:1.3,color:T.text,display:'flex',alignItems:'center',gap:'6px'}}>
+                      <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{film.title}</span>
+                      {/* Price change indicator — based on news signals in last 48h */}
+                      {actual==null&&(()=>{
+                        const cutoff=Date.now()-48*3600000
+                        const recent=news.filter(n=>n.film_id===film.id&&new Date(n.signal_date).getTime()>cutoff&&n.price_impact!=null)
+                        if(!recent.length)return null
+                        const move=recent.reduce((s,n)=>s+Number(n.price_impact),0)
+                        if(Math.abs(move)<2)return null
+                        return <span style={{fontSize:'10px',fontWeight:700,color:move>0?T.green:T.red,fontFamily:T.mono,flexShrink:0}}>{move>0?'▲':'▼'}{Math.abs(move).toFixed(0)}%</span>
+                      })()}
+                    </div>
                     <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px',display:'flex',gap:'6px',alignItems:'center',flexWrap:'wrap'}}>
                       <span>{film.dist}</span>
                       {film.rt!=null&&<><span style={{color:T.textDim}}>·</span><span style={{color:film.rt>=75?T.green:film.rt>=55?T.gold:T.red}}>RT {film.rt}%</span></>}
                     </div>
                   </div>
-
-                  {/* Buzz Index — composite signal */}
-                  {(()=>{
+                  {/* Buzz Index · limited to first 30 cards for perf */}
+                  {visible.indexOf(film)<30&&(()=>{
                     const buzz=calcBuzzIndex({...film,hasResult:actual!=null},allPicks,news,rosters,players.length,cfg.current_week,val)
                     if(buzz==null)return null
-                    const buzzCol=buzz>=70?T.red:buzz>=50?T.orange:buzz>=30?T.gold:T.textSub
-                    const buzzLabel=buzz>=70?'PEAK':buzz>=50?'Heating':buzz>=30?'Building':'Quiet'
                     return(
-                      <div style={{display:'flex',alignItems:'center',gap:'8px',padding:'7px 10px',background:`${buzzCol}11`,border:`1px solid ${buzzCol}33`,borderRadius:'9px'}}>
-                        <span style={{fontSize:'10px',color:T.textDim,letterSpacing:'1.5px',textTransform:'uppercase',flexShrink:0}}>Buzz</span>
-                        <div style={{flex:1,height:'4px',background:T.border,borderRadius:'2px',overflow:'hidden'}}>
-                          <div style={{height:'100%',width:`${buzz}%`,background:`linear-gradient(90deg,${buzzCol}88,${buzzCol})`,borderRadius:'2px',transition:'width .4s ease'}}/>
+                      <div style={{display:'flex',alignItems:'center',gap:'4px',marginTop:'6px',fontSize:'10px'}}>
+                        <span style={{color:T.textDim,letterSpacing:'1px'}}>BUZZ</span>
+                        <div style={{flex:1,height:'3px',background:T.border,borderRadius:'2px',overflow:'hidden'}}>
+                          <div style={{width:`${buzz}%`,height:'100%',background:buzz>=70?T.red:buzz>=50?T.orange:T.gold}}/>
                         </div>
-                        <span style={{fontSize:'13px',fontWeight:800,color:buzzCol,fontFamily:T.mono,minWidth:'28px',textAlign:'right'}}>{buzz}</span>
-                        <span style={{fontSize:'9px',color:buzzCol,fontWeight:700,letterSpacing:'0.5px',textTransform:'uppercase'}}>{buzzLabel}</span>
+                        <span style={{color:buzz>=70?T.red:buzz>=50?T.orange:T.gold,fontWeight:700,fontFamily:T.mono}}>{buzz}</span>
                       </div>
                     )
                   })()}
-
-                  {/* Estimate vs price — the key gameplay decision */}
-                  <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
-                    <div style={{background:T.surfaceUp,borderRadius:'8px',padding:'5px 10px',flex:1,textAlign:'center'}}>
-                      <div style={{fontSize:'9px',color:T.textDim,letterSpacing:'1px',textTransform:'uppercase',marginBottom:'2px'}}>Est</div>
-                      <div style={{fontSize:'13px',fontWeight:700,color:T.text,fontFamily:T.mono}}>${film.estM}M</div>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:'8px'}}>
+                    <div>
+                      <div style={S.label}>Price</div>
+                      <div style={{fontSize:'15px',fontWeight:800,color:T.gold,fontFamily:T.mono}}>${val}M</div>
                     </div>
-                    <div style={{fontSize:'16px',color:T.textDim}}>→</div>
-                    <div style={{background:T.surfaceUp,borderRadius:'8px',padding:'5px 10px',flex:1,textAlign:'center'}}>
-                      <div style={{fontSize:'9px',color:T.textDim,letterSpacing:'1px',textTransform:'uppercase',marginBottom:'2px'}}>Price</div>
-                      <div style={{fontSize:'13px',fontWeight:700,color:owned?T.gold:T.text,fontFamily:T.mono}}>${val}M</div>
-                    </div>
-                    {/* Value ratio pill — green if cheap vs estimate, red if expensive */}
-                    {(()=>{
-                      const ratio=val/film.estM
-                      const col=ratio<0.6?T.green:ratio<0.85?T.gold:ratio>1.2?T.red:T.textSub
-                      const label=ratio<0.6?'cheap':ratio<0.85?'fair':ratio>1.2?'pricey':'—'
-                      return <div style={{fontSize:'10px',color:col,background:`${col}18`,padding:'3px 8px',borderRadius:'8px',fontWeight:600,whiteSpace:'nowrap'}}>{label}</div>
-                    })()}
-                  </div>
-
-                  {/* Price history sparkline */}
-                  {rosters.filter(r=>r.film_id===film.id).length>0&&(
-                    <div style={{display:'flex',alignItems:'center',gap:'8px',padding:'6px 8px',background:T.surfaceUp,borderRadius:'8px'}}>
-                      <div style={{fontSize:'9px',color:T.textDim,letterSpacing:'1px',textTransform:'uppercase',flexShrink:0}}>Price history</div>
-                      <div style={{flex:1}}><PriceSparkline film={film} rosters={rosters} filmValues={filmValues} width={isMobile?60:80} height={18}/></div>
-                      <div style={{fontSize:'9px',color:T.textDim,flexShrink:0}}>IPO ${film.basePrice}M</div>
-                    </div>
-                  )}
-
-                  {/* Single action row */}
-                  <div style={{display:'flex',gap:'6px',marginTop:'auto'}}>
-                    <button onClick={()=>setFilmDetail(film)} style={{...S.btn,background:T.surfaceUp,color:T.textSub,fontSize:'12px',padding:'8px 10px',flex:'0 0 auto',textTransform:'none',letterSpacing:0,gap:'4px'}}>
-                      {actual!=null?'📊':'💬'}
-                    </button>
-                    {film.trailer?.length>5&&<button onClick={e=>{e.stopPropagation();setTrailerFilm(film)}} style={{...S.btn,background:T.surfaceUp,color:T.textSub,fontSize:'13px',padding:'8px 10px',flex:'0 0 auto'}}>▶</button>}
-                    {owned
-                      ?<Btn onClick={()=>sellFilm(film)} variant="outline" color={T.red} sx={{flex:1}} size="sm">Drop{win?' FREE':''}</Btn>
-                      :<Btn onClick={()=>buyFilm(film)} color={T.gold} sx={{flex:1}} size="sm">Buy · {cur}{val}M</Btn>
-                    }
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-          {visible.length===0&&<div style={{gridColumn:'1/-1',...S.card,textAlign:'center',padding:'48px',color:T.textSub}}>No films match your search.</div>}
-        </div>
-      </div>
-    )
-  }
-
-  const RosterPage=()=>{
-    const totalPts=calcPhasePoints(profile.id,ph)
-    const projectedPts=myRoster.reduce((s,h)=>{
-      const film=films.find(f=>f.id===h.film_id);if(!film)return s
-      // rough projection: estM as actual
-      const proj=calcOpeningPts(film,film.estM,isEarlyBird(h),analystOn(profile.id,film.id))
-      return s+proj
-    },0)
-    return(
-    <div>
-      <div style={S.pageTitle}>My Roster</div>
-      <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px',marginBottom:'16px'}}>Phase {ph} · {PHASE_NAMES[ph]}</div>
-
-      {/* Phase summary bar */}
-      <div style={{display:'flex',gap:'8px',marginBottom:'20px'}}>
-        <div style={{flex:1,background:T.surfaceUp,borderRadius:'12px',padding:'12px 14px'}}>
-          <div style={S.label}>Budget left</div>
-          <div style={{fontSize:'22px',fontWeight:900,color:myBudget<20?T.red:T.green,fontFamily:T.mono,marginTop:'3px'}}>{cur}{myBudget}M</div>
-          <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>{myRoster.length}/{MAX_ROSTER} slots used</div>
-        </div>
-        <div style={{flex:1,background:T.surfaceUp,borderRadius:'12px',padding:'12px 14px'}}>
-          <div style={S.label}>Phase pts</div>
-          <div style={{fontSize:'22px',fontWeight:900,color:T.gold,fontFamily:T.mono,marginTop:'3px'}}><CountUp value={totalPts}/></div>
-          {myRoster.filter(h=>!results[h.film_id]).length>0&&<div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>~{projectedPts} projected</div>}
-        </div>
-        {phaseBanked(profile.id,ph)>0&&(
-          <div style={{flex:1,background:T.surfaceUp,borderRadius:'12px',padding:'12px 14px'}}>
-            <div style={S.label}>Banked</div>
-            <div style={{fontSize:'22px',fontWeight:900,color:T.orange,fontFamily:T.mono,marginTop:'3px'}}>{cur}{phaseBanked(profile.id,ph)}M</div>
-            <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>from last phase</div>
-          </div>
-        )}
-      </div>
-
-      {/* Phase tabs */}
-      <div style={{display:'flex',gap:'6px',marginBottom:'20px',overflowX:'auto',paddingBottom:'2px'}}>
-        {[1,2,3,4,5].map(p=>{
-          const pts=calcPhasePoints(profile.id,p)
-          const nr=rosters.filter(r=>r.player_id===profile.id&&r.phase===p&&films.find(f=>f.id===r.film_id)).length
-          return(
-            <div key={p} style={{background:p===ph?`${T.gold}18`:T.surfaceUp,border:`1px solid ${p===ph?T.gold+'55':T.border}`,borderRadius:'10px',padding:'10px 14px',textAlign:'center',flexShrink:0,minWidth:'60px'}}>
-              <div style={{...S.label,color:p===ph?T.gold:T.textDim,marginBottom:'4px'}}>PH{p}</div>
-              <div style={{fontSize:'16px',fontWeight:700,color:p===ph?T.gold:pts>0?T.text:T.textDim}}>{pts||'—'}</div>
-              <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>{nr} films</div>
-            </div>
-          )
-        })}
-      </div>
-
-      {myRoster.length===0
-        ?<div style={{...S.card,textAlign:'center',padding:'48px 24px'}}>
-          <div style={{fontSize:'32px',marginBottom:'12px'}}>🎬</div>
-          <div style={{fontSize:'14px',color:T.textSub}}>No films this phase.</div>
-          <div style={{fontSize:'12px',color:T.textDim,marginTop:'6px'}}>Head to Market to acquire.</div>
-        </div>
-        :<div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(auto-fill,minmax(340px,1fr))',gap:'10px'}}>
-          {myRoster.map(h=>{
-            const film=films.find(f=>f.id===h.film_id);if(!film)return null
-            const val=filmVal(film),actual=results[film.id],pnl=val-h.bought_price
-            const gc=GENRE_COL[film.genre]||T.textSub
-            const wp=actual!=null?Math.round(calcWeeklyPts(weeklyG[film.id]||{})):0
-            const eb=isEarlyBird(h),ao=analystOn(profile.id,film.id),au=auteurOn(profile.id,film.id)
-            let op=actual!=null?calcOpeningPts(film,actual,eb,ao):0;if(au&&actual!=null)op=Math.round(op*1.1)
-            const lb=calcLegsBonus(actual,weeklyG[film.id]?.[2]),wb=wwBonus(film.id),sb=shortBonus(profile.id,film.id)
-            const total=op+wp+lb+wb+sb
-            // Weeks until release
-            const weeksToRelease=film.week-cfg.current_week
-            const hasResult=actual!=null
-            const sellProceeds=Math.max(0,val-(win?0:cfg.tx_fee))
-            const sellLoss=sellProceeds-h.bought_price
-            return(
-              <div key={h.id} className="hoverable" style={{...S.card,display:'flex',gap:'14px',alignItems:'flex-start',cursor:hasResult?'pointer':'default',padding:'14px'}} onClick={()=>hasResult&&setScoreModal({film,holding:h})}>
-                <div style={{position:'relative',flexShrink:0}}>
-                  <FilmPoster film={film} width={60} height={90} radius={9}/>
-                  <div style={{position:'absolute',top:0,left:0,right:0,height:'3px',background:gc,borderRadius:'9px 9px 0 0'}}/>
-                  {/* Week countdown badge */}
-                  {!hasResult&&weeksToRelease>0&&(
-                    <div style={{position:'absolute',bottom:'-6px',left:'50%',transform:'translateX(-50%)',background:T.surface,border:`1px solid ${T.border}`,borderRadius:'8px',padding:'2px 6px',fontSize:'9px',color:T.textSub,whiteSpace:'nowrap',fontWeight:600}}>W{film.week}</div>
-                  )}
-                  {hasResult&&(
-                    <div style={{position:'absolute',bottom:'-6px',left:'50%',transform:'translateX(-50%)',background:T.green,borderRadius:'8px',padding:'2px 6px',fontSize:'9px',color:'#0D0A08',whiteSpace:'nowrap',fontWeight:700}}>SCORED</div>
-                  )}
-                </div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:'14px',fontWeight:700,marginBottom:'2px',lineHeight:1.3}}>{film.title}</div>
-                  <div style={{fontSize:'11px',color:T.textSub,marginBottom:'10px'}}>{film.dist} · Est ${film.estM}M</div>
-
-                  {hasResult?(
-                    // Post-result: show pts breakdown
-                    <div style={{display:'flex',gap:'12px',flexWrap:'wrap',marginBottom:'8px'}}>
-                      <div><div style={S.label}>Actual</div><div style={{fontSize:'14px',fontWeight:700,color:T.green,marginTop:'2px'}}>${actual}M</div></div>
-                      <div><div style={S.label}>Ratio</div><div style={{fontSize:'14px',fontWeight:700,color:actual/film.estM>=1?T.green:T.red,marginTop:'2px'}}>{(actual/film.estM).toFixed(2)}×</div></div>
-                      <div><div style={S.label}>Points</div><div style={{fontSize:'18px',fontWeight:900,color:T.gold,marginTop:'2px',fontFamily:T.mono}}>{total}</div></div>
-                    </div>
-                  ):(
-                    // Pre-result: show paid vs current value + sell info
-                    <div style={{marginBottom:'8px'}}>
-                      <div style={{display:'flex',gap:'12px',flexWrap:'wrap',marginBottom:'6px'}}>
-                        <div><div style={S.label}>Paid</div><div style={{fontSize:'14px',fontWeight:600,marginTop:'2px'}}>{cur}{h.bought_price}M</div></div>
-                        <div><div style={S.label}>Now</div><div style={{fontSize:'14px',fontWeight:600,color:pnl>=0?T.green:T.red,marginTop:'2px'}}>{cur}{val}M</div></div>
-                        <div><div style={S.label}>P&L</div><div style={{fontSize:'14px',fontWeight:700,color:pnl>=0?T.green:T.red,marginTop:'2px'}}>{pnl>=0?'+':''}{pnl}M</div></div>
-                        {weeksToRelease>0&&<div><div style={S.label}>Opens</div><div style={{fontSize:'14px',fontWeight:600,color:eb?T.green:T.textSub,marginTop:'2px'}}>Wk {film.week}</div></div>}
-                      </div>
-                      {/* Sell warning — show if selling at a loss */}
-                      {sellLoss<0&&!win&&(
-                        <div style={{fontSize:'11px',color:T.red,background:`${T.red}10`,border:`1px solid ${T.red}22`,borderRadius:'7px',padding:'5px 9px'}}>
-                          ⚠️ Selling now returns {cur}{sellProceeds}M — {cur}{Math.abs(sellLoss)}M loss
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div style={{display:'flex',gap:'5px',flexWrap:'wrap',alignItems:'center'}}>
-                    {eb&&<Badge color={T.green}>🐦 early bird</Badge>}
-                    {ao&&<Badge color={T.blue}>🎯 +60</Badge>}
-                    {au&&<Badge color={T.orange}>🎭 +10%</Badge>}
-                    {hasResult&&<span style={{fontSize:'11px',color:T.textDim}}>tap for breakdown →</span>}
+                    {!owned&&actual==null&&<Btn onClick={e=>{e.stopPropagation();buyFilm(film)}} color={T.gold} size="sm">Buy</Btn>}
+                    {owned&&actual==null&&<Btn onClick={e=>{e.stopPropagation();sellFilm(film)}} color={T.red} textColor="#fff" size="sm">Sell</Btn>}
                   </div>
                 </div>
               </div>
             )
           })}
         </div>
-      }
-    </div>
-  )}
-
-  const ChipsPage=()=>{
-    const myAuteur=auteurDecl.find(a=>a.player_id===profile.id&&a.phase===ph)
-    const CHIP_DEFS=[
-      {
-        key:'recut',icon:'🎬',label:'THE RECUT',
-        tagline:'Nuclear option',
-        desc:'Wipe your entire roster instantly — zero fees, full refund at market value. Use when you need to start over.',
-        stakes:'Clears all films · Fees waived · Cannot be undone',
-        used:recutUsed,col:T.purple,
-        usedLabel:'Used this season',
-        action:activateRecut
-      },
-      {
-        key:'short',icon:'📉',label:'THE SHORT',
-        tagline:'Call the bomb',
-        desc:'Bet against a film. If it opens below 60% of estimate you pocket +100pts. If it overperforms, you lose 30pts.',
-        stakes:'+100pts if correct · −30pts if wrong · One per season',
-        used:shortUsed,col:T.red,
-        usedLabel:chips?.short_result==='win'?'✅ Won +100pts':chips?.short_result==='lose'?'❌ Lost −30pts':`Active · ${films.find(f=>f.id===chips?.short_film_id)?.title||''}`,
-        action:()=>setChipModal('short')
-      },
-      {
-        key:'analyst',icon:'🎯',label:'THE ANALYST',
-        tagline:'Precision prediction',
-        desc:'Predict a film you own opens within ±10% of your number. Nail it and earn a flat +60pts bonus on top of everything else.',
-        stakes:'+60pts if within 10% · Must own the film · One per season',
-        used:analystUsed,col:T.blue,
-        usedLabel:chips?.analyst_result==='win'?'✅ Won +60pts':chips?.analyst_result==='lose'?'❌ Missed':`Active · ${films.find(f=>f.id===chips?.analyst_film_id)?.title||''}`,
-        action:()=>setChipModal('analyst')
-      },
-    ]
-    const chipsUsed=[recutUsed,shortUsed,analystUsed,!!myAuteur].filter(Boolean).length
-    return(
-      <div>
-        <div style={{marginBottom:'28px'}}>
-          <div style={S.pageTitle}>⚡ Chips</div>
-          <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px'}}>One of each per season · use wisely</div>
-          <div style={{display:'flex',gap:'6px',marginTop:'14px'}}>
-            {[recutUsed,shortUsed,analystUsed,!!myAuteur].map((used,i)=>(
-              <div key={i} style={{width:'44px',height:'5px',borderRadius:'3px',background:used?[T.purple,T.red,T.blue,T.orange][i]:T.border,transition:'background .3s'}}/>
-            ))}
-            <div style={{fontSize:'11px',color:T.textDim,alignSelf:'center',marginLeft:'6px'}}>{chipsUsed}/4 used</div>
-          </div>
-        </div>
-
-        {CHIP_DEFS.map(({key,icon,label,tagline,desc,stakes,used,col,usedLabel,action})=>(
-          <div key={key} style={{marginBottom:'16px',position:'relative',overflow:'hidden',borderRadius:'16px',border:`1px solid ${used?T.border:col+'55'}`,background:used?T.surface:`linear-gradient(135deg,${col}08 0%,${T.surface} 60%)`,transition:'all .2s'}}>
-            {!used&&<div style={{position:'absolute',top:0,left:0,right:0,height:'3px',background:`linear-gradient(90deg,${col},${col}44)`}}/>}
-            <div style={{padding:'20px 20px 16px'}}>
-              <div style={{display:'flex',alignItems:'flex-start',gap:'16px',marginBottom:'14px'}}>
-                <div style={{fontSize:'36px',lineHeight:1,flexShrink:0,filter:used?'grayscale(1) opacity(0.4)':'none'}}>{icon}</div>
-                <div style={{flex:1}}>
-                  <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'4px',flexWrap:'wrap'}}>
-                    <div style={{fontSize:'17px',fontWeight:800,color:used?T.textSub:col,letterSpacing:'0.5px'}}>{label}</div>
-                    <div style={{fontSize:'10px',color:used?T.textDim:col,background:used?T.surfaceUp:`${col}18`,padding:'2px 8px',borderRadius:'20px',fontWeight:600,textTransform:'uppercase',letterSpacing:'1px'}}>{used?'USED':tagline}</div>
-                  </div>
-                  <div style={{fontSize:'13px',color:used?T.textDim:T.textSub,lineHeight:1.6,marginBottom:'10px'}}>{desc}</div>
-                  <div style={{fontSize:'11px',color:used?T.textDim:col,fontWeight:500,opacity:0.8}}>{used?usedLabel:stakes}</div>
-                </div>
-              </div>
-              {!used&&<Btn onClick={action} color={col} textColor={col===T.gold?'#0D0A08':'#fff'} full size="lg">
-                Activate {label} →
-              </Btn>}
-            </div>
-          </div>
-        ))}
-
-        {/* Auteur — special card */}
-        <div style={{marginBottom:'24px',position:'relative',overflow:'hidden',borderRadius:'16px',border:`1px solid ${myAuteur?T.border:T.orange+'55'}`,background:myAuteur?T.surface:`linear-gradient(135deg,${T.orange}08 0%,${T.surface} 60%)`}}>
-          {!myAuteur&&<div style={{position:'absolute',top:0,left:0,right:0,height:'3px',background:`linear-gradient(90deg,${T.orange},${T.orange}44)`}}/>}
-          <div style={{padding:'20px 20px 16px'}}>
-            <div style={{display:'flex',alignItems:'flex-start',gap:'16px',marginBottom:'14px'}}>
-              <div style={{fontSize:'36px',lineHeight:1,flexShrink:0,filter:myAuteur?'grayscale(0.3)':'none'}}>🎭</div>
-              <div style={{flex:1}}>
-                <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'4px',flexWrap:'wrap'}}>
-                  <div style={{fontSize:'17px',fontWeight:800,color:myAuteur?T.gold:T.orange,letterSpacing:'0.5px'}}>THE AUTEUR</div>
-                  <div style={{fontSize:'10px',color:myAuteur?T.gold:T.orange,background:myAuteur?`${T.gold}18`:`${T.orange}18`,padding:'2px 8px',borderRadius:'20px',fontWeight:600,textTransform:'uppercase',letterSpacing:'1px'}}>{myAuteur?'ACTIVE':'Star power'}</div>
-                </div>
-                <div style={{fontSize:'13px',color:T.textSub,lineHeight:1.6,marginBottom:'10px'}}>Declare 2+ films sharing the same star actor. Each film earns +10% on top of its opening points — the more films the bigger the multiplier.</div>
-                {myAuteur
-                  ?<div style={{background:`${T.orange}12`,border:`1px solid ${T.orange}33`,borderRadius:'10px',padding:'10px 14px'}}>
-                    <div style={{fontSize:'12px',color:T.orange,fontWeight:600,marginBottom:'4px'}}>⭐ {myAuteur.star_actor}</div>
-                    <div style={{fontSize:'11px',color:T.textSub}}>{myAuteur.film_ids.length} films declared · +10% opening pts each</div>
-                  </div>
-                  :<div style={{fontSize:'11px',color:T.orange,fontWeight:500,opacity:0.8}}>+10% opening pts per film · 2+ films required · Updatable anytime</div>
-                }
-              </div>
-            </div>
-            <Btn onClick={()=>setChipModal('auteur')} color={myAuteur?T.surfaceUp:T.orange} textColor={myAuteur?T.textSub:'#0D0A08'} variant={myAuteur?'outline':'solid'} full size="lg">
-              {myAuteur?'Update Auteur Declaration →':'Declare Auteur →'}
-            </Btn>
-          </div>
-        </div>
-
-        {/* League chip activity */}
-        {allChips.filter(c=>c.player_id!==profile.id&&(c.short_film_id||c.analyst_film_id)).length>0&&(
-          <div>
-            <div style={{...S.label,marginBottom:'12px'}}>League Chip Activity</div>
-            {allChips.filter(c=>c.player_id!==profile.id).map(c=>{
-              const p=players.find(pl=>pl.id===c.player_id)
-              return(
-                <div key={c.id} style={{display:'flex',gap:'8px',flexWrap:'wrap',marginBottom:'8px'}}>
-                  {c.short_film_id&&<div style={{background:T.surfaceUp,border:`1px solid ${T.border}`,borderRadius:'10px',padding:'8px 14px',fontSize:'12px',display:'flex',gap:'8px',alignItems:'center'}}>
-                    <span style={{color:T.red}}>📉</span>
-                    <span style={{color:p?.color||T.gold,fontWeight:600}}>{p?.name}</span>
-                    <span style={{color:T.textSub}}>shorted {films.find(f=>f.id===c.short_film_id)?.title}</span>
-                    {c.short_result&&<span style={{color:c.short_result==='win'?T.green:T.red,fontWeight:700}}>{c.short_result==='win'?'✅ +100':'-30'}</span>}
-                  </div>}
-                  {c.analyst_film_id&&<div style={{background:T.surfaceUp,border:`1px solid ${T.border}`,borderRadius:'10px',padding:'8px 14px',fontSize:'12px',display:'flex',gap:'8px',alignItems:'center'}}>
-                    <span style={{color:T.blue}}>🎯</span>
-                    <span style={{color:p?.color||T.gold,fontWeight:600}}>{p?.name}</span>
-                    <span style={{color:T.textSub}}>analyst on {films.find(f=>f.id===c.analyst_film_id)?.title}</span>
-                    {c.analyst_result&&<span style={{color:c.analyst_result==='win'?T.green:T.red,fontWeight:700}}>{c.analyst_result==='win'?'✅ +60':'❌'}</span>}
-                  </div>}
-                </div>
-              )
-            })}
-          </div>
-        )}
+        {visible.length===0&&<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No films match your filters.</div>}
       </div>
     )
   }
 
-  const HowToPlayPage=()=>{
-    const[openSection,setOpenSection]=useState('premise')
-    const PHASE_COLS_HTP={1:T.blue,2:T.orange,3:T.purple,4:T.gold,5:T.gold}
-    const Section=({id,icon,title,children})=>{
-      const isOpen=openSection===id
-      return(
-        <div style={{background:T.surface,border:`1px solid ${isOpen?T.gold+'44':T.border}`,borderRadius:'14px',marginBottom:'10px',overflow:'hidden',transition:'border-color .2s'}}>
-          <button onClick={()=>setOpenSection(isOpen?null:id)} style={{...S.btn,width:'100%',background:'none',border:'none',display:'flex',alignItems:'center',gap:'12px',padding:'16px 18px',textTransform:'none',letterSpacing:0,color:T.text,fontSize:'14px',fontWeight:700,borderRadius:0,justifyContent:'flex-start'}}>
-            <span style={{fontSize:'18px',lineHeight:1,flexShrink:0}}>{icon}</span>
-            <span style={{flex:1,textAlign:'left'}}>{title}</span>
-            <span style={{color:isOpen?T.gold:T.textDim,transition:'transform .2s',display:'inline-block',transform:isOpen?'rotate(180deg)':'rotate(0)',fontSize:'16px'}}>▾</span>
-          </button>
-          {isOpen&&(
-            <div style={{padding:'0 18px 20px',animation:'fadeUp .15s ease'}}>
-              <div style={{height:'1px',background:T.border,marginBottom:'16px'}}/>
-              {children}
-            </div>
-          )}
-        </div>
-      )
-    }
-    const Rule=({icon,title,desc,color=T.gold})=>(
-      <div style={{display:'flex',gap:'12px',padding:'10px 0',borderBottom:`1px solid ${T.border}`}}>
-        <span style={{fontSize:'18px',flexShrink:0,lineHeight:1.6}}>{icon}</span>
-        <div><div style={{fontSize:'13px',fontWeight:600,color,marginBottom:'3px'}}>{title}</div><div style={{fontSize:'12px',color:T.textSub,lineHeight:1.7}}>{desc}</div></div>
+
+  // ── ROSTER PAGE ──────────────────────────────────────────────────────────
+  const RosterPage=()=>(
+    <div style={{animation:'fadeUp .2s ease'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'14px'}}>
+        <div style={S.pageTitle}>Your Roster</div>
+        <div style={{fontSize:'12px',color:T.textSub}}>{myRoster.length}/{MAX_ROSTER} · {cur}{myBudget}M left</div>
       </div>
-    )
-    return(
-      <div>
-        {/* Hero */}
-        <div style={{marginBottom:'24px'}}>
-          <div style={S.pageTitle}>How to Play</div>
-          <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px'}}>Everything you need to beat your league</div>
-        </div>
-        <div style={{background:`linear-gradient(135deg,${T.gold}14,${T.surface})`,border:`1px solid ${T.gold}44`,borderRadius:'16px',padding:'20px 24px',marginBottom:'20px',display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'16px',textAlign:'center'}}>
-          {[['6','Max films per phase'],['5','Phases per season'],['4','Chips available']].map(([n,l])=>(
-            <div key={l}>
-              <div style={{fontSize:'34px',fontWeight:900,color:T.gold,fontFamily:T.mono,lineHeight:1}}>{n}</div>
-              <div style={{fontSize:'11px',color:T.textSub,marginTop:'5px',lineHeight:1.4}}>{l}</div>
-            </div>
-          ))}
-        </div>
-
-        <Section id="premise" icon="🎬" title="The Premise">
-          <div style={{fontSize:'13px',color:T.textSub,lineHeight:1.8,marginBottom:'12px'}}>BOXD is a fantasy league where your portfolio is film. You use a seasonal budget to acquire films before their opening weekends, earn points based on how they perform vs pre-release estimates, and compete against your league across 5 phases of the calendar year.</div>
-          <div style={{background:T.surfaceUp,borderRadius:'12px',padding:'14px 16px'}}>
-            <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.8}}>Unlike fantasy sport, you're not just picking winners — you're identifying <span style={{color:T.gold,fontWeight:700}}>mispriced films</span>. An unknown that doubles its estimate earns more than a blockbuster that merely meets expectations. Read the market, time your picks, use your chips wisely.</div>
-          </div>
-        </Section>
-
-        <Section id="phases" icon="📅" title="The 5 Phases">
-          <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px',lineHeight:1.7}}>Each phase covers a distinct box office window with its own budget allocation. Films belong to their phase — you can only buy Phase 2 films during Phase 2. Unspent budget banks automatically and carries over to the next phase.</div>
-          <div style={{display:'flex',flexDirection:'column',gap:'6px',marginBottom:'14px'}}>
-            {[1,2,3,4,5].map(p=>{
-              const col=PHASE_COLS_HTP[p],isCur=p===ph
-              return(
-                <div key={p} style={{display:'flex',alignItems:'center',gap:'12px',padding:'10px 14px',background:isCur?`${col}14`:T.surfaceUp,borderRadius:'10px',border:`1px solid ${isCur?col+'44':T.border}`}}>
-                  <div style={{width:'26px',height:'26px',borderRadius:'50%',background:`${col}22`,border:`2px solid ${col}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',fontWeight:900,color:col,flexShrink:0}}>{p}</div>
-                  <div style={{flex:1,fontSize:'13px',fontWeight:600}}>{PHASE_NAMES[p]}</div>
-                  <div style={{fontSize:'15px',fontWeight:800,color:col,fontFamily:T.mono}}>${PHASE_BUDGETS[p]}M</div>
-                  {isCur&&<span style={{fontSize:'10px',background:col,color:'#0D0A08',padding:'2px 8px',borderRadius:'8px',fontWeight:700}}>NOW</span>}
-                </div>
-              )
-            })}
-          </div>
-          <div style={{fontSize:'11px',color:T.textDim,lineHeight:1.7}}>You can hold up to <strong style={{color:T.text}}>{MAX_ROSTER} films per phase</strong>. Selling costs ${cfg.tx_fee||5}M in transaction fees outside the free trade window.</div>
-        </Section>
-
-        <Section id="scoring" icon="🏆" title="How Scoring Works">
-          <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px',lineHeight:1.7}}>Points are calculated each Monday after box office results come in. The formula rewards outperformance — a film doing 2× its estimate scores dramatically more than one that just meets it.</div>
-          <div style={{background:T.surfaceUp,borderRadius:'12px',padding:'14px 16px',marginBottom:'14px'}}>
-            <div style={{...S.label,marginBottom:'10px'}}>Opening Points: actual$M × perf × RT</div>
-            <div style={{display:'flex',flexDirection:'column',gap:'7px'}}>
-              {[
-                ['≥ 2× estimate','×2.0','🔥',T.green],
-                ['1.5–2× estimate','×1.6','💪',T.green],
-                ['1.1–1.5× estimate','×1.15–1.35','✅',T.gold],
-                ['~estimate (±5%)','×1.0','➡️',T.textSub],
-                ['0.8–0.95× estimate','×0.85','📉',T.orange],
-                ['Under 0.6× estimate','×0.45–0.65','💀',T.red],
-              ].map(([range,mult,icon,col])=>(
-                <div key={range} style={{display:'flex',alignItems:'center',gap:'10px',fontSize:'12px'}}>
-                  <span style={{flexShrink:0,fontSize:'14px'}}>{icon}</span>
-                  <span style={{flex:1,color:T.textSub}}>{range}</span>
-                  <span style={{color:col,fontFamily:T.mono,fontWeight:700,minWidth:'60px',textAlign:'right'}}>{mult}</span>
-                </div>
-              ))}
+      {myRoster.length===0?<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No films yet. Head to the Market.</div>:myRoster.map(h=>{
+        const film=films.find(f=>f.id===h.film_id);if(!film)return null
+        const actual=results[film.id]
+        const eb=isEarlyBird(h)
+        let op=actual!=null?calcOpeningPts(film,actual,eb,analystOn(profile.id,film.id)):0
+        if(auteurOn(profile.id,film.id))op=Math.round(op*1.1)
+        const wp=Math.round(calcWeeklyPts(weeklyG[film.id]||{}))
+        const lb=calcLegsBonus(actual,weeklyG[film.id]?.[2])
+        const wb=wwBonus(film.id),sb=shortBonus(profile.id,film.id)
+        const total=op+wp+lb+wb+sb
+        return(
+          <div key={h.id} className="hoverable" onClick={()=>setScoreModal({film,holding:h})} style={{...S.card,marginBottom:'10px',cursor:'pointer'}}>
+            <div style={{display:'flex',gap:'12px'}}>
+              <FilmPoster film={film} width={50} height={75} radius={7}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:'14px',fontWeight:700,marginBottom:'4px'}}>{film.title}</div>
+                <div style={{fontSize:'11px',color:T.textSub,marginBottom:'8px'}}>{film.dist} · W{film.week} · Bought ${h.bought_price}M{eb&&' · 🐦 EB'}</div>
+                {actual!=null?<div style={{display:'flex',gap:'10px',alignItems:'baseline'}}>
+                  <span style={{fontSize:'10px',color:T.textDim,letterSpacing:'1.5px'}}>SCORED</span>
+                  <span style={{fontSize:'20px',fontWeight:900,color:T.gold,fontFamily:T.mono}}>{total}pts</span>
+                </div>:<div style={{display:'flex',gap:'10px',alignItems:'baseline'}}>
+                  <span style={{fontSize:'10px',color:T.textDim,letterSpacing:'1.5px'}}>VALUE</span>
+                  <span style={{fontSize:'18px',fontWeight:800,color:T.gold,fontFamily:T.mono}}>${filmVal(film)}M</span>
+                  <span style={{fontSize:'11px',color:filmVal(film)>h.bought_price?T.green:filmVal(film)<h.bought_price?T.red:T.textSub,fontFamily:T.mono}}>{filmVal(film)>h.bought_price?'+':''}{filmVal(film)-h.bought_price}M</span>
+                </div>}
+              </div>
+              {actual==null&&<Btn onClick={e=>{e.stopPropagation();sellFilm(film)}} color={T.red} textColor="#fff" size="sm" sx={{alignSelf:'center'}}>Sell</Btn>}
             </div>
           </div>
-          <div style={{background:T.surfaceUp,borderRadius:'12px',padding:'14px 16px',marginBottom:'14px'}}>
-            <div style={{...S.label,marginBottom:'10px'}}>Rotten Tomatoes Multiplier</div>
-            {[['90%+ critic score','×1.25',T.green],['75–89%','×1.1',T.gold],['50–74%','×1.0 (no change)',T.textSub],['Under 50%','×0.85',T.red]].map(([range,mult,col])=>(
-              <div key={range} style={{display:'flex',justifyContent:'space-between',fontSize:'12px',padding:'4px 0',borderBottom:`1px solid ${T.border}`}}>
-                <span style={{color:T.textSub}}>{range}</span>
-                <span style={{color:col,fontFamily:T.mono,fontWeight:700}}>{mult}</span>
-              </div>
-            ))}
-          </div>
-          <Rule icon="📅" title="Weekly Grosses (W2+)" desc="Earn 1pt per $1M each week your film stays in cinemas. Week 4+ earns ×1.1. Entered by the commissioner each Monday." color={T.blue}/>
-          <Rule icon="🦵" title="Legs Bonus +25pts" desc="If your film's Week 2 drop is less than 30% from opening, it earns the 'legs' bonus. Rewards audience favourites over front-loaded blockbusters." color={T.green}/>
-          <Rule icon="🥇" title="Weekend Winner +15pts" desc="The highest-grossing film on any given opening weekend earns its owner +15pts extra. Always worth tracking the competition." color={T.gold}/>
-        </Section>
-
-        <Section id="earlybird" icon="🐦" title="Early Bird Bonus">
-          <div style={{background:`${T.green}12`,border:`1px solid ${T.green}44`,borderRadius:'12px',padding:'14px 16px',marginBottom:'14px'}}>
-            <div style={{fontSize:'14px',fontWeight:700,color:T.green,marginBottom:'6px'}}>+10% opening pts bonus</div>
-            <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.7}}>Buy a film at least <strong style={{color:T.text}}>{EARLY_BIRD_WEEKS} weeks before its release week</strong> AND the film opens at ≥110% of estimate — your opening pts get a 10% bonus. Rewards research and conviction over last-minute bandwagon buying.</div>
-          </div>
-          <div style={{fontSize:'12px',color:T.textDim,lineHeight:1.7}}>The 🐦 badge on film cards shows when the Early Bird window is open. The release calendar highlights the window with a countdown. Once a film is within {EARLY_BIRD_WEEKS-1} weeks of release, the window closes permanently.</div>
-        </Section>
-
-        <Section id="chips" icon="⚡" title="Chips — One of Each Per Season">
-          <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px',lineHeight:1.7}}>Each player gets one of each chip per season. High-risk, high-reward plays that create the most dramatic moments in the league. Use them at the right time and they can flip the standings.</div>
-          {[
-            {icon:'🎬',col:T.purple,name:'THE RECUT',tagline:'Nuclear option',desc:'Wipe your entire roster instantly — zero fees, full refund at market value. Best deployed when your phase picks have all bombed and you need to restart from scratch.'},
-            {icon:'📉',col:T.red,name:'THE SHORT',tagline:'Call the bomb',desc:'Bet against a film before release. Under 60% of estimate = +100pts. If it outperforms = −30pts. Only play this when you have genuine conviction a film is priced too high.'},
-            {icon:'🎯',col:T.blue,name:'THE ANALYST',tagline:'Precision prediction',desc:'Predict the opening weekend of a film you own within ±10% of the actual gross. If you nail it = +60pts flat on top of your normal scoring. Requires strong conviction.'},
-            {icon:'🎭',col:T.orange,name:'THE AUTEUR',tagline:'Star power play',desc:'Declare 2+ films in your roster that share the same star actor. Each film earns +10% on its opening pts. Check the Star Actor field on each film in the market.'},
-          ].map(({icon,col,name,tagline,desc})=>(
-            <div key={name} style={{background:T.surfaceUp,borderRadius:'12px',padding:'14px 16px',marginBottom:'10px',borderLeft:`3px solid ${col}`}}>
-              <div style={{display:'flex',gap:'10px',alignItems:'center',marginBottom:'7px'}}>
-                <span style={{fontSize:'22px',lineHeight:1}}>{icon}</span>
-                <div>
-                  <div style={{fontSize:'13px',fontWeight:700,color:col}}>{name}</div>
-                  <div style={{fontSize:'10px',color:T.textDim,fontWeight:600,letterSpacing:'1px',textTransform:'uppercase'}}>{tagline}</div>
-                </div>
-              </div>
-              <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.7}}>{desc}</div>
-            </div>
-          ))}
-        </Section>
-
-        <Section id="budget" icon="💰" title="Budget, Buying & Selling">
-          <Rule icon="🛒" title="Buying Films" desc={`Films have an IPO price. The live price includes a demand multiplier — more owners = higher price. Undiscovered films can trade 20% below IPO. You can hold up to ${MAX_ROSTER} films per phase.`}/>
-          <Rule icon="💸" title="Selling Films" desc={`Selling costs $${cfg.tx_fee||5}M in transaction fees. During the commissioner's free trade window (72hr), drops are free. Check your P&L on each Roster card before you sell.`}/>
-          <Rule icon="🏦" title="Banking Budget" desc="Unspent budget banks automatically when a phase ends. Stack early phases to enter the Summer Slate or Awards Season with a war chest." color={T.orange}/>
-          <Rule icon="📈" title="Demand Pricing" desc="Films owned by 40%+ of the league are priced 15–30% above IPO. Films with under 2% ownership trade at a 20% discount. Early movers get the best prices." color={T.blue}/>
-        </Section>
-
-        <Section id="trading" icon="🔄" title="Trades & Sealed Bids">
-          <Rule icon="🔄" title="Player-to-Player Trades" desc="Propose a straight film-for-film swap with any league member from the Trades page. Instant on acceptance. Phase restrictions apply — current phase films only."/>
-          <Rule icon="🔒" title="Sealed Bid Auction" desc="When the commissioner opens a sealed bid window (48hrs), all players submit a blind bid for a single film. Highest bid wins and pays their price. Bids are hidden until the window closes." color={T.purple}/>
-        </Section>
-
-        <Section id="sidegames" icon="📊" title="Side Games: Forecaster & Oscars">
-          <Rule icon="📊" title="Forecaster" desc="Predict the opening weekend gross of any upcoming film. Separate from main league scoring. Best accuracy per phase earns +15pts. Best season accuracy overall earns +50pts. Lower mean absolute % error = better." color={T.blue}/>
-          <Rule icon="🏆" title="Oscar Prediction" desc="Lock in your Best Picture pick before Oscar night. Correct prediction = +75pts added to your grand total. One pick per season, locks immediately, cannot be changed." color={T.gold}/>
-        </Section>
-
-        <Section id="tips" icon="💡" title="Tips & Strategy">
-          {[
-            ['Buy early, bet on underdogs','Undiscovered films cost less. An unknown that doubles estimates gives you double benefit: higher pts multiplier and you bought cheaper.'],
-            ['Stack the Early Bird window','Use the release calendar to identify strong upcoming films with 5–6 weeks to release. Buying now locks the bonus window.'],
-            ['Don\'t overpay for certainties','A guaranteed blockbuster that meets expectations scores OK. A sleeper that doubles its number can win your phase outright.'],
-            ['Save chips for conviction moments','Your Short is once per season — wait until you have a strong read on an overpriced, overhyped film close to release.'],
-            ['Watch the demand meter','Films showing 40%+ owned are being price-pushed. Consider selling into the hype if results haven\'t come in yet.'],
-            ['Bank budget strategically','Maxed out your roster with budget remaining? Trim weaker picks and bank the rest. Every $M unspent carries over.'],
-            ['Track RT scores on film cards','A strong critic consensus before opening weekend pushes the RT multiplier to ×1.25. High-quality films double-dip on scoring.'],
-          ].map(([title,desc])=>(
-            <div key={title} style={{display:'flex',gap:'10px',padding:'10px 0',borderBottom:`1px solid ${T.border}`}}>
-              <span style={{color:T.gold,flexShrink:0,fontWeight:700,fontSize:'14px',lineHeight:1.6}}>→</span>
-              <div><div style={{fontSize:'13px',fontWeight:600,color:T.text,marginBottom:'3px'}}>{title}</div><div style={{fontSize:'12px',color:T.textSub,lineHeight:1.7}}>{desc}</div></div>
-            </div>
-          ))}
-        </Section>
-      </div>
-    )
-  }
-
-  const LeaguePage=()=>{
-    const sorted=[...players].sort((a,b)=>calcPoints(b.id)-calcPoints(a.id))
-    const leader=sorted[0],leaderPts=leader?calcPoints(leader.id):0
-    const top3=sorted.slice(0,3),rest=sorted.slice(3)
-    return(
-      <div>
-        {/* Header with share */}
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'20px'}}>
-          <div>
-            <div style={S.pageTitle}>{league?.name}</div>
-            <div style={{fontSize:'13px',color:T.textSub,marginTop:'3px'}}>W{cfg.current_week} · Phase {ph} · {players.length} players</div>
-          </div>
-          <div style={{display:'flex',gap:'6px'}}>
-            <Btn onClick={()=>setWrappedOpen(true)} color={T.surfaceUp} variant="outline" size="sm" sx={{border:`1px solid ${T.border}`,color:T.gold}}>🎬 Wrapped</Btn>
-            <Btn onClick={()=>setShareCardFilm('share')} color={T.surfaceUp} variant="outline" size="sm" sx={{border:`1px solid ${T.border}`,color:T.textSub}}>📤 Share</Btn>
-          </div>
-        </div>
-        {/* Podium — top 3 */}
-        {sorted.length>=2&&(
-          <div style={{marginBottom:'28px'}}>
-            <div style={{display:'flex',alignItems:'flex-end',gap:'10px',marginBottom:'20px',padding:'0 4px'}}>
-              {/* 2nd place */}
-              {top3[1]&&(()=>{const p=top3[1],pts=calcPoints(p.id),gap=leaderPts-pts;return(
-                <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:'8px'}}>
-                  <div style={{fontSize:'11px',color:T.textSub,fontWeight:600}}>−{gap}pts</div>
-                  <div style={{width:'44px',height:'44px',borderRadius:'50%',background:p.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'18px',fontWeight:900,color:'#0D0A08',boxShadow:`0 0 0 3px ${T.surface},0 0 0 5px ${p.color||T.gold}44`}}>{p.name?.[0]}</div>
-                  <div style={{fontSize:'12px',fontWeight:600,color:p.color||T.gold,textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',width:'100%'}}>{p.name}</div>
-                  <div style={{width:'100%',background:`${p.color||T.gold}22`,border:`1px solid ${p.color||T.gold}44`,borderRadius:'10px 10px 0 0',padding:'14px 8px',textAlign:'center',height:'100px',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
-                    <div style={{fontSize:'28px',fontWeight:900,color:p.color||T.gold,fontFamily:T.mono,lineHeight:1}}><CountUp value={pts}/></div>
-                    <div style={{...S.label,marginTop:'4px'}}>🥈</div>
-                  </div>
-                </div>
-              )})()}
-              {/* 1st place */}
-              {top3[0]&&(()=>{const p=top3[0],pts=calcPoints(p.id);return(
-                <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:'8px'}}>
-                  <div style={{fontSize:'22px'}}>👑</div>
-                  <div style={{width:'52px',height:'52px',borderRadius:'50%',background:p.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'22px',fontWeight:900,color:'#0D0A08',boxShadow:`0 0 0 3px ${T.surface},0 0 0 5px ${T.gold},0 8px 24px ${T.gold}44`}}>{p.name?.[0]}</div>
-                  <div style={{fontSize:'13px',fontWeight:700,color:T.gold,textAlign:'center'}}>{p.name}</div>
-                  <div style={{width:'100%',background:`${T.gold}22`,border:`1px solid ${T.gold}55`,borderRadius:'10px 10px 0 0',padding:'14px 8px',textAlign:'center',height:'130px',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
-                    <div style={{fontSize:'38px',fontWeight:900,color:T.gold,fontFamily:T.mono,lineHeight:1,letterSpacing:'-1px'}}><CountUp value={pts}/></div>
-                    <div style={{...S.label,color:T.gold,marginTop:'4px'}}>🥇 pts</div>
-                  </div>
-                </div>
-              )})()}
-              {/* 3rd place */}
-              {top3[2]&&(()=>{const p=top3[2],pts=calcPoints(p.id),gap=leaderPts-pts;return(
-                <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:'8px'}}>
-                  <div style={{fontSize:'11px',color:T.textSub,fontWeight:600}}>−{gap}pts</div>
-                  <div style={{width:'40px',height:'40px',borderRadius:'50%',background:p.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'16px',fontWeight:900,color:'#0D0A08',boxShadow:`0 0 0 3px ${T.surface},0 0 0 5px ${p.color||T.gold}44`}}>{p.name?.[0]}</div>
-                  <div style={{fontSize:'12px',fontWeight:600,color:p.color||T.gold,textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',width:'100%'}}>{p.name}</div>
-                  <div style={{width:'100%',background:`${p.color||T.gold}22`,border:`1px solid ${p.color||T.gold}44`,borderRadius:'10px 10px 0 0',padding:'14px 8px',textAlign:'center',height:'80px',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
-                    <div style={{fontSize:'24px',fontWeight:900,color:p.color||T.gold,fontFamily:T.mono,lineHeight:1}}><CountUp value={pts}/></div>
-                    <div style={{...S.label,marginTop:'4px'}}>🥉</div>
-                  </div>
-                </div>
-              )})()}
-            </div>
-          </div>
-        )}
-
-        {/* Phase trophy strip */}
-        <div style={{...S.card,marginBottom:'20px',padding:'14px 16px'}}>
-          <div style={{...S.label,marginBottom:'12px'}}>Phase Leaders</div>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'6px'}}>
-            {[1,2,3,4,5].map(p=>{
-              const sc=[...players].map(pl=>({pl,pts:calcPhasePoints(pl.id,p)})).sort((a,b)=>b.pts-a.pts)
-              const leader_=sc[0],isCur=p===ph
-              return(
-                <div key={p} style={{background:isCur?`${T.gold}12`:T.surfaceUp,border:`1px solid ${isCur?T.gold+'55':T.border}`,borderRadius:'10px',padding:'8px 4px',textAlign:'center',position:'relative'}}>
-                  {isCur&&<div style={{position:'absolute',top:'-1px',left:'50%',transform:'translateX(-50%)',fontSize:'8px',background:T.gold,color:'#0D0A08',padding:'1px 6px',borderRadius:'0 0 5px 5px',fontWeight:700,letterSpacing:'0.5px'}}>NOW</div>}
-                  <div style={{...S.label,color:isCur?T.gold:T.textDim,marginBottom:'6px',marginTop:isCur?'6px':'0'}}>PH{p}</div>
-                  {leader_?.pts>0
-                    ?<><div style={{fontSize:'10px',fontWeight:700,color:players.find(pl=>pl.id===leader_.pl.id)?.color||T.gold,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',padding:'0 4px'}}>{leader_.pl.name.split(' ')[0]}</div>
-                    <div style={{fontSize:'15px',fontWeight:800,color:isCur?T.gold:T.text,marginTop:'2px',fontFamily:T.mono}}>{leader_.pts}</div></>
-                    :<div style={{fontSize:'12px',color:T.textDim,padding:'6px 0'}}>—</div>
-                  }
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Full standings — rest of players */}
-        {rest.length>0&&(
-          <div style={{marginBottom:'8px'}}>
-            <div style={{...S.label,marginBottom:'10px'}}>Full Standings</div>
-            {sorted.map((player,i)=>{
-              const pts=calcPoints(player.id)
-              const gap=leaderPts-pts
-              const pc=allChips.find(c=>c.player_id===player.id)
-              const pa=auteurDecl.find(a=>a.player_id===player.id&&a.phase===ph)
-              const barW=leaderPts>0?Math.round((pts/leaderPts)*100):0
-              const prevRank=standingsSnapshot[player.id]||null
-              const move=prevRank?prevRank-(i+1):0
-              return(
-                <div key={player.id} className="hoverable" style={{...S.card,marginBottom:'8px',cursor:'pointer',padding:'14px 16px'}} onClick={()=>goToProfile(player)}>
-                  <div style={{display:'flex',alignItems:'center',gap:'12px',marginBottom:'10px'}}>
-                    <div style={{fontSize:'18px',minWidth:'24px',textAlign:'center'}}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`}</div>
-                    <div style={{width:'32px',height:'32px',borderRadius:'50%',background:player.color||T.gold,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'13px',fontWeight:900,color:'#0D0A08'}}>{player.name?.[0]||'?'}</div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:'14px',fontWeight:600,color:player.color||T.gold,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{player.name}</div>
-                      <div style={{display:'flex',gap:'6px',marginTop:'2px',flexWrap:'wrap',alignItems:'center'}}>
-                        <span style={{fontSize:'11px',color:T.textSub}}>Ph{ph}: {calcPhasePoints(player.id,ph)}pts</span>
-                        <span style={{fontSize:'10px',color:T.textDim}}>·</span>
-                        <span style={{fontSize:'11px',color:T.textSub}}>{cur}{budgetLeft(player.id)} left</span>
-                        {pc?.recut_used&&<span style={{fontSize:'10px',background:`${T.purple}22`,color:T.purple,padding:'1px 6px',borderRadius:'8px'}}>🎬</span>}
-                        {pc?.short_film_id&&<span style={{fontSize:'10px',background:`${T.red}22`,color:T.red,padding:'1px 6px',borderRadius:'8px'}}>📉</span>}
-                        {pc?.analyst_film_id&&<span style={{fontSize:'10px',background:`${T.blue}22`,color:T.blue,padding:'1px 6px',borderRadius:'8px'}}>🎯</span>}
-                        {pa&&<span style={{fontSize:'10px',background:`${T.orange}22`,color:T.orange,padding:'1px 6px',borderRadius:'8px'}}>🎭</span>}
-                      </div>
-                    </div>
-                    <div style={{textAlign:'right',flexShrink:0}}>
-                      <div style={{fontSize:'26px',fontWeight:900,color:i===0?T.gold:T.text,lineHeight:1,fontFamily:T.mono}}><CountUp value={pts}/></div>
-                      {move!==0&&<div style={{fontSize:'11px',fontWeight:700,color:move>0?T.green:T.red,marginTop:'2px'}}>{move>0?`▲${move}`:`▼${Math.abs(move)}`}</div>}
-                      {move===0&&i>0&&<div style={{fontSize:'10px',color:T.textDim,marginTop:'1px'}}>−{gap}</div>}
-                    </div>
-                  </div>
-                  {/* Score bar */}
-                  <div style={{height:'3px',background:T.border,borderRadius:'2px',overflow:'hidden'}}>
-                    <div style={{height:'100%',width:`${barW}%`,background:`linear-gradient(90deg,${player.color||T.gold},${player.color||T.gold}88)`,borderRadius:'2px',transition:'width .6s ease'}}/>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-
-        {sorted.length===0&&<div style={{...S.card,textAlign:'center',padding:'48px',color:T.textSub}}>No players yet — invite your league!</div>}
-      </div>
-    )
-  }
-
-  const FeedPage=()=>{
-    const getItem=item=>{
-      const p=item.payload||{},pl=players.find(pl=>pl.id===item.user_id)
-      const pCol=pl?.color||T.gold
-      const film=films.find(f=>f.id===p.film_id)
-      switch(item.type){
-        case 'buy':return{icon:'🎬',col:T.green,film,
-          title:<><span style={{color:pCol,fontWeight:700}}>{pl?.name}</span> acquired</>,
-          sub:<><b style={{color:T.text}}>{p.film_title}</b> · <span style={{color:T.green,fontWeight:600}}>${p.price}M</span></>}
-        case 'sell':return{icon:'💸',col:T.gold,film,
-          title:<><span style={{color:pCol,fontWeight:700}}>{pl?.name}</span> dropped</>,
-          sub:<b style={{color:T.text}}>{p.film_title}</b>}
-        case 'chip_recut':return{icon:'🎬',col:T.purple,
-          title:<><span style={{color:pCol,fontWeight:700}}>{pl?.name}</span> activated</>,
-          sub:<span style={{color:T.purple,fontWeight:700}}>THE RECUT — full roster cleared</span>}
-        case 'chip_short':return{icon:'📉',col:T.red,film,
-          title:<><span style={{color:pCol,fontWeight:700}}>{pl?.name}</span> shorted</>,
-          sub:<><b style={{color:T.text}}>{p.film_title}</b> · calling under ${p.prediction}M</>}
-        case 'chip_analyst':return{icon:'🎯',col:T.blue,film,
-          title:<><span style={{color:pCol,fontWeight:700}}>{pl?.name}</span> went Analyst</>,
-          sub:<><b style={{color:T.text}}>{p.film_title}</b> · predicting ${p.prediction}M</>}
-        case 'auteur':return{icon:'🎭',col:T.orange,
-          title:<><span style={{color:pCol,fontWeight:700}}>{pl?.name}</span> declared Auteur</>,
-          sub:<>⭐ <span style={{color:T.orange,fontWeight:600}}>{p.actor}</span> · {p.film_count} films</>}
-        case 'forecast':return{icon:'📊',col:T.blue,film,
-          title:<><span style={{color:pCol,fontWeight:700}}>{pl?.name}</span> forecast</>,
-          sub:<><b style={{color:T.text}}>{p.film_title}</b> · ${p.predicted_m}M</>}
-        case 'oscar':return{icon:'🏆',col:T.gold,film,
-          title:<><span style={{color:pCol,fontWeight:700}}>{pl?.name}</span> locked Best Picture</>,
-          sub:<span style={{color:T.gold,fontWeight:600}}>{p.film_title}</span>}
-        case 'result':return{icon:'📋',col:T.green,film,
-          title:<span style={{color:T.green,fontWeight:700}}>Results in</span>,
-          sub:<><b style={{color:T.text}}>{p.film_title}</b> · <span style={{color:T.green}}>${p.actual_m}M</span> opening</>}
-        case 'trade_proposed':return{icon:'🔄',col:T.blue,
-          title:<><span style={{color:pCol,fontWeight:700}}>{pl?.name}</span> proposed a trade</>,
-          sub:<span style={{color:T.textSub}}>waiting for response…</span>}
-        case 'trade_accepted':return{icon:'🤝',col:T.green,
-          title:<><span style={{color:pCol,fontWeight:700}}>{pl?.name}</span> accepted a trade</>,
-          sub:<><span style={{color:T.green}}>{p.film_received}</span> → roster</>}
-        case 'signal':{
-          const tag=p.signal_type==='trailer'?'🎬':p.signal_type==='rt_score'?'🍅':p.signal_type==='festival'?'🏆':p.signal_type==='casting'?'⭐':p.signal_type==='controversy'?'⚠️':p.signal_type==='box_office'?'💰':p.signal_type==='reshoot'?'🎞':'📡'
-          const sCol=p.sentiment==='positive'?T.green:p.sentiment==='negative'?T.red:T.gold
-          return{icon:tag,col:sCol,film:films.find(f=>f.title===p.film_title),
-            title:<><span style={{color:T.red,fontWeight:700,letterSpacing:'1px'}}>📡 SIGNAL</span>{p.film_title&&<> · <b style={{color:T.gold}}>{p.film_title}</b></>}</>,
-            sub:<><span style={{color:T.text}}>{p.headline}</span>{p.price_impact&&<> · <span style={{color:p.price_impact>0?T.green:T.red,fontWeight:700,fontFamily:T.mono}}>{p.price_impact>0?'▲':'▼'}{Math.abs(p.price_impact)}%</span></>}</>}
-        }
-        default:return{icon:'📡',col:T.textSub,
-          title:<span style={{color:pCol,fontWeight:700}}>{pl?.name||'League'}</span>,sub:null}
-      }
-    }
-    const grouped=feedItems.reduce((acc,item)=>{
-      const day=new Date(item.created_at).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short'})
-      if(!acc[day])acc[day]=[]
-      acc[day].push(item)
-      return acc
-    },{})
-    return(
-      <div>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'20px'}}>
-          <div>
-            <div style={S.pageTitle}>📡 Feed</div>
-            <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px'}}>Live · {feedItems.length} events</div>
-          </div>
-          <div style={{width:'8px',height:'8px',borderRadius:'50%',background:T.green,marginTop:'8px',boxShadow:`0 0 0 3px ${T.green}33`,animation:'pulse 2s ease-in-out infinite'}}/>
-        </div>
-        {feedItems.length===0&&(
-          <div style={{...S.card,textAlign:'center',padding:'48px 24px'}}>
-            <div style={{fontSize:'32px',marginBottom:'12px'}}>📡</div>
-            <div style={{fontSize:'14px',color:T.textSub}}>No activity yet — be the first to make a move</div>
-          </div>
-        )}
-        {Object.entries(grouped).map(([day,items])=>(
-          <div key={day}>
-            <div style={{...S.label,margin:'20px 0 10px',display:'flex',alignItems:'center',gap:'8px'}}>
-              {day}
-              <div style={{flex:1,height:'1px',background:T.border}}/>
-            </div>
-            {items.map(item=>{
-              const{icon,title,sub,col,film}=getItem(item)
-              return(
-                <div key={item.id} style={{...S.card,padding:'12px 14px',marginBottom:'8px',borderLeft:`3px solid ${col}55`,display:'flex',flexDirection:'column',gap:'10px'}}>
-                  <div style={{display:'flex',gap:'12px',alignItems:'center'}}>
-                    {film
-                      ?<div style={{flexShrink:0,cursor:'pointer'}} onClick={()=>setFilmDetail(film)}>
-                        <FilmPoster film={film} width={36} height={54} radius={6}/>
-                      </div>
-                      :<div style={{width:'36px',height:'54px',borderRadius:'6px',background:`${col}18`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'20px',flexShrink:0}}>{icon}</div>
-                    }
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:'13px',lineHeight:1.5,color:T.text}}>{title}</div>
-                      {sub&&<div style={{fontSize:'12px',color:T.textSub,marginTop:'2px',lineHeight:1.4}}>{sub}</div>}
-                      <div style={{fontSize:'10px',color:T.textDim,marginTop:'4px'}}>{timeAgo(item.created_at)} ago</div>
-                    </div>
-                  </div>
-                  {/* Feed reactions */}
-                  <div style={{display:'flex',gap:'5px',flexWrap:'wrap',paddingLeft:'4px'}}>
-                    {['🔥','😱','👀','💀','🎬','🤑'].map(emoji=>{
-                      const rxs=feedReactions[item.id]?.[emoji]||[]
-                      const isMine=rxs.includes(profile.id)
-                      const count=rxs.length
-                      return(
-                        <button key={emoji} onClick={async()=>{
-                          if(isMine){await supabase.from('reactions').delete().eq('target_type','feed').eq('target_id',item.id).eq('user_id',profile.id).eq('emoji',emoji)}
-                          else{await supabase.from('reactions').insert({user_id:profile.id,target_type:'feed',target_id:item.id,emoji,league_id:league?.id})}
-                          loadFeed(league?.id)
-                        }} style={{background:isMine?`${col}22`:count>0?T.surfaceUp:'transparent',border:`1px solid ${isMine?col+'66':count>0?T.border:'transparent'}`,borderRadius:'16px',padding:'3px 8px',cursor:'pointer',fontSize:'12px',fontFamily:T.mono,color:isMine?col:count>0?T.textSub:T.textDim,display:'flex',alignItems:'center',gap:'4px',transition:'all .15s'}}>
-                          {emoji}{count>0&&<span style={{fontSize:'10px'}}>{count}</span>}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        ))}
-      </div>
-    )
-  }
-
-  const IntentPage=()=>{
-    const myPickedFilms=myPicks.map(p=>films.find(f=>f.id===p.film_id)).filter(Boolean)
-    const sorted=[...myPickedFilms].sort((a,b)=>pickVelocity(b.id,allPicks,7)-pickVelocity(a.id,allPicks,7))
-    return(
-      <div>
-        <div style={S.pageTitle}>👁️ My Watchlist</div>
-        <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px',marginBottom:'20px'}}>Films you want to see · {myPicks.length} picked</div>
-        {sorted.length===0&&<div style={{...S.card,textAlign:'center',padding:'48px 24px'}}><div style={{fontSize:'40px',marginBottom:'12px'}}>👁</div><div style={{fontSize:'15px',fontWeight:600,marginBottom:'8px'}}>Your watchlist is empty</div><div style={{fontSize:'13px',color:T.textSub}}>Tap 👁 on any film card to add it here</div></div>}
-        {sorted.map(film=>{
-          const vel7=pickVelocity(film.id,allPicks,7),vel1=pickVelocity(film.id,allPicks,1)
-          const total=allPicks.filter(p=>p.film_id===film.id).length,actual=results[film.id]
-          const gc=GENRE_COL[film.genre]||T.textSub
-          return(
-            <div key={film.id} style={{...S.card,marginBottom:'12px'}}>
-              <div style={{display:'flex',gap:'14px',alignItems:'flex-start',marginBottom:'14px'}}>
-                <div style={{position:'relative',flexShrink:0,cursor:'pointer'}} onClick={()=>setFilmDetail(film)}>
-                  <FilmPoster film={film} width={64} height={96} radius={9}/>
-                  <div style={{position:'absolute',top:0,left:0,right:0,height:'3px',background:gc,borderRadius:'9px 9px 0 0'}}/>
-                </div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:'15px',fontWeight:700,lineHeight:1.3,marginBottom:'3px'}}>{film.title}</div>
-                  <div style={{fontSize:'12px',color:T.textSub,marginBottom:'10px'}}>{film.dist} · {film.genre} · W{film.week}</div>
-                  <div style={{display:'flex',gap:'6px',marginBottom:'10px',flexWrap:'wrap'}}>
-                    <StatBox label="Picks" value={total} color={T.gold}/>
-                    <StatBox label="7d" value={vel7} color={vel7>=5?T.red:vel7>=2?T.orange:T.text}/>
-                    {vel1>0&&<StatBox label="Today" value={vel1} color={T.green}/>}
-                  </div>
-                  {actual!=null&&<div style={{fontSize:'13px',color:T.green,fontWeight:600,marginBottom:'6px'}}>${actual}M actual · {calcOpeningPts(film,actual)}pts</div>}
-                </div>
-                <PickButton filmId={film.id} userId={profile.id} allPicks={allPicks} onToggle={togglePick}/>
-              </div>
-              <button onClick={()=>setShowtimesFilm(film)} style={{...S.btn,background:`${T.green}18`,border:`1px solid ${T.green}44`,color:T.green,padding:'9px 16px',fontSize:'12px',width:'100%',marginBottom:'10px',textTransform:'none',letterSpacing:0,borderRadius:'9px'}}>🎟 Find Showtimes Near Me</button>
-              <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
-                {BOOKING_CHAINS.map(chain=><a key={chain.id} href={`${chain.url}${encodeURIComponent(film.title.toLowerCase().replace(/\s+/g,'-'))}`} target="_blank" rel="noopener noreferrer" onClick={()=>trackBookingClick(film.id,chain.id)} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'8px',padding:'7px 12px',textDecoration:'none',fontSize:'11px',color:T.text,fontFamily:T.mono,display:'flex',alignItems:'center',gap:'5px'}}><span style={{width:'6px',height:'6px',borderRadius:'50%',background:chain.color,flexShrink:0}}/>{chain.label}</a>)}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    )
-  }
-
-  const TradesPage=()=>{
-    const myProposed=trades.filter(t=>t.proposer_id===profile.id)
-    return(
-      <div>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'20px'}}>
-          <div><div style={S.pageTitle}>Trades</div><div style={{fontSize:'13px',color:T.textSub,marginTop:'4px'}}>Phase {ph} films · instant on acceptance</div></div>
-          <Btn onClick={()=>setTradeModal(true)} color={T.blue} textColor="#fff">+ Propose</Btn>
-        </div>
-        {pendingForMe.length>0&&<div style={{...S.card,border:`1px solid ${T.blue}44`,marginBottom:'20px'}}>
-          <div style={{fontSize:'13px',color:T.blue,fontWeight:600,marginBottom:'14px'}}>📬 Incoming ({pendingForMe.length})</div>
-          {pendingForMe.map(t=>{
-            const proposer=players.find(p=>p.id===t.proposer_id),theirFilm=films.find(f=>f.id===t.proposer_film_id),myFilm_=films.find(f=>f.id===t.receiver_film_id)
-            return(
-              <div key={t.id} style={{background:T.surfaceUp,borderRadius:'12px',padding:'14px',marginBottom:'10px'}}>
-                <div style={{display:'flex',gap:'12px',alignItems:'center',marginBottom:'12px'}}>
-                  <FilmPoster film={theirFilm} width={40} height={60} radius={6}/>
-                  <div style={{flex:1,fontSize:'13px',lineHeight:1.6}}><span style={{color:proposer?.color||T.gold,fontWeight:600}}>{proposer?.name}</span><span style={{color:T.textSub}}> offers </span><span style={{color:T.blue,fontWeight:500}}>{theirFilm?.title}</span><span style={{color:T.textSub}}> for your </span><span style={{color:T.gold,fontWeight:500}}>{myFilm_?.title}</span></div>
-                  <FilmPoster film={myFilm_} width={40} height={60} radius={6}/>
-                </div>
-                <div style={{display:'flex',gap:'8px'}}>
-                  <Btn onClick={()=>acceptTrade(t)} color={T.green} textColor="#0D0A08" sx={{flex:1}}>Accept</Btn>
-                  <Btn onClick={()=>rejectTrade(t)} variant="outline" color={T.red} sx={{flex:1}}>Decline</Btn>
-                </div>
-              </div>
-            )
-          })}
-        </div>}
-        {myProposed.length>0&&<div>
-          <div style={{...S.sectionTitle,marginBottom:'12px'}}>My Proposals</div>
-          {myProposed.map(t=>{
-            const receiver=players.find(p=>p.id===t.receiver_id),mf=films.find(f=>f.id===t.proposer_film_id),tf=films.find(f=>f.id===t.receiver_film_id)
-            const sc={accepted:T.green,rejected:T.red,cancelled:T.textDim,pending:T.blue}[t.status]||T.textSub
-            return(
-              <div key={t.id} style={{...S.card,marginBottom:'8px'}}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'8px'}}><span style={{fontSize:'13px',color:receiver?.color||T.gold,fontWeight:600}}>{receiver?.name}</span><Pill color={sc}>{t.status}</Pill></div>
-                <div style={{fontSize:'13px',color:T.textSub}}>Give <span style={{color:T.text}}>{mf?.title}</span> · Get <span style={{color:T.text}}>{tf?.title}</span></div>
-                <div style={{fontSize:'11px',color:T.textDim,marginTop:'5px'}}>{timeAgo(t.created_at)} ago</div>
-                {t.status==='pending'&&<Btn onClick={()=>cancelTrade(t)} variant="outline" color={T.textSub} size="sm" sx={{marginTop:'10px'}}>Cancel</Btn>}
-              </div>
-            )
-          })}
-        </div>}
-        {myProposed.length===0&&pendingForMe.length===0&&<div style={{...S.card,textAlign:'center',padding:'48px 24px'}}><div style={{fontSize:'32px',marginBottom:'12px'}}>🔄</div><div style={{fontSize:'14px',color:T.textSub}}>No trades yet — propose one above!</div></div>}
-      </div>
-    )
-  }
-
-  const ForecasterPage=()=>{
-    const[fcTab,setFcTab]=useState('predict')
-    // Standalone accuracy score — lower is better (mean absolute % error)
-    const fcScore=(pid)=>{
-      const scored=films.filter(f=>results[f.id]!=null)
-      const preds=allForecasts.filter(f=>f.player_id===pid&&scored.find(sf=>sf.id===f.film_id))
-      if(!preds.length)return null
-      return Math.round(preds.reduce((s,fc)=>s+Math.abs(fc.predicted_m-results[fc.film_id])/results[fc.film_id]*100,0)/preds.length)
-    }
-    const leaderboard=[...players].map(p=>({p,score:fcScore(p.id),count:allForecasts.filter(f=>f.player_id===p.id).length})).filter(x=>x.score!=null).sort((a,b)=>a.score-b.score)
-    const myScore=fcScore(profile.id)
-    const myRank=leaderboard.findIndex(x=>x.p.id===profile.id)+1
-    const upcomingFilms=films.filter(f=>!results[f.id])
-    const resultedFilms=films.filter(f=>results[f.id]!=null)
-    return(
-      <div>
-        <div style={{display:'flex',alignItems:'baseline',gap:'10px',marginBottom:'3px'}}>
-          <div style={S.pageTitle}>📊 Forecaster</div>
-          <Badge color={T.blue}>Side Game</Badge>
-        </div>
-        <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px',marginBottom:'4px'}}>Predict opening weekends · separate from main league standings</div>
-        <div style={{fontSize:'12px',color:T.textDim,marginBottom:'20px'}}>Accuracy scored as mean absolute % error — lower is better</div>
-
-        {/* My score card */}
-        {myScore!=null&&<div style={{...S.card,border:`1px solid ${T.blue}44`,marginBottom:'20px',display:'flex',gap:'20px',alignItems:'center'}}>
-          <div style={{textAlign:'center',flexShrink:0}}>
-            <div style={{fontSize:'48px',fontWeight:900,color:myScore<=10?T.green:myScore<=25?T.gold:T.red,lineHeight:1,fontFamily:T.mono}}>{myScore}%</div>
-            <div style={{...S.label,marginTop:'4px'}}>avg error</div>
-          </div>
-          <div style={{flex:1}}>
-            <div style={{fontSize:'15px',fontWeight:700,marginBottom:'6px'}}>Your Forecasting Record</div>
-            <div style={{fontSize:'13px',color:T.textSub,marginBottom:'4px'}}>{allForecasts.filter(f=>f.player_id===profile.id).length} predictions made · {allForecasts.filter(f=>f.player_id===profile.id&&results[f.film_id]!=null&&Math.abs(f.predicted_m-results[f.film_id])/results[f.film_id]<=0.1).length} within 10%</div>
-            {myRank>0&&<div style={{fontSize:'13px',color:myRank===1?T.gold:T.textSub}}>#{myRank} of {leaderboard.length} forecasters</div>}
-          </div>
-        </div>}
-
-        {/* Tab bar */}
-        <div style={{display:'flex',borderBottom:`1px solid ${T.border}`,marginBottom:'20px'}}>
-          {[['predict','🎯 Make Picks'],['results','📋 Results'],['board','🏆 Leaderboard']].map(([id,label])=>(
-            <button key={id} onClick={()=>setFcTab(id)} style={{...S.btn,background:'none',border:'none',fontSize:'13px',fontWeight:fcTab===id?700:400,color:fcTab===id?T.blue:T.textSub,padding:'10px 16px',borderBottom:`2px solid ${fcTab===id?T.blue:'transparent'}`,borderRadius:0,textTransform:'none',letterSpacing:0}}>{label}</button>
-          ))}
-        </div>
-
-        {fcTab==='predict'&&<div>
-          {upcomingFilms.length===0&&<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>All films have results — nothing left to predict.</div>}
-          {upcomingFilms.map(film=>{
-            const fc=forecasts[film.id]
-            const gc=GENRE_COL[film.genre]||T.textSub
-            return(
-              <div key={film.id} style={{...S.card,display:'flex',gap:'14px',alignItems:'center',marginBottom:'10px',flexWrap:'wrap'}}>
-                <FilmPoster film={film} width={44} height={66} radius={7}/>
-                <div style={{flex:2,minWidth:'140px'}}>
-                  <div style={{fontSize:'14px',fontWeight:600,marginBottom:'3px'}}>{film.title}</div>
-                  <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
-                    <Pill color={gc}>{film.genre}</Pill>
-                    <Pill color={T.textSub}>Est ${film.estM}M</Pill>
-                    <Pill color={T.textSub}>W{film.week}</Pill>
-                  </div>
-                </div>
-                <div style={{display:'flex',gap:'8px',alignItems:'center',flexShrink:0}}>
-                  <input type="number" step="0.1" defaultValue={fc||''} placeholder="$M prediction" id={`fc-${film.id}`} style={{...S.inp,width:'130px'}}/>
-                  <Btn color={T.blue} textColor="#fff" onClick={()=>{const v=parseFloat(document.getElementById(`fc-${film.id}`).value);if(isNaN(v))return notify('Enter a number',T.red);saveForecast(film.id,v)}}>Lock</Btn>
-                </div>
-                {fc&&<div style={{width:'100%',fontSize:'12px',color:T.blue,paddingLeft:'58px'}}>🔒 Locked at ${fc}M</div>}
-              </div>
-            )
-          })}
-        </div>}
-
-        {fcTab==='results'&&<div>
-          {resultedFilms.length===0&&<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No results yet.</div>}
-          {resultedFilms.map(film=>{
-            const actual=results[film.id]
-            const pfc=allForecasts.filter(f=>f.film_id===film.id).map(fc=>{
-              const p=players.find(pl=>pl.id===fc.player_id)
-              const pct=Math.round(Math.abs(fc.predicted_m-actual)/actual*100)
-              return{...fc,p,pct}
-            }).sort((a,b)=>a.pct-b.pct)
-            const gc=GENRE_COL[film.genre]||T.textSub
-            return(
-              <div key={film.id} style={{...S.card,marginBottom:'12px'}}>
-                <div style={{display:'flex',gap:'14px',alignItems:'center',marginBottom:'12px'}}>
-                  <FilmPoster film={film} width={40} height={60} radius={6}/>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:'14px',fontWeight:600}}>{film.title}</div>
-                    <div style={{fontSize:'13px',color:T.green,fontWeight:700,marginTop:'2px'}}>Actual: ${actual}M <span style={{color:T.textSub,fontWeight:400}}>· Est was ${film.estM}M</span></div>
-                  </div>
-                </div>
-                {pfc.length>0?<div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
-                  {pfc.map((fc,i)=>(
-                    <div key={fc.id} style={{display:'flex',alignItems:'center',gap:'10px',padding:'8px 12px',background:i===0?`${T.green}12`:T.surfaceUp,borderRadius:'9px',border:`1px solid ${i===0?T.green+'44':T.border}`}}>
-                      {i===0&&<span style={{fontSize:'14px'}}>🎯</span>}
-                      <div style={{width:'24px',height:'24px',borderRadius:'50%',background:fc.p?.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',fontWeight:900,color:'#0D0A08',flexShrink:0}}>{fc.p?.name?.[0]}</div>
-                      <div style={{flex:1,fontSize:'13px',color:fc.p?.color||T.gold,fontWeight:500}}>{fc.p?.name}</div>
-                      <div style={{fontSize:'13px',color:T.textSub}}>${fc.predicted_m}M</div>
-                      <div style={{fontSize:'13px',fontWeight:700,color:fc.pct<=5?T.green:fc.pct<=15?T.gold:T.red,minWidth:'50px',textAlign:'right'}}>{fc.pct<=5?'🎯 ':''}{fc.pct}% off</div>
-                    </div>
-                  ))}
-                </div>:<div style={{fontSize:'12px',color:T.textSub}}>No predictions made</div>}
-              </div>
-            )
-          })}
-        </div>}
-
-        {fcTab==='board'&&<div>
-          <div style={{...S.card,border:`1px solid ${T.blue}33`,marginBottom:'16px',padding:'16px 20px'}}>
-            <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.6}}>Ranked by mean absolute % error across all predicted films. Lower = more accurate. Only players with at least one prediction are shown.</div>
-          </div>
-          {leaderboard.length===0&&<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No predictions yet — be the first to forecast!</div>}
-          {leaderboard.map(({p,score,count},i)=>(
-            <div key={p.id} style={{...S.card,display:'flex',alignItems:'center',gap:'14px',marginBottom:'8px',border:`1px solid ${i===0?T.gold+'44':T.border}`}}>
-              <div style={{fontSize:'22px',minWidth:'28px',textAlign:'center'}}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`}</div>
-              <div style={{width:'34px',height:'34px',borderRadius:'50%',background:p.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'13px',fontWeight:900,color:'#0D0A08',flexShrink:0}}>{p.name?.[0]}</div>
-              <div style={{flex:1}}>
-                <div style={{fontSize:'14px',fontWeight:600,color:p.color||T.gold}}>{p.name}</div>
-                <div style={{fontSize:'12px',color:T.textSub,marginTop:'2px'}}>{count} prediction{count!==1?'s':''}</div>
-              </div>
-              <div style={{textAlign:'right'}}>
-                <div style={{fontSize:'28px',fontWeight:900,color:score<=10?T.green:score<=25?T.gold:T.red,fontFamily:T.mono,lineHeight:1}}>{score}%</div>
-                <div style={{...S.label,marginTop:'2px'}}>avg error</div>
-              </div>
-            </div>
-          ))}
-        </div>}
-      </div>
-    )
-  }
-
-  const OscarPage=()=>(
-    <div>
-      <div style={S.pageTitle}>🏆 Oscars</div>
-      <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px',marginBottom:'20px'}}>Predict Best Picture · correct = +75pts</div>
-      {myOscar?<div style={{...S.card,border:`1px solid ${T.gold}44`,marginBottom:'20px'}}>
-        <div style={{...S.label,marginBottom:'12px'}}>Your Pick</div>
-        <div style={{display:'flex',gap:'14px',alignItems:'center'}}>
-          <FilmPoster film={films.find(f=>f.id===myOscar.best_picture_film_id)} width={56} height={84} radius={8}/>
-          <div><div style={{fontSize:'18px',fontWeight:700,color:T.gold}}>{films.find(f=>f.id===myOscar.best_picture_film_id)?.title||'—'}</div><div style={{fontSize:'13px',color:T.textSub,marginTop:'6px'}}>{myOscar.correct===true?'✅ CORRECT — +75pts':myOscar.correct===false?'❌ Incorrect':'Awaiting Oscar night'}</div></div>
-        </div>
-      </div>:<div style={{...S.card,marginBottom:'20px'}}>
-        <div style={{fontSize:'13px',color:T.textSub,marginBottom:'14px'}}>Locks immediately — cannot be changed</div>
-        <select id="oscar-pick" style={{...S.inp,marginBottom:'14px'}}><option value="">Select a film…</option>{films.map(f=><option key={f.id} value={f.id}>{f.title}</option>)}</select>
-        <Btn onClick={()=>{const id=document.getElementById('oscar-pick').value;if(!id)return notify('Select a film',T.red);submitOscarPick(id)}} color={T.gold} full size="lg">🏆 Lock In</Btn>
-      </div>}
-      {oscarPreds.length>0&&<div>
-        <div style={{...S.sectionTitle,marginBottom:'12px'}}>All Picks</div>
-        {oscarPreds.map(op=>{const p=players.find(pl=>pl.id===op.player_id),f=films.find(fl=>fl.id===op.best_picture_film_id);return(
-          <div key={op.id} style={{...S.card,display:'flex',alignItems:'center',gap:'12px',marginBottom:'8px'}}>
-            <FilmPoster film={f} width={32} height={48} radius={6}/>
-            <div style={{width:'8px',height:'8px',borderRadius:'50%',background:p?.color||T.gold,flexShrink:0}}/>
-            <div style={{flex:1,fontSize:'13px',color:p?.color||T.gold,fontWeight:500}}>{p?.name}</div>
-            <div style={{fontSize:'13px',color:T.text}}>{f?.title||'—'}</div>
-            {op.correct===true&&<span style={{color:T.green}}>✅ +75</span>}
-            {op.correct===false&&<span style={{color:T.red}}>❌</span>}
-          </div>
-        )})}
-      </div>}
+        )
+      })}
     </div>
   )
 
-  const ResultsPage=()=>(
-    <div>
-      <div style={S.pageTitle}>Enter Results</div>
-      <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px',marginBottom:'20px'}}>Opening weekend · weekly grosses · weekend #1</div>
-      {films.map(film=>{
-        const actual=results[film.id],weeks=weeklyG[film.id]||{},lb=calcLegsBonus(actual,weeks[2]),isWinner=wwWinners[film.week]===film.id
-        return(
-          <div key={film.id} style={{...S.card,marginBottom:'10px'}}>
-            <div style={{display:'flex',alignItems:'center',gap:'10px',flexWrap:'wrap'}}>
-              <FilmPoster film={film} width={32} height={48} radius={6}/>
-              <div style={{flex:2,minWidth:'120px'}}><div style={{fontSize:'13px',fontWeight:500}}>{film.title} {isWinner&&'🥇'}</div><div style={{fontSize:'11px',color:T.textSub}}>Est ${film.estM}M · Ph{film.phase} W{film.week}</div></div>
-              <input type="number" step="0.1" defaultValue={actual||''} placeholder="Opening $M" id={`res-${film.id}`} style={{...S.inp,width:'110px'}}/>
-              <Btn color={T.green} textColor="#0D0A08" onClick={async()=>{
-                const v=parseFloat(document.getElementById(`res-${film.id}`).value);if(isNaN(v))return notify('Enter a number',T.red)
-                const nv=calcMarketValue(film,v)
-                await dbUpsert('results','film_id',film.id,{actual_m:v})
-                await dbUpsert('film_values','film_id',film.id,{current_value:nv})
-                await resolveChips(film.id,v)
-                await logActivity(session.user.id,'result',{film_title:film.title,actual_m:v})
-                await sendNotification('result_in',{film_title:film.title,actual_m:v,players:players.map(p=>({id:p.id}))})
-                notify(`✅ ${film.title} · $${nv} · ${calcOpeningPts(film,v)}pts`,T.gold);loadData(league?.id)
-              }}>Save</Btn>
-              <button style={{...S.btn,background:isWinner?T.gold:T.surfaceUp,border:isWinner?'none':`1px solid ${T.border}`,color:isWinner?'#0D0A08':T.textSub,fontSize:'12px',padding:'9px 12px'}} onClick={async()=>{
-                if(isWinner){await supabase.from('weekend_winners').delete().eq('week',film.week)}
-                else{const ex=await supabase.from('weekend_winners').select('id').eq('week',film.week).maybeSingle();if(ex.data)await supabase.from('weekend_winners').update({film_id:film.id,phase:ph}).eq('week',film.week);else await supabase.from('weekend_winners').insert({film_id:film.id,week:film.week,phase:ph,league_id:league?.id})}
-                notify(isWinner?'Removed':`🥇 ${film.title} · +15pts`,T.gold);loadData(league?.id)
-              }}>{isWinner?'🥇 #1':'#1?'}</button>
-              {actual!=null&&<span style={{fontSize:'12px',color:T.green}}>${actual}M → ${filmVal(film)}M · {calcOpeningPts(film,actual)}pts</span>}
-            </div>
-            {actual!=null&&<div style={{borderTop:`1px solid ${T.border}`,paddingTop:'12px',marginTop:'12px'}}>
-              <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'10px',flexWrap:'wrap'}}><div style={S.label}>Weekly Grosses</div>{lb>0&&<Badge color={T.green}>🦵 Legs +25pts</Badge>}</div>
-              <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
-                {[2,3,4,5,6,7,8].map(wk=>{const rate=wk>=4?1.1:1;return(
-                  <div key={wk} style={{display:'flex',flexDirection:'column',gap:'4px',alignItems:'center'}}>
-                    <div style={{fontSize:'10px',color:T.textDim}}>W{wk}{wk>=4?'×1.1':''}</div>
-                    <input type="number" step="0.1" placeholder="$M" defaultValue={weeks[wk]||''} id={`wk-${film.id}-${wk}`} style={{...S.inp,width:'60px',fontSize:'11px',padding:'5px 6px'}}/>
-                    <button style={{...S.btn,background:T.surfaceUp,border:`1px solid ${T.border}`,color:T.textSub,fontSize:'9px',padding:'3px 6px'}} onClick={async()=>{const v=parseFloat(document.getElementById(`wk-${film.id}-${wk}`).value);if(isNaN(v))return;await dbUpsertWeekly(film.id,wk,v);notify(`W${wk} saved`,T.gold);loadData(league?.id)}}>Save</button>
-                    {weeks[wk]&&<div style={{fontSize:'10px',color:T.blue}}>+{Math.round(Number(weeks[wk])*rate)}</div>}
-                  </div>
-                )})}
+  // ── HOW TO PLAY PAGE ─────────────────────────────────────────────────────
+  const HowToPlayPage=()=>{
+    const Step=({n,title,desc})=>(
+      <div style={{display:'flex',gap:'14px',marginBottom:'16px'}}>
+        <div style={{width:'32px',height:'32px',borderRadius:'50%',background:T.gold,color:'#000',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:'14px',flexShrink:0}}>{n}</div>
+        <div style={{flex:1}}><div style={{fontSize:'14px',fontWeight:700,marginBottom:'3px'}}>{title}</div><div style={{fontSize:'13px',color:T.textSub,lineHeight:1.5}}>{desc}</div></div>
+      </div>
+    )
+    return(
+      <div style={{animation:'fadeUp .2s ease',maxWidth:'640px'}}>
+        <div style={S.pageTitle}>How to play</div>
+        <div style={{fontSize:'13px',color:T.textSub,marginBottom:'24px',lineHeight:1.6}}>BOXD is fantasy box office. You pick films you think will overperform, then earn points when results land.</div>
+        <div style={{...S.card,marginBottom:'14px'}}>
+          <div style={{...S.label,marginBottom:'14px',color:T.gold}}>The basics</div>
+          <Step n="1" title="Pick films" desc={`Up to ${MAX_ROSTER} films per phase. Each phase has a budget you spend on them.`}/>
+          <Step n="2" title="Results land Monday" desc="Every Monday, real opening weekend numbers update prices and lock in points for last week's films."/>
+          <Step n="3" title="Score points" desc="Better-than-expected = more points. Critic scores, multi-week legs, and Weekend #1 add bonuses."/>
+          <Step n="4" title="Use chips wisely" desc="Each player has 4 one-time chips: Recut, Short, Analyst, Auteur. Save them for the right moment."/>
+        </div>
+        <div style={{...S.card,marginBottom:'14px'}}>
+          <div style={{...S.label,marginBottom:'10px',color:T.green}}>Scoring quick-reference</div>
+          <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.8}}>
+            • Opening pts = actual gross × performance multiplier (0.45–2.0×) × RT bonus<br/>
+            • 🐦 <strong style={{color:T.green}}>Early Bird +10%</strong> if you bought {EARLY_BIRD_WEEKS}+ weeks before release<br/>
+            • 🎯 <strong style={{color:T.blue}}>Analyst +60pts</strong> if your forecast is within 10%<br/>
+            • 🎭 <strong style={{color:T.orange}}>Auteur +10%</strong> on all films from your declared actor<br/>
+            • 🦵 <strong style={{color:T.green}}>Legs +25</strong> if W2 drop is under 30%<br/>
+            • 🥇 <strong style={{color:T.gold}}>Weekend #1 +15</strong> if your film tops the chart
+          </div>
+        </div>
+        <div style={{...S.card,marginBottom:'14px'}}>
+          <div style={{...S.label,marginBottom:'10px',color:T.blue}}>Pro tips</div>
+          <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.8}}>
+            • <strong>Watch the Buzz Index.</strong> When it climbs past 70 the price will too.<br/>
+            • <strong>Get in early.</strong> Films are cheapest 6+ weeks out — that's where your conviction shows.<br/>
+            • <strong>Read the Signals page.</strong> News moves prices ±25% over 14 days.<br/>
+            • <strong>Use the phase window.</strong> Each phase has a free-trade window — drop dead weight for zero fees.
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── LEAGUE PAGE ──────────────────────────────────────────────────────────
+  const LeaguePage=()=>{
+    const standings=[...players].map(p=>({p,pts:calcPoints(p.id)})).sort((a,b)=>b.pts-a.pts)
+    const prevStandings=Object.entries(standingsSnapshot).map(([id,pts])=>({id,pts})).sort((a,b)=>b.pts-a.pts)
+    const prevRank={};prevStandings.forEach((s,i)=>{prevRank[s.id]=i})
+    return(
+      <div style={{animation:'fadeUp .2s ease'}}>
+        <div style={S.pageTitle}>League Standings</div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>{league?.name} · {players.length} players · Phase {ph}</div>
+        {standings.map((s,i)=>{
+          const prev=prevRank[s.p.id];const delta=prev!=null?prev-i:0
+          return(
+            <div key={s.p.id} className="hoverable" onClick={()=>goToProfile(s.p)} style={{...S.card,marginBottom:'8px',display:'flex',alignItems:'center',gap:'14px',cursor:'pointer',border:`1px solid ${i===0?T.gold+'66':T.border}`}}>
+              <div style={{fontSize:'24px',fontWeight:900,color:i===0?T.gold:i<3?T.text:T.textSub,fontFamily:T.mono,minWidth:'36px',textAlign:'center'}}>{i+1}</div>
+              <div style={{width:'44px',height:'44px',borderRadius:'50%',background:s.p.color||T.gold,color:'#000',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'18px',fontWeight:900,flexShrink:0}}>{s.p.name?.[0]||'?'}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:'14px',fontWeight:700}}>{s.p.name}</div>
+                <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>{rosters.filter(r=>r.player_id===s.p.id&&r.active).length} films · {cur}{budgetLeft(s.p.id)}M left</div>
               </div>
+              {delta!==0&&<div style={{fontSize:'11px',color:delta>0?T.green:T.red,fontFamily:T.mono,fontWeight:700}}>{delta>0?'▲':'▼'}{Math.abs(delta)}</div>}
+              <div style={{textAlign:'right'}}>
+                <div style={{fontSize:'22px',fontWeight:900,color:i===0?T.gold:T.text,fontFamily:T.mono}}>{s.pts}</div>
+                <div style={S.label}>pts</div>
+              </div>
+            </div>
+          )
+        })}
+        {standings.length===0&&<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No players yet.</div>}
+      </div>
+    )
+  }
+
+  // ── FEED PAGE ────────────────────────────────────────────────────────────
+  const FeedPage=()=>{
+    const toggleFeedReaction=async(feedId,emoji)=>{
+      const existing=feedReactions[feedId]?.[emoji]||[]
+      if(existing.includes(profile.id)){
+        await supabase.from('reactions').delete().eq('target_type','feed').eq('target_id',feedId).eq('user_id',profile.id).eq('emoji',emoji)
+      }else{
+        await supabase.from('reactions').insert({user_id:profile.id,target_type:'feed',target_id:feedId,emoji})
+      }
+      loadFeed(league?.id)
+    }
+    return(
+      <div style={{animation:'fadeUp .2s ease'}}>
+        <div style={S.pageTitle}>League Feed</div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Live activity across the league</div>
+        {feedItems.length===0?<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No activity yet.</div>:feedItems.map(item=>{
+          const p=players.find(pl=>pl.id===item.user_id)
+          let label='',col=T.textSub
+          const pay=item.payload||{}
+          if(item.type==='buy'){label=`bought ${pay.film_title} for $${pay.price}M`;col=T.gold}
+          else if(item.type==='sell'){label=`dropped ${pay.film_title} for $${pay.proceeds}M`;col=T.red}
+          else if(item.type==='trade_proposed'){label=`proposed trade: ${pay.my_film} ⇄ ${pay.their_film}`;col=T.blue}
+          else if(item.type==='trade_accepted'){label=`traded ${pay.film_given} for ${pay.film_received}`;col=T.green}
+          else if(item.type==='chip_recut'){label='activated 🎬 THE RECUT';col=T.purple}
+          else if(item.type==='chip_short'){label=`📉 shorted ${pay.film_title}`;col=T.red}
+          else if(item.type==='chip_analyst'){label=`🎯 Analyst on ${pay.film_title} · $${pay.prediction}M`;col=T.blue}
+          else if(item.type==='auteur'){label=`🎭 declared Auteur: ${pay.actor} (${pay.film_count} films)`;col=T.orange}
+          else if(item.type==='oscar'){label=`🏆 Oscar pick: ${pay.film_title}`;col=T.gold}
+          else if(item.type==='forecast'){label=`📊 forecast ${pay.film_title} at $${pay.predicted_m}M`;col=T.blue}
+          else if(item.type==='phase_advance'){label=`⚡ advanced to Phase ${pay.to_phase}`;col=T.gold}
+          else label=item.type
+          return(
+            <div key={item.id} style={{...S.card,marginBottom:'8px',padding:'12px 14px'}}>
+              <div style={{display:'flex',gap:'12px',alignItems:'flex-start'}}>
+                <div onClick={()=>p&&goToProfile(p)} style={{width:'32px',height:'32px',borderRadius:'50%',background:p?.color||T.textSub,color:'#000',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:'13px',flexShrink:0,cursor:'pointer'}}>{p?.name?.[0]||'?'}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:'13px'}}>
+                    <span style={{color:p?.color||T.gold,fontWeight:700,cursor:'pointer'}} onClick={()=>p&&goToProfile(p)}>{p?.name||'Someone'}</span>
+                    <span style={{color:col,marginLeft:'5px'}}>{label}</span>
+                  </div>
+                  <div style={{fontSize:'10px',color:T.textDim,marginTop:'3px'}}>{timeAgo(item.created_at)}</div>
+                  <div style={{display:'flex',gap:'4px',marginTop:'6px',flexWrap:'wrap'}}>
+                    {EMOJI_OPTIONS.slice(0,5).map(emoji=>{
+                      const users=feedReactions[item.id]?.[emoji]||[]
+                      const mine=users.includes(profile.id)
+                      if(users.length===0&&!mine)return null
+                      return(
+                        <button key={emoji} onClick={()=>toggleFeedReaction(item.id,emoji)} style={{background:mine?`${T.gold}22`:T.surfaceUp,border:`1px solid ${mine?T.gold+'66':T.border}`,borderRadius:'12px',padding:'3px 8px',cursor:'pointer',fontSize:'11px',color:mine?T.gold:T.textSub,fontFamily:T.mono}}>{emoji} {users.length}</button>
+                      )
+                    })}
+                    {/* Quick-add reactions */}
+                    <button onClick={()=>{const emoji=prompt('React with which emoji?',EMOJI_OPTIONS[0]);if(emoji)toggleFeedReaction(item.id,emoji)}} style={{background:'transparent',border:`1px dashed ${T.border}`,borderRadius:'12px',padding:'3px 8px',cursor:'pointer',fontSize:'11px',color:T.textDim}}>+</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // ── INTENT (WATCHLIST) PAGE ──────────────────────────────────────────────
+  const IntentPage=()=>{
+    const watched=films.filter(f=>allPicks.some(p=>p.film_id===f.id&&p.user_id===profile.id))
+    return(
+      <div style={{animation:'fadeUp .2s ease'}}>
+        <div style={S.pageTitle}>Your Watchlist</div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Films you're tracking · tap to view</div>
+        {watched.length===0?<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>Tap the 👁 button on any film to add it.</div>:<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))',gap:'10px'}}>
+          {watched.map(f=>(
+            <div key={f.id} onClick={()=>setFilmDetail(f)} className="hoverable" style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'12px',overflow:'hidden',cursor:'pointer'}}>
+              <FilmPoster film={f} width="100%" height={200} radius={0}/>
+              <div style={{padding:'8px 10px'}}>
+                <div style={{fontSize:'12px',fontWeight:600,lineHeight:1.3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.title}</div>
+                <div style={{fontSize:'10px',color:T.textSub,marginTop:'2px'}}>{f.dist} · W{f.week}</div>
+              </div>
+            </div>
+          ))}
+        </div>}
+      </div>
+    )
+  }
+
+
+  // ── CHIPS PAGE ───────────────────────────────────────────────────────────
+  const ChipsPage=()=>{
+    const ChipCard=({icon,name,desc,used,color,onClick,status})=>(
+      <div style={{...S.card,marginBottom:'10px',border:`1px solid ${used?T.border:color+'66'}`,opacity:used?0.5:1}}>
+        <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
+          <div style={{width:'52px',height:'52px',borderRadius:'12px',background:`${color}22`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'24px',flexShrink:0}}>{icon}</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:'15px',fontWeight:700,color:used?T.textSub:color}}>{name} {used&&<span style={{color:T.textDim,fontSize:'11px',marginLeft:'4px'}}>USED</span>}</div>
+            <div style={{fontSize:'12px',color:T.textSub,marginTop:'2px',lineHeight:1.4}}>{desc}</div>
+            {status&&<div style={{fontSize:'11px',color,marginTop:'4px',fontWeight:600}}>{status}</div>}
+          </div>
+          {!used&&onClick&&<Btn onClick={onClick} color={color} textColor="#fff" size="sm">Use</Btn>}
+        </div>
+      </div>
+    )
+    const shortStatus=chips?.short_film_id?(()=>{const f=films.find(fl=>fl.id===chips.short_film_id);return `📉 ${f?.title||'?'} · ${chips.short_result||'pending'}`})():null
+    const analystStatus=chips?.analyst_film_id?(()=>{const f=films.find(fl=>fl.id===chips.analyst_film_id);return `🎯 ${f?.title||'?'} · ${chips.analyst_result||'pending'}`})():null
+    const auteurStatus=(()=>{const a=auteurDecl.find(a=>a.player_id===profile.id&&a.phase===ph);return a?`🎭 ${a.star_actor} · ${a.film_ids?.length||0} films`:null})()
+    return(
+      <div style={{animation:'fadeUp .2s ease'}}>
+        <div style={S.pageTitle}>Your Chips</div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Each chip is one-time use across the whole season.</div>
+        <ChipCard icon="🎬" name="THE RECUT" color={T.purple} used={recutUsed} onClick={activateRecut} desc="Clear your entire roster with zero transaction fees. Press the reset button when things go wrong."/>
+        <ChipCard icon="📉" name="SHORT" color={T.red} used={shortUsed} status={shortStatus} onClick={()=>setChipModal('short')} desc="Bet against a film. If it underperforms by 40%+, win 100pts. If it overperforms or breaks even, lose 30pts."/>
+        <ChipCard icon="🎯" name="ANALYST" color={T.blue} used={analystUsed} status={analystStatus} onClick={()=>setChipModal('analyst')} desc="Pick a film you own and predict its opening number. Within 10% = +60pts bonus on top of normal scoring."/>
+        <ChipCard icon="🎭" name="AUTEUR" color={T.orange} used={!!auteurDecl.find(a=>a.player_id===profile.id&&a.phase===ph)} status={auteurStatus} onClick={()=>setChipModal('auteur')} desc="Declare an actor and 2+ films they appear in this phase. All their films get +10% opening pts."/>
+      </div>
+    )
+  }
+
+  // ── TRADES PAGE ──────────────────────────────────────────────────────────
+  const TradesPage=()=>{
+    const myProposed=trades.filter(t=>t.proposer_id===profile.id)
+    return(
+      <div style={{animation:'fadeUp .2s ease'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'14px'}}>
+          <div style={S.pageTitle}>Trades</div>
+          <Btn onClick={()=>setTradeModal(true)} color={T.blue} textColor="#fff" size="sm">+ Propose</Btn>
+        </div>
+        {pendingForMe.length>0&&<><div style={{...S.label,marginBottom:'10px',color:T.gold}}>Pending for you ({pendingForMe.length})</div>{pendingForMe.map(t=>{
+          const proposer=players.find(p=>p.id===t.proposer_id)
+          const myFilm=films.find(f=>f.id===t.receiver_film_id)
+          const theirFilm=films.find(f=>f.id===t.proposer_film_id)
+          return(
+            <div key={t.id} style={{...S.card,marginBottom:'10px',border:`1px solid ${T.gold}44`}}>
+              <div style={{fontSize:'13px',color:T.textSub,marginBottom:'10px'}}><span style={{color:proposer?.color||T.gold,fontWeight:700}}>{proposer?.name}</span> wants to trade</div>
+              <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'12px'}}>
+                <div style={{textAlign:'center',flex:1}}>{theirFilm&&<><FilmPoster film={theirFilm} width={48} height={72} radius={6}/><div style={{fontSize:'10px',marginTop:'5px',color:T.green}}>YOU GET</div></>}</div>
+                <div style={{fontSize:'22px',color:T.textSub}}>⇄</div>
+                <div style={{textAlign:'center',flex:1}}>{myFilm&&<><FilmPoster film={myFilm} width={48} height={72} radius={6}/><div style={{fontSize:'10px',marginTop:'5px',color:T.red}}>YOU GIVE</div></>}</div>
+              </div>
+              <div style={{display:'flex',gap:'8px'}}>
+                <Btn onClick={()=>acceptTrade(t)} color={T.green} textColor="#0D0A08" sx={{flex:1}}>Accept</Btn>
+                <Btn onClick={()=>rejectTrade(t)} variant="outline" color={T.red} sx={{flex:1}}>Reject</Btn>
+              </div>
+            </div>
+          )
+        })}<Divider/></>}
+        {myProposed.length>0&&<><div style={{...S.label,marginBottom:'10px'}}>Your proposals</div>{myProposed.map(t=>{
+          const receiver=players.find(p=>p.id===t.receiver_id)
+          const myFilm=films.find(f=>f.id===t.proposer_film_id)
+          const theirFilm=films.find(f=>f.id===t.receiver_film_id)
+          const statusCol={pending:T.gold,accepted:T.green,rejected:T.red,cancelled:T.textSub}[t.status]
+          return(
+            <div key={t.id} style={{...S.card,marginBottom:'10px'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}}>
+                <div style={{fontSize:'13px',color:T.textSub}}>To <span style={{color:receiver?.color||T.gold,fontWeight:700}}>{receiver?.name}</span></div>
+                <Pill color={statusCol}>{t.status}</Pill>
+              </div>
+              <div style={{fontSize:'12px',color:T.textSub}}>You offered <strong>{myFilm?.title}</strong> for <strong>{theirFilm?.title}</strong></div>
+              {t.status==='pending'&&<Btn onClick={()=>cancelTrade(t)} variant="outline" color={T.red} size="sm" sx={{marginTop:'10px'}}>Cancel</Btn>}
+            </div>
+          )
+        })}</>}
+        {pendingForMe.length===0&&myProposed.length===0&&<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No active trades.</div>}
+      </div>
+    )
+  }
+
+  // ── FORECASTER PAGE ──────────────────────────────────────────────────────
+  const ForecasterPage=()=>{
+    const [edit,setEdit]=useState({})
+    const fcFilms=films.filter(f=>f.phase===ph&&results[f.id]==null)
+    return(
+      <div style={{animation:'fadeUp .2s ease'}}>
+        <div style={S.pageTitle}>The Forecaster</div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Predict opening weekends. Most accurate per phase wins +15pts. Most accurate over the season wins +50pts.</div>
+        {fcFilms.length===0?<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No upcoming films to forecast.</div>:fcFilms.map(f=>{
+          const cur=forecasts[f.id],val=edit[f.id]??cur??''
+          return(
+            <div key={f.id} style={{...S.card,marginBottom:'10px'}}>
+              <div style={{display:'flex',gap:'12px',alignItems:'center'}}>
+                <FilmPoster film={f} width={42} height={63} radius={6}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:'13px',fontWeight:600}}>{f.title}</div>
+                  <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>Est ${f.estM}M · W{f.week}</div>
+                </div>
+                <input type="number" value={val} onChange={e=>setEdit({...edit,[f.id]:e.target.value})} placeholder="$M" style={{...S.inp,width:'80px',fontSize:'13px',textAlign:'center'}}/>
+                <Btn onClick={()=>saveForecast(f.id,Number(val))} color={T.blue} textColor="#fff" size="sm" disabled={!val||isNaN(Number(val))}>{cur!=null?'Update':'Save'}</Btn>
+              </div>
+              {cur!=null&&<div style={{fontSize:'11px',color:T.green,marginTop:'8px'}}>✓ Forecast: ${cur}M</div>}
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // ── OSCAR PAGE ───────────────────────────────────────────────────────────
+  const OscarPage=()=>{
+    const eligible=films.filter(f=>['Drama','Awards','Animation'].includes(f.genre)||f.phase>=4)
+    return(
+      <div style={{animation:'fadeUp .2s ease'}}>
+        <div style={S.pageTitle}>🏆 Oscar Pick</div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Pick the eventual Best Picture winner. Correct = +75pts at end of season.</div>
+        {myOscar?(()=>{const pick=films.find(f=>f.id===myOscar.best_picture_film_id);return(
+          <div style={{...S.card,padding:'24px',textAlign:'center',background:`linear-gradient(135deg,${T.gold}14,${T.surface})`,border:`1px solid ${T.gold}66`}}>
+            {pick&&<><FilmPoster film={pick} width={120} height={180} radius={10}/><div style={{fontSize:'18px',fontWeight:700,marginTop:'12px',marginBottom:'4px'}}>{pick.title}</div><div style={{fontSize:'12px',color:T.textSub,marginBottom:'10px'}}>{pick.dist}</div></>}
+            <Pill color={myOscar.correct==null?T.gold:myOscar.correct?T.green:T.red}>{myOscar.correct==null?'Locked':myOscar.correct?'✓ Correct +75pts':'✗ Wrong'}</Pill>
+          </div>
+        )})():<>{eligible.map(f=>(
+          <div key={f.id} className="hoverable" onClick={()=>{if(confirm(`Lock in ${f.title} as your Best Picture pick? You can't change it later.`))submitOscarPick(f.id)}} style={{...S.card,marginBottom:'8px',cursor:'pointer',display:'flex',gap:'12px',alignItems:'center'}}>
+            <FilmPoster film={f} width={42} height={63} radius={6}/>
+            <div style={{flex:1}}><div style={{fontSize:'13px',fontWeight:600}}>{f.title}</div><div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>{f.dist} · {f.genre}{f.rt!=null?` · RT ${f.rt}%`:''}</div></div>
+            <div style={{color:T.gold,fontSize:'18px'}}>›</div>
+          </div>
+        ))}</>}
+      </div>
+    )
+  }
+
+  // ── RESULTS PAGE ─────────────────────────────────────────────────────────
+  const ResultsPage=()=>{
+    const resulted=films.filter(f=>results[f.id]!=null).sort((a,b)=>b.week-a.week||b.phase-a.phase)
+    return(
+      <div style={{animation:'fadeUp .2s ease'}}>
+        <div style={S.pageTitle}>Results</div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>{resulted.length} films scored · most recent first</div>
+        {resulted.length===0?<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No results yet.</div>:resulted.map(f=>{
+          const actual=results[f.id]
+          const ratio=actual/f.estM
+          return(
+            <div key={f.id} className="hoverable" onClick={()=>setFilmDetail(f)} style={{...S.card,marginBottom:'8px',cursor:'pointer',display:'flex',gap:'12px',alignItems:'center'}}>
+              <FilmPoster film={f} width={42} height={63} radius={6}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:'13px',fontWeight:600}}>{f.title}</div>
+                <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>{f.dist} · W{f.week} · Est ${f.estM}M</div>
+              </div>
+              <div style={{textAlign:'right'}}>
+                <div style={{fontSize:'16px',fontWeight:800,color:T.green,fontFamily:T.mono}}>${actual}M</div>
+                <div style={{fontSize:'11px',color:ratio>=1?T.green:T.red,fontFamily:T.mono}}>{ratio.toFixed(2)}×</div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // ── SIGNALS PAGE ─────────────────────────────────────────────────────────
+  const SignalsPage=()=>{
+    const [typeFilter,setTypeFilter]=useState('all')
+    const types=['all','rt_score','trailer','festival','box_office','controversy','casting']
+    const filtered=typeFilter==='all'?news:news.filter(n=>n.signal_type===typeFilter)
+    return(
+      <div style={{animation:'fadeUp .2s ease'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'12px'}}>
+          <div style={S.pageTitle}>📡 Signals</div>
+          {isCommissioner&&<Btn onClick={()=>setNewSignalOpen(true)} color={T.red} textColor="#fff" size="sm">+ Add Signal</Btn>}
+        </div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px'}}>News & market intelligence · price impacts up to ±25% over 14d</div>
+        <div style={{display:'flex',gap:'6px',overflowX:'auto',marginBottom:'14px',paddingBottom:'4px'}}>
+          {types.map(t=><button key={t} onClick={()=>setTypeFilter(t)} style={{...S.btn,background:t===typeFilter?T.red:T.surfaceUp,color:t===typeFilter?'#fff':T.textSub,border:`1px solid ${t===typeFilter?T.red:T.border}`,padding:'6px 12px',fontSize:'11px',flexShrink:0,textTransform:'none',letterSpacing:0}}>{t.replace('_',' ')}</button>)}
+        </div>
+        {filtered.length===0?<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No signals yet.</div>:filtered.map(n=>{
+          const film=films.find(f=>f.id===n.film_id)
+          const col=n.sentiment==='positive'?T.green:n.sentiment==='negative'?T.red:T.textSub
+          return(
+            <div key={n.id} className="hoverable" onClick={()=>film&&setFilmDetail(film)} style={{...S.card,marginBottom:'8px',cursor:film?'pointer':'default',borderLeft:`3px solid ${col}`}}>
+              <div style={{display:'flex',justifyContent:'space-between',gap:'10px',marginBottom:'6px'}}>
+                <div style={{fontSize:'14px',fontWeight:700,color:T.text,lineHeight:1.3}}>{n.headline}</div>
+                {n.price_impact!=null&&<div style={{fontSize:'13px',fontWeight:700,color:col,fontFamily:T.mono,flexShrink:0}}>{n.price_impact>0?'+':''}{n.price_impact}%</div>}
+              </div>
+              {n.detail&&<div style={{fontSize:'12px',color:T.textSub,lineHeight:1.5,marginBottom:'8px'}}>{n.detail}</div>}
+              <div style={{display:'flex',gap:'8px',alignItems:'center',fontSize:'10px',color:T.textDim}}>
+                <Pill color={col}>{n.signal_type?.replace('_',' ')||'signal'}</Pill>
+                {film&&<span>· {film.title}</span>}
+                <span style={{marginLeft:'auto'}}>{timeAgo(n.signal_date)}</span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+
+  // ── WEEKEND FORECAST PAGE (renamed from Friday Forecast) ─────────────────
+  const FridayForecastPage=()=>{
+    const[picks,setPicks]=useState({p1:'',p2:'',p3:''})
+    const wkN=cfg.current_week
+    const myForecast=fridayForecasts.find(f=>f.player_id===profile.id&&f.week_num===wkN)
+    const lastWk=fridayForecasts.filter(f=>f.week_num===wkN-1&&f.resolved_score!=null)
+    const upcoming=films.filter(f=>f.week===wkN&&results[f.id]==null)
+    const now=new Date(),isLocked=now.getDay()>=4&&now.getHours()>=23
+    const submit=async()=>{
+      if(!picks.p1||!picks.p2||!picks.p3)return notify('Pick 3 films',T.red)
+      const data={player_id:profile.id,league_id:league?.id,week_num:wkN,pick_1:picks.p1,pick_2:picks.p2,pick_3:picks.p3}
+      if(myForecast)await supabase.from('friday_forecasts').update(data).eq('id',myForecast.id)
+      else await supabase.from('friday_forecasts').insert(data)
+      notify('🎯 Weekend forecast locked',T.gold);loadFridayForecasts(league?.id)
+    }
+    useEffect(()=>{if(myForecast)setPicks({p1:myForecast.pick_1||'',p2:myForecast.pick_2||'',p3:myForecast.pick_3||''})},[myForecast?.id])
+    return(
+      <div style={{animation:'fadeUp .2s ease'}}>
+        <div style={S.pageTitle}>🎯 Weekend Forecast</div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px'}}>Pick the top 3 grossing films this weekend · 30/20/10pts + 5 for any correct · locks Thursday midnight</div>
+        {isLocked&&<div style={{...S.card,padding:'14px',background:`${T.orange}18`,border:`1px solid ${T.orange}44`,marginBottom:'14px',fontSize:'13px',color:T.orange}}>🔒 Locked for this weekend. New window opens Monday.</div>}
+        {upcoming.length>=3?<div style={{...S.card,marginBottom:'14px'}}>
+          <div style={{...S.label,marginBottom:'10px'}}>Your picks for Week {wkN}</div>
+          {['p1','p2','p3'].map((slot,i)=>(
+            <div key={slot} style={{marginBottom:'8px'}}>
+              <div style={{fontSize:'11px',color:T.textDim,marginBottom:'4px'}}>{i===0?'🥇 1st place':i===1?'🥈 2nd place':'🥉 3rd place'} {i===0?'· 30pts':i===1?'· 20pts':'· 10pts'}</div>
+              <select disabled={isLocked} value={picks[slot]} onChange={e=>setPicks({...picks,[slot]:e.target.value})} style={S.inp}>
+                <option value="">Pick a film…</option>
+                {upcoming.map(f=><option key={f.id} value={f.id}>{f.title} (est ${f.estM}M)</option>)}
+              </select>
+            </div>
+          ))}
+          <Btn onClick={submit} color={T.gold} full size="lg" sx={{marginTop:'10px'}} disabled={isLocked}>{myForecast?'Update Picks':'Submit Picks'}</Btn>
+        </div>:<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No films opening this week.</div>}
+        {lastWk.length>0&&<>
+          <div style={{...S.label,marginTop:'24px',marginBottom:'10px'}}>Last week's leaderboard (W{wkN-1})</div>
+          {[...lastWk].sort((a,b)=>(b.resolved_score||0)-(a.resolved_score||0)).map((f,i)=>{
+            const p=players.find(pl=>pl.id===f.player_id)
+            return(
+              <div key={f.id} style={{...S.card,marginBottom:'6px',padding:'10px 14px',display:'flex',alignItems:'center',gap:'12px'}}>
+                <div style={{fontSize:'14px',color:i===0?T.gold:T.textSub,fontWeight:700,minWidth:'20px'}}>#{i+1}</div>
+                <div style={{width:'28px',height:'28px',borderRadius:'50%',background:p?.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'12px',fontWeight:700,color:'#000',flexShrink:0}}>{p?.name?.[0]||'?'}</div>
+                <div style={{flex:1,fontSize:'13px'}}>{p?.name}</div>
+                <div style={{fontSize:'15px',fontWeight:800,color:T.gold,fontFamily:T.mono}}>{f.resolved_score||0}pts</div>
+              </div>
+            )
+          })}
+        </>}
+      </div>
+    )
+  }
+
+  // ── COMMUNITY PAGE ───────────────────────────────────────────────────────
+  const CommunityPage=()=>{
+    const[tab,setTab]=useState('anticipated')
+    const TabBtn=({id,label})=><button onClick={()=>setTab(id)} style={{...S.btn,background:'none',border:'none',padding:'8px 14px',fontSize:'12px',fontWeight:tab===id?700:400,color:tab===id?T.gold:T.textSub,borderBottom:`2px solid ${tab===id?T.gold:'transparent'}`,borderRadius:0,textTransform:'none',letterSpacing:0}}>{label}</button>
+    return(
+      <div style={{animation:'fadeUp .2s ease'}}>
+        <div style={S.pageTitle}>Community</div>
+        <div style={{display:'flex',gap:'4px',borderBottom:`1px solid ${T.border}`,marginBottom:'14px'}}>
+          <TabBtn id="anticipated" label="🔥 Most Anticipated"/>
+          <TabBtn id="watchlists" label="👁 Watchlists"/>
+          <TabBtn id="players" label="👥 Players"/>
+        </div>
+        {tab==='anticipated'&&(()=>{
+          const ranked=films.filter(f=>results[f.id]==null).map(f=>({f,count:allPicks.filter(p=>p.film_id===f.id).length})).filter(x=>x.count>0).sort((a,b)=>b.count-a.count).slice(0,20)
+          if(ranked.length===0)return <div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No watchlist data yet.</div>
+          return ranked.map(({f,count},i)=>(
+            <div key={f.id} onClick={()=>setFilmDetail(f)} className="hoverable" style={{...S.card,marginBottom:'8px',cursor:'pointer',display:'flex',gap:'12px',alignItems:'center'}}>
+              <div style={{fontSize:'18px',color:i===0?T.red:i<3?T.orange:T.textSub,fontWeight:800,minWidth:'24px',fontFamily:T.mono}}>#{i+1}</div>
+              <FilmPoster film={f} width={42} height={63} radius={6}/>
+              <div style={{flex:1,minWidth:0}}><div style={{fontSize:'13px',fontWeight:600}}>{f.title}</div><div style={{fontSize:'11px',color:T.textSub}}>{f.dist} · W{f.week}</div></div>
+              <div style={{textAlign:'right'}}><div style={{fontSize:'15px',fontWeight:800,color:T.gold,fontFamily:T.mono}}>{count}</div><div style={{fontSize:'10px',color:T.textDim}}>watching</div></div>
+            </div>
+          ))
+        })()}
+        {tab==='watchlists'&&(()=>{
+          const byPlayer=players.map(p=>({p,picks:allPicks.filter(pk=>pk.user_id===p.id).map(pk=>films.find(f=>f.id===pk.film_id)).filter(Boolean)})).filter(x=>x.picks.length>0)
+          if(byPlayer.length===0)return <div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>Nobody's watchlisted any films yet.</div>
+          return byPlayer.map(({p,picks})=>(
+            <div key={p.id} style={{...S.card,marginBottom:'10px'}}>
+              <div onClick={()=>goToProfile(p)} style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'10px',cursor:'pointer'}}>
+                <div style={{width:'32px',height:'32px',borderRadius:'50%',background:p.color||T.gold,color:'#000',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700}}>{p.name?.[0]}</div>
+                <div style={{flex:1}}><div style={{fontSize:'13px',fontWeight:700,color:p.color}}>{p.name}</div><div style={{fontSize:'11px',color:T.textSub}}>{picks.length} films on watchlist</div></div>
+              </div>
+              <div style={{display:'flex',gap:'6px',overflowX:'auto',paddingBottom:'4px'}}>
+                {picks.slice(0,8).map(f=><div key={f.id} onClick={()=>setFilmDetail(f)} style={{cursor:'pointer',flexShrink:0}}><FilmPoster film={f} width={48} height={72} radius={5}/></div>)}
+              </div>
+            </div>
+          ))
+        })()}
+        {tab==='players'&&players.map(p=>{
+          const taste=generateTasteCard(p.id,allPicks,films,results,rosters)
+          return(
+            <div key={p.id} className="hoverable" onClick={()=>goToProfile(p)} style={{...S.card,marginBottom:'8px',cursor:'pointer',display:'flex',gap:'12px',alignItems:'center'}}>
+              <div style={{width:'44px',height:'44px',borderRadius:'50%',background:p.color||T.gold,color:'#000',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'17px',fontWeight:700,flexShrink:0}}>{p.name?.[0]||'?'}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:'14px',fontWeight:700,color:p.color||T.gold}}>{p.name}</div>
+                {taste?<div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>{taste.styleLabel}{taste.primaryGenre?` · ${taste.primaryGenre}`:''}{taste.hitRate!=null?` · ${taste.hitRate}% hit rate`:''}</div>:<div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>{rosters.filter(r=>r.player_id===p.id).length} films picked</div>}
+              </div>
+              <div style={{textAlign:'right'}}><div style={{fontSize:'17px',fontWeight:800,color:T.gold,fontFamily:T.mono}}>{calcPoints(p.id)}</div><div style={S.label}>pts</div></div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // ── MOVIE OF WEEK PAGE — Post-launch ─────────────────────────────────────
+  const MovieOfWeekPage=()=>{
+    const[selFilm,setSelFilm]=useState('')
+    const[hl,setHl]=useState('')
+    const[bull,setBull]=useState('')
+    const[bear,setBear]=useState('')
+    const pinned=movieOfWeek
+    const pinnedFilm=pinned?films.find(f=>f.id===pinned.film_id):null
+    const submit=async()=>{
+      if(!selFilm)return notify('Pick a film',T.red)
+      const{error}=await supabase.from('movie_of_week').insert({league_id:league?.id,film_id:selFilm,week_num:cfg.current_week,headline:hl||null,bull_case:bull||null,bear_case:bear||null,created_by:profile.id})
+      if(error)return notify(error.message,T.red)
+      notify('🎬 Movie of the Week pinned',T.gold)
+      setSelFilm('');setHl('');setBull('');setBear('')
+      loadMovieOfWeek(league?.id)
+    }
+    return(
+      <div style={{animation:'fadeUp .2s ease'}}>
+        <div style={S.pageTitle}>🎬 Movie of the Week</div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px'}}>Commissioner's spotlight pick with bull/bear case</div>
+        {pinnedFilm&&pinned.week_num===cfg.current_week&&(
+          <div style={{...S.card,marginBottom:'14px',padding:'18px',background:`linear-gradient(135deg,${T.gold}14,${T.surface})`,border:`1px solid ${T.gold}44`}}>
+            <div style={{display:'flex',gap:'14px',marginBottom:'14px'}}>
+              <FilmPoster film={pinnedFilm} width={72} height={108} radius={9}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{...S.label,color:T.gold,marginBottom:'4px'}}>Week {pinned.week_num} pick</div>
+                <div style={{fontSize:'18px',fontWeight:800,marginBottom:'4px'}}>{pinnedFilm.title}</div>
+                <div style={{fontSize:'12px',color:T.textSub}}>{pinnedFilm.dist} · est ${pinnedFilm.estM}M</div>
+                {pinned.headline&&<div style={{fontSize:'13px',color:T.text,marginTop:'8px',fontStyle:'italic'}}>"{pinned.headline}"</div>}
+              </div>
+            </div>
+            {pinned.bull_case&&<div style={{background:`${T.green}10`,border:`1px solid ${T.green}33`,borderRadius:'10px',padding:'12px',marginBottom:'8px'}}><div style={{fontSize:'11px',color:T.green,fontWeight:700,marginBottom:'4px'}}>🐂 BULL CASE</div><div style={{fontSize:'13px',color:T.text,lineHeight:1.5}}>{pinned.bull_case}</div></div>}
+            {pinned.bear_case&&<div style={{background:`${T.red}10`,border:`1px solid ${T.red}33`,borderRadius:'10px',padding:'12px'}}><div style={{fontSize:'11px',color:T.red,fontWeight:700,marginBottom:'4px'}}>🐻 BEAR CASE</div><div style={{fontSize:'13px',color:T.text,lineHeight:1.5}}>{pinned.bear_case}</div></div>}
+          </div>
+        )}
+        {isCommissioner&&(
+          <div style={{...S.card,marginBottom:'14px'}}>
+            <div style={{...S.label,marginBottom:'10px',color:T.orange}}>Pin a new Movie of the Week</div>
+            <select value={selFilm} onChange={e=>setSelFilm(e.target.value)} style={{...S.inp,marginBottom:'10px'}}>
+              <option value="">Select film…</option>
+              {films.filter(f=>results[f.id]==null).map(f=><option key={f.id} value={f.id}>{f.title} · W{f.week}</option>)}
+            </select>
+            <input value={hl} onChange={e=>setHl(e.target.value)} placeholder="Headline (e.g. 'Could this be the surprise hit of summer?')" style={{...S.inp,marginBottom:'10px',fontSize:'13px'}}/>
+            <textarea value={bull} onChange={e=>setBull(e.target.value)} placeholder="Bull case — why it overperforms…" style={{...S.inp,marginBottom:'10px',fontSize:'13px',minHeight:'70px',resize:'vertical',fontFamily:T.mono}}/>
+            <textarea value={bear} onChange={e=>setBear(e.target.value)} placeholder="Bear case — why it could disappoint…" style={{...S.inp,marginBottom:'10px',fontSize:'13px',minHeight:'70px',resize:'vertical',fontFamily:T.mono}}/>
+            <Btn onClick={submit} color={T.gold} full>Pin to League</Btn>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── POLLS PAGE — Post-launch ─────────────────────────────────────────────
+  const PollsPage=()=>{
+    const[q,setQ]=useState('')
+    const[opts,setOpts]=useState(['Yes','No'])
+    const[selFilm,setSelFilm]=useState('')
+    const vote=async(pollId,opt)=>{
+      const existing=pollVotes.find(v=>v.poll_id===pollId&&v.player_id===profile.id)
+      if(existing){
+        await supabase.from('poll_votes').update({vote:opt}).eq('id',existing.id)
+      }else{
+        await supabase.from('poll_votes').insert({poll_id:pollId,player_id:profile.id,league_id:league?.id,vote:opt})
+      }
+      notify(`Voted: ${opt}`,T.blue);loadPolls(league?.id)
+    }
+    const submit=async()=>{
+      if(!q.trim()||opts.filter(o=>o.trim()).length<2)return notify('Need a question + 2 options',T.red)
+      const{error}=await supabase.from('polls').insert({league_id:league?.id,question:q.trim(),options:opts.filter(o=>o.trim()),film_id:selFilm||null,created_by:profile.id})
+      if(error)return notify(error.message,T.red)
+      notify('🗳 Poll posted',T.blue)
+      setQ('');setOpts(['Yes','No']);setSelFilm('')
+      loadPolls(league?.id)
+    }
+    return(
+      <div style={{animation:'fadeUp .2s ease'}}>
+        <div style={S.pageTitle}>🗳 Quick Polls</div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px'}}>League opinion checks · take the temperature of the room</div>
+        {isCommissioner&&(
+          <div style={{...S.card,marginBottom:'14px'}}>
+            <div style={{...S.label,marginBottom:'10px',color:T.blue}}>New poll</div>
+            <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Question (e.g. 'Will Avatar 3 beat estimate?')" style={{...S.inp,marginBottom:'10px',fontSize:'13px'}}/>
+            <div style={{...S.label,marginBottom:'6px'}}>Options</div>
+            {opts.map((o,i)=>(
+              <div key={i} style={{display:'flex',gap:'6px',marginBottom:'6px'}}>
+                <input value={o} onChange={e=>{const n=[...opts];n[i]=e.target.value;setOpts(n)}} placeholder={`Option ${i+1}`} style={{...S.inp,flex:1,fontSize:'12px'}}/>
+                {opts.length>2&&<button onClick={()=>setOpts(opts.filter((_,j)=>j!==i))} style={{background:T.surfaceUp,border:`1px solid ${T.border}`,color:T.red,padding:'8px 12px',borderRadius:'8px',cursor:'pointer',fontFamily:T.mono}}>✕</button>}
+              </div>
+            ))}
+            {opts.length<4&&<button onClick={()=>setOpts([...opts,''])} style={{background:'none',border:`1px dashed ${T.border}`,color:T.textSub,padding:'6px 12px',borderRadius:'8px',cursor:'pointer',fontFamily:T.mono,fontSize:'12px',marginBottom:'10px'}}>+ Add option</button>}
+            <select value={selFilm} onChange={e=>setSelFilm(e.target.value)} style={{...S.inp,marginBottom:'10px',fontSize:'12px'}}>
+              <option value="">No film attached</option>
+              {films.filter(f=>results[f.id]==null).map(f=><option key={f.id} value={f.id}>{f.title}</option>)}
+            </select>
+            <Btn onClick={submit} color={T.blue} textColor="#fff" full>Post Poll</Btn>
+          </div>
+        )}
+        {polls.length===0?<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No polls yet.</div>:polls.map(poll=>{
+          const myVote=pollVotes.find(v=>v.poll_id===poll.id&&v.player_id===profile.id)?.vote
+          const filmRef=poll.film_id?films.find(f=>f.id===poll.film_id):null
+          const tally={}
+          ;(poll.options||[]).forEach(o=>{tally[o]=pollVotes.filter(v=>v.poll_id===poll.id&&v.vote===o).length})
+          const totalVotes=Object.values(tally).reduce((s,n)=>s+n,0)
+          return(
+            <div key={poll.id} style={{...S.card,marginBottom:'10px'}}>
+              {filmRef&&<div style={{fontSize:'10px',color:T.gold,marginBottom:'6px',letterSpacing:'1.5px'}}>📌 {filmRef.title}</div>}
+              <div style={{fontSize:'14px',fontWeight:700,marginBottom:'12px'}}>{poll.question}</div>
+              {(poll.options||[]).map(opt=>{
+                const count=tally[opt]||0
+                const pct=totalVotes?Math.round(count/totalVotes*100):0
+                const isMine=myVote===opt
+                return(
+                  <div key={opt} onClick={()=>!poll.resolution&&vote(poll.id,opt)} style={{position:'relative',background:T.surfaceUp,border:`1px solid ${isMine?T.blue+'66':T.border}`,borderRadius:'8px',padding:'10px 12px',marginBottom:'6px',cursor:poll.resolution?'default':'pointer',overflow:'hidden'}}>
+                    <div style={{position:'absolute',inset:0,width:`${pct}%`,background:`${T.blue}18`,pointerEvents:'none'}}/>
+                    <div style={{position:'relative',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                      <span style={{fontSize:'13px',color:T.text,fontWeight:isMine?700:400}}>{opt}{isMine&&' ✓'}</span>
+                      <span style={{fontSize:'11px',color:T.textSub,fontFamily:T.mono}}>{count} · {pct}%</span>
+                    </div>
+                  </div>
+                )
+              })}
+              <div style={{fontSize:'10px',color:T.textDim,marginTop:'6px'}}>{totalVotes} vote{totalVotes!==1?'s':''} · {timeAgo(poll.created_at)}{poll.resolution&&<> · resolved: <strong style={{color:T.green}}>{poll.resolution}</strong></>}</div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+
+  // ── DISTRIBUTOR INSIGHTS PAGE (with Sentiment Splits) ────────────────────
+  const DistributorPage=()=>{
+    const dists=[...new Set(films.map(f=>f.dist))]
+    return(
+      <div style={{animation:'fadeUp .2s ease'}}>
+        <div style={S.pageTitle}>📈 Distributor Insights</div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px'}}>How the league reads each distributor's slate</div>
+        {dists.map(d=>{
+          const distFilms=films.filter(f=>f.dist===d)
+          const distResulted=distFilms.filter(f=>results[f.id]!=null)
+          const distPicks=allPicks.filter(p=>distFilms.find(f=>f.id===p.film_id))
+          if(distPicks.length===0&&distResulted.length===0)return null
+          // Early-mover percentage — pickers who watchlisted >2 weeks before release
+          const earlyMovers=distPicks.filter(p=>{
+            const f=distFilms.find(fl=>fl.id===p.film_id);if(!f)return false
+            const wkAtPick=cfg.current_week
+            return f.week-wkAtPick>=2
+          }).length
+          const earlyPct=distPicks.length?Math.round(earlyMovers/distPicks.length*100):0
+          // Picker accuracy — % of picks on films that overperformed
+          const accuracyData=distResulted.map(f=>{
+            const wasWatched=allPicks.some(p=>p.film_id===f.id)
+            return{f,wasWatched,beat:results[f.id]/f.estM>=1.1}
+          })
+          const watchedHits=accuracyData.filter(x=>x.wasWatched&&x.beat).length
+          const watchedTotal=accuracyData.filter(x=>x.wasWatched).length
+          const accuracy=watchedTotal?Math.round(watchedHits/watchedTotal*100):null
+          // Genre profile
+          const genreBreak={}
+          distFilms.forEach(f=>{genreBreak[f.genre]=(genreBreak[f.genre]||0)+1})
+          const topGenre=Object.entries(genreBreak).sort((a,b)=>b[1]-a[1])[0]
+          // Taste cluster — 5 films most co-picked with this distributor
+          const peopleWhoLike=[...new Set(distPicks.map(p=>p.user_id))]
+          const cluster={}
+          allPicks.forEach(p=>{
+            if(!peopleWhoLike.includes(p.user_id))return
+            const f=films.find(fl=>fl.id===p.film_id)
+            if(!f||f.dist===d)return
+            cluster[f.id]=(cluster[f.id]||0)+1
+          })
+          const clusterTop=Object.entries(cluster).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id])=>films.find(f=>f.id===id)).filter(Boolean)
+          // Build insight line
+          let headline=''
+          if(earlyPct>=60&&accuracy>=60)headline=`Players read ${d} early and accurately — this distributor is followed.`
+          else if(earlyPct>=60)headline=`Strong early interest in ${d}'s slate; jury still out on accuracy.`
+          else if(accuracy>=60)headline=`${d}'s slate consistently rewards late buyers.`
+          else if(distPicks.length<3)headline=`Limited engagement with ${d}'s slate so far.`
+          else headline=`Mixed signals — the league is undecided on ${d}.`
+          return(
+            <div key={d} style={{...S.card,marginBottom:'12px'}}>
+              <div style={{fontSize:'15px',fontWeight:700,color:T.blue,marginBottom:'4px'}}>{d}</div>
+              <div style={{fontSize:'12px',color:T.text,marginBottom:'12px',lineHeight:1.5,fontStyle:'italic'}}>{headline}</div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'8px',marginBottom:'12px'}}>
+                <StatBox label="Early-mover" value={`${earlyPct}%`} color={earlyPct>=60?T.green:T.text}/>
+                <StatBox label="Accuracy" value={accuracy!=null?`${accuracy}%`:'—'} color={accuracy>=60?T.green:accuracy<40?T.red:T.text}/>
+                <StatBox label="Top genre" value={topGenre?.[0]||'—'} color={topGenre?GENRE_COL[topGenre[0]]||T.text:T.textSub}/>
+              </div>
+              {clusterTop.length>0&&<>
+                <div style={{...S.label,marginBottom:'6px'}}>Co-picked with</div>
+                <div style={{display:'flex',gap:'6px',overflowX:'auto',paddingBottom:'4px'}}>
+                  {clusterTop.map(f=><div key={f.id} onClick={()=>setFilmDetail(f)} style={{cursor:'pointer',flexShrink:0}}><FilmPoster film={f} width={42} height={63} radius={5}/></div>)}
+                </div>
+              </>}
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // ── COMMISSIONER PAGE ────────────────────────────────────────────────────
+  const CommissionerPage=()=>{
+    const [tab,setTab]=useState('phase')
+    const TabBtn=({id,label})=><button onClick={()=>setTab(id)} style={{...S.btn,background:'none',border:'none',padding:'8px 14px',fontSize:'12px',fontWeight:tab===id?700:400,color:tab===id?T.gold:T.textSub,borderBottom:`2px solid ${tab===id?T.gold:'transparent'}`,borderRadius:0,textTransform:'none',letterSpacing:0}}>{label}</button>
+    const runIngest=async()=>{
+      if(!confirm('Run box office ingest now?'))return
+      try{
+        const res=await fetch(`${SUPABASE_URL}/functions/v1/ingest-results`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${SUPABASE_ANON_KEY}`}})
+        const data=await res.json()
+        setIngestLog(data)
+        notify(`✓ Ingested ${data.matched||0} films`,T.green)
+        loadData(league?.id)
+      }catch(e){notify(`Ingest failed: ${e.message}`,T.red)}
+    }
+    return(
+      <div style={{animation:'fadeUp .2s ease'}}>
+        <div style={S.pageTitle}>⚙️ Commissioner Panel</div>
+        <div style={{display:'flex',gap:'2px',borderBottom:`1px solid ${T.border}`,marginBottom:'14px',overflowX:'auto'}}>
+          <TabBtn id="phase" label="Phase"/><TabBtn id="windows" label="Windows"/><TabBtn id="films" label="Films"/><TabBtn id="advanced" label="Advanced"/>
+        </div>
+
+        {tab==='phase'&&<>
+          <div style={{...S.card,marginBottom:'12px'}}>
+            <div style={{...S.label,marginBottom:'10px',color:T.gold}}>Current State</div>
+            <div style={{display:'flex',gap:'12px',marginBottom:'12px'}}>
+              <StatBox label="Week" value={cfg.current_week}/>
+              <StatBox label="Phase" value={ph} sub={PHASE_NAMES[ph]}/>
+              <StatBox label="Window" value={win?'Open':'Closed'} color={win?T.green:T.textSub}/>
+            </div>
+            <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
+              <Btn onClick={async()=>{await supabase.from('league_config').update({current_week:cfg.current_week+1}).eq('league_id',league?.id);loadData(league?.id);notify(`Week ${cfg.current_week+1}`,T.gold)}} color={T.gold} size="sm">Week +1</Btn>
+              <Btn onClick={async()=>{await supabase.from('league_config').update({current_week:Math.max(1,cfg.current_week-1)}).eq('league_id',league?.id);loadData(league?.id);notify(`Week ${cfg.current_week-1}`,T.gold)}} variant="outline" color={T.gold} size="sm">Week −1</Btn>
+              <Btn onClick={advancePhase} color={T.purple} textColor="#fff" size="sm" disabled={phaseTransitioning}>Advance Phase →</Btn>
+            </div>
+          </div>
+
+          {/* SAMPLE SIGNALS — launch helper */}
+          <div style={{...S.card,marginBottom:'12px',border:`1px solid ${T.red}33`}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'8px'}}>
+              <div><div style={{fontSize:'14px',fontWeight:700,color:T.red}}>📡 Sample Signals</div><div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>One-click seed · launch-day kickstart</div></div>
+              <Btn onClick={async()=>{
+                if(!confirm('Add 8 sample news signals to kickstart the league?'))return
+                const upcoming=films.filter(f=>results[f.id]==null&&f.phase===ph).slice(0,8)
+                if(upcoming.length<3)return notify('Need at least 3 unresulted films',T.red)
+                const samples=[
+                  {type:'rt_score',sent:'positive',head:f=>`${f.title.split(':')[0]} hits 92% on Rotten Tomatoes`,imp:8,detail:f=>`Critics praise direction and performances. ${f.dist} expecting strong word-of-mouth.`},
+                  {type:'trailer',sent:'positive',head:f=>`Final trailer for ${f.title.split(':')[0]} crosses 12M views in 24hrs`,imp:5,detail:f=>'Trailer trending across social platforms. Engagement metrics strongest in the 18-34 demo.'},
+                  {type:'festival',sent:'positive',head:f=>`${f.title.split(':')[0]} earns 8-minute standing ovation at premiere`,imp:6,detail:f=>'Early industry buzz is strong. Awards-season chatter beginning.'},
+                  {type:'box_office',sent:'neutral',head:f=>`Pre-sales for ${f.title.split(':')[0]} tracking ahead of estimate`,imp:4,detail:f=>'Tracking firms revising opening estimates upward by 10-15%.'},
+                  {type:'controversy',sent:'negative',head:f=>`${f.title.split(':')[0]} faces backlash over marketing campaign`,imp:-6,detail:f=>'Social media discourse turning negative. Studio response pending.'},
+                  {type:'rt_score',sent:'negative',head:f=>`${f.title.split(':')[0]} disappoints critics with 38% RT score`,imp:-12,detail:f=>'Reviews cite pacing issues and weak third act.'},
+                  {type:'casting',sent:'positive',head:f=>`Lead cast doing major press tour for ${f.title.split(':')[0]}`,imp:3,detail:f=>'Late Show, Fallon, podcast circuit all booked.'},
+                  {type:'box_office',sent:'positive',head:f=>`Industry analysts upgrade ${f.title.split(':')[0]} to overperform`,imp:7,detail:f=>'Box office tracking now suggests opening weekend could clear estimates by 25%.'},
+                ]
+                const rows=upcoming.slice(0,8).map((f,i)=>{
+                  const s=samples[i%samples.length]
+                  return{
+                    league_id:league?.id,film_id:f.id,signal_type:s.type,
+                    headline:s.head(f),detail:s.detail(f),
+                    sentiment:s.sent,price_impact:s.imp,
+                    created_by:profile.id,
+                    signal_date:new Date(Date.now()-(i*3600000*4)).toISOString(),
+                  }
+                })
+                const{error}=await supabase.from('news_signals').insert(rows)
+                if(error)return notify(error.message,T.red)
+                notify(`📡 ${rows.length} sample signals published`,T.red)
+                loadNews(league?.id)
+              }} color={T.red} textColor="#fff" size="sm">🌱 Seed 8 Signals</Btn>
+            </div>
+            <div style={{fontSize:'11px',color:T.textDim,lineHeight:1.5}}>Inserts a mix of positive/negative news across your upcoming slate. Players see prices move immediately. Run once before launch.</div>
+          </div>
+
+          {/* Ingest */}
+          <div style={{...S.card,marginBottom:'12px',border:`1px solid ${T.green}33`}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}}>
+              <div><div style={{fontSize:'14px',fontWeight:700,color:T.green}}>📊 Box Office Ingest</div><div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>Pulls from The Numbers · runs auto Monday 23:00 UTC</div></div>
+              <Btn onClick={runIngest} color={T.green} textColor="#0D0A08" size="sm">🎬 Run Now</Btn>
+            </div>
+            {ingestLog&&<div style={{fontSize:'11px',color:T.textSub,fontFamily:T.mono,background:T.surfaceUp,padding:'10px',borderRadius:'8px'}}>{JSON.stringify(ingestLog,null,2)}</div>}
+          </div>
+        </>}
+
+        {tab==='windows'&&<>
+          <div style={{...S.card,marginBottom:'12px'}}>
+            <div style={{...S.label,marginBottom:'8px',color:T.green}}>Free Trade Window</div>
+            <div style={{fontSize:'12px',color:T.textSub,marginBottom:'12px'}}>72hr period at phase start where sells have no fees.</div>
+            <Btn onClick={async()=>{
+              const newState=!win
+              await supabase.from('league_config').update({phase_window_active:newState,phase_window_opened_at:newState?new Date().toISOString():null}).eq('league_id',league?.id)
+              loadData(league?.id);notify(`Window ${newState?'opened':'closed'}`,newState?T.green:T.red)
+            }} color={win?T.red:T.green} textColor={win?'#fff':'#0D0A08'} size="sm">{win?'Close Window':'Open Window'}</Btn>
+          </div>
+          <div style={{...S.card,marginBottom:'12px'}}>
+            <div style={{...S.label,marginBottom:'8px',color:T.orange}}>Draft Window</div>
+            <div style={{fontSize:'12px',color:T.textSub,marginBottom:'12px'}}>Players must pick {DRAFT_MIN}+ films during draft or face {DRAFT_PENALTY}pt penalty each.</div>
+            <Btn onClick={async()=>{
+              const newState=!draftWindowOpen
+              const dl=newState?new Date(Date.now()+72*3600000).toISOString():null
+              await supabase.from('league_config').update({draft_window_open:newState,draft_deadline:dl}).eq('league_id',league?.id)
+              loadData(league?.id);notify(`Draft ${newState?'opened':'closed'}`,newState?T.green:T.red)
+            }} color={draftWindowOpen?T.red:T.orange} textColor="#fff" size="sm">{draftWindowOpen?'Close Draft':'Open Draft'}</Btn>
+          </div>
+          <div style={{...S.card,marginBottom:'12px'}}>
+            <div style={{...S.label,marginBottom:'8px',color:T.blue}}>Sealed-bid Window</div>
+            <div style={{fontSize:'12px',color:T.textSub,marginBottom:'12px'}}>For high-demand films · highest blind bid wins.</div>
+            <Btn onClick={async()=>{
+              const newState=!sealedWindowOpen
+              const dl=newState?new Date(Date.now()+48*3600000).toISOString():null
+              await supabase.from('league_config').update({sealed_bid_window_open:newState,sealed_bid_deadline:dl}).eq('league_id',league?.id)
+              loadData(league?.id);notify(`Sealed bid ${newState?'opened':'closed'}`,newState?T.green:T.red)
+            }} color={sealedWindowOpen?T.red:T.blue} textColor="#fff" size="sm">{sealedWindowOpen?'Close':'Open'} Bid Window</Btn>
+          </div>
+        </>}
+
+        {tab==='films'&&<>
+          <div style={{...S.card,marginBottom:'12px'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}}>
+              <div style={{fontSize:'14px',fontWeight:700}}>Films · {films.length}</div>
+              <Btn onClick={()=>setAddFilm(true)} color={T.gold} size="sm">+ Add Film</Btn>
+            </div>
+            <div style={{fontSize:'11px',color:T.textSub}}>Use War Room to enter weekend results in bulk.</div>
+          </div>
+        </>}
+
+        {tab==='advanced'&&<>
+          <div style={{...S.card,marginBottom:'12px'}}>
+            <div style={{...S.label,marginBottom:'8px',color:T.red}}>League Settings</div>
+            <div style={{fontSize:'12px',color:T.textSub,marginBottom:'10px'}}>Invite code: <strong style={{color:T.gold}}>{league?.invite_code}</strong></div>
+            <div style={{fontSize:'11px',color:T.textDim,marginBottom:'12px'}}>Share: boxd-league-v2.vercel.app/join/{league?.invite_code}</div>
+            <Btn onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/join/${league?.invite_code}`);notify('Invite link copied',T.green)}} variant="outline" color={T.green} size="sm">Copy Invite Link</Btn>
+          </div>
+        </>}
+      </div>
+    )
+  }
+
+
+  // ── WAR ROOM PAGE — batch results entry ──────────────────────────────────
+  const WarRoomPage=()=>{
+    const[entries,setEntries]=useState({})
+    const upcoming=films.filter(f=>f.week<=cfg.current_week&&results[f.id]==null)
+    const saveAll=async()=>{
+      const toSave=Object.entries(entries).filter(([_,v])=>v.actual&&!isNaN(Number(v.actual)))
+      if(toSave.length===0)return notify('Nothing to save',T.red)
+      for(const[filmId,v] of toSave){
+        await dbUpsert('results','film_id',filmId,{actual_m:Number(v.actual)})
+        const film=films.find(f=>f.id===filmId)
+        if(film){await dbUpsert('film_values','film_id',filmId,{current_value:calcMarketValue(film,Number(v.actual))});resolveChips(filmId,Number(v.actual))}
+        if(v.week2)await dbUpsertWeekly(filmId,2,Number(v.week2))
+        if(v.week3)await dbUpsertWeekly(filmId,3,Number(v.week3))
+      }
+      notify(`✓ Saved ${toSave.length} result${toSave.length!==1?'s':''}`,T.green)
+      setEntries({});loadData(league?.id)
+    }
+    return(
+      <div style={{animation:'fadeUp .2s ease'}}>
+        <div style={S.pageTitle}>⚡ War Room</div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px'}}>Batch enter weekend results · saves all at once</div>
+        {upcoming.length===0?<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>All caught up.</div>:<>
+          {upcoming.map(f=>(
+            <div key={f.id} style={{...S.card,marginBottom:'8px'}}>
+              <div style={{display:'flex',gap:'12px',alignItems:'center',marginBottom:'10px'}}>
+                <FilmPoster film={f} width={42} height={63} radius={6}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:'13px',fontWeight:600}}>{f.title}</div>
+                  <div style={{fontSize:'11px',color:T.textSub}}>{f.dist} · W{f.week} · est ${f.estM}M</div>
+                </div>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'8px'}}>
+                <input value={entries[f.id]?.actual||''} onChange={e=>setEntries({...entries,[f.id]:{...entries[f.id],actual:e.target.value}})} placeholder="Opening" style={{...S.inp,fontSize:'12px'}}/>
+                <input value={entries[f.id]?.week2||''} onChange={e=>setEntries({...entries,[f.id]:{...entries[f.id],week2:e.target.value}})} placeholder="Week 2" style={{...S.inp,fontSize:'12px'}}/>
+                <input value={entries[f.id]?.week3||''} onChange={e=>setEntries({...entries,[f.id]:{...entries[f.id],week3:e.target.value}})} placeholder="Week 3" style={{...S.inp,fontSize:'12px'}}/>
+              </div>
+            </div>
+          ))}
+          <Btn onClick={saveAll} color={T.green} textColor="#0D0A08" full size="lg" sx={{marginTop:'12px'}}>Save All Results</Btn>
+        </>}
+      </div>
+    )
+  }
+
+  // ── INTELLIGENCE PAGE ────────────────────────────────────────────────────
+  const IntelligencePage=()=>(
+    <div style={{animation:'fadeUp .2s ease'}}>
+      <div style={S.pageTitle}>📡 Market Intelligence</div>
+      <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px'}}>Cross-league signals · ownership concentration</div>
+      {films.filter(f=>results[f.id]==null).map(f=>{
+        const owners=rosters.filter(r=>r.film_id===f.id&&r.active)
+        const buzz=calcBuzzIndex({...f,hasResult:false},allPicks,news,rosters,players.length,cfg.current_week)
+        const pickCount=allPicks.filter(p=>p.film_id===f.id).length
+        if(owners.length===0&&pickCount<2)return null
+        return(
+          <div key={f.id} className="hoverable" onClick={()=>setFilmDetail(f)} style={{...S.card,marginBottom:'8px',cursor:'pointer',display:'flex',gap:'12px',alignItems:'center'}}>
+            <FilmPoster film={f} width={42} height={63} radius={6}/>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:'13px',fontWeight:600}}>{f.title}</div>
+              <div style={{display:'flex',gap:'10px',marginTop:'4px',fontSize:'11px',color:T.textSub}}>
+                <span>{owners.length} owners</span><span>·</span><span>{pickCount} watching</span>
+              </div>
+            </div>
+            {buzz!=null&&<div style={{textAlign:'right'}}>
+              <div style={{fontSize:'16px',fontWeight:800,color:buzz>=70?T.red:buzz>=50?T.orange:T.gold,fontFamily:T.mono}}>{buzz}</div>
+              <div style={S.label}>buzz</div>
             </div>}
           </div>
         )
@@ -3183,1818 +2851,259 @@ export default function App(){
     </div>
   )
 
-  const SealedBidPage=()=>{
-    const[bidAmount,setBidAmount]=useState('')
-    const[selFilm,setSelFilm]=useState(phaseFilms[0]?.id||'')
-    const allBids=sealedBids.filter(b=>b.league_id===league?.id)
-    const myBid=allBids.find(b=>b.player_id===profile.id&&b.status==='pending')
-    const deadline=sealedWindowDeadline?new Date(sealedWindowDeadline):null
-    const submitBid=async()=>{
-      if(!selFilm||!bidAmount)return notify('Select film and enter bid',T.red)
-      const amt=parseFloat(bidAmount)
-      if(isNaN(amt)||amt<=0)return notify('Invalid amount',T.red)
-      if(amt>myBudget)return notify(`Over budget — ${cur}${myBudget}M available`,T.red)
-      if(myBid){await supabase.from('sealed_bids').update({film_id:selFilm,amount:amt,updated_at:new Date().toISOString()}).eq('id',myBid.id)}
-      else{await supabase.from('sealed_bids').insert({player_id:profile.id,film_id:selFilm,amount:amt,phase:ph,league_id:league?.id,status:'pending'})}
-      notify(`🔒 Bid locked — ${cur}${amt}M`,T.purple);setBidAmount('');loadData(league?.id)
-    }
-    const cancelBid=async()=>{if(!myBid)return;await supabase.from('sealed_bids').update({status:'cancelled'}).eq('id',myBid.id);notify('Bid cancelled',T.textSub);loadData(league?.id)}
-    return(
-      <div>
-        <div style={S.pageTitle}>🔒 Sealed Bid</div>
-        <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px',marginBottom:'20px'}}>Blind IPO auction — highest bid wins the film at their price</div>
-        {deadline&&<div style={{...S.card,border:`1px solid ${T.purple}44`,marginBottom:'20px',display:'flex',gap:'16px',alignItems:'center'}}>
-          <div style={{fontSize:'28px'}}>⏱</div>
-          <div style={{flex:1}}>
-            <div style={{fontSize:'13px',fontWeight:600,color:T.purple,marginBottom:'3px'}}>Bidding closes</div>
-            <div style={{fontSize:'12px',color:T.textSub}}>{deadline.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})}</div>
-          </div>
-          <DraftTimer deadline={sealedWindowDeadline} shortfall={0} draftMin={0}/>
-        </div>}
-        {myBid?<div style={{...S.card,border:`1px solid ${T.purple}55`,marginBottom:'20px'}}>
-          <div style={{...S.label,color:T.purple,marginBottom:'12px'}}>Your Sealed Bid</div>
-          <div style={{display:'flex',gap:'14px',alignItems:'center'}}>
-            <FilmPoster film={films.find(f=>f.id===myBid.film_id)} width={48} height={72} radius={7}/>
-            <div style={{flex:1}}>
-              <div style={{fontSize:'16px',fontWeight:700,marginBottom:'4px'}}>{films.find(f=>f.id===myBid.film_id)?.title}</div>
-              <div style={{fontSize:'24px',fontWeight:900,color:T.purple,fontFamily:T.mono}}>{cur}{myBid.amount}M</div>
-            </div>
-            <Btn onClick={cancelBid} variant="outline" color={T.red} size="sm">Cancel</Btn>
-          </div>
-        </div>:<div style={{...S.card,marginBottom:'20px'}}>
-          <div style={{...S.label,marginBottom:'14px'}}>Place Your Bid</div>
-          <div style={{marginBottom:'12px'}}>
-            <div style={{...S.label,marginBottom:'6px'}}>Film</div>
-            <select value={selFilm} onChange={e=>setSelFilm(e.target.value)} style={S.inp}>
-              {phaseFilms.map(f=><option key={f.id} value={f.id}>{f.title} — IPO {cur}{f.basePrice}M</option>)}
-            </select>
-          </div>
-          <div style={{marginBottom:'16px'}}>
-            <div style={{...S.label,marginBottom:'6px'}}>Your Bid ({cur}M) — Budget: {cur}{myBudget}M</div>
-            <input type="number" value={bidAmount} onChange={e=>setBidAmount(e.target.value)} placeholder={`e.g. ${phaseFilms.find(f=>f.id===selFilm)?.basePrice||20}`} style={{...S.inp,fontSize:'20px',padding:'14px 16px'}}/>
-          </div>
-          <Btn onClick={submitBid} color={T.purple} textColor="#fff" full size="lg">🔒 Lock Bid</Btn>
-          <div style={{fontSize:'11px',color:T.textDim,marginTop:'10px',textAlign:'center'}}>Bids are hidden until the window closes · you can update until deadline</div>
-        </div>}
-        <div style={{...S.sectionTitle,marginBottom:'12px'}}>Who Has Bid</div>
-        <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
-          {players.map(p=>{const hasBid=allBids.find(b=>b.player_id===p.id&&b.status==='pending');return(
-            <div key={p.id} style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px 14px',background:T.surface,border:`1px solid ${T.border}`,borderRadius:'10px'}}>
-              <div style={{width:'10px',height:'10px',borderRadius:'50%',background:hasBid?T.purple:T.border,flexShrink:0}}/>
-              <div style={{width:'30px',height:'30px',borderRadius:'50%',background:p.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'12px',fontWeight:900,color:'#0D0A08',flexShrink:0}}>{p.name?.[0]}</div>
-              <div style={{flex:1,fontSize:'13px',color:p.color||T.gold,fontWeight:500}}>{p.name}</div>
-              <div style={{fontSize:'12px',color:hasBid?T.purple:T.textDim,fontWeight:hasBid?600:400}}>{hasBid?'🔒 Bid placed':'No bid yet'}</div>
-            </div>
-          )})}
-        </div>
-      </div>
-    )
-  }
-
-  const DistributorPage=()=>{
-    const[selFilm,setSelFilm]=useState(films[0]?.id||'')
-    const[selDist,setSelDist]=useState('All')
-    const[newEvt,setNewEvt]=useState({event_type:'trailer',label:'',event_date:'',notes:''})
-
-    // All unique distributors
-    const allDists=['All',...[...new Set(films.map(f=>f.dist).filter(Boolean))].sort()]
-    // Filter films by selected distributor
-    const filteredFilms=selDist==='All'?films:films.filter(f=>f.dist===selDist)
-
-    // Reset film selection when distributor changes
-    React.useEffect(()=>{
-      if(selDist!=='All'){
-        const first=filteredFilms[0]
-        if(first&&first.id!==selFilm)setSelFilm(first.id)
-      }
-    },[selDist])
-
-    const selF=films.find(f=>f.id===selFilm)
-    const filmPicks=allPicks.filter(p=>p.film_id===selFilm)
-    const total=filmPicks.length
-    const vel7=pickVelocity(selFilm,allPicks,7),vel24=pickVelocity(selFilm,allPicks,1)
-    const eventsForFilm=marketingEvents.filter(e=>e.film_id===selFilm).sort((a,b)=>new Date(a.event_date)-new Date(b.event_date))
-    const clicks=bookingClicks.filter(b=>b.film_id===selFilm)
-    const marketingImpact=eventsForFilm.map(ev=>{
-      const evMs=new Date(ev.event_date).getTime()
-      const before=filmPicks.filter(p=>{const t=new Date(p.picked_at).getTime();return t>=evMs-7*86400000&&t<evMs}).length
-      const after=filmPicks.filter(p=>{const t=new Date(p.picked_at).getTime();return t>=evMs&&t<evMs+7*86400000}).length
-      const lift=before>0?Math.round((after-before)/before*100):after>0?100:0
-      return{ev,before,after,lift}
-    })
-    // Ranking filtered by distributor
-    const filmRanking=[...filteredFilms].map(f=>({f,total:allPicks.filter(p=>p.film_id===f.id).length,vel:pickVelocity(f.id,allPicks,7)})).sort((a,b)=>b.total-a.total)
-    const allFilmsRanking=[...films].map(f=>({f,total:allPicks.filter(p=>p.film_id===f.id).length,vel:pickVelocity(f.id,allPicks,7)})).sort((a,b)=>b.total-a.total)
-    const benchmarks=selF?allFilmsRanking.filter(x=>x.f.id!==selFilm&&(x.f.genre===selF.genre||Math.abs(x.f.estM-(selF.estM||0))<30)).slice(0,3):[]
-    const roiScore=(()=>{
-      if(!selF||total===0)return null
-      const avgBenchmarkPicks=benchmarks.length?benchmarks.reduce((s,b)=>s+b.total,0)/benchmarks.length:total
-      const pickVsAvg=Math.min(2,total/Math.max(1,avgBenchmarkPicks))
-      const avgLift=marketingImpact.length?marketingImpact.reduce((s,m)=>s+m.lift,0)/marketingImpact.length/100:0.5
-      const bookConv=total>0?Math.min(1,clicks.length/total):0
-      return Math.min(100,Math.round((pickVsAvg*40)+(avgLift*40)+(bookConv*20)))
-    })()
-    const roiColor=roiScore===null?T.textSub:roiScore>=70?T.green:roiScore>=40?T.gold:T.red
-    const roiLabel=roiScore===null?'—':roiScore>=70?'Strong':roiScore>=40?'Building':'Weak'
-
-    // Distributor aggregate stats
-    const distStats=selDist!=='All'?(()=>{
-      const distFilms=films.filter(f=>f.dist===selDist)
-      const distPicks=allPicks.filter(p=>distFilms.find(f=>f.id===p.film_id))
-      const distClicks=bookingClicks.filter(b=>distFilms.find(f=>f.id===b.film_id))
-      const distVel=distFilms.reduce((s,f)=>s+pickVelocity(f.id,allPicks,7),0)
-      const topFilm=distFilms.map(f=>({f,picks:allPicks.filter(p=>p.film_id===f.id).length})).sort((a,b)=>b.picks-a.picks)[0]
-      return{films:distFilms.length,picks:distPicks.length,clicks:distClicks.length,vel7:distVel,topFilm}
-    })():null
-
-    const exportCSV=()=>{
-      const rows=[['Film','Distributor','Genre','Phase','Week','Est $M','Total Picks','7d Velocity','24h Picks','Booking Clicks'],...filmRanking.map(({f,total,vel})=>[f.title,f.dist,f.genre,f.phase,f.week,f.estM,total,vel,pickVelocity(f.id,allPicks,1),bookingClicks.filter(b=>b.film_id===f.id).length])]
-      const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')
-      const blob=new Blob([csv],{type:'text/csv'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`boxd-intent-${selDist==='All'?'all':selDist.toLowerCase().replace(/\s+/g,'-')}.csv`;a.click();URL.revokeObjectURL(url)
-    }
-    return(
-      <div>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'4px'}}>
-          <div style={S.pageTitle}>📈 Distributor Insights</div>
-          <Btn onClick={exportCSV} color={T.textSub} variant="outline" size="sm">↓ CSV</Btn>
-        </div>
-        <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px',marginBottom:'20px'}}>Audience intent · pick velocity · marketing impact</div>
-
-        {/* ── DISTRIBUTOR FILTER ── */}
-        <div style={{marginBottom:'20px'}}>
-          <div style={{...S.label,marginBottom:'8px'}}>Filter by Distributor</div>
-          <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
-            {allDists.map(d=>{
-              const isActive=selDist===d
-              const distFilmCount=d==='All'?films.length:films.filter(f=>f.dist===d).length
-              const distPickCount=d==='All'?allPicks.length:allPicks.filter(p=>films.find(f=>f.id===p.film_id&&f.dist===d)).length
-              return(
-                <button key={d} onClick={()=>setSelDist(d)} style={{...S.btn,background:isActive?`${T.blue}22`:T.surfaceUp,border:`1px solid ${isActive?T.blue+'66':T.border}`,color:isActive?T.blue:T.textSub,padding:'7px 14px',fontSize:'12px',textTransform:'none',letterSpacing:0,gap:'6px',flexShrink:0}}>
-                  {d}
-                  {distPickCount>0&&<span style={{fontSize:'10px',color:isActive?T.blue:T.textDim,background:isActive?`${T.blue}22`:T.border,padding:'1px 5px',borderRadius:'8px'}}>{distPickCount}</span>}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* ── DISTRIBUTOR AGGREGATE when filtered ── */}
-        {distStats&&(
-          <div style={{background:`linear-gradient(135deg,${T.blue}10,${T.surface})`,border:`1px solid ${T.blue}33`,borderRadius:'16px',padding:'18px 20px',marginBottom:'20px'}}>
-            <div style={{fontSize:'12px',color:T.blue,fontWeight:700,letterSpacing:'1px',marginBottom:'12px'}}>{selDist.toUpperCase()} · SLATE OVERVIEW</div>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'8px',marginBottom:distStats.topFilm?'14px':'0'}}>
-              {[
-                {label:'Films',value:distStats.films,color:T.text},
-                {label:'Total picks',value:distStats.picks,color:T.gold},
-                {label:'7d velocity',value:distStats.vel7,color:distStats.vel7>=5?T.red:distStats.vel7>=2?T.orange:T.text},
-                {label:'Booking clicks',value:distStats.clicks,color:T.blue},
-              ].map(({label,value,color})=>(
-                <div key={label} style={{background:'#00000018',borderRadius:'10px',padding:'10px 8px',textAlign:'center'}}>
-                  <div style={{fontSize:'20px',fontWeight:900,color,fontFamily:T.mono,lineHeight:1}}>{value}</div>
-                  <div style={{fontSize:'10px',color:T.textDim,marginTop:'3px'}}>{label}</div>
-                </div>
-              ))}
-            </div>
-            {distStats.topFilm&&distStats.topFilm.picks>0&&(
-              <div style={{display:'flex',gap:'10px',alignItems:'center',background:'#00000018',borderRadius:'10px',padding:'10px 12px'}}>
-                <FilmPoster film={distStats.topFilm.f} width={32} height={48} radius={5}/>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:'10px',color:T.blue,fontWeight:700,letterSpacing:'1px',marginBottom:'2px'}}>TOP FILM</div>
-                  <div style={{fontSize:'13px',fontWeight:600}}>{distStats.topFilm.f.title}</div>
-                  <div style={{fontSize:'11px',color:T.textSub}}>{distStats.topFilm.picks} picks · Est ${distStats.topFilm.f.estM}M</div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── FILM SELECTOR ── */}
-        <div style={{marginBottom:'20px'}}>
-          <div style={{...S.label,marginBottom:'6px'}}>Select Film {selDist!=='All'?`· ${filteredFilms.length} from ${selDist}`:''}</div>
-          <select value={selFilm} onChange={e=>setSelFilm(e.target.value)} style={S.inp}>
-            {filteredFilms.map(f=><option key={f.id} value={f.id}>{f.title} — {f.dist} (Ph{f.phase})</option>)}
-          </select>
-        </div>
-        {selF&&<>
-          <div style={{...S.card,marginBottom:'16px',display:'flex',gap:'16px',alignItems:'center'}}>
-            <FilmPoster film={selF} width={56} height={84} radius={8}/>
-            <div style={{flex:1}}>
-              <div style={{fontSize:'18px',fontWeight:700,marginBottom:'4px'}}>{selF.title}</div>
-              <div style={{fontSize:'13px',color:T.textSub}}>{selF.dist} · Ph{selF.phase} · W{selF.week}</div>
-              <div style={{display:'flex',gap:'8px',marginTop:'8px',flexWrap:'wrap'}}>
-                <Pill color={GENRE_COL[selF.genre]||T.textSub}>{selF.genre}</Pill>
-                {selF.rt!=null&&<Pill color={selF.rt>=75?T.green:T.red}>RT {selF.rt}%</Pill>}
-                {selF.starActor&&<Pill>⭐ {selF.starActor}</Pill>}
-              </div>
-            </div>
-          </div>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:'8px',marginBottom:'16px'}}>
-            <StatBox label="Total picks" value={total} color={T.gold} sub="intent signals"/>
-            <StatBox label="7-day velocity" value={vel7} color={vel7>=5?T.red:vel7>=2?T.orange:T.text} sub="this week"/>
-            <StatBox label="24h picks" value={vel24} color={vel24>0?T.green:T.text} sub="today"/>
-            <StatBox label="Booking clicks" value={clicks.length} color={T.blue} sub="ticket CTAs"/>
-          </div>
-          <div style={{...S.card,marginBottom:'16px',display:'flex',gap:'20px',alignItems:'center'}}>
-            <div style={{flex:1}}>
-              <div style={{...S.sectionTitle,marginBottom:'6px'}}>Campaign ROI Score</div>
-              <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.5}}>Pick volume vs comparable titles (40%) + marketing lift (40%) + booking conversion (20%)</div>
-              {benchmarks.length>0&&<div style={{display:'flex',gap:'8px',marginTop:'10px',flexWrap:'wrap'}}>{benchmarks.map(({f,total:bt})=><div key={f.id} style={{fontSize:'11px',color:T.textSub,background:T.surfaceUp,borderRadius:'6px',padding:'4px 8px'}}>{f.title.split(':')[0]} · {bt} picks</div>)}</div>}
-            </div>
-            <div style={{textAlign:'center',flexShrink:0}}>
-              <div style={{fontSize:'52px',fontWeight:900,color:roiColor,lineHeight:1,fontFamily:T.mono,letterSpacing:'-2px'}}>{roiScore??'—'}</div>
-              <div style={{fontSize:'12px',color:roiColor,fontWeight:600,marginTop:'4px'}}>{roiLabel}</div>
-              <div style={{fontSize:'10px',color:T.textDim,marginTop:'2px'}}>out of 100</div>
-            </div>
-          </div>
-          {total>0&&<div style={{...S.card,marginBottom:'16px'}}>
-            <div style={{fontSize:'13px',fontWeight:600,color:T.textSub,marginBottom:'14px'}}>Pick Velocity — 30 days</div>
-            <div style={{overflowX:'auto'}}><VelocitySparkline filmId={selFilm} allPicks={allPicks} marketingEvents={marketingEvents} width={Math.max(320,Math.min(600,(typeof window!=='undefined'?window.innerWidth:500)-80))} height={80}/></div>
-          </div>}
-
-          {/* ── SENTIMENT SPLITS — who is picking this film? ─────────────── */}
-          {selF&&total>=2&&(()=>{
-            // Build a "taste profile" — what other films do this film's pickers also pick?
-            const pickerIds=filmPicks.map(p=>p.user_id)
-            const otherFilmsTheyPick={} // filmId -> count
-            allPicks.filter(p=>pickerIds.includes(p.user_id)&&p.film_id!==selFilm).forEach(p=>{
-              otherFilmsTheyPick[p.film_id]=(otherFilmsTheyPick[p.film_id]||0)+1
-            })
-            const tasteCluster=Object.entries(otherFilmsTheyPick).map(([fid,n])=>({film:films.find(f=>f.id===fid),count:n})).filter(x=>x.film).sort((a,b)=>b.count-a.count).slice(0,5)
-
-            // Genre concentration
-            const genreCounts={}
-            tasteCluster.forEach(({film,count})=>{genreCounts[film.genre]=(genreCounts[film.genre]||0)+count})
-            const topGenres=Object.entries(genreCounts).sort((a,b)=>b[1]-a[1]).slice(0,3)
-
-            // Early-mover concentration: of pickers, what % picked 3+ weeks before release?
-            const earlyMoverPicks=filmPicks.filter(p=>{
-              const pickWk=Math.ceil((new Date(p.picked_at).getTime()-new Date(filmPicks[0]?.picked_at||p.picked_at).getTime())/(7*86400000))
-              const weeksOut=selF.week-(cfg.current_week-pickWk)
-              return weeksOut>=3
-            }).length
-            const earlyPct=Math.round(earlyMoverPicks/Math.max(1,total)*100)
-
-            // Performance pattern: of pickers, what's their average accuracy on resulted films?
-            // For each picker, compute: of the films they picked that have results, what % overperformed (≥1.1×)?
-            const pickerPerformance=pickerIds.map(uid=>{
-              const theirPicks=allPicks.filter(p=>p.user_id===uid)
-              const theirResulted=theirPicks.filter(p=>{const f=films.find(fl=>fl.id===p.film_id);return f&&results[f.id]!=null})
-              if(!theirResulted.length)return null
-              const overperformed=theirResulted.filter(p=>{const f=films.find(fl=>fl.id===p.film_id);return f&&results[f.id]/f.estM>=1.1}).length
-              return overperformed/theirResulted.length
-            }).filter(x=>x!=null)
-            const avgAcc=pickerPerformance.length?Math.round(pickerPerformance.reduce((a,b)=>a+b,0)/pickerPerformance.length*100):null
-
-            // Sentiment from comments + reactions on this film
-            const POSITIVE=['🔥','🎯','📈','👑','🍿']
-            const NEGATIVE=['💀','📉','💸','😬']
-            // Note: reactions table not loaded here, but we have allPicks which is the strongest signal
-
-            return(
-              <div style={{...S.card,marginBottom:'16px',border:`1px solid ${T.gold}33`}}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'14px'}}>
-                  <div style={{fontSize:'13px',fontWeight:700,color:T.gold}}>Sentiment Splits</div>
-                  <div style={{...S.label}}>The distributor brief</div>
-                </div>
-
-                {/* Headline insight as a sentence */}
-                <div style={{background:T.surfaceUp,borderRadius:'10px',padding:'14px 16px',marginBottom:'14px',fontSize:'13px',lineHeight:1.65,color:T.text}}>
-                  <strong style={{color:T.gold}}>{selF.title}</strong> is being picked predominantly by{topGenres.length?<> <strong style={{color:T.gold}}>{topGenres[0][0].toLowerCase()}-skewing</strong></>:''} players{avgAcc!=null&&<> with an average <strong style={{color:avgAcc>=60?T.green:avgAcc>=45?T.gold:T.red}}>{avgAcc}% overperformance hit-rate</strong> on past picks</>}{earlyPct>40&&<>, <strong style={{color:T.green}}>{earlyPct}% acquired 3+ weeks ahead of release</strong></>}.
-                </div>
-
-                <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr 1fr':'repeat(3,1fr)',gap:'10px',marginBottom:'14px'}}>
-                  <div style={{background:T.surfaceUp,borderRadius:'10px',padding:'12px 14px'}}>
-                    <div style={{...S.label,marginBottom:'4px'}}>Early-mover %</div>
-                    <div style={{fontSize:'24px',fontWeight:900,color:earlyPct>=50?T.green:earlyPct>=25?T.gold:T.textSub,fontFamily:T.mono,lineHeight:1}}>{earlyPct}%</div>
-                    <div style={{fontSize:'10px',color:T.textDim,marginTop:'4px'}}>picked 3+ weeks ahead</div>
-                  </div>
-                  <div style={{background:T.surfaceUp,borderRadius:'10px',padding:'12px 14px'}}>
-                    <div style={{...S.label,marginBottom:'4px'}}>Picker accuracy</div>
-                    <div style={{fontSize:'24px',fontWeight:900,color:avgAcc==null?T.textDim:avgAcc>=60?T.green:avgAcc>=45?T.gold:T.red,fontFamily:T.mono,lineHeight:1}}>{avgAcc==null?'—':`${avgAcc}%`}</div>
-                    <div style={{fontSize:'10px',color:T.textDim,marginTop:'4px'}}>avg overperform rate</div>
-                  </div>
-                  <div style={{background:T.surfaceUp,borderRadius:'10px',padding:'12px 14px'}}>
-                    <div style={{...S.label,marginBottom:'4px'}}>Genre profile</div>
-                    <div style={{fontSize:'14px',fontWeight:700,color:T.text,fontFamily:T.mono,lineHeight:1.3,marginTop:'2px'}}>{topGenres.length?topGenres[0][0]:'—'}</div>
-                    <div style={{fontSize:'10px',color:T.textDim,marginTop:'4px'}}>{topGenres.length>1?`+ ${topGenres.slice(1).map(([g])=>g).join(', ')}`:'no other clusters'}</div>
-                  </div>
-                </div>
-
-                {/* Taste cluster — what they also pick */}
-                {tasteCluster.length>0&&<div>
-                  <div style={{...S.label,marginBottom:'8px'}}>Pickers also follow</div>
-                  <div style={{display:'flex',gap:'8px',overflowX:'auto',paddingBottom:'4px'}}>
-                    {tasteCluster.map(({film:tf,count})=>(
-                      <div key={tf.id} className="hoverable" onClick={()=>setSelFilm(tf.id)} style={{flexShrink:0,width:'100px',cursor:'pointer'}}>
-                        <FilmPoster film={tf} width={100} height={150} radius={7}/>
-                        <div style={{fontSize:'10px',fontWeight:600,color:T.text,marginTop:'4px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{tf.title.split(':')[0]}</div>
-                        <div style={{fontSize:'9px',color:T.gold,fontWeight:700,fontFamily:T.mono}}>{count} co-picks · {Math.round(count/total*100)}%</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>}
-              </div>
-            )
-          })()}
-          {marketingImpact.length>0&&<div style={{...S.card,marginBottom:'16px'}}>
-            <div style={{fontSize:'13px',fontWeight:600,color:T.textSub,marginBottom:'16px'}}>Marketing Event Lift Analysis</div>
-            {(()=>{
-              // Build a 60-day pick timeline around events
-              const now=Date.now()
-              const earliestEv=eventsForFilm.length?Math.min(...eventsForFilm.map(e=>new Date(e.event_date).getTime())):now-30*86400000
-              const start=Math.min(earliestEv-10*86400000,now-60*86400000)
-              const days=Math.ceil((now-start)/86400000)+10
-              const buckets=Array.from({length:days},(_,i)=>{
-                const dayMs=start+i*86400000
-                return filmPicks.filter(p=>{const t=new Date(p.picked_at).getTime();return t>=dayMs&&t<dayMs+86400000}).length
-              })
-              const W=Math.min(520,typeof window!=='undefined'?window.innerWidth-80:400),H=110
-              const pad={t:8,r:12,b:28,l:28}
-              const cW=W-pad.l-pad.r,cH=H-pad.t-pad.b
-              const maxB=Math.max(1,...buckets)
-              const scX=(i)=>pad.l+(i/Math.max(1,days-1))*cW
-              const scY=(v)=>pad.t+cH-(v/maxB)*cH
-              const pts=buckets.map((b,i)=>`${scX(i).toFixed(1)},${scY(b).toFixed(1)}`).join(' ')
-              const fillPts=`${pad.l},${pad.t+cH} ${pts} ${scX(days-1).toFixed(1)},${pad.t+cH}`
-              const evColors={trailer:T.blue,poster:T.gold,premiere:T.purple,cast_post:T.green,press:T.orange,other:T.textSub}
-              return(
-                <div style={{overflowX:'auto'}}>
-                  <svg width={W} height={H} style={{fontFamily:T.mono,overflow:'visible',display:'block'}}>
-                    {/* Area fill */}
-                    <polygon points={fillPts} fill={`${T.gold}18`}/>
-                    {/* Pick velocity line */}
-                    <polyline points={pts} fill="none" stroke={T.gold} strokeWidth="2" strokeLinejoin="round" opacity="0.9"/>
-                    {/* Y gridlines */}
-                    {[0,Math.round(maxB/2),maxB].map(v=>(
-                      <g key={v}>
-                        <line x1={pad.l} y1={scY(v)} x2={W-pad.r} y2={scY(v)} stroke={T.border} strokeWidth="1" opacity="0.8"/>
-                        <text x={pad.l-3} y={scY(v)+4} fill={T.textDim} fontSize="8" textAnchor="end">{v}</text>
-                      </g>
-                    ))}
-                    {/* Event markers */}
-                    {eventsForFilm.map((ev,i)=>{
-                      const evMs=new Date(ev.event_date).getTime()
-                      const dayIdx=Math.round((evMs-start)/86400000)
-                      if(dayIdx<0||dayIdx>=days)return null
-                      const x=scX(dayIdx)
-                      const col=evColors[ev.event_type]||T.textSub
-                      const evType=MARKETING_EVENT_TYPES.find(t=>t.id===ev.event_type)
-                      const impact=marketingImpact.find(m=>m.ev.id===ev.id)
-                      return(
-                        <g key={ev.id}>
-                          {/* Impact window shading */}
-                          <rect x={x} y={pad.t} width={Math.min(7/days*cW,cW-x+pad.l)} height={cH} fill={`${col}14`}/>
-                          {/* Event line */}
-                          <line x1={x} y1={pad.t} x2={x} y2={pad.t+cH} stroke={col} strokeWidth="1.5" strokeDasharray="3,2" opacity="0.9"/>
-                          {/* Icon + label */}
-                          <text x={x} y={pad.t-2} fill={col} fontSize="10" textAnchor="middle">{evType?.icon}</text>
-                          {/* Lift badge */}
-                          {impact&&impact.lift!==0&&(
-                            <text x={x+3} y={pad.t+14} fill={impact.lift>0?T.green:T.red} fontSize="8" fontWeight="700">{impact.lift>0?'+':''}{impact.lift}%</text>
-                          )}
-                        </g>
-                      )
-                    })}
-                    {/* X axis label */}
-                    <text x={pad.l} y={H-4} fill={T.textDim} fontSize="8">{new Date(start).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</text>
-                    <text x={W-pad.r} y={H-4} fill={T.textDim} fontSize="8" textAnchor="end">Today</text>
-                  </svg>
-                </div>
-              )
-            })()}
-            {/* Impact table below chart */}
-            <div style={{marginTop:'12px',display:'flex',flexDirection:'column',gap:'6px'}}>
-              {marketingImpact.map(({ev,before,after,lift})=>{
-                const evType=MARKETING_EVENT_TYPES.find(t=>t.id===ev.event_type)
-                const col=lift>50?T.green:lift>0?T.gold:lift<0?T.red:T.textSub
-                return(
-                  <div key={ev.id} style={{display:'flex',alignItems:'center',gap:'10px',padding:'8px 12px',background:T.surfaceUp,borderRadius:'9px'}}>
-                    <span style={{fontSize:'14px'}}>{evType?.icon}</span>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:'12px',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ev.label}</div>
-                      <div style={{fontSize:'10px',color:T.textDim,marginTop:'1px'}}>{new Date(ev.event_date).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</div>
-                    </div>
-                    <div style={{fontSize:'11px',color:T.textSub,flexShrink:0}}>−7d: {before} · +7d: {after}</div>
-                    <div style={{fontSize:'13px',fontWeight:800,color:col,flexShrink:0,minWidth:'44px',textAlign:'right'}}>{lift>0?'+':''}{lift}%</div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>}
-          {isCommissioner&&<div style={{...S.card,border:`1px solid ${T.blue}33`,marginBottom:'24px'}}>
-            <div style={{fontSize:'13px',fontWeight:600,color:T.blue,marginBottom:'14px'}}>+ Log Marketing Event for {selF.title}</div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'12px'}}>
-              <div><div style={{...S.label,marginBottom:'5px'}}>Event Type</div><select value={newEvt.event_type} onChange={e=>setNewEvt(p=>({...p,event_type:e.target.value}))} style={S.inp}>{MARKETING_EVENT_TYPES.map(t=><option key={t.id} value={t.id}>{t.icon} {t.label}</option>)}</select></div>
-              <div><div style={{...S.label,marginBottom:'5px'}}>Date</div><input type="date" value={newEvt.event_date} onChange={e=>setNewEvt(p=>({...p,event_date:e.target.value}))} style={S.inp}/></div>
-              <div style={{gridColumn:'1/-1'}}><div style={{...S.label,marginBottom:'5px'}}>Label</div><input type="text" value={newEvt.label} onChange={e=>setNewEvt(p=>({...p,label:e.target.value}))} placeholder="e.g. Main trailer drop — 2.4M views in 24h" style={S.inp}/></div>
-            </div>
-            <Btn color={T.blue} textColor="#fff" onClick={async()=>{
-              if(!newEvt.label||!newEvt.event_date)return notify('Label and date required',T.red)
-              const{error}=await supabase.from('marketing_events').insert({film_id:selFilm,event_type:newEvt.event_type,label:newEvt.label,event_date:newEvt.event_date,created_by:profile.id})
-              if(error)return notify(error.message,T.red)
-              notify(`Event logged for ${selF.title}`,T.blue);setNewEvt({event_type:'trailer',label:'',event_date:'',notes:''});loadMarketingEvents()
-            }}>Log Event</Btn>
-          </div>}
-        </>}
-        <div style={{fontSize:'13px',fontWeight:600,color:T.textSub,margin:'8px 0 12px'}}>
-          {selDist==='All'?'All Films':'Films from '+selDist} — Audience Intent Ranking
-        </div>
-        {filmRanking.filter(x=>x.total>0).map(({f,total,vel},i)=>(
-          <div key={f.id} className="hoverable" style={{display:'flex',gap:'12px',alignItems:'center',padding:'10px 12px',background:T.surface,border:`1px solid ${T.border}`,borderRadius:'10px',marginBottom:'6px',cursor:'pointer'}} onClick={()=>setSelFilm(f.id)}>
-            <div style={{fontSize:'16px',minWidth:'24px',textAlign:'center',color:T.textDim,fontWeight:700}}>#{i+1}</div>
-            <FilmPoster film={f} width={28} height={42} radius={5}/>
-            <div style={{flex:1,minWidth:0}}><div style={{fontSize:'13px',fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.title}</div><div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>{f.dist} · Ph{f.phase}</div></div>
-            <div style={{textAlign:'right'}}><div style={{fontSize:'16px',fontWeight:700,color:T.gold}}>{total}</div><div style={{fontSize:'11px',color:vel>=5?T.red:vel>=2?T.orange:T.textSub}}>+{vel}/wk</div></div>
-          </div>
-        ))}
-        {filmRanking.filter(x=>x.total>0).length===0&&<div style={{...S.card,textAlign:'center',padding:'32px',color:T.textSub,fontSize:'13px'}}>No picks recorded yet — intent data will appear as players pick films.</div>}
-      </div>
-    )
-  }
-
-  const CommissionerPage=()=>{
-    const[ingesting,setIngesting]=React.useState(false)
-    const[panelTab,setPanelTab]=React.useState('overview')
-    const filmsScored=films.filter(f=>results[f.id]!=null).length
-    const filmsTotal=films.length
-    const playersActive=players.filter(p=>rosters.some(r=>r.player_id===p.id&&r.active)).length
-    const weeksInPhase=phaseFilms.length>0?Math.max(...phaseFilms.map(f=>f.week))-Math.min(...phaseFilms.map(f=>f.week))+1:0
-    const weeksLeft=Math.max(0,weeksInPhase-(cfg.current_week-Math.min(...(phaseFilms.map(f=>f.week)||[cfg.current_week]))))
-    const orphanCount=rosters.filter(r=>r.active&&!films.find(f=>f.id===r.film_id)).length
-    const runIngest=async()=>{
-      setIngesting(true)
-      try{
-        const res=await fetch(`${SUPABASE_URL}/functions/v1/ingest-results`,{headers:{apikey:SUPABASE_ANON_KEY,Authorization:`Bearer ${SUPABASE_ANON_KEY}`}})
-        const data=await res.json();setIngestLog(data)
-        notify(`✅ Ingested ${data.matched?.length||0} results · ${data.unmatched?.length||0} unmatched`,T.green);loadData(league?.id)
-      }catch(e){notify(`Ingest failed: ${e.message}`,T.red)}
-      setIngesting(false)
-    }
-    const PanelTab=({id,label,icon})=>(
-      <button onClick={()=>setPanelTab(id)} style={{...S.btn,background:'none',border:'none',fontSize:'12px',fontWeight:panelTab===id?700:400,color:panelTab===id?T.gold:T.textSub,padding:'10px 14px',borderBottom:`2px solid ${panelTab===id?T.gold:'transparent'}`,borderRadius:0,textTransform:'none',letterSpacing:0,gap:'6px'}}>
-        {icon} {label}
-      </button>
-    )
-    return(
-      <div>
-        {/* Command centre header */}
-        <div style={{background:`linear-gradient(135deg,${T.gold}10,${T.surface})`,border:`1px solid ${T.gold}33`,borderRadius:'16px',padding:'20px',marginBottom:'20px',position:'relative',overflow:'hidden'}}>
-          <div style={{position:'absolute',top:0,left:0,right:0,height:'3px',background:`linear-gradient(90deg,${T.gold},${T.orange})`}}/>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'16px',flexWrap:'wrap',gap:'8px'}}>
-            <div>
-              <div style={{fontSize:'11px',color:T.gold,fontWeight:700,letterSpacing:'2px',textTransform:'uppercase',marginBottom:'4px'}}>Commissioner · {league?.name}</div>
-              <div style={{fontSize:'22px',fontWeight:800,color:T.text}}>Control Centre</div>
-            </div>
-            <div style={{display:'flex',gap:'8px'}}>
-              <Btn onClick={()=>{navigator.clipboard?.writeText(`${window.location.origin}${window.location.pathname}?invite=${league?.invite_code||''}`);notify('Invite link copied!',T.green)}} color={T.gold} size="sm">🔗 Copy Invite</Btn>
-            </div>
-          </div>
-          {/* League health stats */}
-          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'10px'}}>
-            {[
-              {label:'Players',value:players.length,icon:'👥',color:T.text},
-              {label:'Films scored',value:`${filmsScored}/${filmsTotal}`,icon:'🎬',color:filmsScored===filmsTotal&&filmsTotal>0?T.green:T.text},
-              {label:'Phase',value:`${ph}/5`,icon:'📅',color:T.gold},
-              {label:'Week',value:`W${cfg.current_week}`,icon:'🗓',color:T.text},
-            ].map(({label,value,icon,color})=>(
-              <div key={label} style={{background:'#00000022',borderRadius:'10px',padding:'10px 12px',textAlign:'center'}}>
-                <div style={{fontSize:'16px',marginBottom:'3px'}}>{icon}</div>
-                <div style={{fontSize:'16px',fontWeight:800,color,fontFamily:T.mono,lineHeight:1}}>{value}</div>
-                <div style={{fontSize:'10px',color:T.textDim,marginTop:'3px',letterSpacing:'0.5px'}}>{label}</div>
-              </div>
-            ))}
-          </div>
-          {/* Action needed callouts */}
-          {(orphanCount>0||!cfg.current_week)&&(
-            <div style={{marginTop:'14px',display:'flex',flexDirection:'column',gap:'6px'}}>
-              {orphanCount>0&&<div style={{background:`${T.red}15`,border:`1px solid ${T.red}33`,borderRadius:'8px',padding:'8px 12px',fontSize:'12px',color:T.red,display:'flex',gap:'8px',alignItems:'center'}}>
-                ⚠️ {orphanCount} orphaned roster row{orphanCount!==1?'s':''} — run Scan & Fix in Maintenance
-              </div>}
-              {win&&<div style={{background:`${T.orange}15`,border:`1px solid ${T.orange}33`,borderRadius:'8px',padding:'8px 12px',fontSize:'12px',color:T.orange,display:'flex',gap:'8px',alignItems:'center'}}>
-                🔓 Free drop window active — <WindowTimer openedAt={cfg.phase_window_opened_at} short/> remaining
-              </div>}
-            </div>
-          )}
-        </div>
-
-        {/* Tab nav */}
-        <div style={{display:'flex',borderBottom:`1px solid ${T.border}`,marginBottom:'20px',overflowX:'auto'}}>
-          <PanelTab id="overview" icon="⚡" label="Controls"/>
-          <PanelTab id="films" icon="🎬" label="Films"/>
-          <PanelTab id="chips" icon="🎯" label="Chips"/>
-          <PanelTab id="settings" icon="⚙️" label="Settings"/>
-        </div>
-
-        {panelTab==='overview'&&(
-          <div>
-            {/* Ingest */}
-            <div style={{...S.card,marginBottom:'12px',border:`1px solid ${T.green}33`}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}}>
-                <div><div style={{fontSize:'14px',fontWeight:700,color:T.green}}>📊 Box Office Ingest</div><div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>Pulls from The Numbers · runs auto Monday 23:00 UTC</div></div>
-                <Btn onClick={runIngest} color={T.green} textColor="#0D0A08" size="sm" disabled={ingesting}>{ingesting?'⏳':'🎬'} {ingesting?'Fetching…':'Run Now'}</Btn>
-              </div>
-              {ingestLog&&<div style={{background:T.surfaceUp,borderRadius:'9px',padding:'10px 14px',fontSize:'12px'}}>
-                <span style={{color:T.green,fontWeight:600}}>✅ {ingestLog.matched?.length||0} matched</span>
-                {ingestLog.unmatched?.length>0&&<span style={{color:T.red,marginLeft:'12px'}}>⚠️ {ingestLog.unmatched.join(', ')}</span>}
-              </div>}
-            </div>
-
-            {/* Phase controls */}
-            <div style={{...S.card,marginBottom:'12px'}}>
-              <div style={{fontSize:'14px',fontWeight:700,color:T.gold,marginBottom:'14px'}}>📅 Phase Controls</div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'14px'}}>
-                <div style={{background:T.surfaceUp,borderRadius:'10px',padding:'12px'}}>
-                  <div style={S.label}>Current Week</div>
-                  <div style={{fontSize:'24px',fontWeight:900,color:T.text,fontFamily:T.mono,marginTop:'4px'}}>W{cfg.current_week}</div>
-                  <Btn color={T.gold} size="sm" sx={{marginTop:'10px',width:'100%'}} onClick={async()=>{
-                    const snap={};[...players].sort((a,b)=>calcPoints(b.id)-calcPoints(a.id)).forEach((p,i)=>{snap[p.id]=i+1})
-                    await supabase.from('league_config').update({current_week:cfg.current_week+1,standings_snapshot:snap}).eq('league_id',league?.id)
-                    notify(`Week ${cfg.current_week+1} · snapshot saved`,T.green);loadData(league?.id)
-                  }}>Advance Week →</Btn>
-                </div>
-                <div style={{background:T.surfaceUp,borderRadius:'10px',padding:'12px'}}>
-                  <div style={S.label}>Drop Window</div>
-                  <div style={{fontSize:'14px',fontWeight:700,color:win?T.orange:T.textDim,marginTop:'4px'}}>{win?'🔓 Active':'🔒 Closed'}</div>
-                  <Btn color={win?T.red:T.orange} textColor="#fff" size="sm" sx={{marginTop:'10px',width:'100%'}} onClick={async()=>{const ni=new Date().toISOString();await supabase.from('league_config').update({phase_window_active:!win,phase_window_opened_at:!win?ni:null}).eq('league_id',league?.id);notify(win?'Window closed':'🔓 72hr window open!',T.orange);loadData(league?.id)}}>{win?'Close Window':'Open 72hr Window'}</Btn>
-                </div>
-              </div>
-              <Btn variant="outline" color={T.gold} full size="lg" disabled={phaseTransitioning} onClick={advancePhase}>
-                {phaseTransitioning?'⏳ Transitioning…':`Advance to Phase ${ph+1}: ${PHASE_NAMES[ph+1]||'End'} →`}
-              </Btn>
-              <div style={{display:'flex',gap:'6px',flexWrap:'wrap',marginTop:'12px'}}>
-                {players.map(p=><div key={p.id} style={{background:T.surfaceUp,borderRadius:'8px',padding:'5px 10px',fontSize:'11px',display:'flex',gap:'6px',alignItems:'center'}}>
-                  <div style={{width:'6px',height:'6px',borderRadius:'50%',background:p.color||T.gold}}/>
-                  <span style={{color:T.text}}>{p.name}</span>
-                  <span style={{color:budgetLeft(p.id)<20?T.red:T.textSub}}>{cur}{budgetLeft(p.id)}M</span>
-                </div>)}
-              </div>
-            </div>
-
-            {/* Draft window */}
-            <div style={{...S.card,marginBottom:'12px',border:`1px solid ${T.purple}33`}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}}>
-                <div><div style={{fontSize:'14px',fontWeight:700,color:T.purple}}>🎬 Draft Window</div><div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>Min {DRAFT_MIN} picks required or ${DRAFT_PENALTY}M penalty</div></div>
-                <Btn color={draftWindowOpen?T.red:T.purple} textColor="#fff" size="sm" onClick={async()=>{
-                  const deadline=new Date(Date.now()+14*86400000).toISOString()
-                  await supabase.from('league_config').update({draft_window_open:!draftWindowOpen,draft_deadline:!draftWindowOpen?deadline:null}).eq('league_id',league?.id)
-                  notify(draftWindowOpen?'Draft window closed':'🎬 Draft window open · 14 days',T.purple);loadData(league?.id)
-                }}>{draftWindowOpen?'Close':'Open (14d)'}</Btn>
-              </div>
-              {draftWindowOpen&&<div style={{background:`${T.purple}12`,borderRadius:'9px',padding:'10px 14px',marginBottom:'10px'}}>
-                <div style={{fontSize:'12px',color:T.purple,marginBottom:'8px'}}>⏱ Deadline: {cfg.draft_deadline?new Date(cfg.draft_deadline).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}):'—'}</div>
-                <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
-                  {players.map(p=>{const picks=rosters.filter(r=>r.player_id===p.id&&r.phase===ph&&r.active&&films.find(f=>f.id===r.film_id)).length;const ok=picks>=DRAFT_MIN;return(
-                    <div key={p.id} style={{fontSize:'11px',background:ok?`${T.green}18`:`${T.red}18`,color:ok?T.green:T.red,padding:'3px 8px',borderRadius:'8px'}}>{p.name} {picks}/{DRAFT_MIN}</div>
-                  )})}
-                </div>
-                <Btn variant="outline" color={T.red} size="sm" sx={{marginTop:'10px'}} onClick={async()=>{
-                  if(!confirm('Apply draft penalties now?'))return
-                  let penalised=0
-                  for(const player of players){
-                    const picks=rosters.filter(r=>r.player_id===player.id&&r.phase===ph&&r.active&&films.find(f=>f.id===r.film_id)).length
-                    const shortfall=Math.max(0,DRAFT_MIN-picks)
-                    if(shortfall>0){
-                      const penalty=shortfall*DRAFT_PENALTY
-                      await supabase.from('transactions').insert({player_id:player.id,film_id:null,type:'draft_penalty',price:penalty,week:cfg.current_week,league_id:league?.id})
-                      const alloc=phaseAlloc(player.id,ph),ex=phaseBudgets.find(pb=>pb.player_id===player.id&&pb.phase===ph)
-                      if(ex)await supabase.from('phase_budgets').update({budget_allocated:alloc-penalty}).eq('id',ex.id)
-                      else await supabase.from('phase_budgets').insert({player_id:player.id,phase:ph,budget_allocated:PHASE_BUDGETS[ph]-penalty,budget_spent:0,budget_banked:0,league_id:league?.id})
-                      penalised++
-                    }
-                  }
-                  await supabase.from('league_config').update({draft_window_open:false,draft_deadline:null}).eq('league_id',league?.id)
-                  notify(`Penalties applied to ${penalised} player${penalised!==1?'s':''}`,T.red);loadData(league?.id)
-                }}>⚠️ Apply Penalties</Btn>
-              </div>}
-            </div>
-
-            {/* Sealed bid */}
-            <div style={{...S.card,marginBottom:'12px',border:`1px solid ${T.purple}22`}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}}>
-                <div><div style={{fontSize:'14px',fontWeight:700,color:T.purple}}>🔒 Sealed Bid</div><div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>Blind auction — highest bid wins</div></div>
-                <Btn color={sealedWindowOpen?T.red:T.purple} textColor="#fff" size="sm" onClick={async()=>{
-                  const deadline=new Date(Date.now()+48*3600000).toISOString()
-                  await supabase.from('league_config').update({sealed_bid_window_open:!sealedWindowOpen,sealed_bid_deadline:!sealedWindowOpen?deadline:null}).eq('league_id',league?.id)
-                  notify(sealedWindowOpen?'Sealed bid closed':'🔒 48hr auction open',T.purple);loadData(league?.id)
-                }}>{sealedWindowOpen?'Close':'Open (48h)'}</Btn>
-              </div>
-              {sealedWindowOpen&&<>
-                <div style={{display:'flex',gap:'6px',flexWrap:'wrap',marginBottom:'10px'}}>
-                  {players.map(p=>{const b=sealedBids.find(b=>b.player_id===p.id&&b.status==='pending');return(
-                    <div key={p.id} style={{fontSize:'11px',background:b?`${T.purple}18`:T.surfaceUp,color:b?T.purple:T.textDim,padding:'3px 8px',borderRadius:'8px',border:`1px solid ${b?T.purple+'44':T.border}`}}>{p.name} {b?'✓ bid':'—'}</div>
-                  )})}
-                </div>
-                <Btn color={T.orange} textColor="#0D0A08" size="sm" onClick={async()=>{
-                  if(!confirm('Resolve bids now?'))return
-                  const bidsByFilm={}
-                  sealedBids.filter(b=>b.status==='pending').forEach(b=>{if(!bidsByFilm[b.film_id]||b.amount>bidsByFilm[b.film_id].amount)bidsByFilm[b.film_id]=b})
-                  for(const[filmId,winBid] of Object.entries(bidsByFilm)){
-                    const film=films.find(f=>f.id===filmId);if(!film)continue
-                    await supabase.from('rosters').insert({player_id:winBid.player_id,film_id:filmId,bought_price:winBid.amount,bought_week:cfg.current_week,acquired_week:cfg.current_week,phase:ph,active:true,league_id:league?.id})
-                    await supabase.from('sealed_bids').update({status:'won'}).eq('id',winBid.id)
-                    await supabase.from('sealed_bids').update({status:'lost'}).eq('film_id',filmId).eq('status','pending')
-                  }
-                  await supabase.from('league_config').update({sealed_bid_window_open:false,sealed_bid_deadline:null}).eq('league_id',league?.id)
-                  notify('✅ Bids resolved',T.green);loadData(league?.id)
-                }}>Resolve Bids →</Btn>
-              </>}
-            </div>
-
-            {/* Oscar night */}
-            <div style={{...S.card,marginBottom:'12px',border:`1px solid ${T.gold}22`}}>
-              <div style={{fontSize:'14px',fontWeight:700,color:T.gold,marginBottom:'12px'}}>🏆 Oscar Night</div>
-              <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
-                <select id="oscar-win" style={{...S.inp,flex:1,minWidth:'180px'}}><option value="">Best Picture winner…</option>{films.map(f=><option key={f.id} value={f.id}>{f.title}</option>)}</select>
-                <Btn color={T.gold} onClick={async()=>{const id=document.getElementById('oscar-win').value;if(!id)return;await supabase.from('league_config').update({best_picture_winner:id}).eq('league_id',league?.id);for(const op of oscarPreds)await supabase.from('oscar_predictions').update({correct:op.best_picture_film_id===id}).eq('player_id',op.player_id);notify(`🏆 ${films.find(f=>f.id===id)?.title}`,T.gold);loadData(league?.id)}}>Set Winner</Btn>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {panelTab==='films'&&(
-          <div>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}}>
-              <div style={{fontSize:'14px',fontWeight:700,color:T.gold}}>Film Management</div>
-              <Btn color={T.green} textColor="#0D0A08" size="sm" onClick={()=>setAddFilm(true)}>+ Add Film</Btn>
-            </div>
-            {[1,2,3,4,5].map(p=>{const pf=films.filter(f=>f.phase===p);if(!pf.length)return null;return(
-              <div key={p} style={{marginBottom:'20px'}}>
-                <div style={{...S.label,color:p===ph?T.gold:T.textDim,marginBottom:'10px',display:'flex',alignItems:'center',gap:'8px'}}>
-                  Phase {p} — {PHASE_NAMES[p]}
-                  {p===ph&&<span style={{background:`${T.gold}22`,color:T.gold,fontSize:'9px',padding:'2px 6px',borderRadius:'6px',fontWeight:700}}>CURRENT</span>}
-                </div>
-                {pf.map(film=>(
-                  <div key={film.id} style={{...S.card,marginBottom:'8px',padding:'12px 14px'}}>
-                    <div style={{display:'flex',gap:'10px',alignItems:'center',marginBottom:'10px'}}>
-                      <FilmPoster film={film} width={36} height={54} radius={6}/>
-                      <div style={{flex:1}}>
-                        <div style={{fontSize:'13px',fontWeight:600}}>{film.title}</div>
-                        <div style={{fontSize:'11px',color:T.textSub}}>W{film.week} · {film.dist}</div>
-                        {results[film.id]!=null&&<div style={{fontSize:'11px',color:T.green,marginTop:'2px'}}>✅ ${results[film.id]}M actual</div>}
-                      </div>
-                    </div>
-                    <div style={{display:'flex',gap:'8px',flexWrap:'wrap',alignItems:'flex-end'}}>
-                      {[['IPO $M','basePrice',64],['Est $M','estM',64],['RT%','rt',54]].map(([lbl,fld,w])=>(
-                        <div key={fld}>
-                          <div style={{fontSize:'9px',color:T.textDim,marginBottom:'3px',letterSpacing:'1px'}}>{lbl}</div>
-                          <input type="number" defaultValue={film[fld]||''} id={`${fld}-${film.id}`} style={{...S.inp,width:`${w}px`,fontSize:'12px',padding:'6px 8px'}}/>
-                        </div>
-                      ))}
-                      <div>
-                        <div style={{fontSize:'9px',color:T.textDim,marginBottom:'3px',letterSpacing:'1px'}}>TRAILER URL</div>
-                        <input type="text" defaultValue={film.trailer||''} id={`trailer-${film.id}`} style={{...S.inp,width:'120px',fontSize:'11px',padding:'6px 8px'}}/>
-                      </div>
-                      <Btn size="sm" color={T.gold} onClick={async()=>{
-                        const ni=parseInt(document.getElementById(`basePrice-${film.id}`).value)
-                        const ne=parseInt(document.getElementById(`estM-${film.id}`).value)
-                        const nr=parseInt(document.getElementById(`rt-${film.id}`).value)||null
-                        const nt=document.getElementById(`trailer-${film.id}`).value.trim()
-                        await supabase.from('films').update({base_price:ni,est_m:ne,rt:nr,trailer:nt}).eq('id',film.id)
-                        notify(`Updated ${film.title}`,T.green);loadData(league?.id)
-                      }}>Save</Btn>
-                      <Btn size="sm" variant="outline" color={T.red} onClick={async()=>{if(!confirm(`Remove ${film.title}?`))return;await supabase.from('films').update({active:false}).eq('id',film.id);notify(`Removed`,T.red);loadData(league?.id)}}>✕</Btn>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )})}
-          </div>
-        )}
-
-        {panelTab==='chips'&&(
-          <div>
-            <div style={{fontSize:'14px',fontWeight:700,color:T.gold,marginBottom:'16px'}}>Chip Overrides</div>
-            {!allChips.length&&<div style={{...S.card,textAlign:'center',padding:'32px',color:T.textSub}}>No chips activated yet.</div>}
-            {allChips.map(c=>{const p=players.find(pl=>pl.id===c.player_id);return(
-              <div key={c.id} style={{...S.card,marginBottom:'10px'}}>
-                <div style={{display:'flex',gap:'10px',alignItems:'center',marginBottom:'12px'}}>
-                  <div style={{width:'32px',height:'32px',borderRadius:'50%',background:p?.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'13px',fontWeight:900,color:'#0D0A08'}}>{p?.name?.[0]}</div>
-                  <div style={{fontSize:'14px',fontWeight:600,color:p?.color||T.gold}}>{p?.name}</div>
-                </div>
-                {c.short_film_id&&<div style={{background:T.surfaceUp,borderRadius:'10px',padding:'10px 12px',marginBottom:'8px'}}>
-                  <div style={{fontSize:'12px',color:T.red,fontWeight:600,marginBottom:'8px'}}>📉 Short — {films.find(f=>f.id===c.short_film_id)?.title}</div>
-                  <div style={{fontSize:'11px',color:T.textSub,marginBottom:'8px'}}>Status: <span style={{color:c.short_result?T.text:T.orange}}>{c.short_result||'pending'}</span></div>
-                  {!c.short_result&&<div style={{display:'flex',gap:'8px'}}>
-                    <Btn color={T.green} textColor="#0D0A08" size="sm" sx={{flex:1}} onClick={async()=>{await supabase.from('chips').update({short_result:'win'}).eq('player_id',c.player_id);notify('Short WIN',T.green);loadData(league?.id)}}>✅ Win +100pts</Btn>
-                    <Btn color={T.red} textColor="#fff" size="sm" sx={{flex:1}} onClick={async()=>{await supabase.from('chips').update({short_result:'lose'}).eq('player_id',c.player_id);notify('Short LOSE',T.red);loadData(league?.id)}}>❌ Lose −30pts</Btn>
-                  </div>}
-                </div>}
-                {c.analyst_film_id&&<div style={{background:T.surfaceUp,borderRadius:'10px',padding:'10px 12px'}}>
-                  <div style={{fontSize:'12px',color:T.blue,fontWeight:600,marginBottom:'8px'}}>🎯 Analyst — {films.find(f=>f.id===c.analyst_film_id)?.title} · predicted ${c.analyst_prediction}M</div>
-                  <div style={{fontSize:'11px',color:T.textSub,marginBottom:'8px'}}>Status: <span style={{color:c.analyst_result?T.text:T.orange}}>{c.analyst_result||'pending'}</span></div>
-                  {!c.analyst_result&&<div style={{display:'flex',gap:'8px'}}>
-                    <Btn color={T.green} textColor="#0D0A08" size="sm" sx={{flex:1}} onClick={async()=>{await supabase.from('chips').update({analyst_result:'win'}).eq('player_id',c.player_id);notify('Analyst WIN +60pts',T.green);loadData(league?.id)}}>✅ Win +60pts</Btn>
-                    <Btn color={T.red} textColor="#fff" size="sm" sx={{flex:1}} onClick={async()=>{await supabase.from('chips').update({analyst_result:'lose'}).eq('player_id',c.player_id);notify('Analyst missed',T.red);loadData(league?.id)}}>❌ Missed</Btn>
-                  </div>}
-                </div>}
-              </div>
-            )})}
-          </div>
-        )}
-
-        {panelTab==='settings'&&(
-          <div>
-            <div style={{...S.card,marginBottom:'12px'}}>
-              <div style={{fontSize:'14px',fontWeight:700,color:T.gold,marginBottom:'14px'}}>League Settings</div>
-              <div style={S.label}>Invite Code</div>
-              <div style={{fontSize:'28px',fontWeight:900,color:T.text,letterSpacing:'4px',fontFamily:T.mono,margin:'8px 0 4px'}}>{league?.invite_code}</div>
-              <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px'}}>Share this with players to join</div>
-              <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
-                <Btn onClick={()=>{navigator.clipboard?.writeText(league?.invite_code||'');notify('Code copied!',T.green)}} color={T.gold} size="sm">Copy Code</Btn>
-                <Btn onClick={()=>{navigator.clipboard?.writeText(`${window.location.origin}/join/${league?.invite_code||''}`);notify('Link copied!',T.green)}} color={T.blue} textColor="#fff" size="sm">🔗 Copy Link</Btn>
-              </div>
-            </div>
-            <div style={{...S.card,marginBottom:'12px',border:`1px solid ${T.red}22`}}>
-              <div style={{fontSize:'14px',fontWeight:700,color:T.red,marginBottom:'10px'}}>Maintenance</div>
-              <div style={{fontSize:'12px',color:T.textSub,marginBottom:'12px'}}>Fix orphaned roster rows ({orphanCount} found)</div>
-              <Btn variant="outline" color={T.red} size="sm" onClick={async()=>{const ids=new Set(films.map(f=>f.id)),orphans=rosters.filter(r=>r.active&&!ids.has(r.film_id));if(!orphans.length)return notify('No orphans ✅',T.green);for(const o of orphans)await supabase.from('rosters').update({active:false}).eq('id',o.id);notify(`Fixed ${orphans.length} rows`,T.green);loadData(league?.id)}}>Scan & Fix Orphans</Btn>
-            </div>
-            <Btn onClick={leaveLeague} variant="outline" color={T.red} size="sm">Leave League</Btn>
-          </div>
-        )}
-      </div>
-    )
-  }
-  // ── RENDER ────────────────────────────────────────────────────────────────────
-
-  // ── SLATE HEATMAP PAGE ───────────────────────────────────────────────────────
-  const SlatePage=()=>{
-    const[heatPhase,setHeatPhase]=useState(0) // 0 = all
-    const[heatSort,setHeatSort]=useState('sentiment') // sentiment | estM | title
-    const shown=films.filter(f=>heatPhase===0||f.phase===heatPhase)
-    const totalP=players.length||1
-    const scored=(f)=>results[f.id]!=null
-    const sentiment=(f)=>{
-      const picks=allPicks.filter(p=>p.film_id===f.id).length
-      const ratio=picks/totalP // picks per player — 1.0 = every player picked it
-      return Math.min(ratio*2,1) // normalize 0-1, cap at 1
-    }
-    const perf=(f)=>scored(f)?results[f.id]/f.estM:null
-    const sorted=[...shown].sort((a,b)=>{
-      if(heatSort==='estM')return b.estM-a.estM
-      if(heatSort==='title')return a.title.localeCompare(b.title)
-      return sentiment(b)-sentiment(a)
-    })
-    const lerpColor=(t,from,to)=>{
-      const f=parseInt(from.slice(1),16),ti=parseInt(to.slice(1),16)
-      const fr=f>>16,fg=(f>>8)&255,fb=f&255
-      const tr=ti>>16,tg=(ti>>8)&255,tb=ti&255
-      const r=Math.round(fr+(tr-fr)*t),g=Math.round(fg+(tg-fg)*t),bv=Math.round(fb+(tb-fb)*t)
-      return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${bv.toString(16).padStart(2,'0')}`
-    }
-    const tileCol=(f)=>{
-      const p=perf(f)
-      if(p!=null)return p>=1.5?'#3DD68C':p>=1.1?'#80ED99':p>=0.9?'#E8A020':p>=0.6?'#F08030':'#F04F5A'
-      const s=sentiment(f)
-      return lerpColor(s,'#2A2420','#E8A020')
-    }
-    const maxEst=Math.max(...films.map(f=>f.estM),1)
-    return(
-      <div>
-        <div style={{marginBottom:'20px'}}>
-          <div style={S.pageTitle}>🗺 Slate Heatmap</div>
-          <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px'}}>Colour = audience sentiment · size = estimate · green fill = overperformed</div>
-        </div>
-        <div style={{display:'flex',gap:'8px',flexWrap:'wrap',marginBottom:'16px'}}>
-          {[[0,'All Phases'],[1,'Dead Zone'],[2,'Summer Slate'],[3,'Horror Window'],[4,'Awards Season'],[5,'Oscar Sprint']].map(([p,label])=>(
-            <button key={p} onClick={()=>setHeatPhase(Number(p))} style={{...S.btn,background:heatPhase===Number(p)?`${T.gold}22`:T.surfaceUp,border:`1px solid ${heatPhase===Number(p)?T.gold+'66':T.border}`,color:heatPhase===Number(p)?T.gold:T.textSub,padding:'6px 12px',fontSize:'11px',textTransform:'none',letterSpacing:0}}>{label}</button>
-          ))}
-          <div style={{marginLeft:'auto',display:'flex',gap:'6px'}}>
-            {[['sentiment','🔥 Sentiment'],['estM','$ Size'],['title','A–Z']].map(([s,l])=>(
-              <button key={s} onClick={()=>setHeatSort(s)} style={{...S.btn,background:heatSort===s?T.surfaceUp:'transparent',border:`1px solid ${heatSort===s?T.border:'transparent'}`,color:heatSort===s?T.text:T.textDim,padding:'6px 10px',fontSize:'10px',textTransform:'none',letterSpacing:0}}>{l}</button>
-            ))}
-          </div>
-        </div>
-        {/* Legend */}
-        <div style={{display:'flex',gap:'12px',flexWrap:'wrap',marginBottom:'20px',padding:'12px 16px',background:T.surface,border:`1px solid ${T.border}`,borderRadius:'12px'}}>
-          {[['#2A2420','Low interest'],['#E8A020','High interest'],['#3DD68C','2×+ over'],['#80ED99','Outperformed'],['#F08030','Underperformed'],['#F04F5A','Bomb']].map(([col,l])=>(
-            <div key={l} style={{display:'flex',alignItems:'center',gap:'6px',fontSize:'11px',color:T.textSub}}>
-              <div style={{width:'14px',height:'14px',borderRadius:'4px',background:col,flexShrink:0}}/>
-              {l}
-            </div>
-          ))}
-        </div>
-        {/* Heatmap grid */}
-        <div style={{display:'flex',flexWrap:'wrap',gap:'8px',alignItems:'flex-end'}}>
-          {sorted.map(f=>{
-            const s=sentiment(f),col=tileCol(f)
-            const normEst=f.estM/maxEst
-            const tileW=Math.max(70,Math.round(normEst*180))
-            const tileH=Math.max(60,Math.round(normEst*140))
-            const picks=allPicks.filter(p=>p.film_id===f.id).length
-            const actual=results[f.id]
-            const gc=GENRE_COL[f.genre]||T.textSub
-            return(
-              <div key={f.id} className="hoverable" onClick={()=>setFilmDetail(f)} style={{width:`${tileW}px`,height:`${tileH}px`,borderRadius:'12px',background:`${col}22`,border:`2px solid ${col}66`,cursor:'pointer',position:'relative',overflow:'hidden',display:'flex',flexDirection:'column',justifyContent:'flex-end',padding:'8px',transition:'all .2s'}}>
-                <div style={{position:'absolute',inset:0,background:`linear-gradient(to bottom,transparent 30%,${col}44 100%)`,pointerEvents:'none'}}/>
-                <div style={{position:'absolute',top:'6px',left:'6px',width:'8px',height:'8px',borderRadius:'50%',background:gc}}/>
-                {picks>0&&<div style={{position:'absolute',top:'5px',right:'6px',fontSize:'9px',color:col,fontWeight:700,fontFamily:T.mono}}>{picks}👁</div>}
-                {actual!=null&&<div style={{position:'absolute',top:'18px',right:'6px',fontSize:'9px',color:results[f.id]>=f.estM?'#3DD68C':'#F04F5A',fontWeight:700}}>${actual}M</div>}
-                <div style={{fontSize:'10px',fontWeight:700,color:T.text,lineHeight:1.3,wordBreak:'break-word',position:'relative'}}>{f.title.split(':')[0]}</div>
-                <div style={{fontSize:'9px',color:T.textSub,marginTop:'2px',position:'relative'}}>${f.estM}M est</div>
-              </div>
-            )
-          })}
-        </div>
-        {sorted.length===0&&<div style={{...S.card,textAlign:'center',padding:'48px',color:T.textSub}}>No films in this phase yet.</div>}
-      </div>
-    )
-  }
-
-  // ── SEASON WRAPPED MODAL ─────────────────────────────────────────────────────
-  const WrappedModal=({onClose})=>{
-    const allMyHoldings=rosters.filter(r=>r.player_id===profile.id&&films.find(f=>f.id===r.film_id))
-    const scoredHoldings=allMyHoldings.map(h=>{
-      const film=films.find(f=>f.id===h.film_id);if(!film||results[film.id]==null)return null
-      let op=calcOpeningPts(film,results[film.id],isEarlyBird(h),analystOn(profile.id,film.id))
-      if(auteurOn(profile.id,film.id))op=Math.round(op*1.1)
-      const wp=Math.round(calcWeeklyPts(weeklyG[film.id]||{}))
-      const lb=calcLegsBonus(results[film.id],weeklyG[film.id]?.[2])
-      const wb=wwBonus(film.id),sb=shortBonus(profile.id,film.id)
-      return{h,film,total:op+wp+lb+wb+sb,op}
-    }).filter(Boolean).sort((a,b)=>b.total-a.total)
-    const best=scoredHoldings[0],worst=scoredHoldings[scoredHoldings.length-1]
-    const totalPts=calcPoints(profile.id)
-    const myRank=myGlobalRank
-    const phasesLed=[1,2,3,4,5].filter(p=>{const sc=[...players].map(pl=>({id:pl.id,pts:calcPhasePoints(pl.id,p)})).sort((a,b)=>b.pts-a.pts);return sc[0]?.id===profile.id&&sc[0]?.pts>0})
-    const filmsBought=allMyHoldings.length
-    const chipsUsed=[chips?.recut_used,chips?.short_film_id,chips?.analyst_film_id,auteurDecl.find(a=>a.player_id===profile.id)].filter(Boolean).length
-    const fcPreds=allForecasts.filter(f=>f.player_id===profile.id)
-    const fcWithin10=fcPreds.filter(fc=>results[fc.film_id]!=null&&Math.abs(fc.predicted_m-results[fc.film_id])/results[fc.film_id]<=0.1).length
-    const pc=profile.color||T.gold
-    return(
-      <div style={{position:'fixed',inset:0,background:'#000000DD',display:'flex',alignItems:'center',justifyContent:'center',zIndex:900,padding:'16px'}} onClick={onClose}>
-        <div style={{background:T.surface,border:`1px solid ${T.gold}44`,borderRadius:'24px',width:'100%',maxWidth:'460px',maxHeight:'92vh',overflowY:'auto',animation:'bounceIn .4s cubic-bezier(.2,.9,.3,1.3)'}} onClick={e=>e.stopPropagation()}>
-          {/* Header */}
-          <div style={{background:`linear-gradient(135deg,${pc}22,${T.surface})`,padding:'28px 24px 20px',textAlign:'center',borderBottom:`1px solid ${T.border}`,position:'relative',borderRadius:'24px 24px 0 0'}}>
-            <div style={{position:'absolute',top:0,left:0,right:0,height:'4px',background:`linear-gradient(90deg,${pc},${T.gold})`,borderRadius:'24px 24px 0 0'}}/>
-            <div style={{width:'60px',height:'60px',borderRadius:'50%',background:pc,margin:'0 auto 10px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'26px',fontWeight:900,color:'#0D0A08',boxShadow:`0 0 0 4px ${T.surface},0 0 0 6px ${pc}44`}}>{profile.name?.[0]}</div>
-            <div style={{fontSize:'20px',fontWeight:800,color:pc,marginBottom:'3px'}}>{profile.name}</div>
-            <div style={{fontSize:'11px',color:T.textDim,letterSpacing:'2px',textTransform:'uppercase',marginBottom:'16px'}}>Season So Far</div>
-            <div style={{display:'flex',gap:'20px',justifyContent:'center'}}>
-              <div style={{textAlign:'center'}}><div style={{fontSize:'44px',fontWeight:900,color:T.gold,fontFamily:T.mono,lineHeight:1,letterSpacing:'-2px'}}>{totalPts}</div><div style={{fontSize:'10px',color:T.textSub,marginTop:'4px',letterSpacing:'1px'}}>GRAND PTS</div></div>
-              <div style={{width:'1px',background:T.border}}/>
-              <div style={{textAlign:'center'}}><div style={{fontSize:'44px',fontWeight:900,color:myRank===1?T.gold:T.text,fontFamily:T.mono,lineHeight:1}}>{myRank===1?'👑':`#${myRank}`}</div><div style={{fontSize:'10px',color:T.textSub,marginTop:'4px',letterSpacing:'1px'}}>OF {players.length}</div></div>
-            </div>
-          </div>
-          <div style={{padding:'20px 24px'}}>
-            {/* Stats grid */}
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',marginBottom:'16px'}}>
-              {[
-                {label:'Films acquired',value:filmsBought,color:T.text},
-                {label:'Chips used',value:`${chipsUsed}/4`,color:T.purple},
-                {label:'Phases led',value:phasesLed.length,color:T.gold},
-                {label:'Forecasts within 10%',value:fcWithin10,color:T.blue},
-              ].map(({label,value,color})=>(
-                <div key={label} style={{background:T.surfaceUp,borderRadius:'10px',padding:'12px 14px'}}>
-                  <div style={{...S.label,marginBottom:'5px'}}>{label}</div>
-                  <div style={{fontSize:'22px',fontWeight:700,color,fontFamily:T.mono}}>{value}</div>
-                </div>
-              ))}
-            </div>
-            {/* Best pick */}
-            {best&&<div style={{background:`${T.green}12`,border:`1px solid ${T.green}33`,borderRadius:'14px',padding:'14px 16px',marginBottom:'10px',display:'flex',gap:'12px',alignItems:'center'}}>
-              <FilmPoster film={best.film} width={48} height={72} radius={7}/>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:'10px',color:T.green,fontWeight:700,letterSpacing:'1.5px',marginBottom:'4px'}}>🏆 BEST PICK</div>
-                <div style={{fontSize:'14px',fontWeight:700,marginBottom:'2px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{best.film.title}</div>
-                <div style={{fontSize:'12px',color:T.textSub}}>${results[best.film.id]}M actual</div>
-              </div>
-              <div style={{fontSize:'32px',fontWeight:900,color:T.green,fontFamily:T.mono,flexShrink:0}}>+{best.total}</div>
-            </div>}
-            {/* Worst pick */}
-            {worst&&worst.film.id!==best?.film.id&&<div style={{background:`${T.red}12`,border:`1px solid ${T.red}22`,borderRadius:'14px',padding:'14px 16px',marginBottom:'16px',display:'flex',gap:'12px',alignItems:'center'}}>
-              <FilmPoster film={worst.film} width={48} height={72} radius={7}/>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:'10px',color:T.red,fontWeight:700,letterSpacing:'1.5px',marginBottom:'4px'}}>💀 WORST PICK</div>
-                <div style={{fontSize:'14px',fontWeight:700,marginBottom:'2px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{worst.film.title}</div>
-                <div style={{fontSize:'12px',color:T.textSub}}>${results[worst.film.id]}M actual</div>
-              </div>
-              <div style={{fontSize:'32px',fontWeight:900,color:T.red,fontFamily:T.mono,flexShrink:0}}>{worst.total}</div>
-            </div>}
-            {/* Phase breakdown */}
-            <div style={{...S.label,marginBottom:'8px'}}>Phase Breakdown</div>
-            <div style={{display:'flex',gap:'5px',marginBottom:'16px'}}>
-              {[1,2,3,4,5].map(p=>{const pts=calcPhasePoints(profile.id,p),isLed=phasesLed.includes(p);return(
-                <div key={p} style={{flex:1,background:isLed?`${T.gold}18`:T.surfaceUp,border:`1px solid ${isLed?T.gold+'44':T.border}`,borderRadius:'9px',padding:'8px 4px',textAlign:'center'}}>
-                  <div style={{fontSize:'9px',color:isLed?T.gold:T.textDim,fontWeight:700,marginBottom:'4px'}}>PH{p}{isLed?' 👑':''}</div>
-                  <div style={{fontSize:'15px',fontWeight:800,color:pts>0?isLed?T.gold:T.text:T.textDim,fontFamily:T.mono}}>{pts||'—'}</div>
-                </div>
-              )})}
-            </div>
-            <div style={{display:'flex',gap:'8px'}}>
-              <Btn onClick={()=>{const text=`🎬 BOXD Season Update\n${profile.name} · #${myRank} of ${players.length}\n${totalPts} pts · Best pick: ${best?.film.title||'—'} (+${best?.total||0}pts)\nfantasy box office`;navigator.share?navigator.share({title:'My BOXD Season',text}).catch(()=>{}):navigator.clipboard?.writeText(text).then(()=>notify('Copied!',T.gold))}} color={T.gold} sx={{flex:2}} size="lg">{navigator.share?'📤 Share Season':'📋 Copy'}</Btn>
-              <Btn onClick={onClose} variant="outline" color={T.textSub} sx={{flex:1}} size="lg">Close</Btn>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // ── MATCH REPORT PAGE ────────────────────────────────────────────────────────
+  // ── MATCH REPORT PAGE ────────────────────────────────────────────────────
   const MatchReportPage=()=>{
-    const thisWeek=cfg.current_week-1
-    const justOpened=films.filter(f=>f.week===thisWeek&&results[f.id]!=null)
-    const upcoming=films.filter(f=>f.week===cfg.current_week&&results[f.id]==null)
-    const sorted=[...players].sort((a,b)=>calcPoints(b.id)-calcPoints(a.id))
-    const prevRankOf=(pid)=>standingsSnapshot[pid]||null
-    const thisWeekPts=players.map(p=>{
-      const weekFilmPts=justOpened.reduce((s,f)=>{
-        const h=rosters.find(r=>r.player_id===p.id&&r.film_id===f.id)
-        if(!h)return s
-        let op=calcOpeningPts(f,results[f.id],isEarlyBird(h),analystOn(p.id,f.id))
-        if(auteurOn(p.id,f.id))op=Math.round(op*1.1)
-        return s+op+Math.round(calcWeeklyPts(weeklyG[f.id]||{}))+calcLegsBonus(results[f.id],weeklyG[f.id]?.[2])+wwBonus(f.id)+shortBonus(p.id,f.id)
-      },0)
-      return{p,weekPts:weekFilmPts}
-    }).sort((a,b)=>b.weekPts-a.weekPts)
-    const biggestMover=sorted.reduce((best,{id},curRank)=>{const prev=prevRankOf(id);if(!prev)return best;const moved=prev-(curRank+1);return moved>best.moved?{moved,p:players.find(pl=>pl.id===id)}:best},{moved:-99,p:null})
+    const lastWeek=cfg.current_week-1
+    const scoredFilms=films.filter(f=>f.week===lastWeek&&results[f.id]!=null).map(f=>({f,actual:results[f.id],ratio:results[f.id]/f.estM})).sort((a,b)=>b.ratio-a.ratio)
+    if(scoredFilms.length===0)return <div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No results yet for last week.</div>
+    const winner=scoredFilms[0]
+    const bomb=scoredFilms[scoredFilms.length-1]
     return(
-      <div>
-        <div style={{marginBottom:'24px'}}>
-          <div style={{...S.label,color:T.gold,marginBottom:'4px',letterSpacing:'2px'}}>WEEK {thisWeek} REPORT</div>
-          <div style={S.pageTitle}>Match Report</div>
-          <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px'}}>Auto-generated · {new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</div>
-        </div>
-        {/* Films that opened */}
-        {justOpened.length>0&&<>
-          <div style={{...S.label,marginBottom:'10px'}}>🎬 Opened This Week</div>
-          {justOpened.map(f=>{
-            const actual=results[f.id],ratio=actual/f.estM,pts=calcOpeningPts(f,actual),gc=GENRE_COL[f.genre]||T.textSub
-            const col=ratio>=1.5?T.green:ratio>=1.1?T.gold:ratio>=0.9?T.textSub:T.red
-            const ownedBy=players.filter(p=>rosters.find(r=>r.player_id===p.id&&r.film_id===f.id&&r.active))
-            return(
-              <div key={f.id} style={{...S.card,marginBottom:'10px'}}>
-                <div style={{display:'flex',gap:'14px',alignItems:'flex-start'}}>
-                  <FilmPoster film={f} width={52} height={78} radius={8}/>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:'15px',fontWeight:700,marginBottom:'3px'}}>{f.title}</div>
-                    <div style={{fontSize:'12px',color:T.textSub,marginBottom:'10px'}}>{f.dist} · {f.genre}</div>
-                    <div style={{display:'flex',gap:'14px',flexWrap:'wrap',marginBottom:'8px'}}>
-                      <div><div style={S.label}>Est</div><div style={{fontSize:'14px',fontWeight:600,marginTop:'2px'}}>${f.estM}M</div></div>
-                      <div><div style={S.label}>Actual</div><div style={{fontSize:'14px',fontWeight:700,color:col,marginTop:'2px'}}>${actual}M</div></div>
-                      <div><div style={S.label}>vs Estimate</div><div style={{fontSize:'14px',fontWeight:700,color:col,marginTop:'2px'}}>{ratio>=1?'+':''}{((ratio-1)*100).toFixed(0)}%</div></div>
-                      <div><div style={S.label}>Base pts</div><div style={{fontSize:'14px',fontWeight:700,color:T.gold,marginTop:'2px'}}>{pts}</div></div>
-                    </div>
-                    {ownedBy.length>0&&<div style={{display:'flex',gap:'4px',flexWrap:'wrap'}}>
-                      {ownedBy.map(p=><div key={p.id} style={{fontSize:'10px',background:`${p.color||T.gold}22`,color:p.color||T.gold,padding:'2px 7px',borderRadius:'8px',fontWeight:600}}>{p.name.split(' ')[0]}</div>)}
-                    </div>}
-                  </div>
-                </div>
-                <div style={{height:'3px',background:T.border,borderRadius:'2px',marginTop:'12px',overflow:'hidden'}}>
-                  <div style={{height:'100%',width:`${Math.min(100,Math.round(ratio*50))}%`,background:`linear-gradient(90deg,${col}88,${col})`,borderRadius:'2px'}}/>
-                </div>
-              </div>
-            )
-          })}
-        </>}
-        {/* This week's pts gainers */}
-        {thisWeekPts.filter(x=>x.weekPts>0).length>0&&<>
-          <div style={{...S.label,marginBottom:'10px',marginTop:'20px'}}>⚡ Week {thisWeek} Points</div>
-          {thisWeekPts.filter(x=>x.weekPts>0).map(({p,weekPts},i)=>(
-            <div key={p.id} style={{display:'flex',alignItems:'center',gap:'12px',padding:'10px 14px',background:i===0?`${T.gold}12`:T.surface,border:`1px solid ${i===0?T.gold+'44':T.border}`,borderRadius:'10px',marginBottom:'6px'}}>
-              <div style={{fontSize:'16px'}}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`}</div>
-              <div style={{width:'28px',height:'28px',borderRadius:'50%',background:p.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',fontWeight:900,color:'#0D0A08',flexShrink:0}}>{p.name?.[0]}</div>
-              <div style={{flex:1,fontSize:'13px',fontWeight:600,color:p.color||T.gold}}>{p.name}</div>
-              <div style={{fontSize:'20px',fontWeight:900,color:i===0?T.gold:T.text,fontFamily:T.mono}}>+{weekPts}</div>
-            </div>
-          ))}
-        </>}
-        {/* Standings with movement */}
-        <div style={{...S.label,marginBottom:'10px',marginTop:'20px'}}>📊 Current Standings</div>
-        {sorted.map(({id},i)=>{
-          const p=players.find(pl=>pl.id===id),pts=calcPoints(id),prev=prevRankOf(id),move=prev?prev-(i+1):0
-          return(
-            <div key={id} style={{display:'flex',alignItems:'center',gap:'10px',padding:'10px 14px',background:T.surface,border:`1px solid ${T.border}`,borderRadius:'10px',marginBottom:'6px'}}>
-              <div style={{fontSize:'15px',minWidth:'28px'}}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`}</div>
-              <div style={{width:'26px',height:'26px',borderRadius:'50%',background:p?.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',fontWeight:900,color:'#0D0A08',flexShrink:0}}>{p?.name?.[0]}</div>
-              <div style={{flex:1,fontSize:'13px',fontWeight:600,color:p?.color||T.gold}}>{p?.name}</div>
-              {move!==0&&<div style={{fontSize:'11px',color:move>0?T.green:T.red,fontWeight:700,minWidth:'28px',textAlign:'right'}}>{move>0?`▲${move}`:`▼${Math.abs(move)}`}</div>}
-              <div style={{fontSize:'18px',fontWeight:900,color:i===0?T.gold:T.text,fontFamily:T.mono,minWidth:'40px',textAlign:'right'}}>{pts}</div>
-            </div>
-          )
-        })}
-        {/* Next week preview */}
-        {upcoming.length>0&&<>
-          <div style={{...S.label,marginBottom:'10px',marginTop:'20px'}}>📅 Opening Next — W{cfg.current_week}</div>
-          <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
-            {upcoming.map(f=>{const picks=allPicks.filter(p=>p.film_id===f.id).length,gc=GENRE_COL[f.genre]||T.textSub;return(
-              <div key={f.id} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'12px',overflow:'hidden',width:'110px',flexShrink:0,cursor:'pointer'}} onClick={()=>setFilmDetail(f)}>
-                <FilmPoster film={f} width={110} height={130} radius={0}/>
-                <div style={{padding:'8px'}}>
-                  <div style={{fontSize:'11px',fontWeight:600,lineHeight:1.3,marginBottom:'3px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.title.split(':')[0]}</div>
-                  <div style={{fontSize:'10px',color:T.textSub}}>${f.estM}M · {picks} picks</div>
-                </div>
-              </div>
-            )})}
+      <div style={{animation:'fadeUp .2s ease'}}>
+        <div style={S.pageTitle}>📰 Match Report · W{lastWeek}</div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px'}}>This week's box office results</div>
+        {winner&&<div style={{...S.card,marginBottom:'10px',background:`linear-gradient(135deg,${T.green}14,${T.surface})`,border:`1px solid ${T.green}44`}}>
+          <div style={{...S.label,marginBottom:'10px',color:T.green}}>🏆 Winner of the Week</div>
+          <div style={{display:'flex',gap:'14px',alignItems:'center'}}>
+            <FilmPoster film={winner.f} width={56} height={84} radius={8}/>
+            <div style={{flex:1}}><div style={{fontSize:'16px',fontWeight:700}}>{winner.f.title}</div><div style={{fontSize:'12px',color:T.textSub,marginTop:'2px'}}>${winner.actual}M actual · {winner.ratio.toFixed(2)}× estimate</div></div>
           </div>
-        </>}
-        {justOpened.length===0&&<div style={{...S.card,textAlign:'center',padding:'48px',color:T.textSub}}>No results in yet for W{thisWeek}. Check back after the commissioner enters the weekend box office.</div>}
-      </div>
-    )
-  }
-
-  // ── WAR ROOM PAGE ────────────────────────────────────────────────────────────
-  const WarRoomPage=()=>{
-    const[entries,setEntries]=useState({})
-    const[winners,setWinners]=useState({})
-    const[submitting,setSubmitting]=useState(false)
-    const[submitted,setSubmitted]=useState(false)
-    const thisWeekFilms=films.filter(f=>f.week===cfg.current_week&&results[f.id]==null)
-    const allFilmsWithInput=[...thisWeekFilms,...films.filter(f=>f.week===cfg.current_week-1&&results[f.id]==null)]
-    const uniqueFilms=[...new Map(allFilmsWithInput.map(f=>[f.id,f])).values()]
-    const submitAll=async()=>{
-      const toSubmit=Object.entries(entries).filter(([,v])=>v!==''&&!isNaN(parseFloat(v)))
-      if(!toSubmit.length)return notify('Enter at least one result',T.red)
-      setSubmitting(true)
-      for(const[filmId,val] of toSubmit){
-        const v=parseFloat(val),film=films.find(f=>f.id===filmId)
-        if(!film)continue
-        const nv=calcMarketValue(film,v)
-        await dbUpsert('results','film_id',filmId,{actual_m:v})
-        await dbUpsert('film_values','film_id',filmId,{current_value:nv})
-        await resolveChips(filmId,v)
-        await logActivity(session.user.id,'result',{film_title:film.title,actual_m:v})
-      }
-      for(const[filmId,isW] of Object.entries(winners)){
-        if(!isW)continue
-        const film=films.find(f=>f.id===filmId);if(!film)continue
-        const ex=await supabase.from('weekend_winners').select('id').eq('week',film.week).maybeSingle()
-        if(ex.data)await supabase.from('weekend_winners').update({film_id:filmId,phase:ph}).eq('week',film.week)
-        else await supabase.from('weekend_winners').insert({film_id:filmId,week:film.week,phase:ph,league_id:league?.id})
-      }
-      await sendNotification('result_in',{players:players.map(p=>({id:p.id}))})
-      setSubmitting(false);setSubmitted(true)
-      triggerConfetti();notify(`✅ ${toSubmit.length} result${toSubmit.length!==1?'s':''} saved`,T.green)
-      loadData(league?.id)
-    }
-    const topEntry=Object.entries(entries).find(([fid,v])=>v!==''&&winners[fid])?.[0]||Object.keys(entries)[0]
-    return(
-      <div>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'20px'}}>
-          <div>
-            <div style={{...S.label,color:T.red,letterSpacing:'2px',marginBottom:'4px'}}>COMMISSIONER ONLY</div>
-            <div style={S.pageTitle}>⚡ War Room</div>
-            <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px'}}>Batch weekend results entry · W{cfg.current_week}</div>
-          </div>
-          <Btn onClick={submitAll} color={T.green} textColor="#0D0A08" size="lg" disabled={submitting||submitted}>
-            {submitting?'⏳ Saving…':submitted?'✅ Saved':'Submit Weekend →'}
-          </Btn>
-        </div>
-        {uniqueFilms.length===0&&<div style={{...S.card,textAlign:'center',padding:'48px',color:T.textSub}}>No unresuled films for W{cfg.current_week}. All results already entered!</div>}
-        <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(auto-fill,minmax(300px,1fr))',gap:'12px'}}>
-          {uniqueFilms.map(film=>{
-            const val=entries[film.id]||'',isW=winners[film.id]||false,gc=GENRE_COL[film.genre]||T.textSub
-            const estPts=val&&!isNaN(parseFloat(val))?calcOpeningPts(film,parseFloat(val)):null
-            return(
-              <div key={film.id} style={{...S.card,border:`2px solid ${isW?T.gold:val?T.green+'55':T.border}`,transition:'border-color .2s'}}>
-                <div style={{display:'flex',gap:'12px',alignItems:'flex-start',marginBottom:'12px'}}>
-                  <div style={{position:'relative',flexShrink:0}}>
-                    <FilmPoster film={film} width={56} height={84} radius={8}/>
-                    <div style={{position:'absolute',top:0,left:0,right:0,height:'3px',background:gc,borderRadius:'8px 8px 0 0'}}/>
-                  </div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:'14px',fontWeight:700,lineHeight:1.3,marginBottom:'2px'}}>{film.title}</div>
-                    <div style={{fontSize:'11px',color:T.textSub,marginBottom:'8px'}}>{film.dist} · Est ${film.estM}M</div>
-                    <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
-                      <input
-                        type="number" step="0.1" value={val}
-                        placeholder="$M actual"
-                        onChange={e=>setEntries(prev=>({...prev,[film.id]:e.target.value}))}
-                        style={{...S.inp,flex:1,fontSize:'18px',padding:'10px 12px',fontWeight:700,color:val?T.green:T.text}}
-                      />
-                      <button onClick={()=>setWinners(prev=>({...prev,[film.id]:!isW}))} style={{...S.btn,background:isW?T.gold:T.surfaceUp,border:`1px solid ${isW?T.gold:T.border}`,color:isW?'#0D0A08':T.textSub,padding:'10px 12px',fontSize:'14px',flexShrink:0}}>🥇</button>
-                    </div>
-                  </div>
-                </div>
-                {estPts!=null&&(
-                  <div style={{background:T.surfaceUp,borderRadius:'9px',padding:'8px 12px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                    <div style={{fontSize:'12px',color:T.textSub}}>
-                      {parseFloat(val)/film.estM>=1?'▲':'▼'} {((parseFloat(val)/film.estM-1)*100).toFixed(0)}% vs est
-                    </div>
-                    <div style={{fontSize:'15px',fontWeight:800,color:T.gold,fontFamily:T.mono}}>~{estPts}pts</div>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-        {uniqueFilms.length>0&&<div style={{marginTop:'20px',padding:'16px 20px',background:`${T.green}12`,border:`1px solid ${T.green}33`,borderRadius:'14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <div style={{fontSize:'13px',color:T.textSub}}>{Object.values(entries).filter(v=>v!==''&&!isNaN(parseFloat(v))).length} of {uniqueFilms.length} results entered</div>
-          <Btn onClick={submitAll} color={T.green} textColor="#0D0A08" size="lg" disabled={submitting||submitted}>
-            {submitting?'⏳':'⚡'} {submitting?'Saving…':submitted?'✅ All saved':'Submit All →'}
-          </Btn>
         </div>}
-      </div>
-    )
-  }
-
-  // ── INTELLIGENCE PAGE ────────────────────────────────────────────────────────
-  const IntelligencePage=()=>{
-    const[intTab,setIntTab]=useState('signals')
-    const totalP=players.length||1
-    // Sentiment score per film: picks/player, normalized
-    const filmSignals=[...films].map(f=>{
-      const picks=allPicks.filter(p=>p.film_id===f.id).length
-      const vel7=pickVelocity(f.id,allPicks,7)
-      const vel1=pickVelocity(f.id,allPicks,1)
-      const pickRatio=picks/totalP
-      const actual=results[f.id]
-      const perf=actual!=null?actual/f.estM:null
-      return{f,picks,vel7,vel1,pickRatio,actual,perf}
-    })
-    const upcoming=filmSignals.filter(s=>s.actual==null).sort((a,b)=>b.pickRatio-a.pickRatio)
-    const resulted=filmSignals.filter(s=>s.actual!=null).sort((a,b)=>b.picks-a.picks)
-    // Validation data: for each resulted film, was high pickRatio predictive?
-    const validationData=resulted.filter(s=>s.picks>0).map(s=>({
-      title:s.f.title.split(':')[0],
-      pickPct:Math.round(s.pickRatio*100),
-      perf:s.perf,
-      gc:GENRE_COL[s.f.genre]||T.textSub,
-      dist:s.f.dist,
-    }))
-    const maxPickPct=Math.max(...validationData.map(d=>d.pickPct),1)
-    const maxPerf=Math.max(...validationData.map(d=>d.perf),2)
-    // Copy intelligence URL
-    const shareIntelUrl=()=>{
-      const url=`${window.location.origin}${window.location.pathname}?page=intelligence`
-      navigator.clipboard?.writeText(url).then(()=>notify('Intelligence URL copied!',T.blue))
-    }
-    return(
-      <div>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'20px',flexWrap:'wrap',gap:'12px'}}>
-          <div>
-            <div style={{...S.label,color:T.blue,letterSpacing:'2px',marginBottom:'4px'}}>LIVE DATA</div>
-            <div style={S.pageTitle}>📡 BOXD Intelligence</div>
-            <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px'}}>Audience sentiment · {allPicks.length} signals · {players.length} players tracking</div>
+        {bomb&&bomb.f.id!==winner?.f.id&&<div style={{...S.card,marginBottom:'10px',background:`linear-gradient(135deg,${T.red}14,${T.surface})`,border:`1px solid ${T.red}44`}}>
+          <div style={{...S.label,marginBottom:'10px',color:T.red}}>💀 Underperformer</div>
+          <div style={{display:'flex',gap:'14px',alignItems:'center'}}>
+            <FilmPoster film={bomb.f} width={56} height={84} radius={8}/>
+            <div style={{flex:1}}><div style={{fontSize:'16px',fontWeight:700}}>{bomb.f.title}</div><div style={{fontSize:'12px',color:T.textSub,marginTop:'2px'}}>${bomb.actual}M actual · {bomb.ratio.toFixed(2)}× estimate</div></div>
           </div>
-          <Btn onClick={shareIntelUrl} color={T.blue} textColor="#fff" size="sm">🔗 Share URL</Btn>
-        </div>
-        {/* Summary stats */}
-        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'8px',marginBottom:'20px'}}>
-          {[
-            {label:'Films tracked',value:films.length,color:T.text},
-            {label:'Total signals',value:allPicks.length,color:T.gold},
-            {label:'Active players',value:totalP,color:T.blue},
-            {label:'Results in',value:resulted.length,color:T.green},
-          ].map(({label,value,color})=>(
-            <div key={label} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'12px',padding:'12px 14px',textAlign:'center'}}>
-              <div style={{fontSize:'24px',fontWeight:900,color,fontFamily:T.mono,lineHeight:1}}>{value}</div>
-              <div style={{fontSize:'10px',color:T.textDim,marginTop:'4px',letterSpacing:'0.5px'}}>{label}</div>
-            </div>
-          ))}
-        </div>
-        {/* Tabs */}
-        <div style={{display:'flex',borderBottom:`1px solid ${T.border}`,marginBottom:'20px',overflowX:'auto'}}>
-          {[['signals','📊 Sentiment'],['validation','🎯 Validation'],['marketing','📈 Marketing']].map(([id,label])=>(
-            <button key={id} onClick={()=>setIntTab(id)} style={{...S.btn,background:'none',border:'none',fontSize:'13px',fontWeight:intTab===id?700:400,color:intTab===id?T.blue:T.textSub,padding:'10px 16px',borderBottom:`2px solid ${intTab===id?T.blue:'transparent'}`,borderRadius:0,textTransform:'none',letterSpacing:0,flexShrink:0}}>{label}</button>
-          ))}
-        </div>
-
-        {intTab==='signals'&&(
-          <div>
-            <div style={{...S.label,marginBottom:'10px'}}>🔥 Most Tracked — Upcoming</div>
-            {upcoming.slice(0,8).map(({f,picks,vel7,vel1,pickRatio},i)=>{
-              const barW=Math.max(4,Math.round(pickRatio*100))
-              const gc=GENRE_COL[f.genre]||T.textSub
-              return(
-                <div key={f.id} className="hoverable" onClick={()=>setFilmDetail(f)} style={{...S.card,marginBottom:'8px',cursor:'pointer',padding:'12px 14px'}}>
-                  <div style={{display:'flex',gap:'12px',alignItems:'center',marginBottom:'8px'}}>
-                    <div style={{fontSize:'16px',minWidth:'24px',color:T.textDim,fontFamily:T.mono}}>{i+1}</div>
-                    <FilmPoster film={f} width={36} height={54} radius={6}/>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:'13px',fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.title}</div>
-                      <div style={{fontSize:'11px',color:T.textSub}}>{f.dist} · Est ${f.estM}M · W{f.week}</div>
-                    </div>
-                    <div style={{textAlign:'right',flexShrink:0}}>
-                      <div style={{fontSize:'15px',fontWeight:700,color:T.gold,fontFamily:T.mono}}>{picks}</div>
-                      <div style={{fontSize:'10px',color:T.textDim}}>picks</div>
-                    </div>
-                    {vel7>0&&<div style={{fontSize:'11px',color:vel7>=5?T.red:T.orange,fontWeight:600,flexShrink:0}}>+{vel7}/wk</div>}
-                  </div>
-                  <div style={{height:'3px',background:T.border,borderRadius:'2px',overflow:'hidden'}}>
-                    <div style={{height:'100%',width:`${barW}%`,background:`linear-gradient(90deg,${gc}88,${gc})`,borderRadius:'2px'}}/>
-                  </div>
-                </div>
-              )
-            })}
-            {upcoming.length===0&&<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No upcoming films with intent signals yet.</div>}
-            {resulted.length>0&&<>
-              <div style={{...S.label,marginBottom:'10px',marginTop:'24px'}}>✅ Resulted Films</div>
-              {resulted.slice(0,5).map(({f,picks,pickRatio,actual,perf})=>{
-                const col=perf>=1.5?T.green:perf>=1.1?T.gold:perf>=0.9?T.textSub:T.red
-                return(
-                  <div key={f.id} style={{...S.card,marginBottom:'6px',display:'flex',gap:'12px',alignItems:'center'}}>
-                    <FilmPoster film={f} width={28} height={42} radius={5}/>
-                    <div style={{flex:1,fontSize:'13px',fontWeight:500}}>{f.title.split(':')[0]}</div>
-                    <div style={{fontSize:'11px',color:T.textSub}}>{picks} picks</div>
-                    <div style={{fontSize:'13px',fontWeight:700,color:col}}>${actual}M ({perf>=1?'+':''}{((perf-1)*100).toFixed(0)}%)</div>
-                  </div>
-                )
-              })}
-            </>}
-          </div>
-        )}
-
-        {intTab==='validation'&&(
-          <div>
-            <div style={{...S.card,border:`1px solid ${T.blue}33`,marginBottom:'20px',padding:'16px 18px'}}>
-              <div style={{fontSize:'13px',fontWeight:700,color:T.blue,marginBottom:'6px'}}>Pick Velocity as a Leading Indicator</div>
-              <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.7}}>Each dot is a film with results. X axis = % of players who picked it before release. Y axis = actual vs estimate ratio. Films above the 1.0 line outperformed.</div>
-            </div>
-            {validationData.length>=2?(()=>{
-              const W=Math.min(520,typeof window!=='undefined'?window.innerWidth-80:400),H=280
-              const pad={t:20,r:20,b:40,l:45}
-              const chartW=W-pad.l-pad.r,chartH=H-pad.t-pad.b
-              const scX=(v)=>pad.l+(v/Math.max(maxPickPct,1))*chartW
-              const scY=(v)=>pad.t+chartH-(Math.min(v,maxPerf)/maxPerf)*chartH
-              const baselineY=scY(1)
-              return(
-                <div style={{overflowX:'auto',marginBottom:'20px'}}>
-                  <svg width={W} height={H} style={{fontFamily:T.mono,overflow:'visible'}}>
-                    {/* Grid */}
-                    {[0,0.5,1,1.5,2].map(v=>(
-                      <g key={v}>
-                        <line x1={pad.l} y1={scY(v)} x2={W-pad.r} y2={scY(v)} stroke={v===1?T.gold:T.border} strokeWidth={v===1?1.5:1} strokeDasharray={v===1?'4,3':'2,4'} opacity="0.7"/>
-                        <text x={pad.l-4} y={scY(v)+4} fill={T.textDim} fontSize="9" textAnchor="end">{v}×</text>
-                      </g>
-                    ))}
-                    {/* Axis labels */}
-                    <text x={pad.l+chartW/2} y={H-4} fill={T.textDim} fontSize="9" textAnchor="middle">% of players tracking</text>
-                    <text x={12} y={pad.t+chartH/2} fill={T.textDim} fontSize="9" textAnchor="middle" transform={`rotate(-90,12,${pad.t+chartH/2})`}>actual vs estimate</text>
-                    {/* Baseline label */}
-                    <text x={W-pad.r-2} y={baselineY-4} fill={T.gold} fontSize="8" textAnchor="end" opacity="0.8">estimate</text>
-                    {/* Dots */}
-                    {validationData.map((d,i)=>{
-                      const cx=scX(d.pickPct),cy=scY(d.perf)
-                      const col=d.perf>=1.5?T.green:d.perf>=1.1?T.gold:d.perf>=0.9?T.textSub:T.red
-                      return(
-                        <g key={i}>
-                          <circle cx={cx} cy={cy} r={6} fill={col} opacity="0.85"/>
-                          {i<5&&<text x={cx} y={cy-9} fill={T.text} fontSize="8" textAnchor="middle">{d.title.split(' ').slice(0,2).join(' ')}</text>}
-                        </g>
-                      )
-                    })}
-                  </svg>
-                </div>
-              )
-            })():<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>Need at least 2 resulted films with pick data to show validation chart.</div>}
-            {/* Insights */}
-            {validationData.length>=3&&(()=>{
-              const avg=validationData.reduce((s,d)=>s+d.perf,0)/validationData.length
-              const highPick=validationData.filter(d=>d.pickPct>=50)
-              const lowPick=validationData.filter(d=>d.pickPct<50)
-              const highAvg=highPick.length?highPick.reduce((s,d)=>s+d.perf,0)/highPick.length:null
-              const lowAvg=lowPick.length?lowPick.reduce((s,d)=>s+d.perf,0)/lowPick.length:null
-              return(
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px'}}>
-                  <div style={{background:T.surfaceUp,borderRadius:'12px',padding:'14px'}}>
-                    <div style={{...S.label,marginBottom:'6px'}}>Avg performance</div>
-                    <div style={{fontSize:'24px',fontWeight:900,color:avg>=1?T.green:T.red,fontFamily:T.mono}}>{avg.toFixed(2)}×</div>
-                    <div style={{fontSize:'11px',color:T.textSub,marginTop:'3px'}}>across {validationData.length} films</div>
-                  </div>
-                  {highAvg&&lowAvg&&<div style={{background:T.surfaceUp,borderRadius:'12px',padding:'14px'}}>
-                    <div style={{...S.label,marginBottom:'6px'}}>High vs low intent</div>
-                    <div style={{fontSize:'15px',fontWeight:700,color:T.green}}>{highAvg.toFixed(2)}× tracked</div>
-                    <div style={{fontSize:'15px',fontWeight:700,color:T.textSub}}>{lowAvg.toFixed(2)}× untracked</div>
-                  </div>}
-                </div>
-              )
-            })()}
-          </div>
-        )}
-
-        {intTab==='marketing'&&(
-          <div>
-            <div style={{...S.label,marginBottom:'10px'}}>Select Film</div>
-            <select style={{...S.inp,marginBottom:'16px'}} onChange={e=>{const f=films.find(fl=>fl.id===e.target.value);f&&setFilmDetail(f)}}>
-              <option value="">Choose a film to view marketing data…</option>
-              {films.filter(f=>marketingEvents.some(ev=>ev.film_id===f.id)).map(f=><option key={f.id} value={f.id}>{f.title}</option>)}
-            </select>
-            {marketingEvents.length===0&&<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No marketing events logged yet. Add them via the film detail modal.</div>}
-            <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.7}}>Select a film above to view full marketing impact analysis, or navigate to Distributor Insights for the full dashboard view.</div>
-            <div style={{marginTop:'16px'}}>
-              <Btn onClick={()=>navigate('distributor')} color={T.blue} textColor="#fff" size="lg">→ Open Distributor Insights</Btn>
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-
-  // ── PROFILE EDIT MODAL ───────────────────────────────────────────────────────
-  const ProfileEditModal=({onClose})=>{
-    const[bio,setBio]=React.useState(profile.bio||'')
-    const[letterboxd,setLetterboxd]=React.useState(profile.letterboxd||'')
-    const[xHandle,setXHandle]=React.useState(profile.x_handle||'')
-    const[saving,setSaving]=React.useState(false)
-    const save=async()=>{
-      setSaving(true)
-      const cleaned=letterboxd.trim().replace(/^https?:\/\/letterboxd\.com\//,'').replace(/\/$/,'')
-      await supabase.from('profiles').update({bio:bio.trim(),letterboxd:cleaned,x_handle:xHandle.trim().replace(/^@/,'')}).eq('id',profile.id)
-      profile.bio=bio.trim();profile.letterboxd=cleaned;profile.x_handle=xHandle.trim().replace(/^@/,'')
-      setSaving(false);notify('Profile updated',T.green);onClose()
-    }
-    return(
-      <div style={{position:'fixed',inset:0,background:'#000000CC',display:'flex',alignItems:'center',justifyContent:'center',zIndex:950,padding:'16px'}} onClick={onClose}>
-        <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'20px',width:'100%',maxWidth:'420px',animation:'bounceIn .3s ease'}} onClick={e=>e.stopPropagation()}>
-          <div style={{padding:'20px 24px 16px',borderBottom:`1px solid ${T.border}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-            <div style={{fontSize:'17px',fontWeight:700}}>Edit Profile</div>
-            <button onClick={onClose} style={{background:'none',border:`1px solid ${T.border}`,color:T.textSub,borderRadius:'8px',padding:'5px 12px',cursor:'pointer',fontFamily:T.mono,fontSize:'12px'}}>✕</button>
-          </div>
-          <div style={{padding:'20px 24px 24px',display:'flex',flexDirection:'column',gap:'16px'}}>
-            <div>
-              <div style={{...S.label,marginBottom:'6px'}}>Bio <span style={{color:T.textDim,fontWeight:400}}>· your film taste in one line</span></div>
-              <textarea value={bio} onChange={e=>setBio(e.target.value)} maxLength={160} placeholder="Horror obsessive. Cronenberg completist. Box office nerd." rows={3} style={{...S.inp,resize:'vertical',fontSize:'13px',lineHeight:1.6,width:'100%',boxSizing:'border-box'}}/>
-              <div style={{fontSize:'10px',color:T.textDim,marginTop:'3px',textAlign:'right'}}>{bio.length}/160</div>
-            </div>
-            <div>
-              <div style={{...S.label,marginBottom:'6px'}}>🎞 Letterboxd username</div>
-              <div style={{position:'relative'}}>
-                <div style={{position:'absolute',left:'12px',top:'50%',transform:'translateY(-50%)',fontSize:'11px',color:T.textDim,pointerEvents:'none',whiteSpace:'nowrap'}}>letterboxd.com/</div>
-                <input value={letterboxd} onChange={e=>setLetterboxd(e.target.value)} placeholder="yourusername" style={{...S.inp,paddingLeft:'120px',fontSize:'13px'}}/>
-              </div>
-            </div>
-            <div>
-              <div style={{...S.label,marginBottom:'6px'}}>𝕏 X / Twitter handle</div>
-              <div style={{position:'relative'}}>
-                <div style={{position:'absolute',left:'12px',top:'50%',transform:'translateY(-50%)',fontSize:'13px',color:T.textDim,pointerEvents:'none'}}>@</div>
-                <input value={xHandle} onChange={e=>setXHandle(e.target.value)} placeholder="yourhandle" style={{...S.inp,paddingLeft:'26px',fontSize:'13px'}}/>
-              </div>
-            </div>
-            <Btn onClick={save} color={T.gold} textColor="#0D0A08" full size="lg" disabled={saving}>{saving?'Saving…':'Save Profile'}</Btn>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // ── COMMUNITY HUB PAGE ───────────────────────────────────────────────────────
-  const CommunityPage=()=>{
-    const[commTab,setCommTab]=React.useState('anticipated')
-    const anticipated=[...films].map(f=>{
-      const watchPicks=allPicks.filter(p=>p.film_id===f.id)
-      const watchers=watchPicks.map(p=>players.find(pl=>pl.id===p.user_id)).filter(Boolean)
-      const vel=pickVelocity(f.id,allPicks,7)
-      return{f,watchers,total:watchPicks.length,vel,actual:results[f.id]}
-    }).filter(x=>x.total>0).sort((a,b)=>b.total-a.total)
-    const playerWatchlists=players.map(p=>{
-      const wFilms=allPicks.filter(pk=>pk.user_id===p.id).map(pk=>films.find(f=>f.id===pk.film_id)).filter(Boolean)
-      return{p,films:wFilms}
-    }).filter(x=>x.films.length>0).sort((a,b)=>b.films.length-a.films.length)
-    const TabBtn=({id,label})=><button onClick={()=>setCommTab(id)} style={{...S.btn,background:'none',border:'none',fontSize:'13px',fontWeight:commTab===id?700:400,color:commTab===id?T.gold:T.textSub,padding:'10px 16px',borderBottom:`2px solid ${commTab===id?T.gold:'transparent'}`,borderRadius:0,textTransform:'none',letterSpacing:0,flexShrink:0}}>{label}</button>
-    return(
-      <div>
-        <div style={{marginBottom:'20px'}}>
-          <div style={S.pageTitle}>👥 Community</div>
-          <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px'}}>Watchlists · who's watching what · player profiles</div>
-        </div>
-        <div style={{display:'flex',borderBottom:`1px solid ${T.border}`,marginBottom:'20px',overflowX:'auto'}}>
-          <TabBtn id="anticipated" label="🔥 Most Anticipated"/>
-          <TabBtn id="watchlists" label="👁 Watchlists"/>
-          <TabBtn id="players" label="🎭 Players"/>
-        </div>
-        {commTab==='anticipated'&&(
-          <div>
-            <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px',lineHeight:1.6}}>Films ranked by how many players have them on their watchlist — the collective intelligence of the league.</div>
-            {anticipated.length===0&&<div style={{...S.card,textAlign:'center',padding:'48px',color:T.textSub}}><div style={{fontSize:'32px',marginBottom:'12px'}}>👁</div>No watchlist data yet — tap 👁 on any film card to add films.</div>}
-            {anticipated.map(({f,watchers,total,vel,actual},i)=>{
-              const gc=GENRE_COL[f.genre]||T.textSub,isHot=vel>=3
-              return(
-                <div key={f.id} className="hoverable" onClick={()=>setFilmDetail(f)} style={{...S.card,marginBottom:'10px',cursor:'pointer'}}>
-                  <div style={{display:'flex',gap:'12px',alignItems:'center',marginBottom:'10px'}}>
-                    <div style={{fontSize:'18px',fontWeight:900,color:i<3?T.gold:T.textDim,minWidth:'26px',fontFamily:T.mono}}>#{i+1}</div>
-                    <div style={{position:'relative',flexShrink:0}}>
-                      <FilmPoster film={f} width={48} height={72} radius={7}/>
-                      <div style={{position:'absolute',top:0,left:0,right:0,height:'3px',background:gc,borderRadius:'7px 7px 0 0'}}/>
-                    </div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{display:'flex',alignItems:'center',gap:'6px',flexWrap:'wrap',marginBottom:'2px'}}>
-                        <div style={{fontSize:'14px',fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.title}</div>
-                        {isHot&&<Badge color={T.red}>🔥 +{vel}/wk</Badge>}
-                        {actual!=null&&<Badge color={actual>=f.estM?T.green:T.red}>{actual>=f.estM?'✅':'📉'} ${actual}M</Badge>}
-                      </div>
-                      <div style={{fontSize:'11px',color:T.textSub,marginBottom:'8px'}}>{f.dist} · Est ${f.estM}M · W{f.week}</div>
-                      <div style={{display:'flex',alignItems:'center',gap:'-6px'}}>
-                        {watchers.slice(0,7).map((p,wi)=>(
-                          <div key={p.id} style={{width:'22px',height:'22px',borderRadius:'50%',background:p.color||T.gold,border:`2px solid ${T.surface}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',fontWeight:700,color:'#0D0A08',marginLeft:wi>0?'-6px':'0',zIndex:7-wi,flexShrink:0}}>{p.name?.[0]}</div>
-                        ))}
-                        <div style={{fontSize:'11px',color:T.textSub,marginLeft:'8px'}}>{total} watching</div>
-                      </div>
-                    </div>
-                    <div style={{textAlign:'right',flexShrink:0}}>
-                      <div style={{fontSize:'26px',fontWeight:900,color:T.gold,fontFamily:T.mono,lineHeight:1}}>{total}</div>
-                      <div style={{fontSize:'10px',color:T.textDim}}>picks</div>
-                    </div>
-                  </div>
-                  <div style={{height:'3px',background:T.border,borderRadius:'2px',overflow:'hidden'}}>
-                    <div style={{height:'100%',width:`${Math.min(100,Math.round(total/Math.max(1,players.length)*100))}%`,background:`linear-gradient(90deg,${gc}88,${gc})`,borderRadius:'2px'}}/>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-        {commTab==='watchlists'&&(
-          <div>
-            {playerWatchlists.length===0&&<div style={{...S.card,textAlign:'center',padding:'48px',color:T.textSub}}>No watchlists yet.</div>}
-            {playerWatchlists.map(({p,films:wf})=>(
-              <div key={p.id} style={{...S.card,marginBottom:'12px'}}>
-                <div style={{display:'flex',alignItems:'center',gap:'12px',marginBottom:'12px',cursor:'pointer'}} onClick={()=>goToProfile(p)}>
-                  <div style={{width:'36px',height:'36px',borderRadius:'50%',background:p.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'15px',fontWeight:900,color:'#0D0A08',flexShrink:0}}>{p.name?.[0]}</div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:'14px',fontWeight:700,color:p.color||T.gold}}>{p.name}</div>
-                    {p.bio&&<div style={{fontSize:'12px',color:T.textSub,marginTop:'1px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.bio}</div>}
-                  </div>
-                  {p.letterboxd&&<a href={`https://letterboxd.com/${p.letterboxd}`} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:'11px',color:T.green,border:`1px solid ${T.green}55`,borderRadius:'8px',padding:'4px 10px',textDecoration:'none',flexShrink:0}}>🎞 Letterboxd</a>}
-                </div>
-                <div style={{display:'flex',gap:'7px',overflowX:'auto',paddingBottom:'4px'}}>
-                  {wf.slice(0,8).map(film=>(
-                    <div key={film.id} style={{flexShrink:0,cursor:'pointer'}} onClick={()=>setFilmDetail(film)}>
-                      <FilmPoster film={film} width={48} height={72} radius={7}/>
-                    </div>
-                  ))}
-                  {wf.length>8&&<div style={{flexShrink:0,width:'48px',height:'72px',borderRadius:'7px',background:T.surfaceUp,border:`1px solid ${T.border}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'12px',color:T.textSub}}>+{wf.length-8}</div>}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        {commTab==='players'&&(
-          <div>
-            {[...players].sort((a,b)=>calcPoints(b.id)-calcPoints(a.id)).map((p,i)=>{
-              const pts=calcPoints(p.id),rank=i+1,isMe=p.id===profile.id
-              const picks=allPicks.filter(pk=>pk.user_id===p.id).length
-              const holdings=rosters.filter(r=>r.player_id===p.id&&r.active).length
-              return(
-                <div key={p.id} className="hoverable" onClick={()=>goToProfile(p)} style={{...S.card,marginBottom:'8px',cursor:'pointer',border:`1px solid ${isMe?p.color+'44':T.border}`}}>
-                  <div style={{display:'flex',gap:'12px',alignItems:'center'}}>
-                    <div style={{fontSize:'18px',minWidth:'24px'}}>{rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`#${rank}`}</div>
-                    <div style={{width:'40px',height:'40px',borderRadius:'50%',background:p.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'17px',fontWeight:900,color:'#0D0A08',flexShrink:0}}>{p.name?.[0]}</div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:'14px',fontWeight:700,color:p.color||T.gold,marginBottom:'2px'}}>{p.name}{isMe&&<span style={{fontSize:'11px',color:T.textDim,marginLeft:'6px'}}>· you</span>}</div>
-                      {p.bio&&<div style={{fontSize:'12px',color:T.textSub,marginBottom:'4px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.bio}</div>}
-                      <div style={{display:'flex',gap:'10px',flexWrap:'wrap'}}>
-                        <span style={{fontSize:'11px',color:T.textDim}}>{holdings} held · {picks} watchlisted</span>
-                        {p.letterboxd&&<a href={`https://letterboxd.com/${p.letterboxd}`} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:'11px',color:T.green,textDecoration:'none'}}>🎞 Lbd</a>}
-                        {p.x_handle&&<a href={`https://x.com/${p.x_handle}`} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:'11px',color:T.blue,textDecoration:'none'}}>𝕏 @{p.x_handle}</a>}
-                      </div>
-                    </div>
-                    <div style={{textAlign:'right',flexShrink:0}}>
-                      <div style={{fontSize:'24px',fontWeight:900,color:rank===1?T.gold:T.text,fontFamily:T.mono,lineHeight:1}}>{pts}</div>
-                      <div style={{fontSize:'10px',color:T.textDim,marginTop:'2px'}}>pts</div>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-            <div style={{marginTop:'16px',padding:'14px 16px',background:T.surface,border:`1px solid ${T.gold}33`,borderRadius:'12px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <div style={{fontSize:'13px',color:T.textSub}}>Add your Letterboxd, bio, and social links</div>
-              <Btn onClick={()=>setProfileEditOpen(true)} color={T.gold} size="sm">Edit Profile</Btn>
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  // ── NEWS TICKER (compact, lives at top of Market) ─────────────────────────────
-  const NewsTickerStrip=()=>{
-    const recent=news.slice(0,6)
-    if(!recent.length)return null
-    return(
-      <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'12px',padding:'10px 14px',marginBottom:'14px',display:'flex',alignItems:'center',gap:'10px',cursor:'pointer'}} onClick={()=>navigate('signals')}>
-        <div style={{width:'8px',height:'8px',borderRadius:'50%',background:T.red,animation:'pulse 1.6s ease-in-out infinite',flexShrink:0,boxShadow:`0 0 0 3px ${T.red}33`}}/>
-        <div style={{...S.label,color:T.red,letterSpacing:'2px',flexShrink:0}}>SIGNALS</div>
-        <div style={{flex:1,overflow:'hidden',position:'relative'}}>
-          <div style={{whiteSpace:'nowrap',display:'flex',gap:'24px',animation:'tickerScroll 60s linear infinite'}}>
-            {recent.concat(recent).map((n,i)=>{
-              const film=films.find(f=>f.id===n.film_id)
-              const tag=n.signal_type==='trailer'?'🎬':n.signal_type==='rt_score'?'🍅':n.signal_type==='festival'?'🏆':n.signal_type==='casting'?'⭐':n.signal_type==='controversy'?'⚠️':n.signal_type==='box_office'?'💰':n.signal_type==='reshoot'?'🎞':'📰'
-              const sentCol=n.sentiment==='positive'?T.green:n.sentiment==='negative'?T.red:T.textSub
-              return(
-                <div key={i} style={{display:'inline-flex',alignItems:'center',gap:'6px',fontSize:'12px',flexShrink:0}}>
-                  <span>{tag}</span>
-                  {film&&<span style={{color:T.gold,fontWeight:600}}>{film.title.split(':')[0]}</span>}
-                  <span style={{color:T.text}}>{n.headline}</span>
-                  {n.price_impact&&<span style={{color:n.price_impact>0?T.green:T.red,fontWeight:700,fontFamily:T.mono}}>{n.price_impact>0?'▲':'▼'}{Math.abs(n.price_impact)}%</span>}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-        <div style={{fontSize:'10px',color:T.textDim,flexShrink:0}}>more →</div>
-      </div>
-    )
-  }
-
-  // ── SIGNALS PAGE (full news/intelligence feed) ───────────────────────────────
-  const SignalsPage=()=>{
-    const[signalFilter,setSignalFilter]=React.useState('all')
-    const types=[
-      {id:'all',label:'All',icon:'📡'},
-      {id:'rt_score',label:'Reviews',icon:'🍅'},
-      {id:'box_office',label:'Box Office',icon:'💰'},
-      {id:'trailer',label:'Trailers',icon:'🎬'},
-      {id:'festival',label:'Festivals',icon:'🏆'},
-      {id:'casting',label:'Casting',icon:'⭐'},
-      {id:'controversy',label:'Heat',icon:'⚠️'},
-    ]
-    const filtered=signalFilter==='all'?news:news.filter(n=>n.signal_type===signalFilter)
-    const grouped={}
-    filtered.forEach(n=>{
-      const day=new Date(n.signal_date).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short'})
-      if(!grouped[day])grouped[day]=[]
-      grouped[day].push(n)
-    })
-    return(
-      <div>
-        <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:'18px',flexWrap:'wrap',gap:'10px'}}>
-          <div>
-            <div style={{...S.label,color:T.red,letterSpacing:'2px',marginBottom:'4px'}}>LIVE INTELLIGENCE</div>
-            <div style={S.pageTitle}>📡 Signals</div>
-            <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px'}}>News · reviews · controversies · everything that moves prices</div>
-          </div>
-          {isCommissioner&&<Btn onClick={()=>setNewSignalOpen(true)} color={T.red} textColor="#fff" size="sm">+ Add Signal</Btn>}
-        </div>
-        <div style={{display:'flex',gap:'6px',flexWrap:'wrap',marginBottom:'18px'}}>
-          {types.map(t=>(
-            <button key={t.id} onClick={()=>setSignalFilter(t.id)} style={{...S.btn,background:signalFilter===t.id?`${T.gold}22`:T.surfaceUp,border:`1px solid ${signalFilter===t.id?T.gold+'66':T.border}`,color:signalFilter===t.id?T.gold:T.textSub,padding:'6px 12px',fontSize:'11px',textTransform:'none',letterSpacing:0}}>{t.icon} {t.label}</button>
-          ))}
-        </div>
-        {filtered.length===0&&<div style={{...S.card,textAlign:'center',padding:'48px',color:T.textSub}}><div style={{fontSize:'40px',marginBottom:'12px'}}>📡</div>No signals in this category yet.</div>}
-        {Object.entries(grouped).map(([day,items])=>(
-          <div key={day}>
-            <div style={{...S.label,margin:'14px 0 8px',display:'flex',alignItems:'center',gap:'8px'}}>{day}<div style={{flex:1,height:'1px',background:T.border}}/></div>
-            {items.map(n=>{
-              const film=films.find(f=>f.id===n.film_id)
-              const sentCol=n.sentiment==='positive'?T.green:n.sentiment==='negative'?T.red:T.gold
-              const tag=n.signal_type==='trailer'?'🎬':n.signal_type==='rt_score'?'🍅':n.signal_type==='festival'?'🏆':n.signal_type==='casting'?'⭐':n.signal_type==='controversy'?'⚠️':n.signal_type==='box_office'?'💰':n.signal_type==='reshoot'?'🎞':'📰'
-              return(
-                <div key={n.id} style={{...S.card,marginBottom:'8px',borderLeft:`3px solid ${sentCol}66`,padding:'14px 16px'}}>
-                  <div style={{display:'flex',gap:'12px',alignItems:'flex-start'}}>
-                    <div style={{fontSize:'22px',lineHeight:1,flexShrink:0,marginTop:'2px'}}>{tag}</div>
-                    {film&&<div style={{flexShrink:0,cursor:'pointer'}} onClick={()=>setFilmDetail(film)}><FilmPoster film={film} width={40} height={60} radius={6}/></div>}
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap',marginBottom:'4px'}}>
-                        {film&&<span style={{fontSize:'12px',fontWeight:700,color:T.gold}}>{film.title}</span>}
-                        {n.price_impact&&<Badge color={n.price_impact>0?T.green:T.red}>{n.price_impact>0?'▲':'▼'}{Math.abs(n.price_impact)}% price</Badge>}
-                      </div>
-                      <div style={{fontSize:'13px',color:T.text,lineHeight:1.5,marginBottom:'4px'}}>{n.headline}</div>
-                      {n.detail&&<div style={{fontSize:'12px',color:T.textSub,lineHeight:1.6}}>{n.detail}</div>}
-                      {n.source&&<a href={n.source.startsWith('http')?n.source:`https://${n.source}`} target="_blank" rel="noopener noreferrer" style={{fontSize:'11px',color:T.blue,textDecoration:'none',marginTop:'6px',display:'inline-block'}}>↗ {n.source.replace(/^https?:\/\/(www\.)?/,'').split('/')[0]}</a>}
-                      <div style={{fontSize:'10px',color:T.textDim,marginTop:'6px'}}>{timeAgo(n.signal_date)} ago</div>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
+        </div>}
+        <div style={{...S.label,marginTop:'18px',marginBottom:'10px'}}>All Results</div>
+        {scoredFilms.map(({f,actual,ratio})=>(
+          <div key={f.id} onClick={()=>setFilmDetail(f)} className="hoverable" style={{...S.card,marginBottom:'6px',cursor:'pointer',display:'flex',gap:'10px',alignItems:'center'}}>
+            <FilmPoster film={f} width={36} height={54} radius={5}/>
+            <div style={{flex:1,minWidth:0}}><div style={{fontSize:'12px',fontWeight:600}}>{f.title}</div><div style={{fontSize:'10px',color:T.textSub}}>est ${f.estM}M</div></div>
+            <div style={{textAlign:'right'}}><div style={{fontSize:'14px',fontWeight:700,color:T.green,fontFamily:T.mono}}>${actual}M</div><div style={{fontSize:'10px',color:ratio>=1?T.green:T.red,fontFamily:T.mono}}>{ratio.toFixed(2)}×</div></div>
           </div>
         ))}
       </div>
     )
   }
 
-  // ── FRIDAY FORECAST PAGE ─────────────────────────────────────────────────────
-  const FridayForecastPage=()=>{
-    const wk=cfg.current_week
-    const thisWeekFilms=films.filter(f=>f.week===wk).sort((a,b)=>b.estM-a.estM)
-    const myForecast=fridayForecasts.find(f=>f.player_id===profile.id&&f.week_num===wk)
-    const allWeekForecasts=fridayForecasts.filter(f=>f.week_num===wk)
-    const[pick1,setPick1]=React.useState(myForecast?.pick_1||'')
-    const[pick2,setPick2]=React.useState(myForecast?.pick_2||'')
-    const[pick3,setPick3]=React.useState(myForecast?.pick_3||'')
-    // Lock at Thursday midnight before the weekend
-    const now=new Date()
-    const thursdayLock=now.getDay()<=4 // Mon-Thu allowed; Fri+ locked
-    // Find resolved forecasts for the previous week to show winner
-    const prevWk=wk-1
-    const prevWeekResults=Object.entries(results).filter(([fid])=>{const f=films.find(fl=>fl.id===fid);return f?.week===prevWk})
-      .sort(([,a],[,b])=>b-a).slice(0,3).map(([fid])=>fid)
+  // ── SLATE MAP PAGE ────────────────────────────────────────────────────────
+  const SlatePage=()=>(
+    <div style={{animation:'fadeUp .2s ease'}}>
+      <div style={S.pageTitle}>🗺 Slate Heatmap</div>
+      <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px'}}>Films by phase and week · color = buzz</div>
+      {[1,2,3,4,5].map(phN=>{
+        const phFilms=films.filter(f=>f.phase===phN);if(phFilms.length===0)return null
+        return(
+          <div key={phN} style={{marginBottom:'18px'}}>
+            <div style={{...S.label,marginBottom:'8px',color:phN===ph?T.gold:T.textSub}}>P{phN} · {PHASE_NAMES[phN]}</div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(120px,1fr))',gap:'6px'}}>
+              {phFilms.map(f=>{
+                const buzz=calcBuzzIndex({...f,hasResult:results[f.id]!=null},allPicks,news,rosters,players.length,cfg.current_week)||0
+                const col=results[f.id]!=null?T.textSub:buzz>=70?T.red:buzz>=50?T.orange:buzz>=30?T.gold:T.textDim
+                return(
+                  <div key={f.id} onClick={()=>setFilmDetail(f)} style={{background:T.surfaceUp,border:`1px solid ${col}44`,borderRadius:'7px',padding:'8px',cursor:'pointer',position:'relative',overflow:'hidden'}}>
+                    <div style={{position:'absolute',bottom:0,left:0,right:0,height:'3px',background:col,opacity:0.6}}/>
+                    <div style={{fontSize:'10px',color:T.textSub,marginBottom:'3px'}}>W{f.week}</div>
+                    <div style={{fontSize:'11px',fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{f.title}</div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+
+  // ── SEALED BID PAGE ──────────────────────────────────────────────────────
+  const SealedBidPage=()=>{
+    const[bidFilm,setBidFilm]=useState('')
+    const[bidAmt,setBidAmt]=useState('')
     const submit=async()=>{
-      if(!pick1||!pick2||!pick3)return notify('Pick top 3 films',T.red)
-      if(new Set([pick1,pick2,pick3]).size!==3)return notify('Picks must be different films',T.red)
-      const data={player_id:profile.id,league_id:league?.id,week_num:wk,pick_1:pick1,pick_2:pick2,pick_3:pick3}
-      if(myForecast)await supabase.from('friday_forecasts').update(data).eq('id',myForecast.id)
-      else await supabase.from('friday_forecasts').insert(data)
-      notify('🎯 Friday Forecast locked',T.gold);loadFridayForecasts(league?.id)
+      if(!bidFilm||!bidAmt)return notify('Select film + amount',T.red)
+      const{error}=await supabase.from('sealed_bids').insert({player_id:profile.id,film_id:bidFilm,bid_amount:Number(bidAmt),league_id:league?.id,phase:ph,status:'pending'})
+      if(error)return notify(error.message,T.red)
+      notify('🔒 Bid sealed',T.blue);setBidFilm('');setBidAmt('')
     }
-    const calcForecastScore=(fc)=>{
-      // 30 pts for getting #1 right, 20 for #2, 10 for #3
-      // 5 pts for any correct film in any position
-      let pts=0
-      if(fc.pick_1===prevWeekResults[0])pts+=30
-      else if(prevWeekResults.includes(fc.pick_1))pts+=5
-      if(fc.pick_2===prevWeekResults[1])pts+=20
-      else if(prevWeekResults.includes(fc.pick_2))pts+=5
-      if(fc.pick_3===prevWeekResults[2])pts+=10
-      else if(prevWeekResults.includes(fc.pick_3))pts+=5
-      return pts
-    }
+    const upcoming=films.filter(f=>f.phase===ph&&results[f.id]==null)
     return(
-      <div>
-        <div style={{...S.label,color:T.purple,letterSpacing:'2px',marginBottom:'4px'}}>WEEKLY MICRO-GAME</div>
-        <div style={S.pageTitle}>🎯 Friday Forecast</div>
-        <div style={{fontSize:'13px',color:T.textSub,marginTop:'4px',marginBottom:'20px'}}>Predict the weekend top 3 in order · locks Thursday midnight</div>
-
-        {/* Scoring legend */}
-        <div style={{...S.card,marginBottom:'16px',padding:'14px 16px'}}>
-          <div style={{...S.label,marginBottom:'10px',color:T.gold}}>How it scores</div>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'8px',marginBottom:'10px'}}>
-            {[['🥇 #1','30 pts'],['🥈 #2','20 pts'],['🥉 #3','10 pts']].map(([l,p])=>(
-              <div key={l} style={{background:T.surfaceUp,borderRadius:'9px',padding:'10px 12px',textAlign:'center'}}>
-                <div style={{fontSize:'12px',color:T.textSub,marginBottom:'3px'}}>{l}</div>
-                <div style={{fontSize:'15px',fontWeight:800,color:T.gold,fontFamily:T.mono}}>{p}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{fontSize:'11px',color:T.textDim,lineHeight:1.5}}>+5pts for any correct film in any position. Best forecaster of the season earns +50pts at finale.</div>
-        </div>
-
-        {/* Locked / not locked state */}
-        {!thursdayLock&&!myForecast?<div style={{...S.card,border:`1px solid ${T.red}44`,marginBottom:'16px',textAlign:'center'}}>
-          <div style={{fontSize:'14px',fontWeight:700,color:T.red,marginBottom:'4px'}}>🔒 Window closed</div>
-          <div style={{fontSize:'12px',color:T.textSub}}>This week's forecast locked at Thursday midnight</div>
-        </div>:null}
-
-        {/* Forecast picker */}
-        {thisWeekFilms.length>=3?<div style={{...S.card,marginBottom:'16px',border:myForecast?`1px solid ${T.gold}44`:undefined}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'14px'}}>
-            <div style={{...S.label}}>{myForecast?'Your Forecast — W'+wk:'Lock in your top 3'}</div>
-            {!thursdayLock&&<Pill color={T.red}>🔒 Locked</Pill>}
-          </div>
-          {[[1,pick1,setPick1,T.gold],[2,pick2,setPick2,T.textSub],[3,pick3,setPick3,T.orange]].map(([n,val,setter,col])=>(
-            <div key={n} style={{display:'flex',gap:'8px',alignItems:'center',marginBottom:'10px'}}>
-              <div style={{fontSize:'18px',fontWeight:900,color:col,fontFamily:T.mono,minWidth:'32px',textAlign:'center'}}>#{n}</div>
-              <select value={val} onChange={e=>setter(e.target.value)} disabled={!thursdayLock} style={{...S.inp,flex:1,opacity:!thursdayLock?0.6:1}}>
-                <option value="">Select…</option>
-                {thisWeekFilms.map(f=><option key={f.id} value={f.id}>{f.title} (${f.estM}M est)</option>)}
-              </select>
-            </div>
-          ))}
-          {thursdayLock&&<Btn onClick={submit} color={T.purple} textColor="#fff" full size="lg" sx={{marginTop:'4px'}}>{myForecast?'Update Forecast':'🎯 Lock Forecast'}</Btn>}
-        </div>:<div style={{...S.card,textAlign:'center',padding:'48px',color:T.textSub}}>Need at least 3 films opening this week to forecast.</div>}
-
-        {/* Last week's results */}
-        {prevWeekResults.length>0&&<>
-          <div style={{...S.label,marginTop:'24px',marginBottom:'10px'}}>Last week's results · W{prevWk}</div>
-          <div style={{...S.card,marginBottom:'16px'}}>
-            {prevWeekResults.map((fid,i)=>{
-              const f=films.find(fl=>fl.id===fid);if(!f)return null
-              const ranks=['🥇','🥈','🥉']
-              return(
-                <div key={fid} style={{display:'flex',alignItems:'center',gap:'12px',padding:'8px 0',borderBottom:i<2?`1px solid ${T.border}`:'none'}}>
-                  <div style={{fontSize:'18px'}}>{ranks[i]}</div>
-                  <FilmPoster film={f} width={32} height={48} radius={5}/>
-                  <div style={{flex:1,fontSize:'13px',fontWeight:600}}>{f.title}</div>
-                  <div style={{fontSize:'13px',fontWeight:700,color:T.green,fontFamily:T.mono}}>${results[fid]}M</div>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Forecaster leaderboard for last week */}
-          <div style={{...S.label,marginBottom:'10px'}}>Forecaster leaderboard · W{prevWk}</div>
-          {fridayForecasts.filter(f=>f.week_num===prevWk).map(fc=>{
-            const p=players.find(pl=>pl.id===fc.player_id);if(!p)return null
-            const score=calcForecastScore(fc)
-            return{p,fc,score}
-          }).filter(Boolean).sort((a,b)=>b.score-a.score).map(({p,fc,score},i)=>(
-            <div key={fc.id} style={{display:'flex',alignItems:'center',gap:'12px',padding:'10px 14px',background:i===0?`${T.gold}12`:T.surface,border:`1px solid ${i===0?T.gold+'44':T.border}`,borderRadius:'10px',marginBottom:'6px'}}>
-              <div style={{fontSize:'15px',minWidth:'28px'}}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`}</div>
-              <div style={{width:'28px',height:'28px',borderRadius:'50%',background:p.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',fontWeight:900,color:'#0D0A08',flexShrink:0}}>{p.name?.[0]}</div>
-              <div style={{flex:1,fontSize:'13px',fontWeight:600,color:p.color||T.gold}}>{p.name}</div>
-              <div style={{fontSize:'18px',fontWeight:900,color:i===0?T.gold:T.text,fontFamily:T.mono}}>+{score}</div>
-            </div>
-          ))}
-          {fridayForecasts.filter(f=>f.week_num===prevWk).length===0&&<div style={{fontSize:'12px',color:T.textDim,textAlign:'center',padding:'12px'}}>No forecasts last week</div>}
-        </>}
-
-        {/* This week's other forecasters */}
-        {allWeekForecasts.length>1&&<>
-          <div style={{...S.label,marginTop:'24px',marginBottom:'10px'}}>Locked for W{wk} · {allWeekForecasts.length} player{allWeekForecasts.length!==1?'s':''}</div>
-          <div style={{display:'flex',gap:'-6px',flexWrap:'wrap'}}>
-            {allWeekForecasts.map(fc=>{
-              const p=players.find(pl=>pl.id===fc.player_id);if(!p)return null
-              return<div key={fc.id} title={p.name} style={{width:'30px',height:'30px',borderRadius:'50%',background:p.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'12px',fontWeight:900,color:'#0D0A08',border:`2px solid ${T.bg}`,marginRight:'-4px'}}>{p.name?.[0]}</div>
-            })}
-          </div>
-        </>}
+      <div style={{animation:'fadeUp .2s ease'}}>
+        <div style={S.pageTitle}>🔒 Sealed Bid Window</div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px'}}>Blind auction · highest bid wins · {sealedWindowDeadline?`closes ${new Date(sealedWindowDeadline).toLocaleString()}`:''}</div>
+        {myPendingBid?<div style={{...S.card,marginBottom:'14px',background:`${T.blue}14`,border:`1px solid ${T.blue}44`}}>
+          <div style={{fontSize:'13px',color:T.blue,marginBottom:'4px'}}>🔒 Your bid is in</div>
+          <div style={{fontSize:'12px',color:T.textSub}}>{films.find(f=>f.id===myPendingBid.film_id)?.title} · ${myPendingBid.bid_amount}M</div>
+        </div>:<div style={{...S.card,marginBottom:'14px'}}>
+          <div style={{...S.label,marginBottom:'10px'}}>Submit a sealed bid</div>
+          <select value={bidFilm} onChange={e=>setBidFilm(e.target.value)} style={{...S.inp,marginBottom:'10px'}}>
+            <option value="">Pick a film…</option>
+            {upcoming.map(f=><option key={f.id} value={f.id}>{f.title}</option>)}
+          </select>
+          <input type="number" value={bidAmt} onChange={e=>setBidAmt(e.target.value)} placeholder="Bid amount in $M" style={{...S.inp,marginBottom:'10px'}}/>
+          <Btn onClick={submit} color={T.blue} textColor="#fff" full>Submit Sealed Bid</Btn>
+        </div>}
       </div>
     )
   }
 
-  // ── RENDER ────────────────────────────────────────────────────────────────────
+  // ── PROFILE EDIT MODAL ───────────────────────────────────────────────────
+  const ProfileEditModal=()=>{
+    const[name,setName]=useState(profile?.name||'')
+    const[bio,setBio]=useState(profile?.bio||'')
+    const[col,setCol]=useState(profile?.color||PLAYER_COLORS[0])
+    const save=async()=>{
+      await supabase.from('profiles').update({name:name.trim(),bio:bio.trim(),color:col}).eq('id',profile.id)
+      loadProfile();notify('Profile updated',T.green);setProfileEditOpen(false)
+    }
+    return(
+      <div style={{position:'fixed',inset:0,background:'#000000CC',display:'flex',alignItems:'center',justifyContent:'center',zIndex:900,padding:'20px'}} onClick={()=>setProfileEditOpen(false)}>
+        <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'16px',padding:'24px',width:'100%',maxWidth:'380px'}} onClick={e=>e.stopPropagation()}>
+          <div style={{fontSize:'18px',fontWeight:700,marginBottom:'16px'}}>Edit profile</div>
+          <div style={{...S.label,marginBottom:'6px'}}>Name</div>
+          <input value={name} onChange={e=>setName(e.target.value)} style={{...S.inp,marginBottom:'14px'}}/>
+          <div style={{...S.label,marginBottom:'6px'}}>Bio</div>
+          <textarea value={bio} onChange={e=>setBio(e.target.value)} placeholder="One-line tagline…" style={{...S.inp,minHeight:'60px',marginBottom:'14px',resize:'vertical',fontFamily:T.mono}}/>
+          <div style={{...S.label,marginBottom:'10px'}}>Colour</div>
+          <div style={{display:'flex',gap:'10px',marginBottom:'20px',flexWrap:'wrap'}}>
+            {PLAYER_COLORS.map(c=><div key={c} onClick={()=>setCol(c)} style={{width:'30px',height:'30px',borderRadius:'50%',background:c,cursor:'pointer',border:`3px solid ${col===c?'#fff':'transparent'}`,boxSizing:'border-box'}}/>)}
+          </div>
+          <div style={{display:'flex',gap:'10px'}}>
+            <Btn onClick={()=>setProfileEditOpen(false)} variant="outline" color={T.textSub} sx={{flex:1}}>Cancel</Btn>
+            <Btn onClick={save} color={T.gold} sx={{flex:2}}>Save</Btn>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── NEW SIGNAL MODAL (commissioner) ──────────────────────────────────────
+  const NewSignalModal=()=>{
+    const[selFilm,setSelFilm]=useState('')
+    const[head,setHead]=useState('')
+    const[det,setDet]=useState('')
+    const[type,setType]=useState('rt_score')
+    const[sent,setSent]=useState('positive')
+    const[imp,setImp]=useState(5)
+    const submit=async()=>{
+      if(!head.trim())return notify('Need a headline',T.red)
+      await supabase.from('news_signals').insert({league_id:league?.id,film_id:selFilm||null,signal_type:type,headline:head.trim(),detail:det.trim()||null,sentiment:sent,price_impact:Number(imp),created_by:profile.id})
+      notify('📡 Signal published',T.red);loadNews(league?.id);setNewSignalOpen(false)
+    }
+    return(
+      <div style={{position:'fixed',inset:0,background:'#000000CC',display:'flex',alignItems:'center',justifyContent:'center',zIndex:900,padding:'20px'}} onClick={()=>setNewSignalOpen(false)}>
+        <div style={{background:T.surface,border:`1px solid ${T.red}44`,borderRadius:'16px',padding:'24px',width:'100%',maxWidth:'420px',maxHeight:'90vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
+          <div style={{fontSize:'18px',fontWeight:700,marginBottom:'4px',color:T.red}}>📡 New Signal</div>
+          <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Publish news that moves prices</div>
+          <select value={selFilm} onChange={e=>setSelFilm(e.target.value)} style={{...S.inp,marginBottom:'10px'}}>
+            <option value="">Attached to which film? (optional)</option>
+            {films.map(f=><option key={f.id} value={f.id}>{f.title}</option>)}
+          </select>
+          <select value={type} onChange={e=>setType(e.target.value)} style={{...S.inp,marginBottom:'10px'}}>
+            <option value="rt_score">RT Score</option><option value="trailer">Trailer</option><option value="festival">Festival</option><option value="box_office">Box Office</option><option value="controversy">Controversy</option><option value="casting">Casting</option>
+          </select>
+          <input value={head} onChange={e=>setHead(e.target.value)} placeholder="Headline" style={{...S.inp,marginBottom:'10px'}}/>
+          <textarea value={det} onChange={e=>setDet(e.target.value)} placeholder="Detail (optional)" style={{...S.inp,minHeight:'60px',marginBottom:'10px',resize:'vertical',fontFamily:T.mono}}/>
+          <div style={{display:'flex',gap:'10px',marginBottom:'10px'}}>
+            <select value={sent} onChange={e=>setSent(e.target.value)} style={{...S.inp,flex:1}}>
+              <option value="positive">Positive</option><option value="neutral">Neutral</option><option value="negative">Negative</option>
+            </select>
+            <input type="number" value={imp} onChange={e=>setImp(e.target.value)} placeholder="Impact %" style={{...S.inp,flex:1}}/>
+          </div>
+          <div style={{fontSize:'10px',color:T.textDim,marginBottom:'14px'}}>Price impact: −25 to +25 · cumulative across signals (capped)</div>
+          <div style={{display:'flex',gap:'10px'}}>
+            <Btn onClick={()=>setNewSignalOpen(false)} variant="outline" color={T.textSub} sx={{flex:1}}>Cancel</Btn>
+            <Btn onClick={submit} color={T.red} textColor="#fff" sx={{flex:2}}>Publish</Btn>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+
+  // ── PAGE RENDERER ─────────────────────────────────────────────────────────
   const renderPage=()=>{
-    if(page==='profile'&&profilePlayer) return <PlayerProfilePage player={profilePlayer} films={films} rosters={rosters} results={results} weeklyG={weeklyG} allChips={allChips} auteurDecl={auteurDecl} wwWinners={wwWinners} oscarPreds={oscarPreds} calcPoints={calcPoints} calcPhasePoints={calcPhasePoints} budgetLeft={budgetLeft} cur={cur} isEarlyBird={isEarlyBird} analystActive={analystOn} auteurBonus={auteurOn} shortBonus={shortBonus} wwBonus={wwBonus} curPhase_ref={ph} onBack={()=>{setPage(prevPage);setProfilePlayer(null)}}/>
     switch(page){
-      case 'market':     return <MarketPage/>
-      case 'roster':     return <RosterPage/>
-      case 'chips':      return <ChipsPage/>
-      case 'league':     return <LeaguePage/>
-      case 'community':  return <CommunityPage/>
-      case 'feed':       return <FeedPage/>
-      case 'signals':    return <SignalsPage/>
-      case 'friday':     return <FridayForecastPage/>
-      case 'intent':     return <IntentPage/>
-      case 'trades':     return <TradesPage/>
-      case 'forecaster': return <ForecasterPage/>
-      case 'oscar':      return <OscarPage/>
-      case 'results':    return <ResultsPage/>
-      case 'howto':      return <HowToPlayPage/>
-      case 'sealed':     return <SealedBidPage/>
-      case 'slate':      return <SlatePage/>
-      case 'report':     return <MatchReportPage/>
-      case 'intelligence': return <IntelligencePage/>
-      case 'warroom':    return isCommissioner?<WarRoomPage/>:<MarketPage/>
-      case 'commissioner': return <CommissionerPage/>
-      case 'distributor':  return <DistributorPage/>
-      default:           return <MarketPage/>
+      case 'market':return <MarketPage/>
+      case 'roster':return <RosterPage/>
+      case 'chips':return <ChipsPage/>
+      case 'league':return <LeaguePage/>
+      case 'community':return <CommunityPage/>
+      case 'feed':return <FeedPage/>
+      case 'signals':return <SignalsPage/>
+      case 'friday':return <FridayForecastPage/>
+      case 'motw':return <MovieOfWeekPage/>
+      case 'polls':return <PollsPage/>
+      case 'intent':return <IntentPage/>
+      case 'trades':return <TradesPage/>
+      case 'sealed':return <SealedBidPage/>
+      case 'forecaster':return <ForecasterPage/>
+      case 'oscar':return <OscarPage/>
+      case 'results':return <ResultsPage/>
+      case 'howto':return <HowToPlayPage/>
+      case 'slate':return <SlatePage/>
+      case 'report':return <MatchReportPage/>
+      case 'intelligence':return <IntelligencePage/>
+      case 'warroom':return <WarRoomPage/>
+      case 'commissioner':return <CommissionerPage/>
+      case 'distributor':return <DistributorPage/>
+      case 'profile':return profilePlayer?<PlayerProfilePage player={profilePlayer} films={films} rosters={rosters} results={results} weeklyG={weeklyG} allChips={allChips} auteurDecl={auteurDecl} wwWinners={wwWinners} oscarPreds={oscarPreds} allPicks={allPicks} calcPoints={calcPoints} calcPhasePoints={calcPhasePoints} budgetLeft={budgetLeft} cur={cur} isEarlyBird={isEarlyBird} analystActive={analystOn} auteurBonus={auteurOn} shortBonus={(pid,fid)=>shortBonus(pid,fid)} wwBonus={wwBonus} curPhase_ref={curPhase()} onBack={()=>setPage(prevPage)}/>:null
+      default:return <MarketPage/>
     }
   }
 
-  const navigate=(id)=>{setPage(id);setMoreOpen(false);window.scrollTo({top:0,behavior:'smooth'})}
-
-  const rankSorted=[...players].sort((a,b)=>calcPoints(b.id)-calcPoints(a.id))
-  const myGlobalRank=rankSorted.findIndex(p=>p.id===profile.id)+1
-
+  const navigate=(p)=>{setPage(p);setMoreOpen(false)}
   const draftBannerVisible=draftWindowOpen&&draftShortfall>0
 
+  // Fresh-results banner state
+  const dismissKey=`boxd_results_seen_w${cfg.current_week-1}`
+  const[resultsDismissed,setResultsDismissed]=useState(()=>typeof localStorage!=='undefined'&&localStorage.getItem(dismissKey)==='1')
+  useEffect(()=>{setResultsDismissed(typeof localStorage!=='undefined'&&localStorage.getItem(dismissKey)==='1')},[cfg.current_week])
+  const justScored=films.filter(f=>f.week===cfg.current_week-1&&results[f.id]!=null)
+  const myJustScored=justScored.filter(f=>myRoster.find(r=>r.film_id===f.id)||rosters.find(r=>r.player_id===profile.id&&r.film_id===f.id))
+  const myJustScoredPts=myJustScored.reduce((s,f)=>{
+    const h=rosters.find(r=>r.player_id===profile.id&&r.film_id===f.id);if(!h)return s
+    let op=calcOpeningPts(f,results[f.id],isEarlyBird(h),analystOn(profile.id,f.id))
+    if(auteurOn(profile.id,f.id))op=Math.round(op*1.1)
+    return s+op
+  },0)
+  const resultsBannerVisible=!resultsDismissed&&justScored.length>0&&page!=='report'
+
   return(
-    <div style={{minHeight:'100vh',background:T.bg,color:T.text,fontFamily:T.mono,fontSize:'14px'}}>
-
-      {/* ── AMBIENT PHASE BACKGROUND ─────────────────────────────────────────── */}
+    <div style={{minHeight:'100vh',background:T.bg,color:T.text,fontFamily:T.mono,display:'flex'}}>
       <div className={`ambient-bg ambient-p${ph}`}/>
+      {confettiActive&&<ConfettiBurst active={true}/>}
 
-      {/* ── TOP BAR ─────────────────────────────────────────────────────────── */}
-      <div style={{position:'sticky',top:0,zIndex:200,background:`${T.bg}F2`,backdropFilter:'blur(14px)',borderBottom:`1px solid ${T.border}`,padding:'0 20px',height:'56px',display:'flex',alignItems:'center',gap:'14px'}}>
-        <button onClick={()=>setSidebarOpen(o=>!o)} style={{background:'none',border:'none',color:T.textSub,cursor:'pointer',fontSize:'18px',padding:'4px 6px',flexShrink:0,display:isMobile?'none':'flex',alignItems:'center',justifyContent:'center',borderRadius:'6px',lineHeight:1}}>☰</button>
-        <div style={{fontSize:'24px',fontWeight:900,color:T.gold,letterSpacing:'-1.5px',lineHeight:1,flexShrink:0,cursor:'pointer',fontFamily:T.mono}} onClick={()=>navigate('market')}>BOXD</div>
-        {league&&<div style={{fontSize:'13px',color:T.textSub,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',minWidth:0,paddingLeft:'4px'}}>{league.name}</div>}
-        {!isMobile&&<div style={{display:'flex',gap:'6px',alignItems:'center',marginLeft:'auto',flexShrink:0}}>
-          <div style={{fontSize:'12px',color:T.textDim,background:T.surfaceUp,border:`1px solid ${T.border}`,borderRadius:'8px',padding:'4px 10px',whiteSpace:'nowrap'}}>W{cfg.current_week} · Ph{ph}</div>
-        </div>}
-        <div style={{display:'flex',gap:'8px',alignItems:'center',flexShrink:0}}>
-          {draftWindowOpen&&<div style={{display:'flex',flexDirection:'column',alignItems:'center',lineHeight:1,cursor:'pointer'}} onClick={()=>navigate('market')}>
-            <DraftTimer deadline={draftDeadline} shortfall={draftShortfall} draftMin={DRAFT_MIN}/>
-          </div>}
-          <div style={{background:myBudget<20?`${T.red}18`:`${T.gold}14`,border:`1px solid ${myBudget<20?T.red+'55':T.gold+'44'}`,borderRadius:'12px',padding:'6px 14px',cursor:'pointer',minWidth:'80px'}} onClick={()=>navigate('roster')}>
-            <div style={{fontSize:'10px',color:T.textDim,letterSpacing:'1px',marginBottom:'2px'}}>BUDGET</div>
-            <div style={{fontSize:'16px',fontWeight:900,color:myBudget<20?T.red:myBudget<50?T.orange:T.gold,fontFamily:T.mono,lineHeight:1}}>{cur}<CountUp value={myBudget}/>M</div>
-            <div style={{height:'2px',background:T.border,borderRadius:'2px',marginTop:'5px',overflow:'hidden'}}>
-              <div style={{height:'100%',width:`${Math.min(100,Math.round((1-myBudget/Math.max(1,phaseAlloc(profile.id,ph)))*100))}%`,background:myBudget<20?T.red:myBudget<50?T.orange:T.gold,borderRadius:'2px'}}/>
-            </div>
+      {/* DESKTOP SIDEBAR */}
+      {!isMobile&&sidebarOpen&&(
+        <div style={{width:'240px',background:T.surface,borderRight:`1px solid ${T.border}`,padding:'20px 0',position:'sticky',top:0,height:'100vh',overflowY:'auto',flexShrink:0,zIndex:10}}>
+          <div style={{padding:'0 20px 20px',borderBottom:`1px solid ${T.border}`,marginBottom:'14px'}}>
+            <div style={{fontSize:'24px',fontWeight:900,color:T.gold,letterSpacing:'-1px',lineHeight:1}}>BOXD</div>
+            <div style={{fontSize:'10px',color:T.textDim,letterSpacing:'2px',marginTop:'4px'}}>{league?.name}</div>
           </div>
-          {pendingForMe.length>0&&<div style={{background:`${T.blue}22`,border:`1px solid ${T.blue}55`,borderRadius:'20px',padding:'6px 12px',fontSize:'13px',color:T.blue,cursor:'pointer',whiteSpace:'nowrap',fontWeight:600}} onClick={()=>navigate('trades')}>
-            🔄 {pendingForMe.length}
-          </div>}
-          <div style={{position:'relative',flexShrink:0,cursor:'pointer'}} onClick={()=>goToProfile(profile)}>
-            <div style={{width:'34px',height:'34px',borderRadius:'50%',background:profile?.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'14px',fontWeight:900,color:'#0D0A08',boxShadow:`0 0 0 2px ${T.bg},0 0 0 3px ${profile?.color||T.gold}44`}}>
-              {profile?.name?.[0]||'?'}
-            </div>
-            {players.length>1&&<div style={{position:'absolute',bottom:'-5px',right:'-5px',background:myGlobalRank===1?T.gold:T.surfaceUp,border:`1px solid ${myGlobalRank===1?T.gold:T.border}`,borderRadius:'8px',padding:'1px 5px',fontSize:'9px',fontWeight:700,color:myGlobalRank===1?'#0D0A08':T.textSub,lineHeight:1.2,whiteSpace:'nowrap'}}>#{myGlobalRank}</div>}
-          </div>
-          <button onClick={()=>setProfileEditOpen(true)} style={{background:'none',border:`1px solid ${T.border}`,color:T.textDim,borderRadius:'8px',padding:'5px 8px',cursor:'pointer',fontFamily:T.mono,fontSize:'10px',flexShrink:0}} title="Edit profile">✏️</button>
-        </div>
-      </div>
-
-      {/* ── DRAFT BANNER ────────────────────────────────────────────────────── */}
-      {draftBannerVisible&&(
-        <div style={{background:`${T.orange}18`,borderBottom:`1px solid ${T.orange}44`,padding:'10px 20px',display:'flex',alignItems:'center',gap:'12px',flexWrap:'wrap'}}>
-          <span style={{fontSize:'14px',color:T.orange,fontWeight:600}}>⚠️ Draft window open</span>
-          <span style={{fontSize:'13px',color:T.textSub}}>Pick {draftShortfall} more film{draftShortfall!==1?'s':''} or face {cur}{draftPenalty}M penalty</span>
-          <Btn onClick={()=>navigate('market')} color={T.orange} textColor="#0D0A08" size="sm">Go to Market →</Btn>
-        </div>
-      )}
-
-      <div style={{display:'flex',minHeight:'calc(100vh - 54px)'}}>
-
-        {/* ── DESKTOP SIDEBAR ─────────────────────────────────────────────── */}
-        {!isMobile&&sidebarOpen&&(
-          <div style={{width:'220px',flexShrink:0,borderRight:`1px solid ${T.border}`,padding:'12px 8px',display:'flex',flexDirection:'column',gap:'2px',position:'sticky',top:'54px',height:'calc(100vh - 54px)',overflowY:'auto',background:T.bg}}>
-            {/* Main nav */}
+          <div style={{padding:'0 12px'}}>
             {[
               {id:'market',icon:'🎬',label:'Market'},
               {id:'roster',icon:'📁',label:'Roster'},
               {id:'chips',icon:'⚡',label:'Chips'},
               {id:'league',icon:'🥇',label:'League'},
               {id:'community',icon:'👥',label:'Community'},
-              {id:'signals',icon:'⚡',label:'Signals'},
-              {id:'friday',icon:'🎯',label:'Friday Forecast'},
+              ...(hasNews?[{id:'signals',icon:'⚡',label:'Signals'}]:[]),
+              ...(hasFridayForecasts||hasResults?[{id:'friday',icon:'🎯',label:'Weekend Forecast'}]:[]),
+              ...(movieOfWeek?[{id:'motw',icon:'🎬',label:'Movie of Week'}]:[]),
+              ...(polls.length>0?[{id:'polls',icon:'🗳',label:'Polls'}]:[]),
               {id:'feed',icon:'📡',label:'Feed'},
-            ].map(({id,icon,label})=>{
-              const active=page===id
-              return(
-                <button key={id} onClick={()=>navigate(id)} style={{display:'flex',alignItems:'center',gap:'10px',width:'100%',background:active?`${T.gold}18`:'transparent',color:active?T.gold:T.textSub,border:`1px solid ${active?T.gold+'44':'transparent'}`,borderRadius:'9px',padding:'10px 12px',cursor:'pointer',fontFamily:T.mono,fontSize:'13px',fontWeight:active?700:400,textAlign:'left',transition:'all .12s'}}>
-                  <span style={{fontSize:'16px',lineHeight:1,flexShrink:0}}>{icon}</span>
-                  <span>{label}</span>
-                </button>
-              )
-            })}
-            <div style={{height:'1px',background:T.border,margin:'8px 4px'}}/>
-            {/* Secondary nav */}
+            ].map(nav=>(
+              <button key={nav.id} onClick={()=>navigate(nav.id)} style={{display:'flex',alignItems:'center',gap:'12px',padding:'10px 12px',background:page===nav.id?T.surfaceUp:'transparent',border:'none',borderRadius:'8px',cursor:'pointer',width:'100%',fontFamily:T.mono,fontSize:'13px',color:page===nav.id?T.gold:T.textSub,fontWeight:page===nav.id?700:400,marginBottom:'2px'}}>
+                <span style={{fontSize:'16px'}}>{nav.icon}</span><span>{nav.label}</span>
+              </button>
+            ))}
+          </div>
+          <div style={{padding:'18px 20px 6px',marginTop:'14px',borderTop:`1px solid ${T.border}`}}>
+            <div style={{...S.label,marginBottom:'10px'}}>More</div>
+          </div>
+          <div style={{padding:'0 12px'}}>
             {[
               {id:'intent',icon:'👁️',label:'Watchlist'},
               {id:'trades',icon:'🔄',label:'Trades',badge:pendingForMe.length||null},
@@ -5002,555 +3111,212 @@ export default function App(){
               {id:'oscar',icon:'🏆',label:'Oscars'},
               {id:'results',icon:'📋',label:'Results'},
               {id:'howto',icon:'❓',label:'How to Play'},
-              {id:'slate',icon:'🗺',label:'Slate Map'},
-              {id:'report',icon:'📰',label:'Match Report'},
-              {id:'intelligence',icon:'📡',label:'Intelligence'},
-              ...(sealedWindowOpen?[{id:'sealed',icon:'🔒',label:'Sealed Bid',badge:null}]:[]),
-            ].map(({id,icon,label,badge})=>{
-              const active=page===id
-              return(
-                <button key={id} onClick={()=>navigate(id)} style={{display:'flex',alignItems:'center',gap:'10px',width:'100%',background:active?`${T.gold}18`:'transparent',color:active?T.gold:T.textSub,border:`1px solid ${active?T.gold+'44':'transparent'}`,borderRadius:'9px',padding:'10px 12px',cursor:'pointer',fontFamily:T.mono,fontSize:'13px',fontWeight:active?700:400,textAlign:'left',transition:'all .12s',position:'relative'}}>
-                  <span style={{fontSize:'16px',lineHeight:1,flexShrink:0}}>{icon}</span>
-                  <span style={{flex:1}}>{label}</span>
-                  {badge>0&&<span style={{background:T.blue,color:'#fff',borderRadius:'20px',fontSize:'10px',padding:'1px 7px',fontWeight:700,flexShrink:0}}>{badge}</span>}
-                </button>
-              )
-            })}
+              ...(hasPicks&&films.length>0?[{id:'slate',icon:'🗺',label:'Slate Map'}]:[]),
+              ...(hasResults?[{id:'report',icon:'📰',label:'Match Report'}]:[]),
+              ...(hasPicks?[{id:'intelligence',icon:'📡',label:'Intelligence'}]:[]),
+              ...(sealedWindowOpen?[{id:'sealed',icon:'🔒',label:'Sealed Bid'}]:[]),
+            ].map(nav=>(
+              <button key={nav.id} onClick={()=>navigate(nav.id)} style={{display:'flex',alignItems:'center',gap:'12px',padding:'9px 12px',background:page===nav.id?T.surfaceUp:'transparent',border:'none',borderRadius:'8px',cursor:'pointer',width:'100%',fontFamily:T.mono,fontSize:'12px',color:page===nav.id?T.gold:T.textSub,fontWeight:page===nav.id?700:400,marginBottom:'2px'}}>
+                <span style={{fontSize:'14px'}}>{nav.icon}</span><span style={{flex:1,textAlign:'left'}}>{nav.label}</span>
+                {nav.badge&&<span style={{background:T.gold,color:'#000',borderRadius:'10px',padding:'1px 6px',fontSize:'10px',fontWeight:800}}>{nav.badge}</span>}
+              </button>
+            ))}
             {isCommissioner&&<>
-              <div style={{height:'1px',background:T.border,margin:'8px 4px'}}/>
-              {[
-                {id:'warroom',icon:'⚡',label:'War Room'},
-                {id:'commissioner',icon:'⚙️',label:'Panel'},
-                {id:'distributor',icon:'📈',label:'Insights'},
-              ].map(({id,icon,label})=>{
-                const active=page===id
-                return(
-                  <button key={id} onClick={()=>navigate(id)} style={{display:'flex',alignItems:'center',gap:'10px',width:'100%',background:active?`${T.gold}18`:'transparent',color:active?T.gold:T.textDim,border:`1px solid ${active?T.gold+'44':'transparent'}`,borderRadius:'9px',padding:'10px 12px',cursor:'pointer',fontFamily:T.mono,fontSize:'12px',fontWeight:active?700:400,textAlign:'left',transition:'all .12s'}}>
-                    <span style={{fontSize:'15px',lineHeight:1,flexShrink:0}}>{icon}</span>
-                    <span>{label}</span>
-                  </button>
-                )
-              })}
+              <Divider my={10}/>
+              {[{id:'warroom',icon:'⚡',label:'War Room'},{id:'commissioner',icon:'⚙️',label:'Panel'},{id:'distributor',icon:'📈',label:'Insights'}].map(nav=>(
+                <button key={nav.id} onClick={()=>navigate(nav.id)} style={{display:'flex',alignItems:'center',gap:'12px',padding:'9px 12px',background:page===nav.id?T.surfaceUp:'transparent',border:'none',borderRadius:'8px',cursor:'pointer',width:'100%',fontFamily:T.mono,fontSize:'12px',color:page===nav.id?T.gold:T.textSub,fontWeight:page===nav.id?700:400,marginBottom:'2px'}}>
+                  <span style={{fontSize:'14px'}}>{nav.icon}</span><span>{nav.label}</span>
+                </button>
+              ))}
             </>}
-            <div style={{marginTop:'auto',paddingTop:'12px',borderTop:`1px solid ${T.border}`}}>
-              {/* Phase season progress */}
-              <div style={{marginBottom:'12px',padding:'0 4px'}}>
-                <div style={{...S.label,marginBottom:'8px'}}>Season Progress</div>
-                <div style={{display:'flex',gap:'4px',alignItems:'center'}}>
-                  {[1,2,3,4,5].map((p,i)=>{
-                    const done=p<ph,cur=p===ph
-                    const col=done?T.gold:cur?T.gold:T.border
-                    return(
-                      <React.Fragment key={p}>
-                        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'4px',flex:1}}>
-                          <div style={{width:'100%',height:'3px',background:done?T.gold:cur?T.gold:T.border,borderRadius:'2px',position:'relative',overflow:cur?'visible':'hidden'}}>
-                            {cur&&<div style={{position:'absolute',inset:0,background:T.gold,borderRadius:'2px',animation:'breathe 2s ease-in-out infinite'}}/>}
-                          </div>
-                          <div style={{fontSize:'8px',color:cur?T.gold:done?T.textSub:T.textDim,fontWeight:cur?700:400,letterSpacing:'0.5px'}}>Ph{p}</div>
-                        </div>
-                        {i<4&&<div style={{width:'4px',height:'3px',background:p<ph?T.gold:T.border,flexShrink:0,marginBottom:'14px'}}/>}
-                      </React.Fragment>
-                    )
-                  })}
-                </div>
+          </div>
+          <div style={{padding:'20px',marginTop:'auto',borderTop:`1px solid ${T.border}`}}>
+            <div onClick={()=>setProfileEditOpen(true)} style={{display:'flex',alignItems:'center',gap:'10px',cursor:'pointer'}}>
+              <div style={{width:'32px',height:'32px',borderRadius:'50%',background:profile.color||T.gold,color:'#000',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:'13px'}}>{profile.name?.[0]||'?'}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:'12px',fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{profile.name}</div>
+                <div style={{fontSize:'10px',color:T.textDim}}>Edit profile</div>
               </div>
-              {/* Phase indicator */}
-              <div style={{background:T.surfaceUp,borderRadius:'10px',padding:'10px 12px',marginBottom:'8px'}}>
-                <div style={{fontSize:'10px',color:T.textDim,letterSpacing:'1.5px',textTransform:'uppercase',marginBottom:'4px'}}>Current Phase</div>
-                <div style={{fontSize:'13px',fontWeight:700,color:T.gold}}>Ph{ph} · {PHASE_NAMES[ph]}</div>
-                <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>W{cfg.current_week} · {cur}{myBudget}M left</div>
-              </div>
-              <button onClick={()=>supabase.auth.signOut()} style={{display:'flex',alignItems:'center',gap:'8px',width:'100%',background:'none',border:'none',color:T.textDim,padding:'8px 12px',cursor:'pointer',fontFamily:T.mono,fontSize:'11px',textAlign:'left',borderRadius:'8px'}}>→ Sign out</button>
-              <button onClick={()=>{setLeague(null);supabase.from('profiles').update({active_league_id:null}).eq('id',profile.id)}} style={{display:'flex',alignItems:'center',gap:'8px',width:'100%',background:'none',border:'none',color:T.textDim,padding:'8px 12px',cursor:'pointer',fontFamily:T.mono,fontSize:'11px',textAlign:'left',borderRadius:'8px'}}>← Switch league</button>
             </div>
+            <button onClick={leaveLeague} style={{background:'none',border:'none',color:T.textDim,cursor:'pointer',fontFamily:T.mono,fontSize:'11px',marginTop:'10px'}}>Leave league</button>
+          </div>
+        </div>
+      )}
+
+      <div style={{flex:1,minWidth:0,position:'relative',zIndex:1,paddingBottom:isMobile?'80px':'20px'}}>
+        {/* TOP BAR */}
+        <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:'12px 20px',display:'flex',alignItems:'center',gap:'14px',position:'sticky',top:0,zIndex:50,backdropFilter:'blur(10px)'}}>
+          {isMobile&&<div style={{fontSize:'20px',fontWeight:900,color:T.gold,letterSpacing:'-1px'}}>BOXD</div>}
+          <div style={{flex:1,fontSize:'12px',color:T.textSub}}>
+            <span style={{color:T.gold,fontWeight:700}}>W{cfg.current_week}</span> · P{ph} {PHASE_NAMES[ph]} {win&&<span style={{color:T.green,marginLeft:'4px'}}>· WINDOW OPEN</span>}
+          </div>
+          <div style={{textAlign:'right'}}>
+            <div style={{fontSize:'10px',color:T.textDim,letterSpacing:'1px'}}>BUDGET</div>
+            <div style={{fontSize:'15px',fontWeight:800,color:T.gold,fontFamily:T.mono}}>{cur}{myBudget}M</div>
+          </div>
+        </div>
+
+        {/* DRAFT BANNER */}
+        {draftBannerVisible&&(
+          <div style={{background:`${T.orange}18`,borderBottom:`1px solid ${T.orange}44`,padding:'10px 20px',display:'flex',alignItems:'center',gap:'12px',flexWrap:'wrap'}}>
+            <span style={{fontSize:'14px',color:T.orange,fontWeight:600}}>⚠️ Draft window open</span>
+            <span style={{fontSize:'13px',color:T.textSub}}>Pick {draftShortfall} more film{draftShortfall!==1?'s':''} or face {cur}{draftPenalty}M penalty</span>
+            <Btn onClick={()=>navigate('market')} color={T.orange} textColor="#0D0A08" size="sm">Go to Market →</Btn>
           </div>
         )}
 
-        {/* ── PAGE CONTENT ────────────────────────────────────────────────── */}
-        <div style={{flex:1,minWidth:0,padding:isMobile?'16px 14px 100px':'28px 36px 56px',overflowX:'hidden'}}>
-          <div style={{maxWidth:'1400px',margin:'0 auto',position:'relative'}}>
-            {dataLoading&&(films.length===0
-              ?<div style={{padding:'8px 0'}}><PageSkeleton/></div>
-              :<div style={{position:'absolute',inset:0,zIndex:10,background:`${T.bg}CC`,backdropFilter:'blur(2px)',display:'flex',alignItems:'flex-start',justifyContent:'center',paddingTop:'80px',borderRadius:'12px'}}>
-                <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'12px'}}>
-                  <div style={{width:'32px',height:'32px',border:`3px solid ${T.border}`,borderTopColor:T.gold,borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>
-                  <div style={{fontSize:'12px',color:T.textSub,letterSpacing:'1px'}}>Loading…</div>
-                </div>
-              </div>
-            )}
-            {renderPage()}
+        {/* FRESH RESULTS BANNER */}
+        {resultsBannerVisible&&(
+          <div style={{background:`linear-gradient(90deg,${T.green}22,${T.gold}18)`,borderBottom:`1px solid ${T.green}55`,padding:'10px 20px',display:'flex',alignItems:'center',gap:'12px',flexWrap:'wrap'}}>
+            <span style={{fontSize:'16px'}}>📰</span>
+            <span style={{fontSize:'13px',fontWeight:600,color:T.green}}>W{cfg.current_week-1} Results in</span>
+            {myJustScoredPts>0?<span style={{fontSize:'13px',color:T.text}}>You earned <strong style={{color:T.green}}>+{myJustScoredPts}pts</strong> across {myJustScored.length} film{myJustScored.length!==1?'s':''}</span>:<span style={{fontSize:'13px',color:T.textSub}}>{justScored.length} film{justScored.length!==1?'s':''} just scored</span>}
+            <Btn onClick={()=>navigate('report')} color={T.green} textColor="#0D0A08" size="sm">Read Match Report →</Btn>
+            <button onClick={()=>{localStorage.setItem(dismissKey,'1');setResultsDismissed(true)}} style={{background:'none',border:'none',color:T.textDim,cursor:'pointer',fontSize:'14px',marginLeft:'auto',padding:'4px 8px'}}>✕</button>
           </div>
+        )}
+
+        {/* MAIN CONTENT */}
+        <div style={{padding:'20px',maxWidth:'1100px',margin:'0 auto'}}>
+          {dataLoading?<PageSkeleton/>:renderPage()}
         </div>
       </div>
 
-      {/* ── MOBILE BOTTOM TAB BAR ───────────────────────────────────────── */}
+      {/* MOBILE BOTTOM TABS */}
       {isMobile&&(
-        <div style={{position:'fixed',bottom:0,left:0,right:0,zIndex:300,background:`${T.surface}F8`,backdropFilter:'blur(14px)',borderTop:`1px solid ${T.border}`,paddingBottom:'env(safe-area-inset-bottom)',display:'flex',alignItems:'stretch'}}>
-          {BOTTOM_TABS.map(({id,icon,label})=>{
-            const active=page===id
-            const badge=id==='trades'&&pendingForMe.length>0?pendingForMe.length:null
-            return(
-              <button key={id} onClick={()=>navigate(id)} style={{...S.btn,flex:1,flexDirection:'column',gap:'3px',padding:'10px 4px',background:'none',color:active?T.gold:T.textSub,fontSize:'9px',textTransform:'none',letterSpacing:0,fontWeight:active?700:400,borderRadius:0,position:'relative',borderBottom:`2px solid ${active?T.gold:'transparent'}`}}>
-                <span style={{fontSize:'18px',lineHeight:1,position:'relative'}}>
-                  {icon}
-                  {badge&&<span style={{position:'absolute',top:'-4px',right:'-4px',background:T.blue,color:'#fff',borderRadius:'50%',width:'14px',height:'14px',fontSize:'9px',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900}}>{badge}</span>}
-                </span>
-                <span>{label}</span>
-              </button>
-            )
-          })}
-          <button onClick={()=>setMoreOpen(o=>!o)} style={{...S.btn,flex:1,flexDirection:'column',gap:'3px',padding:'10px 4px',background:'none',color:moreOpen?T.gold:T.textSub,fontSize:'9px',textTransform:'none',letterSpacing:0,fontWeight:moreOpen?700:400,borderRadius:0,borderBottom:`2px solid ${moreOpen?T.gold:'transparent'}`}}>
-            <span style={{fontSize:'18px',lineHeight:1}}>⋯</span>
-            <span>More</span>
+        <div style={{position:'fixed',bottom:0,left:0,right:0,background:T.surface,borderTop:`1px solid ${T.border}`,display:'flex',padding:'8px 4px',paddingBottom:'calc(8px + env(safe-area-inset-bottom))',zIndex:60}}>
+          {BOTTOM_TABS.map(tab=>(
+            <button key={tab.id} onClick={()=>navigate(tab.id)} style={{flex:1,background:'transparent',border:'none',padding:'8px 4px',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:'2px',color:page===tab.id?T.gold:T.textDim,fontFamily:T.mono,fontSize:'10px'}}>
+              <span style={{fontSize:'20px'}}>{tab.icon}</span><span>{tab.label}</span>
+            </button>
+          ))}
+          <button onClick={()=>setMoreOpen(true)} style={{flex:1,background:'transparent',border:'none',padding:'8px 4px',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:'2px',color:T.textDim,fontFamily:T.mono,fontSize:'10px'}}>
+            <span style={{fontSize:'20px'}}>···</span><span>More</span>
           </button>
         </div>
       )}
 
-      {/* ── MOBILE MORE DRAWER ──────────────────────────────────────────── */}
-      {isMobile&&moreOpen&&(
-        <div style={{position:'fixed',bottom:'calc(56px + env(safe-area-inset-bottom))',left:0,right:0,zIndex:299,background:T.surface,borderTop:`1px solid ${T.border}`,borderRadius:'20px 20px 0 0',padding:'16px',animation:'slideUp .18s ease'}}>
-          <div style={{width:'36px',height:'4px',background:T.border,borderRadius:'2px',margin:'0 auto 16px'}}/>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'8px'}}>
-            {ALL_PAGES.filter(p=>!BOTTOM_TABS.find(t=>t.id===p.id)).map(({id,icon,label})=>(
-              <button key={id} onClick={()=>navigate(id)} style={{...S.btn,flexDirection:'column',gap:'6px',padding:'14px 8px',background:page===id?`${T.gold}18`:T.surfaceUp,border:`1px solid ${page===id?T.gold+'55':T.border}`,color:page===id?T.gold:T.textSub,fontSize:'11px',textTransform:'none',letterSpacing:0,fontWeight:page===id?700:400,borderRadius:'12px'}}>
-                <span style={{fontSize:'20px',lineHeight:1}}>{icon}</span>
-                <span>{label}</span>
-              </button>
-            ))}
-          </div>
-          <div style={{display:'flex',gap:'8px',marginTop:'16px'}}>
-            <button onClick={()=>{setLeague(null);supabase.from('profiles').update({active_league_id:null}).eq('id',profile.id);setMoreOpen(false)}} style={{...S.btn,flex:1,background:T.surfaceUp,border:`1px solid ${T.border}`,color:T.textSub,padding:'12px',fontSize:'12px',textTransform:'none',letterSpacing:0,borderRadius:'10px'}}>← Switch League</button>
-            <button onClick={()=>supabase.auth.signOut()} style={{...S.btn,flex:1,background:T.surfaceUp,border:`1px solid ${T.border}`,color:T.textSub,padding:'12px',fontSize:'12px',textTransform:'none',letterSpacing:0,borderRadius:'10px'}}>→ Sign Out</button>
-          </div>
-        </div>
-      )}
-      {isMobile&&moreOpen&&<div style={{position:'fixed',inset:0,zIndex:298}} onClick={()=>setMoreOpen(false)}/>}
-
-      {/* ── TOAST ───────────────────────────────────────────────────────── */}
-      {notif&&(
-        <div style={{position:'fixed',bottom:isMobile?'80px':'24px',left:'50%',transform:'translateX(-50%)',background:notif.color,color:notif.color===T.gold?'#0D0A08':'#fff',padding:'12px 24px',borderRadius:'20px',fontSize:'13px',fontWeight:600,zIndex:999,boxShadow:'0 8px 32px #00000055',whiteSpace:'nowrap',animation:'fadeUp .2s ease',pointerEvents:'none',maxWidth:'90vw',textAlign:'center'}}>
-          {notif.msg}
-        </div>
-      )}
-
-      {/* ── SCORE BREAKDOWN MODAL ───────────────────────────────────────── */}
-      {scoreModal&&(
-        <ScoreBreakdownModal
-          film={scoreModal.film}
-          holding={scoreModal.holding}
-          results={results}
-          weeklyGrosses={weeklyG}
-          allChips={allChips}
-          auteurDeclarations={auteurDecl}
-          weekendWinners={wwWinners}
-          isEarlyBird={isEarlyBird}
-          onClose={()=>setScoreModal(null)}
-        />
-      )}
-
-      {/* ── FILM DETAIL ─────────────────────────────────────────────────── */}
-      {filmDetail&&(
-        <FilmDetailModal
-          film={filmDetail}
-          profile={profile}
-          league={league}
-          players={players}
-          results={results}
-          allPicks={allPicks}
-          marketingEvents={marketingEvents}
-          news={news}
-          rosters={rosters}
-          filmValues={filmValues}
-          currentWeek={cfg.current_week}
-          phase={ph}
-          onTogglePick={togglePick}
-          onBookingClick={trackBookingClick}
-          onShowtimes={f=>{setShowtimesFilm(f);setFilmDetail(null)}}
-          onClose={()=>setFilmDetail(null)}
-        />
-      )}
-
-      {/* ── SHOWTIMES MODAL ─────────────────────────────────────────────── */}
-      {showtimesFilm&&(
-        <ShowtimesModal
-          film={showtimesFilm}
-          onClose={()=>setShowtimesFilm(null)}
-          onBookingClick={trackBookingClick}
-          supabaseUrl={SUPABASE_URL}
-          anonKey={SUPABASE_ANON_KEY}
-        />
-      )}
-
-      {/* ── TRADE MODAL ─────────────────────────────────────────────────── */}
-      {tradeModal&&(
-        <TradeModal
-          profile={profile}
-          league={league}
-          players={players}
-          rosters={rosters}
-          films={films}
-          filmVal={filmVal}
-          curPhase={curPhase}
-          notify={notify}
-          onClose={()=>setTradeModal(false)}
-          onDone={()=>{setTradeModal(false);loadTrades()}}
-        />
-      )}
-
-      {/* ── TRAILER MODAL ───────────────────────────────────────────────── */}
-      {trailerFilm&&(
-        <div style={{position:'fixed',inset:0,background:'#000000EE',display:'flex',alignItems:'center',justifyContent:'center',zIndex:900,padding:'16px'}} onClick={()=>setTrailerFilm(null)}>
-          <div style={{width:'100%',maxWidth:'800px',aspectRatio:'16/9',borderRadius:'16px',overflow:'hidden',boxShadow:'0 32px 64px #000'}} onClick={e=>e.stopPropagation()}>
-            <iframe src={trailerFilm.trailer} style={{width:'100%',height:'100%',border:'none'}} allow="autoplay; encrypted-media" allowFullScreen title={trailerFilm.title}/>
-          </div>
-          <button onClick={()=>setTrailerFilm(null)} style={{position:'absolute',top:'20px',right:'20px',background:`${T.surface}CC`,border:`1px solid ${T.border}`,color:T.textSub,borderRadius:'50%',width:'40px',height:'40px',cursor:'pointer',fontSize:'18px',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:T.mono}}>✕</button>
-        </div>
-      )}
-
-      {/* ── ADD FILM MODAL ──────────────────────────────────────────────── */}
-      {addFilm&&(
-        <div style={{position:'fixed',inset:0,background:'#000000CC',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:700}} onClick={()=>setAddFilm(false)}>
-          <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'20px 20px 0 0',padding:'24px',width:'100%',maxWidth:'560px',maxHeight:'90vh',overflowY:'auto',paddingBottom:'calc(24px + env(safe-area-inset-bottom))',animation:'slideUp .22s ease'}} onClick={e=>e.stopPropagation()}>
-            <div style={{width:'36px',height:'4px',background:T.border,borderRadius:'2px',margin:'0 auto 20px'}}/>
-            <div style={{fontSize:'18px',fontWeight:700,color:T.gold,marginBottom:'20px'}}>+ Add Film to Slate</div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px',marginBottom:'16px'}}>
-              {[['Title','title','text'],['Distributor','dist','text'],['Franchise','franchise','text'],['Star Actor','starActor','text'],['IPO $M','basePrice','number'],['Est $M','estM','number'],['RT%','rt','number'],['Week','week','number'],['Phase','phase','number'],['TMDB ID','tmdbId','text']].map(([label,field,type])=>(
-                <div key={field} style={{gridColumn:field==='title'||field==='dist'?'1/-1':'auto'}}>
-                  <div style={{...S.label,marginBottom:'5px'}}>{label}</div>
-                  <input type={type} value={newFilm[field]||''} style={S.inp} onChange={e=>setNewFilm(prev=>({...prev,[field]:type==='number'?parseFloat(e.target.value)||'':e.target.value}))}/>
-                </div>
+      {/* MOBILE MORE DRAWER */}
+      {moreOpen&&isMobile&&(
+        <div style={{position:'fixed',inset:0,background:'#000000CC',zIndex:200,display:'flex',alignItems:'flex-end'}} onClick={()=>setMoreOpen(false)}>
+          <div style={{background:T.surface,width:'100%',maxHeight:'80vh',overflowY:'auto',borderRadius:'20px 20px 0 0',padding:'20px',paddingBottom:'calc(20px + env(safe-area-inset-bottom))',animation:'slideUp .25s ease'}} onClick={e=>e.stopPropagation()}>
+            <div style={{width:'36px',height:'4px',background:T.border,borderRadius:'2px',margin:'0 auto 16px'}}/>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'8px'}}>
+              {ALL_PAGES.filter(p=>!BOTTOM_TABS.find(t=>t.id===p.id)).map(p=>(
+                <button key={p.id} onClick={()=>navigate(p.id)} style={{background:T.surfaceUp,border:`1px solid ${page===p.id?T.gold+'66':T.border}`,borderRadius:'10px',padding:'14px 6px',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:'4px',color:page===p.id?T.gold:T.textSub,fontFamily:T.mono,fontSize:'11px'}}>
+                  <span style={{fontSize:'20px'}}>{p.icon}</span><span style={{lineHeight:1.2,textAlign:'center'}}>{p.label}</span>
+                </button>
               ))}
-              <div>
-                <div style={{...S.label,marginBottom:'5px'}}>Genre</div>
-                <select value={newFilm.genre} style={S.inp} onChange={e=>setNewFilm(prev=>({...prev,genre:e.target.value}))}>{Object.keys(GENRE_COL).map(g=><option key={g} value={g}>{g}</option>)}</select>
+            </div>
+            <Btn onClick={()=>{setProfileEditOpen(true);setMoreOpen(false)}} variant="outline" color={T.textSub} full sx={{marginTop:'16px'}}>Edit Profile</Btn>
+            <button onClick={leaveLeague} style={{background:'none',border:'none',color:T.textDim,cursor:'pointer',fontFamily:T.mono,fontSize:'11px',width:'100%',marginTop:'10px',padding:'8px'}}>Leave league</button>
+          </div>
+        </div>
+      )}
+
+      {/* TOAST */}
+      {notif&&<div style={{position:'fixed',bottom:isMobile?'90px':'24px',left:'50%',transform:'translateX(-50%)',background:T.surface,border:`1px solid ${notif.color}66`,borderRadius:'12px',padding:'12px 20px',fontSize:'13px',color:notif.color,fontFamily:T.mono,fontWeight:600,zIndex:1000,animation:'fadeUp .2s ease',boxShadow:'0 8px 24px #00000088',maxWidth:'90vw'}}>{notif.msg}</div>}
+
+      {/* MODALS */}
+      {filmDetail&&<FilmDetailModal film={filmDetail} profile={profile} players={players} results={results} allPicks={allPicks} marketingEvents={marketingEvents} news={news} rosters={rosters} filmValues={filmValues} currentWeek={cfg.current_week} phase={ph} onTogglePick={togglePick} onBookingClick={trackBookingClick} onShowtimes={(f)=>{setShowtimesFilm(f);setFilmDetail(null)}} onClose={()=>setFilmDetail(null)} league={league}/>}
+      {showtimesFilm&&<ShowtimesModal film={showtimesFilm} onClose={()=>setShowtimesFilm(null)} onBookingClick={trackBookingClick} supabaseUrl={SUPABASE_URL} anonKey={SUPABASE_ANON_KEY}/>}
+      {scoreModal&&<ScoreBreakdownModal film={scoreModal.film} holding={scoreModal.holding} results={results} weeklyGrosses={weeklyG} allChips={allChips} auteurDeclarations={auteurDecl} weekendWinners={wwWinners} isEarlyBird={isEarlyBird} onClose={()=>setScoreModal(null)}/>}
+      {tradeModal&&<TradeModal profile={profile} players={players} rosters={rosters} films={films} filmVal={filmVal} curPhase={curPhase} onClose={()=>setTradeModal(false)} notify={notify} onDone={()=>{setTradeModal(false);loadTrades(league?.id)}} league={league}/>}
+      {profileEditOpen&&<ProfileEditModal/>}
+      {newSignalOpen&&<NewSignalModal/>}
+
+      {/* CHIP MODAL */}
+      {chipModal==='short'&&(
+        <div style={{position:'fixed',inset:0,background:'#000000CC',display:'flex',alignItems:'center',justifyContent:'center',zIndex:700,padding:'20px'}} onClick={()=>setChipModal(null)}>
+          <div style={{background:T.surface,border:`1px solid ${T.red}44`,borderRadius:'16px',padding:'24px',width:'100%',maxWidth:'400px',maxHeight:'80vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:'18px',fontWeight:700,color:T.red,marginBottom:'6px'}}>📉 SHORT</div>
+            <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Pick a film to bet against. Wins +100pts, loses −30pts.</div>
+            {films.filter(f=>f.phase===ph&&results[f.id]==null).map(f=>(
+              <div key={f.id} onClick={()=>{if(confirm(`Short ${f.title}?`))activateShort(f.id,Math.round(f.estM*0.6))}} className="hoverable" style={{...S.card,marginBottom:'6px',cursor:'pointer',display:'flex',gap:'10px',alignItems:'center'}}>
+                <FilmPoster film={f} width={36} height={54} radius={5}/>
+                <div style={{flex:1}}><div style={{fontSize:'12px',fontWeight:600}}>{f.title}</div><div style={{fontSize:'10px',color:T.textSub}}>est ${f.estM}M</div></div>
+                <div style={{color:T.red,fontSize:'16px'}}>›</div>
               </div>
-              <div style={{display:'flex',alignItems:'center',gap:'8px',paddingTop:'18px'}}>
-                <input type="checkbox" checked={newFilm.sleeper} id="sleeper" onChange={e=>setNewFilm(prev=>({...prev,sleeper:e.target.checked}))} style={{width:'16px',height:'16px'}}/>
-                <label htmlFor="sleeper" style={{fontSize:'13px',color:T.textSub,cursor:'pointer'}}>Sleeper</label>
+            ))}
+            <Btn onClick={()=>setChipModal(null)} variant="outline" color={T.textSub} full sx={{marginTop:'10px'}}>Cancel</Btn>
+          </div>
+        </div>
+      )}
+      {chipModal==='analyst'&&(
+        <div style={{position:'fixed',inset:0,background:'#000000CC',display:'flex',alignItems:'center',justifyContent:'center',zIndex:700,padding:'20px'}} onClick={()=>setChipModal(null)}>
+          <div style={{background:T.surface,border:`1px solid ${T.blue}44`,borderRadius:'16px',padding:'24px',width:'100%',maxWidth:'400px',maxHeight:'80vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:'18px',fontWeight:700,color:T.blue,marginBottom:'6px'}}>🎯 ANALYST</div>
+            <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Pick a film you own + predict opening. Within 10% = +60pts.</div>
+            {myRoster.map(h=>{
+              const f=films.find(fl=>fl.id===h.film_id);if(!f)return null
+              return(
+                <div key={h.id} onClick={()=>{const pred=prompt(`Predict opening for ${f.title} ($M)`);if(pred&&!isNaN(Number(pred)))activateAnalyst(f.id,Number(pred))}} className="hoverable" style={{...S.card,marginBottom:'6px',cursor:'pointer',display:'flex',gap:'10px',alignItems:'center'}}>
+                  <FilmPoster film={f} width={36} height={54} radius={5}/>
+                  <div style={{flex:1}}><div style={{fontSize:'12px',fontWeight:600}}>{f.title}</div><div style={{fontSize:'10px',color:T.textSub}}>est ${f.estM}M</div></div>
+                  <div style={{color:T.blue,fontSize:'16px'}}>›</div>
+                </div>
+              )
+            })}
+            <Btn onClick={()=>setChipModal(null)} variant="outline" color={T.textSub} full sx={{marginTop:'10px'}}>Cancel</Btn>
+          </div>
+        </div>
+      )}
+      {chipModal==='auteur'&&(
+        <div style={{position:'fixed',inset:0,background:'#000000CC',display:'flex',alignItems:'center',justifyContent:'center',zIndex:700,padding:'20px'}} onClick={()=>setChipModal(null)}>
+          <div style={{background:T.surface,border:`1px solid ${T.orange}44`,borderRadius:'16px',padding:'24px',width:'100%',maxWidth:'420px',maxHeight:'80vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:'18px',fontWeight:700,color:T.orange,marginBottom:'6px'}}>🎭 AUTEUR</div>
+            <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Declare an actor + 2+ of their films this phase. +10% opening pts on all.</div>
+            <input value={auteurActor} onChange={e=>setAuteurActor(e.target.value)} placeholder="Actor name (e.g. Tom Cruise)" style={{...S.inp,marginBottom:'14px'}}/>
+            <div style={{...S.label,marginBottom:'8px'}}>Pick 2+ films</div>
+            {films.filter(f=>f.phase===ph).map(f=>(
+              <div key={f.id} onClick={()=>setAuteurFilms(auteurFilms.includes(f.id)?auteurFilms.filter(id=>id!==f.id):[...auteurFilms,f.id])} style={{...S.card,marginBottom:'6px',cursor:'pointer',display:'flex',gap:'10px',alignItems:'center',border:`1px solid ${auteurFilms.includes(f.id)?T.orange+'66':T.border}`}}>
+                <FilmPoster film={f} width={36} height={54} radius={5}/>
+                <div style={{flex:1}}><div style={{fontSize:'12px',fontWeight:600}}>{f.title}</div><div style={{fontSize:'10px',color:T.textSub}}>{f.starActor||'—'}</div></div>
+                <div style={{color:auteurFilms.includes(f.id)?T.orange:T.textDim,fontSize:'16px'}}>{auteurFilms.includes(f.id)?'✓':'○'}</div>
               </div>
-              <div style={{gridColumn:'1/-1'}}>
-                <div style={{...S.label,marginBottom:'5px'}}>Trailer URL</div>
-                <input type="text" placeholder="https://youtube.com/embed/…" value={newFilm.trailer} style={S.inp} onChange={e=>setNewFilm(prev=>({...prev,trailer:e.target.value}))}/>
-              </div>
+            ))}
+            <div style={{display:'flex',gap:'10px',marginTop:'14px'}}>
+              <Btn onClick={()=>setChipModal(null)} variant="outline" color={T.textSub} sx={{flex:1}}>Cancel</Btn>
+              <Btn onClick={()=>submitAuteur(auteurActor.trim(),auteurFilms)} color={T.orange} textColor="#fff" sx={{flex:2}} disabled={!auteurActor.trim()||auteurFilms.length<2}>Lock In</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD FILM MODAL */}
+      {addFilm&&(
+        <div style={{position:'fixed',inset:0,background:'#000000CC',display:'flex',alignItems:'center',justifyContent:'center',zIndex:700,padding:'20px'}} onClick={()=>setAddFilm(false)}>
+          <div style={{background:T.surface,border:`1px solid ${T.gold}44`,borderRadius:'16px',padding:'24px',width:'100%',maxWidth:'440px',maxHeight:'90vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:'18px',fontWeight:700,color:T.gold,marginBottom:'14px'}}>+ Add Film</div>
+            <input value={newFilm.title} onChange={e=>setNewFilm({...newFilm,title:e.target.value})} placeholder="Title" style={{...S.inp,marginBottom:'8px'}}/>
+            <div style={{display:'flex',gap:'8px',marginBottom:'8px'}}>
+              <input value={newFilm.dist} onChange={e=>setNewFilm({...newFilm,dist:e.target.value})} placeholder="Distributor" style={{...S.inp,flex:1}}/>
+              <select value={newFilm.genre} onChange={e=>setNewFilm({...newFilm,genre:e.target.value})} style={{...S.inp,flex:1}}>
+                {Object.keys(GENRE_COL).map(g=><option key={g}>{g}</option>)}
+              </select>
+            </div>
+            <div style={{display:'flex',gap:'8px',marginBottom:'8px'}}>
+              <input type="number" value={newFilm.basePrice} onChange={e=>setNewFilm({...newFilm,basePrice:Number(e.target.value)})} placeholder="IPO $M" style={{...S.inp,flex:1}}/>
+              <input type="number" value={newFilm.estM} onChange={e=>setNewFilm({...newFilm,estM:Number(e.target.value)})} placeholder="Est $M" style={{...S.inp,flex:1}}/>
+              <input type="number" value={newFilm.rt} onChange={e=>setNewFilm({...newFilm,rt:e.target.value})} placeholder="RT %" style={{...S.inp,flex:1}}/>
+            </div>
+            <div style={{display:'flex',gap:'8px',marginBottom:'14px'}}>
+              <input type="number" value={newFilm.week} onChange={e=>setNewFilm({...newFilm,week:Number(e.target.value)})} placeholder="Week" style={{...S.inp,flex:1}}/>
+              <input type="number" value={newFilm.phase} onChange={e=>setNewFilm({...newFilm,phase:Number(e.target.value)})} placeholder="Phase" style={{...S.inp,flex:1}}/>
             </div>
             <div style={{display:'flex',gap:'10px'}}>
-              <Btn onClick={()=>setAddFilm(false)} variant="outline" color={T.textSub} sx={{flex:1}} size="lg">Cancel</Btn>
+              <Btn onClick={()=>setAddFilm(false)} variant="outline" color={T.textSub} sx={{flex:1}}>Cancel</Btn>
               <Btn onClick={async()=>{
-                if(!newFilm.title||!newFilm.dist)return notify('Title and distributor required',T.red)
-                const id='f'+Date.now().toString(36)
-                const{error}=await supabase.from('films').insert({id,title:newFilm.title,dist:newFilm.dist,genre:newFilm.genre,franchise:newFilm.franchise||null,star_actor:newFilm.starActor||null,phase:Number(newFilm.phase)||1,week:Number(newFilm.week)||1,base_price:Number(newFilm.basePrice)||20,est_m:Number(newFilm.estM)||30,rt:newFilm.rt!==''?Number(newFilm.rt):null,sleeper:newFilm.sleeper,trailer:newFilm.trailer||'',affiliate_url:newFilm.affiliateUrl||'',tmdb_id:newFilm.tmdbId||null,active:true})
+                if(!newFilm.title.trim())return notify('Title required',T.red)
+                const id=newFilm.title.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,40)+'-'+Date.now().toString(36)
+                const{error}=await supabase.from('films').insert({id,title:newFilm.title.trim(),dist:newFilm.dist.trim(),genre:newFilm.genre,base_price:newFilm.basePrice,est_m:newFilm.estM,rt:newFilm.rt?Number(newFilm.rt):null,week:newFilm.week,phase:newFilm.phase,active:true})
                 if(error)return notify(error.message,T.red)
-                setAddFilm(false);notify(`✅ ${newFilm.title} added`,T.green)
-                setNewFilm({title:'',dist:'',genre:'Action',franchise:'',basePrice:20,estM:30,rt:'',week:1,phase:1,sleeper:false,starActor:'',trailer:'',affiliateUrl:'',tmdbId:''})
-                loadData(league?.id)
-              }} color={T.green} textColor="#0D0A08" sx={{flex:2}} size="lg">Add Film</Btn>
+                notify('Film added',T.green);setAddFilm(false);setNewFilm({...newFilm,title:'',dist:''});loadData(league?.id)
+              }} color={T.gold} sx={{flex:2}}>Add</Btn>
             </div>
           </div>
         </div>
       )}
-
-      {/* ── CHIP MODALS ─────────────────────────────────────────────────── */}
-      {chipModal&&(
-        <div style={{position:'fixed',inset:0,background:'#000000CC',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:700}} onClick={()=>setChipModal(null)}>
-          <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'20px 20px 0 0',padding:'24px',width:'100%',maxWidth:'480px',maxHeight:'88vh',overflowY:'auto',paddingBottom:'calc(24px + env(safe-area-inset-bottom))',animation:'slideUp .22s ease'}} onClick={e=>e.stopPropagation()}>
-            <div style={{width:'36px',height:'4px',background:T.border,borderRadius:'2px',margin:'0 auto 20px'}}/>
-
-            {chipModal==='short'&&(
-              <>
-                <div style={{fontSize:'20px',fontWeight:700,color:T.red,marginBottom:'6px'}}>📉 The Short</div>
-                <div style={{fontSize:'13px',color:T.textSub,marginBottom:'20px',lineHeight:1.6}}>Call a bomb. Under 60% of estimate = +100pts. Overshoots = −30pts.</div>
-                <div style={{marginBottom:'14px'}}>
-                  <div style={{...S.label,marginBottom:'6px'}}>Film to Short</div>
-                  <select id="short-film" style={S.inp}>
-                    {films.filter(f=>!results[f.id]&&!allChips.find(c=>c.short_film_id===f.id)).map(f=><option key={f.id} value={f.id}>{f.title} (Est ${f.estM}M)</option>)}
-                  </select>
-                </div>
-                <div style={{marginBottom:'20px'}}>
-                  <div style={{...S.label,marginBottom:'6px'}}>Your Prediction ($M)</div>
-                  <input type="number" id="short-pred" placeholder="e.g. 18" style={S.inp}/>
-                </div>
-                <div style={{display:'flex',gap:'10px'}}>
-                  <Btn onClick={()=>setChipModal(null)} variant="outline" color={T.textSub} sx={{flex:1}} size="lg">Cancel</Btn>
-                  <Btn onClick={()=>{const fid=document.getElementById('short-film').value,pred=parseFloat(document.getElementById('short-pred').value);if(isNaN(pred))return notify('Enter a prediction',T.red);activateShort(fid,pred)}} color={T.red} textColor="#fff" sx={{flex:2}} size="lg">Confirm Short</Btn>
-                </div>
-              </>
-            )}
-
-            {chipModal==='analyst'&&(
-              <>
-                <div style={{fontSize:'20px',fontWeight:700,color:T.blue,marginBottom:'6px'}}>🎯 The Analyst</div>
-                <div style={{fontSize:'13px',color:T.textSub,marginBottom:'20px',lineHeight:1.6}}>Predict opening within ±10% on a film you own. Correct = +60pts flat.</div>
-                <div style={{marginBottom:'14px'}}>
-                  <div style={{...S.label,marginBottom:'6px'}}>Film (must own)</div>
-                  <select id="analyst-film" style={S.inp}>
-                    {myRoster.filter(r=>!results[r.film_id]&&!allChips.find(c=>c.analyst_film_id===r.film_id)).map(r=>{const f=films.find(fl=>fl.id===r.film_id);return f?<option key={f.id} value={f.id}>{f.title} (Est ${f.estM}M)</option>:null})}
-                  </select>
-                </div>
-                <div style={{marginBottom:'20px'}}>
-                  <div style={{...S.label,marginBottom:'6px'}}>Your Prediction ($M)</div>
-                  <input type="number" id="analyst-pred" placeholder="e.g. 92" style={S.inp}/>
-                </div>
-                <div style={{display:'flex',gap:'10px'}}>
-                  <Btn onClick={()=>setChipModal(null)} variant="outline" color={T.textSub} sx={{flex:1}} size="lg">Cancel</Btn>
-                  <Btn onClick={()=>{const fid=document.getElementById('analyst-film').value,pred=parseFloat(document.getElementById('analyst-pred').value);if(isNaN(pred))return notify('Enter a prediction',T.red);activateAnalyst(fid,pred)}} color={T.blue} textColor="#fff" sx={{flex:2}} size="lg">Confirm</Btn>
-                </div>
-              </>
-            )}
-
-            {chipModal==='auteur'&&(
-              <>
-                <div style={{fontSize:'20px',fontWeight:700,color:T.orange,marginBottom:'6px'}}>🎭 The Auteur</div>
-                <div style={{fontSize:'13px',color:T.textSub,marginBottom:'20px',lineHeight:1.6}}>Declare 2+ films sharing a star actor. Each earns +10% opening pts.</div>
-                <div style={{marginBottom:'14px'}}>
-                  <div style={{...S.label,marginBottom:'6px'}}>Star Actor</div>
-                  <input type="text" value={auteurActor} onChange={e=>setAuteurActor(e.target.value)} placeholder="e.g. Tom Cruise" style={S.inp}/>
-                </div>
-                <div style={{marginBottom:'20px'}}>
-                  <div style={{...S.label,marginBottom:'12px'}}>Select Films (min 2)</div>
-                  <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
-                    {myRoster.map(r=>{
-                      const f=films.find(fl=>fl.id===r.film_id);if(!f)return null
-                      const checked=auteurFilms.includes(f.id)
-                      return(
-                        <div key={r.film_id} onClick={()=>setAuteurFilms(prev=>prev.includes(f.id)?prev.filter(x=>x!==f.id):[...prev,f.id])} style={{display:'flex',alignItems:'center',gap:'12px',cursor:'pointer',padding:'12px',background:checked?`${T.orange}18`:T.surfaceUp,borderRadius:'11px',border:`1px solid ${checked?T.orange+'55':T.border}`,transition:'all .15s'}}>
-                          <FilmPoster film={f} width={28} height={42} radius={5}/>
-                          <div style={{width:'20px',height:'20px',borderRadius:'5px',background:checked?T.orange:'transparent',border:`2px solid ${checked?T.orange:T.textDim}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all .15s'}}>
-                            {checked&&<span style={{color:'#0D0A08',fontSize:'12px',fontWeight:900}}>✓</span>}
-                          </div>
-                          <div>
-                            <div style={{fontSize:'13px',fontWeight:500}}>{f.title}</div>
-                            {f.starActor&&<div style={{fontSize:'11px',color:T.textSub}}>{f.starActor}</div>}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-                <div style={{display:'flex',gap:'10px'}}>
-                  <Btn onClick={()=>{setChipModal(null);setAuteurActor('');setAuteurFilms([])}} variant="outline" color={T.textSub} sx={{flex:1}} size="lg">Cancel</Btn>
-                  <Btn onClick={()=>{if(!auteurActor.trim())return notify('Enter actor name',T.red);submitAuteur(auteurActor.trim(),auteurFilms)}} color={T.orange} textColor="#0D0A08" sx={{flex:2}} size="lg">Declare</Btn>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── PHASE CEREMONY MODAL ─────────────────────────────────────────── */}
-      {phaseCeremony&&(
-        <div style={{position:'fixed',inset:0,background:'#000000EE',display:'flex',alignItems:'center',justifyContent:'center',zIndex:900,padding:'16px'}} onClick={()=>setPhaseCeremony(null)}>
-          <div style={{background:T.surface,border:`1px solid ${T.gold}44`,borderRadius:'24px',width:'100%',maxWidth:'480px',maxHeight:'90vh',overflowY:'auto',animation:'fadeUp .3s ease',position:'relative',overflow:'hidden'}} onClick={e=>e.stopPropagation()}>
-            {/* Gold shimmer header */}
-            <div style={{background:`linear-gradient(135deg,${T.gold}22,${T.orange}11)`,borderBottom:`1px solid ${T.gold}33`,padding:'32px 28px 24px',textAlign:'center',position:'relative'}}>
-              <div style={{fontSize:'52px',marginBottom:'8px',animation:'fadeUp .4s ease'}}>🎬</div>
-              <div style={{fontSize:'12px',color:T.gold,fontWeight:700,letterSpacing:'3px',marginBottom:'6px'}}>PHASE {phaseCeremony.phase} COMPLETE</div>
-              <div style={{fontSize:'28px',fontWeight:900,color:T.text,letterSpacing:'-0.5px'}}>{PHASE_NAMES[phaseCeremony.phase]}</div>
-            </div>
-
-            <div style={{padding:'24px 28px'}}>
-              {/* Phase winner podium */}
-              {phaseCeremony.winner&&phaseCeremony.winner.pts>0&&(
-                <div style={{background:`linear-gradient(135deg,${T.gold}15,${T.surface})`,border:`1px solid ${T.gold}44`,borderRadius:'16px',padding:'20px',marginBottom:'16px',textAlign:'center'}}>
-                  <div style={{fontSize:'11px',color:T.gold,fontWeight:700,letterSpacing:'2px',marginBottom:'12px'}}>PHASE WINNER</div>
-                  <div style={{width:'56px',height:'56px',borderRadius:'50%',background:phaseCeremony.winner.p.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'24px',fontWeight:900,color:'#0D0A08',margin:'0 auto 10px',boxShadow:`0 0 0 4px ${T.surface},0 0 0 6px ${T.gold}`}}>
-                    {phaseCeremony.winner.p.name?.[0]}
-                  </div>
-                  <div style={{fontSize:'20px',fontWeight:800,color:phaseCeremony.winner.p.color||T.gold,marginBottom:'4px'}}>{phaseCeremony.winner.p.name}</div>
-                  <div style={{fontSize:'40px',fontWeight:900,color:T.gold,fontFamily:T.mono,lineHeight:1,letterSpacing:'-1px'}}>{phaseCeremony.winner.pts}</div>
-                  <div style={{fontSize:'12px',color:T.textSub,marginTop:'4px'}}>phase points</div>
-                </div>
-              )}
-
-              {/* All phase scores */}
-              <div style={{marginBottom:'16px'}}>
-                <div style={{...S.label,marginBottom:'10px'}}>Phase Standings</div>
-                {phaseCeremony.scores.map(({p,pts},i)=>(
-                  <div key={p.id} style={{display:'flex',alignItems:'center',gap:'12px',padding:'10px 0',borderBottom:`1px solid ${T.border}`}}>
-                    <div style={{fontSize:'16px',minWidth:'24px'}}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`}</div>
-                    <div style={{width:'28px',height:'28px',borderRadius:'50%',background:p.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',fontWeight:900,color:'#0D0A08',flexShrink:0}}>{p.name?.[0]}</div>
-                    <div style={{flex:1,fontSize:'13px',fontWeight:600,color:p.color||T.gold}}>{p.name}</div>
-                    <div style={{fontSize:'20px',fontWeight:900,color:i===0?T.gold:T.text,fontFamily:T.mono}}>{pts}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* MVP film */}
-              {phaseCeremony.mvp&&phaseCeremony.mvp.film&&(
-                <div style={{background:T.surfaceUp,borderRadius:'12px',padding:'14px',marginBottom:'12px',display:'flex',gap:'12px',alignItems:'center'}}>
-                  <FilmPoster film={phaseCeremony.mvp.film} width={44} height={66} radius={7}/>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:'10px',color:T.green,fontWeight:700,letterSpacing:'1.5px',marginBottom:'4px'}}>🏆 TOP FILM</div>
-                    <div style={{fontSize:'14px',fontWeight:700,marginBottom:'2px'}}>{phaseCeremony.mvp.film.title}</div>
-                    <div style={{fontSize:'13px',color:T.gold,fontWeight:700}}>{Math.round(phaseCeremony.mvp.pts)} pts · ${results[phaseCeremony.mvp.film.id]}M actual</div>
-                  </div>
-                </div>
-              )}
-
-              {/* Chip winner */}
-              {phaseCeremony.chipWinner&&(
-                <div style={{background:`${T.purple}12`,border:`1px solid ${T.purple}33`,borderRadius:'12px',padding:'12px 14px',marginBottom:'16px'}}>
-                  <div style={{fontSize:'10px',color:T.purple,fontWeight:700,letterSpacing:'1.5px',marginBottom:'4px'}}>⚡ CHIP PLAY</div>
-                  <div style={{fontSize:'13px',color:T.text}}>
-                    <span style={{color:phaseCeremony.chipWinner.color||T.gold,fontWeight:600}}>{phaseCeremony.chipWinner.name}</span>
-                    {phaseCeremony.chipWin?.short_result==='win'&&' nailed THE SHORT · +100pts 📉'}
-                    {phaseCeremony.chipWin?.analyst_result==='win'&&' nailed THE ANALYST · +60pts 🎯'}
-                  </div>
-                </div>
-              )}
-
-              {/* Next phase teaser */}
-              {ph<=5&&PHASE_NAMES[ph]&&(
-                <div style={{background:`${T.blue}10`,border:`1px solid ${T.blue}22`,borderRadius:'12px',padding:'14px',marginBottom:'20px'}}>
-                  <div style={{fontSize:'10px',color:T.blue,fontWeight:700,letterSpacing:'1.5px',marginBottom:'4px'}}>UP NEXT</div>
-                  <div style={{fontSize:'15px',fontWeight:700,color:T.text}}>Phase {ph} · {PHASE_NAMES[ph]}</div>
-                  <div style={{fontSize:'12px',color:T.textSub,marginTop:'3px'}}>New budget unlocked · fresh slate incoming</div>
-                </div>
-              )}
-
-              <Btn onClick={()=>setPhaseCeremony(null)} color={T.gold} full size="lg">Let's go →</Btn>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── SHARE CARD MODAL ─────────────────────────────────────────────── */}
-      {shareCardFilm&&(()=>{
-        const myRank=[...players].sort((a,b)=>calcPoints(b.id)-calcPoints(a.id)).findIndex(p=>p.id===profile.id)+1
-        const myPts=calcPoints(profile.id)
-        const inviteUrl=`${window.location.origin}${window.location.pathname}?invite=${league?.invite_code||''}`
-        const shareText=`🎬 I'm #${myRank} in my BOXD league with ${myPts}pts\nJoin us: ${inviteUrl}`
-        return(
-          <div style={{position:'fixed',inset:0,background:'#000000CC',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:900}} onClick={()=>setShareCardFilm(null)}>
-            <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'20px 20px 0 0',width:'100%',maxWidth:'480px',padding:'28px',animation:'slideUp .25s ease',paddingBottom:'calc(28px + env(safe-area-inset-bottom))'}} onClick={e=>e.stopPropagation()}>
-              <div style={{width:'36px',height:'4px',background:T.border,borderRadius:'2px',margin:'0 auto 20px'}}/>
-              {/* Preview card */}
-              <div style={{background:`linear-gradient(135deg,#0D0A08,#1A1410)`,border:`1px solid ${T.gold}44`,borderRadius:'16px',padding:'24px',marginBottom:'20px',textAlign:'center'}}>
-                <div style={{fontSize:'32px',fontWeight:900,color:T.gold,letterSpacing:'-2px',marginBottom:'4px'}}>BOXD</div>
-                <div style={{fontSize:'11px',color:T.textDim,letterSpacing:'3px',marginBottom:'20px'}}>FANTASY BOX OFFICE</div>
-                <div style={{width:'52px',height:'52px',borderRadius:'50%',background:profile?.color||T.gold,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'22px',fontWeight:900,color:'#0D0A08',margin:'0 auto 10px'}}>{profile?.name?.[0]}</div>
-                <div style={{fontSize:'16px',fontWeight:700,color:T.text,marginBottom:'4px'}}>{profile?.name}</div>
-                <div style={{fontSize:'11px',color:T.textSub,marginBottom:'16px'}}>{league?.name}</div>
-                <div style={{display:'flex',gap:'16px',justifyContent:'center'}}>
-                  <div style={{textAlign:'center'}}>
-                    <div style={{fontSize:'36px',fontWeight:900,color:T.gold,fontFamily:T.mono,lineHeight:1,letterSpacing:'-1px'}}>{myPts}</div>
-                    <div style={{fontSize:'10px',color:T.textSub,marginTop:'4px'}}>GRAND PTS</div>
-                  </div>
-                  <div style={{width:'1px',background:T.border}}/>
-                  <div style={{textAlign:'center'}}>
-                    <div style={{fontSize:'36px',fontWeight:900,color:myRank===1?T.gold:T.text,fontFamily:T.mono,lineHeight:1}}>{myRank===1?'🥇':`#${myRank}`}</div>
-                    <div style={{fontSize:'10px',color:T.textSub,marginTop:'4px'}}>of {players.length}</div>
-                  </div>
-                </div>
-                <div style={{marginTop:'20px',fontSize:'11px',color:T.textDim}}>{window.location.origin}</div>
-              </div>
-              <Btn onClick={()=>{navigator.share?navigator.share({title:'BOXD Fantasy Box Office',text:shareText,url:inviteUrl}).catch(()=>{}):navigator.clipboard?.writeText(shareText).then(()=>notify('Copied to clipboard!',T.gold))}} color={T.gold} full size="lg">
-                {navigator.share?'📤 Share':'📋 Copy share text'}
-              </Btn>
-              <Btn onClick={()=>setShareCardFilm(null)} variant="outline" color={T.textSub} full size="md" sx={{marginTop:'8px'}}>Close</Btn>
-            </div>
-          </div>
-        )
-      })()}
-
-      {/* ── SEASON WRAPPED MODAL ─────────────────────────────────────────── */}
-      {wrappedOpen&&<WrappedModal onClose={()=>setWrappedOpen(false)}/>}
-
-      {/* ── PROFILE EDIT MODAL ───────────────────────────────────────────── */}
-      {profileEditOpen&&<ProfileEditModal onClose={()=>setProfileEditOpen(false)}/>}
-
-      {/* ── ADD SIGNAL (admin) ───────────────────────────────────────────── */}
-      {newSignalOpen&&isCommissioner&&(()=>{
-        const NewSignalModal=()=>{
-          const[type,setType]=React.useState('rt_score')
-          const[filmId,setFilmId]=React.useState('')
-          const[headline,setHeadline]=React.useState('')
-          const[detail,setDetail]=React.useState('')
-          const[source,setSource]=React.useState('')
-          const[sentiment,setSentiment]=React.useState('neutral')
-          const[priceImpact,setPriceImpact]=React.useState('')
-          const submit=async()=>{
-            if(!headline.trim())return notify('Add a headline',T.red)
-            await supabase.from('news_signals').insert({
-              league_id:league?.id,film_id:filmId||null,signal_type:type,
-              headline:headline.trim(),detail:detail.trim()||null,source:source.trim()||null,
-              sentiment,price_impact:priceImpact?parseFloat(priceImpact):null,
-              created_by:profile.id,signal_date:new Date().toISOString(),
-            })
-            // Log to activity feed so players see it as an event
-            const filmTitle=filmId?films.find(f=>f.id===filmId)?.title:null
-            await logActivity(profile.id,'signal',{
-              signal_type:type,headline:headline.trim(),
-              film_title:filmTitle,price_impact:priceImpact?parseFloat(priceImpact):null,
-              sentiment,
-            },league?.id)
-            notify('📡 Signal published',T.red);setNewSignalOpen(false);loadNews(league?.id);loadFeed(league?.id)
-          }
-          return(
-            <div style={{position:'fixed',inset:0,background:'#000000DD',display:'flex',alignItems:'center',justifyContent:'center',zIndex:950,padding:'16px'}} onClick={()=>setNewSignalOpen(false)}>
-              <div style={{background:T.surface,border:`1px solid ${T.red}33`,borderRadius:'20px',width:'100%',maxWidth:'480px',maxHeight:'92vh',overflowY:'auto',animation:'bounceIn .3s ease'}} onClick={e=>e.stopPropagation()}>
-                <div style={{padding:'20px 24px 16px',borderBottom:`1px solid ${T.border}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                  <div><div style={{...S.label,color:T.red,marginBottom:'2px'}}>COMMISSIONER</div><div style={{fontSize:'17px',fontWeight:700}}>📡 Publish Signal</div></div>
-                  <button onClick={()=>setNewSignalOpen(false)} style={{background:'none',border:`1px solid ${T.border}`,color:T.textSub,borderRadius:'8px',padding:'5px 12px',cursor:'pointer',fontSize:'12px'}}>✕</button>
-                </div>
-                <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:'14px'}}>
-                  <div>
-                    <div style={{...S.label,marginBottom:'6px'}}>Type</div>
-                    <select value={type} onChange={e=>setType(e.target.value)} style={S.inp}>
-                      <option value="rt_score">🍅 RT Score Reveal</option>
-                      <option value="trailer">🎬 Trailer Drop</option>
-                      <option value="festival">🏆 Festival Reception</option>
-                      <option value="casting">⭐ Casting News</option>
-                      <option value="controversy">⚠️ Controversy / Heat</option>
-                      <option value="box_office">💰 Box Office Update</option>
-                      <option value="reshoot">🎞 Reshoots / Delay</option>
-                      <option value="news">📰 Other News</option>
-                    </select>
-                  </div>
-                  <div>
-                    <div style={{...S.label,marginBottom:'6px'}}>Film (optional)</div>
-                    <select value={filmId} onChange={e=>setFilmId(e.target.value)} style={S.inp}>
-                      <option value="">— Slate-wide news —</option>
-                      {films.map(f=><option key={f.id} value={f.id}>{f.title}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <div style={{...S.label,marginBottom:'6px'}}>Headline · keep it punchy</div>
-                    <input value={headline} onChange={e=>setHeadline(e.target.value)} maxLength={140} placeholder="Sinners scores 92% on Rotten Tomatoes from 87 reviews" style={{...S.inp,fontSize:'13px'}}/>
-                  </div>
-                  <div>
-                    <div style={{...S.label,marginBottom:'6px'}}>Detail (optional)</div>
-                    <textarea value={detail} onChange={e=>setDetail(e.target.value)} maxLength={400} placeholder="Critics praise Coogler's direction. Audiences trending higher on social. Pre-sales up 40% since Friday." rows={3} style={{...S.inp,resize:'vertical',fontSize:'13px',lineHeight:1.6,boxSizing:'border-box'}}/>
-                  </div>
-                  <div style={{display:'flex',gap:'10px'}}>
-                    <div style={{flex:1}}>
-                      <div style={{...S.label,marginBottom:'6px'}}>Sentiment</div>
-                      <select value={sentiment} onChange={e=>setSentiment(e.target.value)} style={S.inp}>
-                        <option value="positive">📈 Positive</option>
-                        <option value="neutral">➡ Neutral</option>
-                        <option value="negative">📉 Negative</option>
-                      </select>
-                    </div>
-                    <div style={{flex:1}}>
-                      <div style={{...S.label,marginBottom:'6px'}}>Price impact %</div>
-                      <input type="number" step="1" value={priceImpact} onChange={e=>setPriceImpact(e.target.value)} placeholder="e.g. +8 or -12" style={S.inp}/>
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{...S.label,marginBottom:'6px'}}>Source URL (optional)</div>
-                    <input value={source} onChange={e=>setSource(e.target.value)} placeholder="deadline.com/article-link" style={{...S.inp,fontSize:'12px'}}/>
-                  </div>
-                  <Btn onClick={submit} color={T.red} textColor="#fff" full size="lg">📡 Publish Signal</Btn>
-                </div>
-              </div>
-            </div>
-          )
-        }
-        return <NewSignalModal/>
-      })()}
-
-      {/* ── CONFETTI ─────────────────────────────────────────────────────── */}
-      <ConfettiBurst active={confettiActive}/>
-
     </div>
   )
 }
