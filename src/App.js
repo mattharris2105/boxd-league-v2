@@ -1989,44 +1989,317 @@ export default function App(){
     </div>
   )
 
-  // ── HOW TO PLAY PAGE ─────────────────────────────────────────────────────
+  // ── HOW TO PLAY PAGE — Comprehensive handguide ───────────────────────────
   const HowToPlayPage=()=>{
-    const Step=({n,title,desc})=>(
-      <div style={{display:'flex',gap:'14px',marginBottom:'16px'}}>
-        <div style={{width:'32px',height:'32px',borderRadius:'50%',background:T.gold,color:'#000',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:'14px',flexShrink:0}}>{n}</div>
-        <div style={{flex:1}}><div style={{fontSize:'14px',fontWeight:700,marginBottom:'3px'}}>{title}</div><div style={{fontSize:'13px',color:T.textSub,lineHeight:1.5}}>{desc}</div></div>
-      </div>
+    const[openSection,setOpenSection]=useState('basics')
+    const[guideSearch,setGuideSearch]=useState('')
+
+    const Section=({id,icon,title,summary,color=T.gold,children})=>{
+      const isOpen=openSection===id
+      if(guideSearch.trim()){
+        const hay=`${title} ${summary} ${typeof children==='string'?children:''}`.toLowerCase()
+        if(!hay.includes(guideSearch.toLowerCase().trim()))return null
+      }
+      return(
+        <div style={{...S.card,marginBottom:'8px',padding:0,overflow:'hidden',border:`1px solid ${isOpen?color+'66':T.border}`}}>
+          <div onClick={()=>setOpenSection(isOpen?null:id)} style={{padding:'14px 16px',cursor:'pointer',display:'flex',alignItems:'center',gap:'12px'}}>
+            <div style={{fontSize:'20px',flexShrink:0}}>{icon}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:'14px',fontWeight:700,color:isOpen?color:T.text}}>{title}</div>
+              <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px',lineHeight:1.4}}>{summary}</div>
+            </div>
+            <div style={{color:T.textDim,fontSize:'18px',transition:'transform .2s',transform:isOpen?'rotate(90deg)':'none'}}>›</div>
+          </div>
+          {isOpen&&<div style={{padding:'0 16px 16px',animation:'fadeUp .15s ease',borderTop:`1px solid ${T.border}`}}>
+            <div style={{paddingTop:'14px',fontSize:'13px',color:T.text,lineHeight:1.7}}>{children}</div>
+          </div>}
+        </div>
+      )
+    }
+
+    const Group=({title,children})=>(
+      <>
+        <div style={{...S.label,marginTop:'18px',marginBottom:'10px',color:T.textSub}}>{title}</div>
+        {children}
+      </>
     )
+
+    const Highlight=({color=T.gold,children})=><strong style={{color}}>{children}</strong>
+
     return(
-      <div style={{animation:'fadeUp .2s ease',maxWidth:'640px'}}>
-        <div style={S.pageTitle}>How to play</div>
-        <div style={{fontSize:'13px',color:T.textSub,marginBottom:'24px',lineHeight:1.6}}>BOXD is fantasy box office. You pick films you think will overperform, then earn points when results land.</div>
-        <div style={{...S.card,marginBottom:'14px'}}>
-          <div style={{...S.label,marginBottom:'14px',color:T.gold}}>The basics</div>
-          <Step n="1" title="Pick films" desc={`Up to ${MAX_ROSTER} films per phase. Each phase has a budget you spend on them.`}/>
-          <Step n="2" title="Results land Monday" desc="Every Monday, real opening weekend numbers update prices and lock in points for last week's films."/>
-          <Step n="3" title="Score points" desc="Better-than-expected = more points. Critic scores, multi-week legs, and Weekend #1 add bonuses."/>
-          <Step n="4" title="Use chips wisely" desc="Each player has 4 one-time chips: Recut, Short, Analyst, Auteur. Save them for the right moment."/>
+      <div style={{animation:'fadeUp .2s ease',maxWidth:'720px'}}>
+        <div style={S.pageTitle}>📖 Player Handguide</div>
+        <div style={{fontSize:'13px',color:T.textSub,marginBottom:'16px',lineHeight:1.6}}>
+          Every system in BOXD explained. Tap a section to expand. Use search to jump straight to a topic.
         </div>
-        <div style={{...S.card,marginBottom:'14px'}}>
-          <div style={{...S.label,marginBottom:'10px',color:T.green}}>Scoring quick-reference</div>
-          <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.8}}>
-            • Opening pts = actual gross × performance multiplier (0.45–2.0×) × RT bonus<br/>
-            • 🐦 <strong style={{color:T.green}}>Early Bird +10%</strong> if you bought {EARLY_BIRD_WEEKS}+ weeks before release<br/>
-            • 🎯 <strong style={{color:T.blue}}>Analyst +60pts</strong> if your forecast is within 10%<br/>
-            • 🎭 <strong style={{color:T.orange}}>Auteur +10%</strong> on all films from your declared actor<br/>
-            • 🦵 <strong style={{color:T.green}}>Legs +25</strong> if W2 drop is under 30%<br/>
-            • 🥇 <strong style={{color:T.gold}}>Weekend #1 +15</strong> if your film tops the chart
-          </div>
-        </div>
-        <div style={{...S.card,marginBottom:'14px'}}>
-          <div style={{...S.label,marginBottom:'10px',color:T.blue}}>Pro tips</div>
-          <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.8}}>
-            • <strong>Watch the Buzz Index.</strong> When it climbs past 70 the price will too.<br/>
-            • <strong>Get in early.</strong> Films are cheapest 6+ weeks out — that's where your conviction shows.<br/>
-            • <strong>Read the Signals page.</strong> News moves prices ±25% over 14 days.<br/>
-            • <strong>Use the phase window.</strong> Each phase has a free-trade window — drop dead weight for zero fees.
-          </div>
+        <input value={guideSearch} onChange={e=>setGuideSearch(e.target.value)} placeholder="🔍 Search the guide…" style={{...S.inp,marginBottom:'16px',fontSize:'13px'}}/>
+
+        <Group title="🎯 Start Here">
+          <Section id="basics" icon="🎬" color={T.gold} title="What is BOXD?" summary="The core game in 30 seconds.">
+            BOXD is fantasy box office. You build a roster of films you think will outperform their estimates, and you score points when real-world weekend grosses come in.
+            <br/><br/>
+            The season runs in <Highlight>5 phases</Highlight>. Each phase covers a stretch of weeks ({PHASE_NAMES[1]}, {PHASE_NAMES[2]}, {PHASE_NAMES[3]}, {PHASE_NAMES[4]}, {PHASE_NAMES[5]}). You get a fresh budget per phase and pick up to <Highlight>{MAX_ROSTER} films</Highlight> per phase.
+            <br/><br/>
+            Results land <Highlight color={T.green}>every Monday</Highlight>. Films that beat their estimate score big. Films that flop cost you. Highest total points at the end wins.
+          </Section>
+          <Section id="phases" icon="📅" color={T.gold} title="Phases & the season clock" summary="How time moves and when budgets reset.">
+            The season has 5 phases. The commissioner advances phases manually. When a phase ends:
+            <br/>• Any unspent budget gets <Highlight color={T.green}>banked</Highlight> and added to next phase's budget
+            <br/>• Your roster from that phase stays locked in (films keep scoring as their weeks land)
+            <br/>• You get a new roster slot allowance for the new phase
+            <br/><br/>
+            <Highlight>Phase budgets:</Highlight> {Object.entries(PHASE_BUDGETS).map(([p,b])=>`P${p} = $${b}M`).join(' · ')}.
+            <br/><br/>
+            At the start of each phase there's an optional <Highlight color={T.green}>free-trade window</Highlight> (72hrs) where you can sell films for zero fees. Use it to clean up before going into the new slate.
+          </Section>
+          <Section id="firstmove" icon="🎯" color={T.gold} title="Your first move" summary="What to do in the first hour.">
+            1. Open <Highlight>Market</Highlight>. Scroll the films available in your current phase.
+            <br/>2. Tap any film to see its details, including price drivers and a Buzz Index.
+            <br/>3. Add films to your <Highlight color={T.blue}>watchlist</Highlight> by tapping the 👁 button — no commitment, just tracking.
+            <br/>4. When you've spotted 3-5 you believe in, <Highlight color={T.gold}>buy</Highlight> them. Buy early — films are cheapest 6+ weeks out.
+            <br/>5. Check the <Highlight>Roster</Highlight> page to see your portfolio. As results land Mondays, the score breakdown for each film shows up here.
+          </Section>
+        </Group>
+
+        <Group title="💰 Buying & Selling">
+          <Section id="market" icon="🎬" color={T.blue} title="The Market" summary="How prices work, and why they move.">
+            Every film has a base price (its IPO). The actual price you pay is the IPO multiplied by 5 live drivers:
+            <br/>• <Highlight>Ownership</Highlight> — more players holding it = higher price (up to +30%)
+            <br/>• <Highlight>Time to release</Highlight> — closer to opening = higher price (8wks out = −22%, release week = +18%)
+            <br/>• <Highlight>RT Score</Highlight> — better critics = higher price (≥90% = +15%)
+            <br/>• <Highlight color={T.red}>News Signals</Highlight> — cumulative ±25% over 14 days
+            <br/>• <Highlight>Watchlist Heat</Highlight> — how many players added it this week
+            <br/><br/>
+            Tap any film and open the <Highlight>Info</Highlight> tab to see exactly which driver is pushing the price up or down right now.
+          </Section>
+          <Section id="buying" icon="🛒" color={T.blue} title="Buying a film" summary="Spend wisely. Conviction shows in price.">
+            Cost comes out of your phase budget. Two rules:
+            <br/>• <Highlight color={T.red}>Max {MAX_ROSTER} films per phase</Highlight>
+            <br/>• You can only buy films from <Highlight>your current phase</Highlight>
+            <br/><br/>
+            Buying <Highlight color={T.green}>early</Highlight> ({EARLY_BIRD_WEEKS}+ weeks before release) earns you the 🐦 <Highlight color={T.green}>Early Bird</Highlight> tag — +10% on opening points if the film beats estimate by 10%+.
+            <br/><br/>
+            <Highlight>Pricing IS the conviction layer.</Highlight> Buying a film at $20M when later buyers pay $35M means you spotted it first — and you also have more budget left.
+          </Section>
+          <Section id="selling" icon="📉" color={T.red} title="Selling a film" summary="When and why to drop a film from your roster.">
+            Click <Highlight>Sell</Highlight> on any active film. You get current market value minus a <Highlight color={T.red}>$5M transaction fee</Highlight> (zero fee during phase free-trade windows).
+            <br/><br/>
+            Common reasons to sell:
+            <br/>• <Highlight>Bad news landed</Highlight> — RT crashed, controversy, weak tracking
+            <br/>• <Highlight>You overbought</Highlight> — your full roster needs trimming
+            <br/>• <Highlight>Phase ending</Highlight> — drop dead weight to bank more for next phase
+            <br/><br/>
+            Once a film has results, it's <Highlight>locked</Highlight> — you can't sell after the fact. The points are yours either way.
+          </Section>
+          <Section id="trades" icon="🔄" color={T.blue} title="Trading with other players" summary="Swap films straight up, no money involved.">
+            Propose a trade from the <Highlight>Trades</Highlight> page: pick one of your films, pick one of theirs, send proposal. They accept or reject.
+            <br/><br/>
+            Trades are <Highlight>1-for-1 swaps</Highlight>, no cash. The film carries its original buy price + week into the new owner's roster, so Early Bird tags transfer.
+            <br/><br/>
+            Trades are only available within the <Highlight>same phase</Highlight> — you can't trade Summer films for Awards Season ones.
+          </Section>
+        </Group>
+
+        <Group title="📊 Scoring — How Points Get Earned">
+          <Section id="opening" icon="🎯" color={T.green} title="Opening weekend points" summary="The biggest scoring event for each film.">
+            When real opening weekend numbers come in Monday, you score points based on:
+            <br/><br/>
+            <Highlight>actual_gross × performance multiplier × RT bonus</Highlight>
+            <br/><br/>
+            <Highlight>Performance multiplier:</Highlight>
+            <br/>• 2.0× if film hits ≥200% of estimate (massive overperformer)
+            <br/>• 1.6× at 150%+
+            <br/>• 1.35× at 130%+
+            <br/>• 1.15× at 110%+
+            <br/>• 1.00× at 95-110% (on-target)
+            <br/>• 0.85× at 80-95%
+            <br/>• 0.65× at 60-80%
+            <br/>• 0.45× at &lt;60% (flop)
+            <br/><br/>
+            <Highlight>RT bonus:</Highlight> ≥90% = +25%, ≥75% = +10%, &lt;50% = −15%.
+            <br/><br/>
+            Example: $80M actual on a $40M estimate (2.0×) with 95% RT = 80 × 2.0 × 1.25 = <Highlight color={T.gold}>200pts</Highlight>.
+          </Section>
+          <Section id="weekly" icon="📅" color={T.blue} title="Weekly grosses & legs" summary="Films keep paying out for multiple weeks.">
+            Each week of theatrical run adds points:
+            <br/>• Weeks 1-3: <Highlight>1pt per $1M</Highlight> gross
+            <br/>• Week 4+: <Highlight color={T.green}>1.1pts per $1M</Highlight> (rewarding longevity)
+            <br/><br/>
+            <Highlight color={T.green}>🦵 Legs bonus</Highlight>: if a film's Week 2 drop is under 30% (strong word-of-mouth), you get a flat <Highlight color={T.green}>+25pt bonus</Highlight>.
+            <br/><br/>
+            This is why "small films with great reviews" can sometimes outscore blockbusters — they hold their audience week after week.
+          </Section>
+          <Section id="bonuses" icon="🏆" color={T.gold} title="All the bonuses" summary="Every modifier in the scoring engine.">
+            On top of opening + weekly, you can stack these:
+            <br/>• 🐦 <Highlight color={T.green}>Early Bird +10%</Highlight> if you bought {EARLY_BIRD_WEEKS}+ weeks before release AND the film beats estimate by 10%+
+            <br/>• 🥇 <Highlight color={T.gold}>Weekend #1 +15pts</Highlight> flat if your film topped the box office that weekend
+            <br/>• 🎯 <Highlight color={T.blue}>Analyst +60pts</Highlight> if you used the Analyst chip and your forecast was within 10%
+            <br/>• 🎭 <Highlight color={T.orange}>Auteur +10%</Highlight> on opening points for every film by your declared actor
+            <br/>• 📉 <Highlight color={T.red}>Short +100pts / −30pts</Highlight> depending on outcome
+            <br/>• 📊 <Highlight color={T.blue}>Forecaster +15pts</Highlight> for most accurate predictions in a phase
+            <br/>• 🌟 <Highlight color={T.gold}>Season Forecaster +50pts</Highlight> for most accurate across the whole season
+            <br/>• 🏆 <Highlight color={T.gold}>Oscar Best Picture +75pts</Highlight> if your pick wins
+          </Section>
+          <Section id="reading" icon="🔍" color={T.gold} title="Reading the score breakdown" summary="Tap any of your scored films for the full math.">
+            Open <Highlight>Roster</Highlight>, tap any scored film. The <Highlight>Score Breakdown</Highlight> modal shows every line: base opening, EB bonus, RT effect, weekly grosses, legs, all chip bonuses, total.
+            <br/><br/>
+            If a film didn't score what you expected, this is where you find out why. Often it's a chip you forgot to activate, or a film that scored fine on opening but flopped on legs.
+          </Section>
+        </Group>
+
+        <Group title="⚡ Chips — Your 4 One-Time Power Moves">
+          <Section id="recut" icon="🎬" color={T.purple} title="THE RECUT" summary="Nuke your roster, zero fees. Save for catastrophe.">
+            Clears your entire active roster — every film gets sold at current market value with <Highlight color={T.green}>zero transaction fees</Highlight>.
+            <br/><br/>
+            Use it when:
+            <br/>• Your roster is full of films you no longer believe in
+            <br/>• A wave of bad news has tanked multiple films at once
+            <br/>• You want to reset before a major phase pivot
+            <br/><br/>
+            <Highlight color={T.red}>One-time use across the entire season.</Highlight> Don't waste it on a single bad pick.
+          </Section>
+          <Section id="short" icon="📉" color={T.red} title="SHORT" summary="Bet against a film. Big upside if it bombs.">
+            Pick any film you <Highlight>don't own</Highlight>. If it underperforms by 40%+ (actual &lt; 60% of estimate), you score <Highlight color={T.green}>+100pts</Highlight>.
+            <br/><br/>
+            If it hits estimate or overperforms, you lose <Highlight color={T.red}>30pts</Highlight>.
+            <br/><br/>
+            Use when you've spotted a film with weak tracking but lots of marketing hype. Tentpoles with bad early reviews are classic short targets.
+            <br/><br/>
+            Each film can only be shorted by <Highlight>one player</Highlight> per season — first come, first served.
+          </Section>
+          <Section id="analyst" icon="🎯" color={T.blue} title="ANALYST" summary="Predict opening number. Within 10% = +60pts.">
+            Pick a film you <Highlight>own</Highlight>, then commit to a specific opening number ($M). If the actual opening lands within 10% of your prediction, you get a flat <Highlight color={T.blue}>+60pts bonus</Highlight> on top of normal scoring.
+            <br/><br/>
+            Miss by more than 10%, nothing happens — no penalty, but the chip is spent.
+            <br/><br/>
+            Best used on films you've researched obsessively — sequels with predictable patterns, films with strong pre-sales data.
+          </Section>
+          <Section id="auteur" icon="🎭" color={T.orange} title="AUTEUR" summary="Declare an actor, score +10% on all their films this phase.">
+            At the start of a phase, declare a star actor + <Highlight>2 or more</Highlight> of their films releasing that phase. Every one of those films you own gets a permanent <Highlight color={T.orange}>+10% opening points multiplier</Highlight>.
+            <br/><br/>
+            Best phases for Auteur: ones with multiple films from one heavy-hitter (Tom Cruise summer, Scorsese awards season).
+            <br/><br/>
+            You can only declare <Highlight>one Auteur per phase</Highlight>, and you must lock it in before the films open.
+          </Section>
+        </Group>
+
+        <Group title="🎮 Side Games & Tools">
+          <Section id="forecaster" icon="📊" color={T.blue} title="The Forecaster" summary="Predict opening numbers for every film. Most accurate wins.">
+            Open <Highlight>Forecaster</Highlight>. For every upcoming film, type your predicted opening ($M). The system tracks your accuracy across all films.
+            <br/><br/>
+            <Highlight color={T.blue}>+15pts</Highlight> per phase for the most accurate forecaster (across all their predictions, not just one).
+            <br/><br/>
+            <Highlight color={T.gold}>+50pts</Highlight> at season end for the most accurate forecaster across the entire season.
+            <br/><br/>
+            Even if you don't own a film, forecasting it builds your accuracy score. Lazy players who only forecast their own roster have a harder time winning this.
+          </Section>
+          <Section id="weekend" icon="🎯" color={T.gold} title="Weekend Forecast" summary="Weekly top-3 prediction game. Locks Thursday.">
+            Every week, predict the top 3 grossing films of that weekend:
+            <br/>• 🥇 1st place correct = <Highlight color={T.gold}>+30pts</Highlight>
+            <br/>• 🥈 2nd place correct = <Highlight color={T.gold}>+20pts</Highlight>
+            <br/>• 🥉 3rd place correct = <Highlight color={T.gold}>+10pts</Highlight>
+            <br/>• <Highlight color={T.green}>+5pts</Highlight> if any of your 3 picks lands anywhere in actual top 3
+            <br/><br/>
+            <Highlight color={T.red}>Locks Thursday at midnight</Highlight> — no last-minute switches once tracking is public.
+          </Section>
+          <Section id="oscar" icon="🏆" color={T.gold} title="Oscar Best Picture pick" summary="One pick all season. +75pts if you nail it.">
+            From the Oscars page, pick one film as your Best Picture prediction. Lock it in early for credibility.
+            <br/><br/>
+            Once the Academy announces the winner, the commissioner marks it. If your pick wins, you get a flat <Highlight color={T.gold}>+75pts</Highlight> added to your total.
+            <br/><br/>
+            <Highlight>One pick per player, no changes</Highlight>. Choose carefully.
+          </Section>
+          <Section id="sealed" icon="🔒" color={T.blue} title="Sealed-bid auctions" summary="Blind bidding for hot films. Highest wins.">
+            Commissioner opens a sealed-bid window for a specific high-demand film. Every player submits a <Highlight>blind bid</Highlight>. Highest bid wins the film at that price — second-highest bid loses their money? No: only the winner pays.
+            <br/><br/>
+            Used sparingly — typically for franchise tentpoles where everyone wants in. Adds drama and rewards conviction.
+          </Section>
+          <Section id="signals" icon="📡" color={T.red} title="News Signals" summary="How real news moves prices in the league.">
+            The commissioner publishes news as <Highlight>signals</Highlight>. Each signal has a sentiment (positive/negative/neutral) and a price impact (%).
+            <br/><br/>
+            Signal impact decays over <Highlight>14 days</Highlight> and is capped at ±25% cumulative per film. A flurry of positive trailer drops and good RT scores can push a price up 20%+ in days. Bad reviews can crater a film overnight.
+            <br/><br/>
+            Watch the <Highlight color={T.red}>Signals page</Highlight> daily during your phase. The news ticker at the top of Market shows the most recent ones.
+          </Section>
+          <Section id="watchlist" icon="👁" color={T.blue} title="Watchlist" summary="Track films without committing budget.">
+            Hit the 👁 button on any film to add it to your watchlist. Other players see your watchlist count, which contributes to that film's <Highlight color={T.red}>Heat</Highlight> driver.
+            <br/><br/>
+            Use the <Highlight>Community → Most Anticipated</Highlight> tab to see which films the whole league is watching — a strong signal of where prices are heading.
+          </Section>
+          <Section id="polls" icon="🗳" color={T.blue} title="Quick Polls" summary="Commissioner-posted opinion checks.">
+            Anyone can vote on polls posted by the commissioner ("Will Avatar 3 hit $200M opening?" — Yes/No). Live tally bars show how the league is split. Mostly social — no points awarded — but the data is interesting.
+          </Section>
+          <Section id="motw" icon="🎬" color={T.gold} title="Movie of the Week" summary="Commissioner spotlight + bull/bear case.">
+            Each week, the commissioner can pin a Movie of the Week to the top of Market — usually a contentious film with a clear bull case AND bear case. Reads like a market-strategy memo.
+            <br/><br/>
+            Pure information, no scoring impact. Helps the league converge on talking points.
+          </Section>
+        </Group>
+
+        <Group title="📡 Reading the Charts">
+          <Section id="buzz" icon="⚡" color={T.orange} title="The Buzz Index" summary="A single 0-100 score for film heat.">
+            Composite of 4 inputs:
+            <br/>• <Highlight>30%</Highlight> Watchlist (recent picks in last 14d)
+            <br/>• <Highlight>30%</Highlight> Signal density (recent positive news)
+            <br/>• <Highlight>20%</Highlight> Ownership (how many players hold)
+            <br/>• <Highlight>20%</Highlight> Time pressure (closeness to release)
+            <br/><br/>
+            <Highlight color={T.red}>70+</Highlight> = red hot. Price will already be high. Buy early or skip.
+            <br/><Highlight color={T.orange}>50-69</Highlight> = warming up. Still a decent entry.
+            <br/><Highlight color={T.gold}>30-49</Highlight> = neutral. Most films sit here.
+            <br/><Highlight color={T.textDim}>&lt;30</Highlight> = cold. Either a sleeper or rightly ignored.
+          </Section>
+          <Section id="pulse" icon="📊" color={T.green} title="The Pulse" summary="Daily snapshot of market activity.">
+            At the top of Market once you've bought your first film, The Pulse shows:
+            <br/>• <Highlight>Movers (48h)</Highlight> — films whose price has changed most from news signals
+            <br/>• <Highlight>Opening This Week</Highlight> — your immediate scoring opportunities
+            <br/>• <Highlight>Heating Up</Highlight> — highest Buzz Index films right now
+            <br/><br/>
+            Treat it as your "what should I look at right now" briefing.
+          </Section>
+          <Section id="weekend-live" icon="🔴" color={T.red} title="Weekend Live" summary="Fri 5pm to Sun 11pm — live tracking mode.">
+            From Friday evening to Sunday night, the Pulse swaps to <Highlight color={T.red}>Weekend Live</Highlight>: a red-pulse indicator showing the films opening that weekend plus your projected score.
+            <br/><br/>
+            Don't expect minute-by-minute updates — opening estimates only land Saturday afternoon for matinées, full weekend numbers Monday morning. But the mode reminds you the game is alive.
+          </Section>
+          <Section id="taste" icon="🎭" color={T.purple} title="Taste cards" summary="Auto-generated personality from your picks.">
+            Visit any player's profile — at the top, BOXD generates a one-sentence summary of their style:
+            <br/>• <Highlight>Early-mover scout</Highlight> — buys 4+ weeks before release
+            <br/>• <Highlight>Timing-aware</Highlight> — mixed entry windows
+            <br/>• <Highlight>Momentum buyer</Highlight> — usually buys hype already in motion
+            <br/><br/>
+            Plus their top genre, hit rate (% of films that overperformed), and recurring distributor. Built from picks + roster — so the more you play, the more accurate.
+          </Section>
+        </Group>
+
+        <Group title="⚙️ Commissioner (Matt only)">
+          <Section id="commish-basics" icon="⚙️" color={T.gold} title="What a commissioner does" summary="The week-to-week ops job.">
+            Each week:
+            <br/>• <Highlight>Monday</Highlight>: Run the box office ingest (or paste results manually via War Room)
+            <br/>• <Highlight>Mid-week</Highlight>: Publish 1-2 news signals to keep prices moving
+            <br/>• <Highlight>End of phase</Highlight>: Run "Advance Phase" — banks budgets, opens free-trade window
+            <br/><br/>
+            The Commissioner Panel has 5 tabs: Phase, Windows, Films, Bulk Import, Advanced.
+          </Section>
+          <Section id="warroom" icon="⚡" color={T.red} title="War Room — manual results entry" summary="Batch-enter weekend numbers.">
+            If the auto-ingest doesn't pull a film (indies often miss), War Room lets you paste in 3 weeks of grosses at once per film. Saves all at once, recalculates film_values, resolves any open Short/Analyst chips.
+          </Section>
+          <Section id="slate-import" icon="📋" color={T.gold} title="Slate Manager — bulk film & gross import" summary="One CSV imports everything.">
+            The Bulk Import tab takes <Highlight>one wide-format CSV</Highlight> with all your film metadata AND weekly grosses across columns. See the Export → Edit → Import flow described on the page itself.
+            <br/><br/>
+            Use this to spin up a new league fast, or to backfill historical grosses for older films.
+          </Section>
+          <Section id="advance" icon="🚀" color={T.purple} title="Advancing a phase" summary="Locks scoring, banks budgets, resets rosters.">
+            When you click <Highlight>Advance Phase</Highlight>:
+            <br/>• All players' unspent phase budget gets banked into the next phase
+            <br/>• Phase scoring is locked (films already resulted keep their points)
+            <br/>• A phase ceremony pops showing the winner, MVP film, and chip wins
+            <br/>• The new phase starts with closed free-trade window — open it manually when ready
+          </Section>
+        </Group>
+
+        <div style={{marginTop:'24px',padding:'14px 16px',background:T.surfaceUp,borderRadius:'10px',fontSize:'12px',color:T.textSub,lineHeight:1.6}}>
+          💡 <strong style={{color:T.gold}}>Lost?</strong> Tap into the Feed page to see what other players are doing. The chip activations, trades, and forecasts all flow through there — it's the easiest way to learn by watching.
         </div>
       </div>
     )
@@ -2780,193 +3053,300 @@ export default function App(){
         </>}
 
         {tab==='bulk'&&<>
-          {/* ── BULK FILM IMPORT ───────────────────────────────────────────── */}
+          {/* ── SLATE MANAGER — Single wide-format CSV for everything ───── */}
+          <div style={{...S.card,marginBottom:'12px'}}>
+            <div style={{fontSize:'15px',fontWeight:700,color:T.gold,marginBottom:'6px'}}>📋 Slate Manager</div>
+            <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.5,marginBottom:'12px'}}>
+              One CSV imports new films AND their weekly grosses in one go. Export the current slate, edit in Excel/Sheets, paste back. Launch Date auto-computes the week number from a fixed anchor.
+            </div>
+            <div style={{background:T.surfaceUp,borderRadius:'8px',padding:'10px 12px',marginBottom:'12px'}}>
+              <div style={{...S.label,marginBottom:'6px'}}>Column layout</div>
+              <div style={{fontSize:'10px',color:T.textSub,fontFamily:T.mono,lineHeight:1.6,whiteSpace:'pre-wrap'}}>
+                Title · Launch Date · Phase · Distributor · Genre · Base · Est · RT · Star · Wk1 · Wk2 · Wk3 · Wk4 · Wk5 · Wk6 · Wk7 · Wk8
+              </div>
+              <div style={{fontSize:'10px',color:T.textDim,marginTop:'6px',lineHeight:1.5}}>
+                <strong style={{color:T.text}}>Required:</strong> Title, Phase, Distributor, Genre, Base, Est<br/>
+                <strong style={{color:T.text}}>Optional:</strong> Launch Date (YYYY-MM-DD), RT %, Star actor, any Wk# columns<br/>
+                <strong style={{color:T.text}}>Smart:</strong> tab or comma separator · header row auto-detected · case-insensitive headers
+              </div>
+            </div>
+          </div>
+
+          {/* ── EXPORT CURRENT SLATE ─────────────────────────────────────── */}
+          <div style={{...S.card,marginBottom:'12px',border:`1px solid ${T.blue}33`}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}}>
+              <div><div style={{fontSize:'14px',fontWeight:700,color:T.blue}}>📥 Export Current Slate</div><div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>Wide format · all films · all weekly grosses</div></div>
+              <div style={{display:'flex',gap:'6px'}}>
+                <Btn onClick={()=>{
+                  const maxWk=Math.max(1,...Object.values(weeklyG).flatMap(w=>Object.keys(w).map(Number)))
+                  const wkHdr=Array.from({length:Math.min(maxWk,8)},(_,i)=>`Wk${i+1}`).join(',')
+                  const header=`Title,Launch Date,Phase,Distributor,Genre,Base,Est,RT,Star,${wkHdr}`
+                  const seasonAnchor=new Date('2026-01-05') // configurable later
+                  const rows=films.map(f=>{
+                    const launchDate=new Date(seasonAnchor.getTime()+(f.week-1)*7*86400000).toISOString().split('T')[0]
+                    const wks=Array.from({length:Math.min(maxWk,8)},(_,i)=>{
+                      const wk=i+1
+                      if(wk===1)return results[f.id]??''
+                      return weeklyG[f.id]?.[wk]??''
+                    })
+                    return[
+                      f.title,launchDate,f.phase,f.dist,f.genre,f.basePrice,f.estM,
+                      f.rt??'',f.starActor??'',
+                      ...wks,
+                    ].map(v=>{
+                      const s=String(v)
+                      return s.includes(',')||s.includes('"')||s.includes('\n')?`"${s.replace(/"/g,'""')}"`:s
+                    }).join(',')
+                  })
+                  const csv=[header,...rows].join('\n')
+                  navigator.clipboard.writeText(csv)
+                  notify(`📋 ${rows.length} films · ${maxWk} weeks copied`,T.blue)
+                }} color={T.blue} textColor="#fff" size="sm">Copy CSV</Btn>
+                <Btn onClick={()=>{
+                  const maxWk=Math.max(1,...Object.values(weeklyG).flatMap(w=>Object.keys(w).map(Number)))
+                  const wkHdr=Array.from({length:Math.min(maxWk,8)},(_,i)=>`Wk${i+1}`).join(',')
+                  const header=`Title,Launch Date,Phase,Distributor,Genre,Base,Est,RT,Star,${wkHdr}`
+                  const seasonAnchor=new Date('2026-01-05')
+                  const rows=films.map(f=>{
+                    const launchDate=new Date(seasonAnchor.getTime()+(f.week-1)*7*86400000).toISOString().split('T')[0]
+                    const wks=Array.from({length:Math.min(maxWk,8)},(_,i)=>{
+                      const wk=i+1
+                      if(wk===1)return results[f.id]??''
+                      return weeklyG[f.id]?.[wk]??''
+                    })
+                    return[f.title,launchDate,f.phase,f.dist,f.genre,f.basePrice,f.estM,f.rt??'',f.starActor??'',...wks].map(v=>{const s=String(v);return s.includes(',')||s.includes('"')||s.includes('\n')?`"${s.replace(/"/g,'""')}"`:s}).join(',')
+                  })
+                  const csv=[header,...rows].join('\n')
+                  const blob=new Blob([csv],{type:'text/csv'})
+                  const url=URL.createObjectURL(blob)
+                  const a=document.createElement('a')
+                  a.href=url
+                  a.download=`boxd-slate-${new Date().toISOString().split('T')[0]}.csv`
+                  a.click()
+                  URL.revokeObjectURL(url)
+                  notify('💾 CSV downloaded',T.blue)
+                }} variant="outline" color={T.blue} size="sm">Download</Btn>
+              </div>
+            </div>
+            <details style={{marginTop:'8px'}}>
+              <summary style={{cursor:'pointer',fontSize:'11px',color:T.textSub}}>Preview as table ({films.length} films)</summary>
+              <div style={{maxHeight:'320px',overflow:'auto',marginTop:'8px',background:T.surfaceUp,borderRadius:'8px'}}>
+                <table style={{width:'100%',borderCollapse:'collapse',fontFamily:T.mono,fontSize:'10px'}}>
+                  <thead style={{position:'sticky',top:0,background:T.surfaceUp}}>
+                    <tr>
+                      {['Title','Date','Ph','Dist','Genre','Base','Est','RT'].map(h=><th key={h} style={{padding:'6px 8px',textAlign:'left',color:T.gold,borderBottom:`1px solid ${T.border}`,fontWeight:700}}>{h}</th>)}
+                      {[1,2,3,4,5].map(w=><th key={w} style={{padding:'6px 8px',textAlign:'right',color:T.green,borderBottom:`1px solid ${T.border}`,fontWeight:700}}>W{w}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {films.slice(0,200).map(f=>{
+                      const seasonAnchor=new Date('2026-01-05')
+                      const launchDate=new Date(seasonAnchor.getTime()+(f.week-1)*7*86400000).toISOString().split('T')[0]
+                      return(
+                        <tr key={f.id} style={{borderBottom:`1px solid ${T.border}`}}>
+                          <td style={{padding:'5px 8px',color:T.text,whiteSpace:'nowrap',maxWidth:'180px',overflow:'hidden',textOverflow:'ellipsis'}}>{f.title}</td>
+                          <td style={{padding:'5px 8px',color:T.textSub}}>{launchDate}</td>
+                          <td style={{padding:'5px 8px',color:T.gold}}>P{f.phase}</td>
+                          <td style={{padding:'5px 8px',color:T.textSub,maxWidth:'120px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.dist}</td>
+                          <td style={{padding:'5px 8px',color:T.textSub}}>{f.genre}</td>
+                          <td style={{padding:'5px 8px',color:T.text,textAlign:'right'}}>{f.basePrice}</td>
+                          <td style={{padding:'5px 8px',color:T.text,textAlign:'right'}}>{f.estM}</td>
+                          <td style={{padding:'5px 8px',color:T.textSub,textAlign:'right'}}>{f.rt??'—'}</td>
+                          {[1,2,3,4,5].map(w=>{
+                            const v=w===1?results[f.id]:weeklyG[f.id]?.[w]
+                            return<td key={w} style={{padding:'5px 8px',color:v!=null?T.green:T.textDim,textAlign:'right'}}>{v??'—'}</td>
+                          })}
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+                {films.length>200&&<div style={{fontSize:'10px',color:T.textDim,padding:'8px',textAlign:'center'}}>showing first 200 of {films.length}</div>}
+              </div>
+            </details>
+          </div>
+
+          {/* ── IMPORT (UNIFIED) ─────────────────────────────────────────── */}
           <div style={{...S.card,marginBottom:'12px',border:`1px solid ${T.gold}33`}}>
-            <div style={{fontSize:'14px',fontWeight:700,color:T.gold,marginBottom:'6px'}}>🎬 Bulk Add Films</div>
+            <div style={{fontSize:'14px',fontWeight:700,color:T.gold,marginBottom:'6px'}}>📤 Import Slate (Films + Grosses)</div>
             <div style={{fontSize:'11px',color:T.textSub,marginBottom:'10px',lineHeight:1.5}}>
-              Paste one film per line, comma or tab separated. Columns in this order:<br/>
-              <strong style={{color:T.text,fontFamily:T.mono}}>title, dist, genre, phase, week, base_price, est_m, rt, tmdb_id, star_actor</strong><br/>
-              Last 3 columns optional. Header row gets auto-skipped if present. Films are added with active=true.
+              Paste your wide-format CSV. Adds new films AND writes weekly grosses in one operation. Existing films matched by title (fuzzy) — duplicates skipped.
             </div>
             <textarea
               value={bulkFilmsCsv}
               onChange={e=>{setBulkFilmsCsv(e.target.value);setBulkFilmsPreview(null)}}
-              placeholder={`Avatar: Fire and Ash, 20th Century Studios, Sci-Fi, 5, 51, 65, 250, , 76600, Sam Worthington\nWicked: For Good, Universal, Family, 5, 47, 50, 180, , , Cynthia Erivo`}
-              style={{...S.inp,minHeight:'140px',fontFamily:T.mono,fontSize:'11px',resize:'vertical',whiteSpace:'pre',marginBottom:'10px'}}
+              placeholder={`Title\tLaunch Date\tPhase\tDistributor\tGenre\tBase\tEst\tRT\tStar\tWk1\tWk2\tWk3\nAvatar: Fire and Ash\t2026-12-19\t5\t20th Century\tSci-Fi\t65\t250\t90\tSam Worthington\t145\t78\t42\nWicked: For Good\t2026-11-21\t5\tUniversal\tFamily\t50\t180\t85\tCynthia Erivo\t92\t55\t30`}
+              style={{...S.inp,minHeight:'180px',fontFamily:T.mono,fontSize:'11px',resize:'vertical',whiteSpace:'pre',marginBottom:'10px'}}
             />
             <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
               <Btn onClick={()=>{
-                const lines=bulkFilmsCsv.split('\n').map(l=>l.trim()).filter(Boolean)
+                const lines=bulkFilmsCsv.split('\n').map(l=>l.replace(/\r$/,'')).filter(l=>l.trim())
                 if(lines.length===0)return notify('Nothing to parse',T.red)
-                // Auto-detect delimiter (tab vs comma)
+                // Detect delimiter
                 const delim=lines[0].includes('\t')?'\t':','
-                const parsed=[];const errs=[]
-                lines.forEach((line,i)=>{
-                  // Skip header row
-                  if(i===0&&/^title/i.test(line))return
-                  const cols=line.split(delim).map(c=>c.trim())
-                  if(cols.length<7){errs.push(`Line ${i+1}: only ${cols.length} columns (need ≥7)`);return}
-                  const[title,dist,genre,phase,week,basePrice,estM,rt,tmdbId,starActor]=cols
-                  if(!title||!dist){errs.push(`Line ${i+1}: missing title or distributor`);return}
-                  const phN=Number(phase),wkN=Number(week),bpN=Number(basePrice),emN=Number(estM)
-                  if(isNaN(phN)||isNaN(wkN)||isNaN(bpN)||isNaN(emN)){errs.push(`Line ${i+1}: non-numeric phase/week/price/est`);return}
-                  parsed.push({
-                    title,dist,genre:genre||'Drama',phase:phN,week:wkN,
-                    base_price:bpN,est_m:emN,
-                    rt:rt&&!isNaN(Number(rt))?Number(rt):null,
-                    tmdb_id:tmdbId||null,
-                    star_actor:starActor||null,
+                // Parse CSV row honoring quotes
+                const parseRow=(line)=>{
+                  if(delim==='\t')return line.split('\t').map(c=>c.trim())
+                  const out=[];let cur='';let inQ=false
+                  for(let i=0;i<line.length;i++){
+                    const c=line[i]
+                    if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++}else inQ=!inQ}
+                    else if(c===','&&!inQ){out.push(cur.trim());cur=''}
+                    else cur+=c
+                  }
+                  out.push(cur.trim())
+                  return out
+                }
+                const headerRow=parseRow(lines[0])
+                const hdrLow=headerRow.map(h=>h.toLowerCase().replace(/[\s_-]/g,''))
+                // Map column indices flexibly
+                const findCol=(...keys)=>{for(const k of keys){const i=hdrLow.findIndex(h=>h===k||h.includes(k));if(i>=0)return i}return -1}
+                const colTitle=findCol('title','film','name')
+                const colDate=findCol('launchdate','releasedate','date','released')
+                const colWeek=findCol('week','wk','weeknum')
+                const colPhase=findCol('phase','ph')
+                const colDist=findCol('distributor','dist','studio')
+                const colGenre=findCol('genre')
+                const colBase=findCol('base','baseprice','ipo')
+                const colEst=findCol('est','estimate','estm')
+                const colRT=findCol('rt','tomatoes','rottentomatoes')
+                const colStar=findCol('star','lead','actor','starring')
+                // Find Wk columns
+                const wkCols=[]
+                hdrLow.forEach((h,i)=>{const m=h.match(/^(?:wk|w|week)(\d+)$/);if(m)wkCols.push({col:i,wk:Number(m[1])})})
+                const hasHeader=colTitle>=0&&colTitle<headerRow.length
+                if(!hasHeader)return notify('Could not detect header row — first row must include "Title"',T.red)
+                if(colDist<0||colGenre<0||colBase<0||colEst<0||colPhase<0)return notify('Missing required columns: Phase, Distributor, Genre, Base, Est',T.red)
+                // Season anchor for date→week conversion
+                const seasonAnchor=new Date('2026-01-05')
+                const dataLines=lines.slice(1)
+                const films_=[]; const grosses_=[]; const errs=[]
+                dataLines.forEach((line,idx)=>{
+                  const cols=parseRow(line)
+                  const title=cols[colTitle]
+                  if(!title){errs.push(`Row ${idx+2}: missing title`);return}
+                  const dist=cols[colDist]||''
+                  const genre=cols[colGenre]||'Drama'
+                  const phase=Number(cols[colPhase])
+                  if(isNaN(phase)){errs.push(`Row ${idx+2}: bad phase`);return}
+                  // Week — from date or explicit
+                  let week=null
+                  if(colDate>=0&&cols[colDate]){
+                    const d=new Date(cols[colDate])
+                    if(!isNaN(d.getTime())){
+                      week=Math.max(1,Math.floor((d.getTime()-seasonAnchor.getTime())/(7*86400000))+1)
+                    }
+                  }
+                  if(week==null&&colWeek>=0){week=Number(cols[colWeek])}
+                  if(week==null||isNaN(week)){errs.push(`Row ${idx+2}: need Launch Date or Week`);return}
+                  const base=Number(cols[colBase]),est=Number(cols[colEst])
+                  if(isNaN(base)||isNaN(est)){errs.push(`Row ${idx+2}: bad base or est`);return}
+                  const film={
+                    title,dist,genre,phase,week,
+                    base_price:base,est_m:est,
+                    rt:colRT>=0&&cols[colRT]&&!isNaN(Number(cols[colRT]))?Number(cols[colRT]):null,
+                    star_actor:colStar>=0?cols[colStar]||null:null,
+                  }
+                  films_.push(film)
+                  // Parse week columns
+                  wkCols.forEach(({col,wk})=>{
+                    if(cols[col]&&!isNaN(Number(cols[col]))){
+                      grosses_.push({title,week:wk,gross:Number(cols[col])})
+                    }
                   })
                 })
-                setBulkFilmsPreview({rows:parsed,errs})
-                notify(`Parsed ${parsed.length} film${parsed.length!==1?'s':''}${errs.length?` · ${errs.length} error${errs.length!==1?'s':''}`:''}`,errs.length?T.orange:T.green)
-              }} color={T.gold} size="sm" disabled={!bulkFilmsCsv.trim()}>Parse Preview</Btn>
+                setBulkFilmsPreview({films:films_,grosses:grosses_,errs,header:headerRow})
+                notify(`Parsed ${films_.length} films · ${grosses_.length} gross rows${errs.length?` · ${errs.length} error${errs.length!==1?'s':''}`:''}`,errs.length?T.orange:T.green)
+              }} color={T.gold} size="sm" disabled={!bulkFilmsCsv.trim()}>Parse & Preview</Btn>
               <Btn onClick={async()=>{
-                if(!bulkFilmsPreview?.rows?.length)return notify('Parse first',T.red)
-                if(!confirm(`Insert ${bulkFilmsPreview.rows.length} films into the database?`))return
+                if(!bulkFilmsPreview)return notify('Parse first',T.red)
+                const total=bulkFilmsPreview.films.length+bulkFilmsPreview.grosses.length
+                if(!confirm(`Import ${bulkFilmsPreview.films.length} films and ${bulkFilmsPreview.grosses.length} gross rows?`))return
                 setBulkBusy(true)
-                let added=0,skipped=0
-                for(const row of bulkFilmsPreview.rows){
+                let addedFilms=0,skippedFilms=0,wroteOpenings=0,wroteWeekly=0
+                const titleToId={}
+                // Existing films lookup
+                const norm=s=>s.toLowerCase().replace(/[^a-z0-9]/g,'')
+                films.forEach(f=>{titleToId[norm(f.title)]=f.id})
+                // 1. Films
+                for(const row of bulkFilmsPreview.films){
+                  const nk=norm(row.title)
+                  if(titleToId[nk]){skippedFilms++;continue}
                   const id=row.title.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,50)+'-'+Math.random().toString(36).slice(2,6)
-                  // Check for existing film with same title + phase
-                  const{data:ex}=await supabase.from('films').select('id').ilike('title',row.title).eq('phase',row.phase).maybeSingle()
-                  if(ex){skipped++;continue}
                   const{error}=await supabase.from('films').insert({id,...row,active:true})
-                  if(!error)added++
+                  if(!error){addedFilms++;titleToId[nk]=id}
                 }
-                setBulkBusy(false)
-                notify(`✓ Added ${added}${skipped?` · ${skipped} skipped (duplicate)`:''}`,T.green)
-                setBulkFilmsCsv('');setBulkFilmsPreview(null)
-                loadData(league?.id)
-              }} color={T.green} textColor="#0D0A08" size="sm" disabled={!bulkFilmsPreview?.rows?.length||bulkBusy}>{bulkBusy?'Importing…':`Import ${bulkFilmsPreview?.rows?.length||0} Films`}</Btn>
-              {bulkFilmsPreview&&<Btn onClick={()=>setBulkFilmsPreview(null)} variant="outline" color={T.textSub} size="sm">Clear Preview</Btn>}
-            </div>
-            {bulkFilmsPreview&&<div style={{marginTop:'12px',maxHeight:'240px',overflowY:'auto',background:T.surfaceUp,borderRadius:'8px',padding:'10px'}}>
-              {bulkFilmsPreview.errs.length>0&&<div style={{marginBottom:'10px'}}>
-                <div style={{fontSize:'11px',color:T.red,fontWeight:700,marginBottom:'4px'}}>Errors ({bulkFilmsPreview.errs.length})</div>
-                {bulkFilmsPreview.errs.map((e,i)=><div key={i} style={{fontSize:'10px',color:T.red,fontFamily:T.mono,marginBottom:'2px'}}>{e}</div>)}
-              </div>}
-              {bulkFilmsPreview.rows.length>0&&<>
-                <div style={{fontSize:'11px',color:T.green,fontWeight:700,marginBottom:'6px'}}>To import ({bulkFilmsPreview.rows.length})</div>
-                {bulkFilmsPreview.rows.slice(0,30).map((r,i)=>(
-                  <div key={i} style={{fontSize:'11px',color:T.text,fontFamily:T.mono,padding:'3px 0',borderBottom:`1px solid ${T.border}`,display:'flex',gap:'8px'}}>
-                    <span style={{color:T.gold,minWidth:'30px'}}>P{r.phase}W{r.week}</span>
-                    <span style={{flex:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{r.title}</span>
-                    <span style={{color:T.textSub}}>{r.dist}</span>
-                    <span style={{color:T.green}}>${r.est_m}M</span>
-                  </div>
-                ))}
-                {bulkFilmsPreview.rows.length>30&&<div style={{fontSize:'10px',color:T.textDim,marginTop:'6px'}}>… and {bulkFilmsPreview.rows.length-30} more</div>}
-              </>}
-            </div>}
-          </div>
-
-          {/* ── BULK WEEKLY GROSSES IMPORT ─────────────────────────────────── */}
-          <div style={{...S.card,marginBottom:'12px',border:`1px solid ${T.green}33`}}>
-            <div style={{fontSize:'14px',fontWeight:700,color:T.green,marginBottom:'6px'}}>📊 Bulk Add Weekly Box Office Data</div>
-            <div style={{fontSize:'11px',color:T.textSub,marginBottom:'10px',lineHeight:1.5}}>
-              Paste one row per week per film. Columns in this order:<br/>
-              <strong style={{color:T.text,fontFamily:T.mono}}>film_title, week_num, gross_m</strong><br/>
-              Title matched fuzzy (case-insensitive). Use <strong>week_num=1</strong> for opening weekend (sets the result + market value).<br/>
-              Week 2+ rows go into weekly_grosses for legs scoring.
-            </div>
-            <textarea
-              value={bulkGrossesCsv}
-              onChange={e=>{setBulkGrossesCsv(e.target.value);setBulkGrossesPreview(null)}}
-              placeholder={`Avatar: Fire and Ash, 1, 145\nAvatar: Fire and Ash, 2, 78\nAvatar: Fire and Ash, 3, 42\nWicked: For Good, 1, 92`}
-              style={{...S.inp,minHeight:'140px',fontFamily:T.mono,fontSize:'11px',resize:'vertical',whiteSpace:'pre',marginBottom:'10px'}}
-            />
-            <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
-              <Btn onClick={()=>{
-                const lines=bulkGrossesCsv.split('\n').map(l=>l.trim()).filter(Boolean)
-                if(lines.length===0)return notify('Nothing to parse',T.red)
-                const delim=lines[0].includes('\t')?'\t':','
-                const matched=[];const unmatched=[];const errs=[]
-                lines.forEach((line,i)=>{
-                  if(i===0&&/film_title|title/i.test(line.split(delim)[0]))return
-                  const cols=line.split(delim).map(c=>c.trim())
-                  if(cols.length<3){errs.push(`Line ${i+1}: need 3 columns`);return}
-                  const[titleRaw,wkRaw,grossRaw]=cols
-                  const wk=Number(wkRaw),gross=Number(grossRaw)
-                  if(isNaN(wk)||isNaN(gross)){errs.push(`Line ${i+1}: non-numeric week or gross`);return}
-                  // Fuzzy match
-                  const norm=s=>s.toLowerCase().replace(/[^a-z0-9]/g,'')
-                  const target=norm(titleRaw)
-                  const hit=films.find(f=>norm(f.title)===target)||films.find(f=>norm(f.title).includes(target)||target.includes(norm(f.title)))
-                  if(hit)matched.push({film:hit,week:wk,gross,title_raw:titleRaw})
-                  else unmatched.push({title_raw:titleRaw,week:wk,gross})
-                })
-                setBulkGrossesPreview({matched,unmatched,errs})
-                notify(`Matched ${matched.length} · Unmatched ${unmatched.length}`,unmatched.length||errs.length?T.orange:T.green)
-              }} color={T.green} textColor="#0D0A08" size="sm" disabled={!bulkGrossesCsv.trim()}>Parse & Match</Btn>
-              <Btn onClick={async()=>{
-                if(!bulkGrossesPreview?.matched?.length)return notify('Nothing matched',T.red)
-                if(!confirm(`Import ${bulkGrossesPreview.matched.length} gross rows?`))return
-                setBulkBusy(true)
-                let openings=0,weekly=0
-                for(const row of bulkGrossesPreview.matched){
+                // 2. Grosses
+                for(const row of bulkFilmsPreview.grosses){
+                  const nk=norm(row.title)
+                  const id=titleToId[nk]
+                  if(!id)continue
                   if(row.week===1){
-                    // Opening weekend: write to results + recalc film_values + resolve chips
-                    await dbUpsert('results','film_id',row.film.id,{actual_m:row.gross})
-                    await dbUpsert('film_values','film_id',row.film.id,{current_value:calcMarketValue(row.film,row.gross)})
-                    await resolveChips(row.film.id,row.gross)
-                    openings++
+                    const filmObj=films.find(f=>f.id===id)||bulkFilmsPreview.films.find(f=>norm(f.title)===nk)
+                    await dbUpsert('results','film_id',id,{actual_m:row.gross})
+                    if(filmObj){
+                      const filmForCalc={basePrice:filmObj.basePrice||filmObj.base_price,estM:filmObj.estM||filmObj.est_m,rt:filmObj.rt}
+                      await dbUpsert('film_values','film_id',id,{current_value:calcMarketValue(filmForCalc,row.gross)})
+                      await resolveChips(id,row.gross)
+                    }
+                    wroteOpenings++
                   }else{
-                    // Week 2+ → weekly_grosses
-                    await dbUpsertWeekly(row.film.id,row.week,row.gross)
-                    weekly++
+                    await dbUpsertWeekly(id,row.week,row.gross)
+                    wroteWeekly++
                   }
                 }
                 setBulkBusy(false)
-                notify(`✓ ${openings} opening${openings!==1?'s':''} · ${weekly} weekly row${weekly!==1?'s':''}`,T.green)
-                setBulkGrossesCsv('');setBulkGrossesPreview(null)
+                notify(`✓ ${addedFilms} films added · ${skippedFilms} skipped · ${wroteOpenings} openings · ${wroteWeekly} weekly`,T.green)
+                setBulkFilmsCsv('');setBulkFilmsPreview(null)
                 loadData(league?.id)
-              }} color={T.green} textColor="#0D0A08" size="sm" disabled={!bulkGrossesPreview?.matched?.length||bulkBusy}>{bulkBusy?'Importing…':`Import ${bulkGrossesPreview?.matched?.length||0} Rows`}</Btn>
-              {bulkGrossesPreview&&<Btn onClick={()=>setBulkGrossesPreview(null)} variant="outline" color={T.textSub} size="sm">Clear Preview</Btn>}
+              }} color={T.green} textColor="#0D0A08" size="sm" disabled={!bulkFilmsPreview||bulkBusy}>{bulkBusy?'Importing…':'Import Everything'}</Btn>
+              {bulkFilmsPreview&&<Btn onClick={()=>setBulkFilmsPreview(null)} variant="outline" color={T.textSub} size="sm">Clear</Btn>}
             </div>
-            {bulkGrossesPreview&&<div style={{marginTop:'12px',maxHeight:'280px',overflowY:'auto',background:T.surfaceUp,borderRadius:'8px',padding:'10px'}}>
-              {bulkGrossesPreview.errs.length>0&&<div style={{marginBottom:'10px'}}>
-                <div style={{fontSize:'11px',color:T.red,fontWeight:700,marginBottom:'4px'}}>Errors ({bulkGrossesPreview.errs.length})</div>
-                {bulkGrossesPreview.errs.map((e,i)=><div key={i} style={{fontSize:'10px',color:T.red,fontFamily:T.mono,marginBottom:'2px'}}>{e}</div>)}
-              </div>}
-              {bulkGrossesPreview.unmatched.length>0&&<div style={{marginBottom:'10px'}}>
-                <div style={{fontSize:'11px',color:T.orange,fontWeight:700,marginBottom:'4px'}}>Unmatched titles ({bulkGrossesPreview.unmatched.length})</div>
-                <div style={{fontSize:'10px',color:T.textDim,marginBottom:'4px'}}>Add these films first via Bulk Add Films, then re-run.</div>
-                {bulkGrossesPreview.unmatched.slice(0,10).map((r,i)=>(
-                  <div key={i} style={{fontSize:'11px',color:T.orange,fontFamily:T.mono,padding:'2px 0'}}>"{r.title_raw}" · W{r.week} · ${r.gross}M</div>
-                ))}
-                {bulkGrossesPreview.unmatched.length>10&&<div style={{fontSize:'10px',color:T.textDim,marginTop:'4px'}}>… and {bulkGrossesPreview.unmatched.length-10} more</div>}
-              </div>}
-              {bulkGrossesPreview.matched.length>0&&<>
-                <div style={{fontSize:'11px',color:T.green,fontWeight:700,marginBottom:'6px'}}>Matched ({bulkGrossesPreview.matched.length})</div>
-                {bulkGrossesPreview.matched.slice(0,30).map((r,i)=>(
-                  <div key={i} style={{fontSize:'11px',color:T.text,fontFamily:T.mono,padding:'3px 0',borderBottom:`1px solid ${T.border}`,display:'flex',gap:'8px'}}>
-                    <span style={{color:r.week===1?T.gold:T.blue,minWidth:'24px'}}>W{r.week}</span>
-                    <span style={{flex:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{r.film.title}</span>
-                    <span style={{color:T.green}}>${r.gross}M</span>
-                  </div>
-                ))}
-                {bulkGrossesPreview.matched.length>30&&<div style={{fontSize:'10px',color:T.textDim,marginTop:'6px'}}>… and {bulkGrossesPreview.matched.length-30} more</div>}
-              </>}
-            </div>}
-          </div>
 
-          {/* ── EXPORT EXISTING FILMS — for backups / spreadsheet sync ────── */}
-          <div style={{...S.card,marginBottom:'12px',border:`1px solid ${T.blue}33`}}>
-            <div style={{fontSize:'14px',fontWeight:700,color:T.blue,marginBottom:'6px'}}>📥 Export Current Slate</div>
-            <div style={{fontSize:'11px',color:T.textSub,marginBottom:'10px',lineHeight:1.5}}>
-              Copy a CSV of every active film + current week's gross. Paste into Excel/Sheets for a backup.
-            </div>
-            <Btn onClick={()=>{
-              const header='title,dist,genre,phase,week,base_price,est_m,rt,opening_gross_m'
-              const rows=films.map(f=>{
-                const op=results[f.id]??''
-                return[f.title,f.dist,f.genre,f.phase,f.week,f.basePrice,f.estM,f.rt??'',op].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')
-              })
-              const csv=[header,...rows].join('\n')
-              navigator.clipboard.writeText(csv)
-              notify(`📋 ${rows.length} rows copied to clipboard`,T.blue)
-            }} color={T.blue} textColor="#fff" size="sm">Copy CSV to Clipboard</Btn>
+            {bulkFilmsPreview&&<div style={{marginTop:'14px'}}>
+              {/* Detected columns */}
+              <div style={{background:T.surfaceUp,borderRadius:'8px',padding:'10px 12px',marginBottom:'10px',fontSize:'11px',color:T.textSub}}>
+                <strong style={{color:T.text}}>Detected columns:</strong> {bulkFilmsPreview.header.join(' · ')}
+              </div>
+              {bulkFilmsPreview.errs.length>0&&<div style={{background:`${T.red}10`,border:`1px solid ${T.red}33`,borderRadius:'8px',padding:'10px',marginBottom:'10px'}}>
+                <div style={{fontSize:'11px',color:T.red,fontWeight:700,marginBottom:'4px'}}>Errors ({bulkFilmsPreview.errs.length})</div>
+                {bulkFilmsPreview.errs.slice(0,10).map((e,i)=><div key={i} style={{fontSize:'10px',color:T.red,fontFamily:T.mono}}>{e}</div>)}
+              </div>}
+              {bulkFilmsPreview.films.length>0&&<div style={{marginBottom:'10px'}}>
+                <div style={{fontSize:'11px',color:T.green,fontWeight:700,marginBottom:'6px'}}>Films to add ({bulkFilmsPreview.films.length})</div>
+                <div style={{maxHeight:'260px',overflow:'auto',background:T.surfaceUp,borderRadius:'8px'}}>
+                  <table style={{width:'100%',borderCollapse:'collapse',fontFamily:T.mono,fontSize:'10px'}}>
+                    <thead style={{position:'sticky',top:0,background:T.surfaceUp}}>
+                      <tr>
+                        {['Title','Phase','Wk','Dist','Genre','Base','Est','RT'].map(h=><th key={h} style={{padding:'6px 8px',textAlign:'left',color:T.gold,borderBottom:`1px solid ${T.border}`,fontWeight:700}}>{h}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bulkFilmsPreview.films.slice(0,80).map((f,i)=>(
+                        <tr key={i} style={{borderBottom:`1px solid ${T.border}`}}>
+                          <td style={{padding:'5px 8px',color:T.text,whiteSpace:'nowrap',maxWidth:'180px',overflow:'hidden',textOverflow:'ellipsis'}}>{f.title}</td>
+                          <td style={{padding:'5px 8px',color:T.gold}}>P{f.phase}</td>
+                          <td style={{padding:'5px 8px',color:T.textSub}}>W{f.week}</td>
+                          <td style={{padding:'5px 8px',color:T.textSub,maxWidth:'120px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.dist}</td>
+                          <td style={{padding:'5px 8px',color:T.textSub}}>{f.genre}</td>
+                          <td style={{padding:'5px 8px',color:T.text,textAlign:'right'}}>{f.base_price}</td>
+                          <td style={{padding:'5px 8px',color:T.text,textAlign:'right'}}>{f.est_m}</td>
+                          <td style={{padding:'5px 8px',color:T.textSub,textAlign:'right'}}>{f.rt??'—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {bulkFilmsPreview.films.length>80&&<div style={{fontSize:'10px',color:T.textDim,padding:'6px',textAlign:'center'}}>… and {bulkFilmsPreview.films.length-80} more</div>}
+                </div>
+              </div>}
+              {bulkFilmsPreview.grosses.length>0&&<div>
+                <div style={{fontSize:'11px',color:T.blue,fontWeight:700,marginBottom:'6px'}}>Gross rows ({bulkFilmsPreview.grosses.length})</div>
+                <div style={{fontSize:'10px',color:T.textSub,fontFamily:T.mono,maxHeight:'120px',overflow:'auto',background:T.surfaceUp,padding:'8px',borderRadius:'8px'}}>
+                  {bulkFilmsPreview.grosses.slice(0,30).map((g,i)=><div key={i}>{g.title.slice(0,40)} · W{g.week} · ${g.gross}M</div>)}
+                  {bulkFilmsPreview.grosses.length>30&&<div style={{color:T.textDim,marginTop:'4px'}}>… and {bulkFilmsPreview.grosses.length-30} more</div>}
+                </div>
+              </div>}
+            </div>}
           </div>
         </>}
 
