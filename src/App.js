@@ -3062,7 +3062,7 @@ export default function App(){
             <div style={{background:T.surfaceUp,borderRadius:'8px',padding:'10px 12px',marginBottom:'12px'}}>
               <div style={{...S.label,marginBottom:'6px'}}>Column layout</div>
               <div style={{fontSize:'10px',color:T.textSub,fontFamily:T.mono,lineHeight:1.6,whiteSpace:'pre-wrap'}}>
-                Title · Launch Date · Phase · Distributor · Genre · Base · Est · RT · Star · Wk1 · Wk2 · Wk3 · Wk4 · Wk5 · Wk6 · Wk7 · Wk8
+                Title · Launch Date · Phase · Distributor · Genre · Base · Est · RT · Star · Trailer · Wk1 · Wk2 · Wk3 · Wk4 · Wk5 · Wk6 · Wk7 · Wk8
               </div>
               <div style={{fontSize:'10px',color:T.textDim,marginTop:'6px',lineHeight:1.5}}>
                 <strong style={{color:T.text}}>Required:</strong> Title, Phase, Distributor, Genre, Base, Est<br/>
@@ -3075,46 +3075,76 @@ export default function App(){
           {/* ── EXPORT CURRENT SLATE ─────────────────────────────────────── */}
           <div style={{...S.card,marginBottom:'12px',border:`1px solid ${T.blue}33`}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}}>
-              <div><div style={{fontSize:'14px',fontWeight:700,color:T.blue}}>📥 Export Current Slate</div><div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>Wide format · all films · all weekly grosses</div></div>
+              <div><div style={{fontSize:'14px',fontWeight:700,color:T.blue}}>📥 Export Current Slate</div><div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>Pulls everything from DB · active + inactive · all grosses</div></div>
               <div style={{display:'flex',gap:'6px'}}>
-                <Btn onClick={()=>{
-                  const maxWk=Math.max(1,...Object.values(weeklyG).flatMap(w=>Object.keys(w).map(Number)))
-                  const wkHdr=Array.from({length:Math.min(maxWk,8)},(_,i)=>`Wk${i+1}`).join(',')
-                  const header=`Title,Launch Date,Phase,Distributor,Genre,Base,Est,RT,Star,${wkHdr}`
-                  const seasonAnchor=new Date('2026-01-05') // configurable later
-                  const rows=films.map(f=>{
+                <Btn onClick={async()=>{
+                  // Pull ALL films directly from DB (active + inactive) and ALL grosses, paginated to be safe
+                  setBulkBusy(true)
+                  const allFilms=[]
+                  let from=0,batchSize=1000
+                  while(true){
+                    const{data,error}=await supabase.from('films').select('*').order('phase').order('week').range(from,from+batchSize-1)
+                    if(error){notify(`Export failed: ${error.message}`,T.red);setBulkBusy(false);return}
+                    if(!data||data.length===0)break
+                    allFilms.push(...data)
+                    if(data.length<batchSize)break
+                    from+=batchSize
+                  }
+                  const{data:allWg}=await supabase.from('weekly_grosses').select('*')
+                  const{data:allRes}=await supabase.from('results').select('*')
+                  setBulkBusy(false)
+                  const wgMap={};(allWg||[]).forEach(w=>{if(!wgMap[w.film_id])wgMap[w.film_id]={};wgMap[w.film_id][w.week_num]=w.gross_m})
+                  const resMap={};(allRes||[]).forEach(r=>{resMap[r.film_id]=r.actual_m})
+                  const allWkNums=[...new Set((allWg||[]).map(w=>w.week_num))]
+                  const maxWk=Math.max(1,...allWkNums,1)
+                  const wkCount=Math.min(Math.max(maxWk,3),10)
+                  const wkHdr=Array.from({length:wkCount},(_,i)=>`Wk${i+1}`).join(',')
+                  const header=`Title,Launch Date,Phase,Distributor,Genre,Base,Est,RT,Star,Trailer,${wkHdr}`
+                  const seasonAnchor=new Date('2026-01-05')
+                  const rows=allFilms.map(f=>{
                     const launchDate=new Date(seasonAnchor.getTime()+(f.week-1)*7*86400000).toISOString().split('T')[0]
-                    const wks=Array.from({length:Math.min(maxWk,8)},(_,i)=>{
+                    const wks=Array.from({length:wkCount},(_,i)=>{
                       const wk=i+1
-                      if(wk===1)return results[f.id]??''
-                      return weeklyG[f.id]?.[wk]??''
+                      if(wk===1)return resMap[f.id]??''
+                      return wgMap[f.id]?.[wk]??''
                     })
                     return[
-                      f.title,launchDate,f.phase,f.dist,f.genre,f.basePrice,f.estM,
-                      f.rt??'',f.starActor??'',
+                      f.title,launchDate,f.phase,f.dist,f.genre,f.base_price,f.est_m,
+                      f.rt??'',f.star_actor??'',f.trailer??'',
                       ...wks,
-                    ].map(v=>{
-                      const s=String(v)
-                      return s.includes(',')||s.includes('"')||s.includes('\n')?`"${s.replace(/"/g,'""')}"`:s
-                    }).join(',')
+                    ].map(v=>{const s=String(v);return s.includes(',')||s.includes('"')||s.includes('\n')?`"${s.replace(/"/g,'""')}"`:s}).join(',')
                   })
                   const csv=[header,...rows].join('\n')
                   navigator.clipboard.writeText(csv)
-                  notify(`📋 ${rows.length} films · ${maxWk} weeks copied`,T.blue)
-                }} color={T.blue} textColor="#fff" size="sm">Copy CSV</Btn>
-                <Btn onClick={()=>{
-                  const maxWk=Math.max(1,...Object.values(weeklyG).flatMap(w=>Object.keys(w).map(Number)))
-                  const wkHdr=Array.from({length:Math.min(maxWk,8)},(_,i)=>`Wk${i+1}`).join(',')
-                  const header=`Title,Launch Date,Phase,Distributor,Genre,Base,Est,RT,Star,${wkHdr}`
+                  notify(`📋 ${rows.length} films · ${wkCount} weeks copied`,T.blue)
+                }} color={T.blue} textColor="#fff" size="sm" disabled={bulkBusy}>{bulkBusy?'…':'Copy CSV'}</Btn>
+                <Btn onClick={async()=>{
+                  setBulkBusy(true)
+                  const allFilms=[]
+                  let from=0,batchSize=1000
+                  while(true){
+                    const{data,error}=await supabase.from('films').select('*').order('phase').order('week').range(from,from+batchSize-1)
+                    if(error){notify(`Export failed: ${error.message}`,T.red);setBulkBusy(false);return}
+                    if(!data||data.length===0)break
+                    allFilms.push(...data)
+                    if(data.length<batchSize)break
+                    from+=batchSize
+                  }
+                  const{data:allWg}=await supabase.from('weekly_grosses').select('*')
+                  const{data:allRes}=await supabase.from('results').select('*')
+                  setBulkBusy(false)
+                  const wgMap={};(allWg||[]).forEach(w=>{if(!wgMap[w.film_id])wgMap[w.film_id]={};wgMap[w.film_id][w.week_num]=w.gross_m})
+                  const resMap={};(allRes||[]).forEach(r=>{resMap[r.film_id]=r.actual_m})
+                  const allWkNums=[...new Set((allWg||[]).map(w=>w.week_num))]
+                  const maxWk=Math.max(1,...allWkNums,1)
+                  const wkCount=Math.min(Math.max(maxWk,3),10)
+                  const wkHdr=Array.from({length:wkCount},(_,i)=>`Wk${i+1}`).join(',')
+                  const header=`Title,Launch Date,Phase,Distributor,Genre,Base,Est,RT,Star,Trailer,${wkHdr}`
                   const seasonAnchor=new Date('2026-01-05')
-                  const rows=films.map(f=>{
+                  const rows=allFilms.map(f=>{
                     const launchDate=new Date(seasonAnchor.getTime()+(f.week-1)*7*86400000).toISOString().split('T')[0]
-                    const wks=Array.from({length:Math.min(maxWk,8)},(_,i)=>{
-                      const wk=i+1
-                      if(wk===1)return results[f.id]??''
-                      return weeklyG[f.id]?.[wk]??''
-                    })
-                    return[f.title,launchDate,f.phase,f.dist,f.genre,f.basePrice,f.estM,f.rt??'',f.starActor??'',...wks].map(v=>{const s=String(v);return s.includes(',')||s.includes('"')||s.includes('\n')?`"${s.replace(/"/g,'""')}"`:s}).join(',')
+                    const wks=Array.from({length:wkCount},(_,i)=>{const wk=i+1;return wk===1?(resMap[f.id]??''):(wgMap[f.id]?.[wk]??'')})
+                    return[f.title,launchDate,f.phase,f.dist,f.genre,f.base_price,f.est_m,f.rt??'',f.star_actor??'',f.trailer??'',...wks].map(v=>{const s=String(v);return s.includes(',')||s.includes('"')||s.includes('\n')?`"${s.replace(/"/g,'""')}"`:s}).join(',')
                   })
                   const csv=[header,...rows].join('\n')
                   const blob=new Blob([csv],{type:'text/csv'})
@@ -3124,12 +3154,12 @@ export default function App(){
                   a.download=`boxd-slate-${new Date().toISOString().split('T')[0]}.csv`
                   a.click()
                   URL.revokeObjectURL(url)
-                  notify('💾 CSV downloaded',T.blue)
-                }} variant="outline" color={T.blue} size="sm">Download</Btn>
+                  notify(`💾 ${rows.length} films downloaded`,T.blue)
+                }} variant="outline" color={T.blue} size="sm" disabled={bulkBusy}>{bulkBusy?'…':'Download'}</Btn>
               </div>
             </div>
             <details style={{marginTop:'8px'}}>
-              <summary style={{cursor:'pointer',fontSize:'11px',color:T.textSub}}>Preview as table ({films.length} films)</summary>
+              <summary style={{cursor:'pointer',fontSize:'11px',color:T.textSub}}>Preview as table ({films.length} films in current view)</summary>
               <div style={{maxHeight:'320px',overflow:'auto',marginTop:'8px',background:T.surfaceUp,borderRadius:'8px'}}>
                 <table style={{width:'100%',borderCollapse:'collapse',fontFamily:T.mono,fontSize:'10px'}}>
                   <thead style={{position:'sticky',top:0,background:T.surfaceUp}}>
@@ -3175,7 +3205,7 @@ export default function App(){
             <textarea
               value={bulkFilmsCsv}
               onChange={e=>{setBulkFilmsCsv(e.target.value);setBulkFilmsPreview(null)}}
-              placeholder={`Title\tLaunch Date\tPhase\tDistributor\tGenre\tBase\tEst\tRT\tStar\tWk1\tWk2\tWk3\nAvatar: Fire and Ash\t2026-12-19\t5\t20th Century\tSci-Fi\t65\t250\t90\tSam Worthington\t145\t78\t42\nWicked: For Good\t2026-11-21\t5\tUniversal\tFamily\t50\t180\t85\tCynthia Erivo\t92\t55\t30`}
+              placeholder={`Title\tLaunch Date\tPhase\tDistributor\tGenre\tBase\tEst\tRT\tStar\tTrailer\tWk1\tWk2\tWk3\nAvatar: Fire and Ash\t2026-12-19\t5\t20th Century\tSci-Fi\t65\t250\t90\tSam Worthington\thttps://youtu.be/abc123\t145\t78\t42\nWicked: For Good\t2026-11-21\t5\tUniversal\tFamily\t50\t180\t85\tCynthia Erivo\thttps://youtu.be/xyz456\t92\t55\t30`}
               style={{...S.inp,minHeight:'180px',fontFamily:T.mono,fontSize:'11px',resize:'vertical',whiteSpace:'pre',marginBottom:'10px'}}
             />
             <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
@@ -3211,6 +3241,7 @@ export default function App(){
                 const colEst=findCol('est','estimate','estm')
                 const colRT=findCol('rt','tomatoes','rottentomatoes')
                 const colStar=findCol('star','lead','actor','starring')
+                const colTrailer=findCol('trailer','youtube','yt','video','trailerurl')
                 // Find Wk columns
                 const wkCols=[]
                 hdrLow.forEach((h,i)=>{const m=h.match(/^(?:wk|w|week)(\d+)$/);if(m)wkCols.push({col:i,wk:Number(m[1])})})
@@ -3246,6 +3277,7 @@ export default function App(){
                     base_price:base,est_m:est,
                     rt:colRT>=0&&cols[colRT]&&!isNaN(Number(cols[colRT]))?Number(cols[colRT]):null,
                     star_actor:colStar>=0?cols[colStar]||null:null,
+                    trailer:colTrailer>=0?cols[colTrailer]||null:null,
                   }
                   films_.push(film)
                   // Parse week columns
@@ -3318,7 +3350,7 @@ export default function App(){
                   <table style={{width:'100%',borderCollapse:'collapse',fontFamily:T.mono,fontSize:'10px'}}>
                     <thead style={{position:'sticky',top:0,background:T.surfaceUp}}>
                       <tr>
-                        {['Title','Phase','Wk','Dist','Genre','Base','Est','RT'].map(h=><th key={h} style={{padding:'6px 8px',textAlign:'left',color:T.gold,borderBottom:`1px solid ${T.border}`,fontWeight:700}}>{h}</th>)}
+                        {['Title','Phase','Wk','Dist','Genre','Base','Est','RT','Trailer'].map(h=><th key={h} style={{padding:'6px 8px',textAlign:'left',color:T.gold,borderBottom:`1px solid ${T.border}`,fontWeight:700}}>{h}</th>)}
                       </tr>
                     </thead>
                     <tbody>
@@ -3332,6 +3364,7 @@ export default function App(){
                           <td style={{padding:'5px 8px',color:T.text,textAlign:'right'}}>{f.base_price}</td>
                           <td style={{padding:'5px 8px',color:T.text,textAlign:'right'}}>{f.est_m}</td>
                           <td style={{padding:'5px 8px',color:T.textSub,textAlign:'right'}}>{f.rt??'—'}</td>
+                          <td style={{padding:'5px 8px',color:f.trailer?T.green:T.textDim,textAlign:'center'}}>{f.trailer?'✓':'—'}</td>
                         </tr>
                       ))}
                     </tbody>
