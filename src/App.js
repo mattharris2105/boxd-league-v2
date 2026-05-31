@@ -1558,12 +1558,6 @@ export default function App(){
     await logActivity(profile.id,'chip_analyst',{film_title:ft,prediction:pred,player_name:profile.name},league?.id)
     notify(`🎯 ANALYST on ${ft}`,T.blue);triggerConfetti();setChipModal(null);loadData(league?.id)
   }
-  const resolveChips=async(filmId,actualM)=>{
-    const film=films.find(f=>f.id===filmId);if(!film)return
-    for(const c of allChips){
-      if(c.analyst_film_id===filmId&&!c.analyst_result){const within=c.analyst_prediction&&Math.abs(actualM-c.analyst_prediction)/c.analyst_prediction<=0.1;await supabase.from('chips').update({analyst_result:within?'win':'lose'}).eq('player_id',c.player_id)}
-    }
-  }
   const submitOscarPick=async(filmId)=>{
     if(myOscar)return notify('Already submitted',T.red)
     await supabase.from('oscar_predictions').insert({player_id:profile.id,best_picture_film_id:filmId,league_id:league?.id})
