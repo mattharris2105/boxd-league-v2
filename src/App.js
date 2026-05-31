@@ -24,8 +24,13 @@ const EARLY_BIRD_WEEKS   = 4
 const MAX_ROSTER         = 6
 const DRAFT_MIN          = 4
 const DRAFT_PENALTY      = 5
-const PHASE_BUDGETS      = {1:80,2:150,3:80,4:100,5:120}
-const PHASE_NAMES        = {1:'Dead Zone',2:'Summer Slate',3:'Horror Window',4:'Awards Season',5:'Oscar Sprint'}
+const PHASE_BUDGETS      = {1:80,2:130,3:100,4:120,5:120,6:110}
+const PHASE_NAMES        = {1:'May Opener',2:'Summer Kickoff',3:'Blockbuster Summer',4:'Late Summer',5:'Autumn Slate',6:'Awards & Holiday'}
+const ALL_PHASES         = [1,2,3,4,5,6]
+// Season anchor: Week 1 = 1 May 2026
+const SEASON_ANCHOR      = new Date('2026-05-01')
+function weekToDate(wk){return new Date(SEASON_ANCHOR.getTime()+(wk-1)*7*86400000)}
+function dateLabel(wk){const d=weekToDate(wk);return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})}
 const TMDB_TOKEN         = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI4ZjA0OTBiOGU0OWQxNjFmYmIzMjBmYjg5NGJhOTQ1MyIsIm5iZiI6MTc3NTA4Mjg0Mi4xNzcsInN1YiI6IjY5Y2Q5ZDVhZGE4ZjEwZmZmNTJmNmE3MiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.fxBTZG1YMdHkUUgz55l2TUWGa7YKsDUz8JbuFgr84q0'
 const EMOJI_OPTIONS      = ['🔥','💀','😂','🎯','📈','📉','👑','💸','🍿','😬']
 const PLAYER_COLORS      = ['#E8A020','#3DD68C','#F04F5A','#4A9EF5','#F08030','#B06EF0','#FF5C8A','#74C0FC']
@@ -329,24 +334,15 @@ function calcOpeningPts(film,actualM,isEB=false,isAnalyst=false){
 function calcLegsBonus(actualM,week2Gross){return(actualM!=null&&week2Gross!=null&&(actualM-week2Gross)/actualM<0.3)?25:0}
 function calcWeeklyPts(weekMap){return Object.entries(weekMap).reduce((s,[wk,g])=>s+Number(g)*(Number(wk)>=4?1.1:1),0)}
 
-// PERF: memo wrapper for calcBuzzIndex — caches by film.id+rosters.length+news.length
+// PERF: memo wrapper for calcBuzzIndex — caches by film.id+allPicks.length+rosters.length
 const _buzzCache=new Map()
 function calcBuzzIndex(film,allPicks=[],news=[],rosters=[],totalPlayers=0,currentWeek=null,priceNow=null){
   if(film.hasResult)return null
-  const cacheKey=`${film.id}|${allPicks.length}|${news.length}|${rosters.length}|${totalPlayers}|${currentWeek}`
+  const cacheKey=`${film.id}|${allPicks.length}|${rosters.length}|${totalPlayers}|${currentWeek}`
   if(_buzzCache.has(cacheKey))return _buzzCache.get(cacheKey)
   const cutoff14=Date.now()-14*86400000
   const recentPicks=allPicks.filter(p=>p.film_id===film.id&&new Date(p.picked_at).getTime()>cutoff14).length
   const watchScore=Math.min(100,(recentPicks/Math.max(1,totalPlayers))*150)
-  const newsForFilm=news.filter(n=>n.film_id===film.id)
-  let signalScore=0
-  newsForFilm.forEach(n=>{
-    const ageDays=(Date.now()-new Date(n.signal_date).getTime())/86400000
-    const decay=Math.max(0,1-ageDays/21)
-    const sentBoost=n.sentiment==='positive'?1:n.sentiment==='negative'?-0.5:0.4
-    signalScore+=decay*sentBoost*15
-  })
-  signalScore=Math.max(0,Math.min(100,signalScore))
   let ownerScore=0
   if(totalPlayers>0){
     const owners=rosters.filter(r=>r.film_id===film.id&&r.active).length
@@ -357,7 +353,8 @@ function calcBuzzIndex(film,allPicks=[],news=[],rosters=[],totalPlayers=0,curren
     const weeksOut=film.week-currentWeek
     timeScore=weeksOut<=0?100:weeksOut===1?85:weeksOut<=2?70:weeksOut<=4?55:weeksOut<=6?40:25
   }
-  const composite=watchScore*0.30+signalScore*0.30+ownerScore*0.20+timeScore*0.20
+  // Buzz = 40% watchlist heat, 30% ownership, 30% time pressure
+  const composite=watchScore*0.40+ownerScore*0.30+timeScore*0.30
   const result=Math.round(composite)
   if(_buzzCache.size>500)_buzzCache.clear()
   _buzzCache.set(cacheKey,result)
@@ -371,24 +368,23 @@ function calcPriceDrivers(film,rosters,phase,totalPlayers,currentWeek,filmNews=[
     const pct=owners/totalPlayers
     ownershipMult=pct>=0.7?1.30:pct>=0.55?1.22:pct>=0.40?1.15:pct>=0.25?1.08:pct>=0.10?1.00:pct>=0.02?0.92:0.80
   }
+  // Time-to-release multiplier:
+  // 6+ weeks out: -15% (early discovery discount)
+  // 5 weeks:      -10%
+  // 4 weeks:       -5%
+  // 3 weeks:         0% (fair value)
+  // 2 weeks:        +3%
+  // 1 week:         +7%
+  // Release week:  +10%
+  // Post-release:   -5% (results already in, no more anticipation premium)
   let timeMult=1
   if(currentWeek!=null&&film.week!=null){
     const weeksOut=film.week-currentWeek
-    timeMult=weeksOut>=8?0.78:weeksOut>=6?0.86:weeksOut>=4?0.95:weeksOut>=2?1.00:weeksOut===1?1.10:weeksOut===0?1.18:0.95
+    timeMult=weeksOut>=6?0.85:weeksOut===5?0.90:weeksOut===4?0.95:weeksOut===3?1.00:weeksOut===2?1.03:weeksOut===1?1.07:weeksOut===0?1.10:0.95
   }
   const rtMult=film.rt!=null
     ?(film.rt>=90?1.15:film.rt>=80?1.08:film.rt>=70?1.03:film.rt>=55?1.00:film.rt>=40?0.93:0.85)
     :1.0
-  let signalMult=1
-  if(filmNews.length){
-    const cutoff=Date.now()-14*86400000
-    const recent=filmNews.filter(n=>n.film_id===film.id&&new Date(n.signal_date).getTime()>cutoff&&n.price_impact!=null)
-    if(recent.length){
-      const cumulative=recent.reduce((s,n)=>s+Number(n.price_impact),0)
-      const capped=Math.max(-25,Math.min(25,cumulative))
-      signalMult=1+(capped/100)
-    }
-  }
   let buzzMult=1
   if(allPicks.length&&totalPlayers>0){
     const cutoff=Date.now()-7*86400000
@@ -396,13 +392,13 @@ function calcPriceDrivers(film,rosters,phase,totalPlayers,currentWeek,filmNews=[
     const intensity=recentWatch/Math.max(1,totalPlayers)
     buzzMult=intensity>=0.8?1.06:intensity>=0.5?1.03:intensity>=0.25?1.01:1.00
   }
-  return{ownershipMult,timeMult,rtMult,signalMult,buzzMult}
+  return{ownershipMult,timeMult,rtMult,buzzMult}
 }
 
-function calcDemandMult(film,rosters,phase,totalPlayers,currentWeek=null,filmNews=[],allPicks=[]){
+function calcDemandMult(film,rosters,phase,totalPlayers,currentWeek=null,allPicks=[]){
   if(film.hasResult)return 1
-  const d=calcPriceDrivers(film,rosters,phase,totalPlayers,currentWeek,filmNews,allPicks)
-  const composite=d.ownershipMult*d.timeMult*d.rtMult*d.signalMult*d.buzzMult
+  const d=calcPriceDrivers(film,rosters,phase,totalPlayers,currentWeek,[],allPicks)
+  const composite=d.ownershipMult*d.timeMult*d.rtMult*d.buzzMult
   return Math.round(composite*100)/100
 }
 
@@ -617,55 +613,10 @@ function CreateProfile({session,onCreated,notify}){
   )
 }
 
-// ── PLAYER TASTE CARD GENERATOR (post-launch feature) ────────────────────────
-// Auto-generates a personality description from a player's picks
-function generateTasteCard(playerId,allPicks,films,results,rosters){
-  const myPicks=allPicks.filter(p=>p.user_id===playerId)
-  const myRosters=rosters.filter(r=>r.player_id===playerId)
-  const filmIds=[...new Set([...myPicks.map(p=>p.film_id),...myRosters.map(r=>r.film_id)])]
-  const myFilms=filmIds.map(id=>films.find(f=>f.id===id)).filter(Boolean)
-  if(myFilms.length<3)return null
-  // Genre breakdown
-  const genreCount={}
-  myFilms.forEach(f=>{genreCount[f.genre]=(genreCount[f.genre]||0)+1})
-  const topGenres=Object.entries(genreCount).sort((a,b)=>b[1]-a[1])
-  // Indie vs blockbuster preference (using estM as proxy)
-  const avgEstM=myFilms.reduce((s,f)=>s+f.estM,0)/myFilms.length
-  const sizeLabel=avgEstM<25?'low-budget indie':avgEstM<60?'mid-tier discovery':avgEstM<120?'theatrical event':'tentpole blockbuster'
-  // Distributor loyalty
-  const distCount={}
-  myFilms.forEach(f=>{distCount[f.dist]=(distCount[f.dist]||0)+1})
-  const topDist=Object.entries(distCount).sort((a,b)=>b[1]-a[1])[0]
-  const distLoyalty=topDist&&topDist[1]>=3?topDist[0]:null
-  // Hit rate on resulted films
-  const resulted=myFilms.filter(f=>results[f.id]!=null)
-  const hits=resulted.filter(f=>results[f.id]/f.estM>=1.1).length
-  const hitRate=resulted.length>=2?Math.round(hits/resulted.length*100):null
-  // Early bird tendency
-  const earlyPicks=myRosters.filter(r=>{
-    const f=films.find(fl=>fl.id===r.film_id);if(!f)return false
-    return f.week-(r.acquired_week||r.bought_week||0)>=EARLY_BIRD_WEEKS
-  }).length
-  const earlyPct=myRosters.length?Math.round(earlyPicks/myRosters.length*100):0
-  const styleLabel=earlyPct>=60?'early-mover scout':earlyPct>=30?'timing-aware':'momentum buyer'
-  return{
-    primaryGenre:topGenres[0]?.[0]||null,
-    secondaryGenre:topGenres[1]?.[0]||null,
-    avgScale:sizeLabel,
-    distLoyalty,
-    hitRate,
-    earlyPct,
-    styleLabel,
-    filmCount:myFilms.length,
-    resultedCount:resulted.length,
-  }
-}
-
-function PlayerProfilePage({player,films,rosters,results,weeklyG,allChips,auteurDecl,wwWinners,oscarPreds,allPicks,calcPoints,calcPhasePoints,budgetLeft,cur,isEarlyBird,analystActive,auteurBonus,shortBonus,wwBonus,curPhase_ref,onBack}){
+function PlayerProfilePage({player,films,rosters,results,weeklyG,allChips,oscarPreds,allPicks,calcPoints,calcPhasePoints,budgetLeft,cur,isEarlyBird,analystActive,curPhase_ref,onBack}){
   const[activePhase,setActivePhase]=useState(null)
   const totalPts=calcPoints(player.id)
   const chip=allChips.find(c=>c.player_id===player.id)
-  const auteur=auteurDecl.find(a=>a.player_id===player.id)
   const oscar=oscarPreds.find(o=>o.player_id===player.id)
   const pc=player.color||T.gold
   const allHoldings=rosters.filter(r=>r.player_id===player.id&&films.find(f=>f.id===r.film_id))
@@ -674,7 +625,6 @@ function PlayerProfilePage({player,films,rosters,results,weeklyG,allChips,auteur
   const scoredHoldings=allHoldings.map(h=>{const film=films.find(f=>f.id===h.film_id);if(!film||results[film.id]==null)return null;const pts=calcOpeningPts(film,results[film.id],isEarlyBird(h),analystActive(player.id,film.id));return{h,film,pts}}).filter(Boolean)
   const bestPick=scoredHoldings.length?scoredHoldings.reduce((b,x)=>x.pts>b.pts?x:b):null
   const worstPick=scoredHoldings.length>1?scoredHoldings.reduce((b,x)=>x.pts<b.pts?x:b):null
-  const taste=generateTasteCard(player.id,allPicks||[],films,results,rosters)
 
   const PhaseView=({ph})=>{
     const phHoldings=allHoldings.filter(r=>r.phase===ph)
@@ -688,10 +638,10 @@ function PlayerProfilePage({player,films,rosters,results,weeklyG,allChips,auteur
         {phHoldings.length===0?<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No films this phase</div>:phHoldings.map(h=>{
           const film=films.find(f=>f.id===h.film_id);if(!film)return null
           const actual=results[film.id],gc=GENRE_COL[film.genre]||T.textDim
-          const eb=isEarlyBird(h),aa=analystActive(player.id,film.id),au=auteurBonus(player.id,film.id),sb=shortBonus(player.id,film.id),wb=wwBonus(film.id)
-          let op=calcOpeningPts(film,actual,eb,aa);if(au)op=Math.round(op*1.1)
+          const eb=isEarlyBird(h),aa=analystActive(player.id,film.id)
+          let op=calcOpeningPts(film,actual,eb,aa)
           const wp=Math.round(calcWeeklyPts(weeklyG[film.id]||{})),lb=calcLegsBonus(actual,weeklyG[film.id]?.[2])
-          const filmTotal=op+wp+lb+wb+sb
+          const filmTotal=op+wp+lb
           const pnl_=h.active?(actual!=null?actual-h.bought_price:0):(h.sold_price||0)-h.bought_price
           return(
             <div key={h.id} style={{...S.card,marginBottom:'10px'}}>
@@ -711,8 +661,6 @@ function PlayerProfilePage({player,films,rosters,results,weeklyG,allChips,auteur
                       <div><div style={S.label}>Opening</div><div style={{fontSize:'13px',fontWeight:600,color:T.gold,marginTop:'2px'}}>+{op}</div></div>
                       {wp>0&&<div><div style={S.label}>Weekly</div><div style={{fontSize:'13px',fontWeight:600,color:T.blue,marginTop:'2px'}}>+{wp}</div></div>}
                       {lb>0&&<div><div style={S.label}>Legs 🦵</div><div style={{fontSize:'13px',fontWeight:600,color:T.green,marginTop:'2px'}}>+25</div></div>}
-                      {wb>0&&<div><div style={S.label}>W/E #1 🥇</div><div style={{fontSize:'13px',fontWeight:600,color:T.gold,marginTop:'2px'}}>+15</div></div>}
-                      {sb!==0&&<div><div style={S.label}>Short 📉</div><div style={{fontSize:'13px',fontWeight:600,color:sb>0?T.green:T.red,marginTop:'2px'}}>{sb>0?'+':''}{sb}</div></div>}
                       <div style={{marginLeft:'auto'}}><div style={S.label}>Total</div><div style={{fontSize:'22px',fontWeight:900,color:T.gold,marginTop:'2px'}}>{filmTotal}pts</div></div>
                     </div>
                   </div>}
@@ -726,7 +674,7 @@ function PlayerProfilePage({player,films,rosters,results,weeklyG,allChips,auteur
   }
 
   const Overview=()=>{
-    const phaseScores=[1,2,3,4,5].map(p=>({ph:p,pts:calcPhasePoints(player.id,p)}))
+    const phaseScores=ALL_PHASES.map(p=>({ph:p,pts:calcPhasePoints(player.id,p)}))
     const maxPts=Math.max(1,...phaseScores.map(s=>s.pts))
     return(
       <div style={{animation:'fadeUp .2s ease'}}>
@@ -738,24 +686,6 @@ function PlayerProfilePage({player,films,rosters,results,weeklyG,allChips,auteur
             <div style={{textAlign:'right'}}><div style={{fontSize:'48px',fontWeight:900,color:T.gold,lineHeight:1,letterSpacing:'-2px'}}>{totalPts}</div><div style={S.label}>grand pts</div></div>
           </div>
         </div>
-
-        {/* TASTE CARD — auto-generated personality */}
-        {taste&&(
-          <div style={{background:`linear-gradient(135deg,${pc}10,${T.surface})`,border:`1px solid ${pc}33`,borderRadius:'14px',padding:'16px 18px',marginBottom:'16px'}}>
-            <div style={{...S.label,color:pc,marginBottom:'10px'}}>🎭 Taste Profile</div>
-            <div style={{fontSize:'13px',color:T.text,lineHeight:1.7}}>
-              <strong style={{color:pc}}>{player.name}</strong> is a <strong style={{color:T.gold}}>{taste.styleLabel}</strong>{taste.primaryGenre&&<> who leans <strong style={{color:GENRE_COL[taste.primaryGenre]||T.gold}}>{taste.primaryGenre.toLowerCase()}</strong></>}{taste.secondaryGenre&&<>, with strong picks in <strong style={{color:GENRE_COL[taste.secondaryGenre]||T.gold}}>{taste.secondaryGenre.toLowerCase()}</strong></>}. Tends towards <strong style={{color:T.text}}>{taste.avgScale}</strong> films{taste.distLoyalty&&<>, with <strong style={{color:T.gold}}>{taste.distLoyalty}</strong> as a recurring distributor</>}.
-              {taste.hitRate!=null&&<> Has <strong style={{color:taste.hitRate>=60?T.green:taste.hitRate>=45?T.gold:T.red}}>{taste.hitRate}% overperform rate</strong> across {taste.resultedCount} resulted films.</>}
-            </div>
-            <div style={{display:'flex',gap:'8px',marginTop:'12px',flexWrap:'wrap'}}>
-              {taste.primaryGenre&&<Pill color={GENRE_COL[taste.primaryGenre]||T.gold}>{taste.primaryGenre}</Pill>}
-              {taste.secondaryGenre&&<Pill color={GENRE_COL[taste.secondaryGenre]||T.textSub}>{taste.secondaryGenre}</Pill>}
-              <Pill color={T.orange}>{taste.styleLabel}</Pill>
-              {taste.earlyPct>=50&&<Pill color={T.green}>🐦 {taste.earlyPct}% early</Pill>}
-              {taste.hitRate!=null&&taste.hitRate>=60&&<Pill color={T.green}>🎯 {taste.hitRate}% hit rate</Pill>}
-            </div>
-          </div>
-        )}
 
         <div style={{display:'flex',gap:'8px',marginBottom:'12px'}}>
           <StatBox label="Films ever" value={allHoldings.length}/>
@@ -769,7 +699,7 @@ function PlayerProfilePage({player,films,rosters,results,weeklyG,allChips,auteur
         </div>}
         <div style={S.label}>Phase Breakdown — tap to drill in</div>
         <div style={{display:'flex',flexDirection:'column',gap:'8px',margin:'12px 0 20px'}}>
-          {[1,2,3,4,5].map(ph=>{
+          {ALL_PHASES.map(ph=>{
             const phPts=calcPhasePoints(player.id,ph),phAll=allHoldings.filter(r=>r.phase===ph),phSco=phAll.filter(r=>results[r.film_id]!=null),isCur=ph===curPhase_ref
             return(
               <div key={ph} onClick={()=>setActivePhase(ph)} style={{background:isCur?`${pc}12`:T.surface,border:`1px solid ${isCur?`${pc}55`:T.border}`,borderRadius:'12px',padding:'14px 16px',cursor:'pointer',display:'flex',alignItems:'center',gap:'14px'}}>
@@ -813,25 +743,19 @@ function PlayerProfilePage({player,films,rosters,results,weeklyG,allChips,auteur
 }
 
 // ── SCORE BREAKDOWN MODAL ──────────────────────────────────────────────────────
-function ScoreBreakdownModal({film,holding,results,weeklyGrosses,allChips,auteurDeclarations,weekendWinners,isEarlyBird,onClose}){
+function ScoreBreakdownModal({film,holding,results,weeklyGrosses,allChips,isEarlyBird,onClose}){
   const actual=results[film.id],weeks=weeklyGrosses[film.id]||{},pid=holding.player_id
   const chip=allChips.find(c=>c.player_id===pid)
   const analystWin=chip?.analyst_film_id===film.id&&chip?.analyst_result==='win'
-  const shortResult=chip?.short_film_id===film.id?chip?.short_result:null
   const eb=isEarlyBird(holding)
-  const auteur=auteurDeclarations.find(a=>a.player_id===pid)?.film_ids?.includes(film.id)
-  const isWW=Object.values(weekendWinners).includes(film.id)
   const gc=GENRE_COL[film.genre]||T.textSub
   const baseOpen=actual!=null?calcOpeningPts(film,actual,false,false):0
   const ebBonus=(eb&&actual!=null&&actual/film.estM>=1.1)?Math.round(baseOpen*0.1):0
   const analystBon=analystWin?60:0
-  const auteurBon=auteur?Math.round((baseOpen+ebBonus)*0.1):0
-  const openPts=baseOpen+ebBonus+analystBon+auteurBon
+  const openPts=baseOpen+ebBonus+analystBon
   const wkPts=Math.round(calcWeeklyPts(weeks))
   const lb=calcLegsBonus(actual,weeks[2])
-  const ww=isWW?15:0
-  const sb=shortResult==='win'?100:shortResult==='lose'?-30:0
-  const total=openPts+wkPts+lb+ww+sb
+  const total=openPts+wkPts+lb
   const Row=({label,value,color,sub})=>(
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',padding:'12px 0',borderBottom:`1px solid ${T.border}`}}>
       <div><div style={{fontSize:'13px',color:T.text,lineHeight:1.4}}>{label}</div>{sub&&<div style={{fontSize:'11px',color:T.textSub,marginTop:'3px'}}>{sub}</div>}</div>
@@ -848,9 +772,9 @@ function ScoreBreakdownModal({film,holding,results,weeklyGrosses,allChips,auteur
             <FilmPoster film={film} width={72} height={108} radius={10}/>
             <div style={{flex:1}}>
               <div style={{fontSize:'18px',fontWeight:700,lineHeight:1.3,color:T.text}}>{film.title}</div>
-              <div style={{fontSize:'12px',color:T.textSub,marginTop:'4px'}}>{film.dist} · Week {film.week} · Phase {film.phase}</div>
+              <div style={{fontSize:'12px',color:T.textSub,marginTop:'4px'}}>{film.dist} · {dateLabel(film.week)} · Phase {film.phase}</div>
               {actual!=null&&<div style={{display:'flex',gap:'14px',marginTop:'12px',flexWrap:'wrap'}}>
-                {[['ACTUAL',`$${actual}M`,T.green],['EST',`$${film.estM}M`,T.text],['RATIO',`${(actual/film.estM).toFixed(2)}×`,actual/film.estM>=1?T.green:T.red],...(film.rt!=null?[['RT',`${film.rt}%`,film.rt>=90?T.green:film.rt>=75?T.gold:T.red]]:[])].map(([l,v,c])=>(
+                {[['ACTUAL',`$${actual}M`,T.green],['EST',film.estM?`$${film.estM}M`:'—',T.text],['RATIO',film.estM?`${(actual/film.estM).toFixed(2)}×`:'—',actual/film.estM>=1?T.green:T.red],...(film.rt!=null?[['RT',`${film.rt}%`,film.rt>=90?T.green:film.rt>=75?T.gold:T.red]]:[])].map(([l,v,c])=>(
                   <div key={l}><div style={S.label}>{l}</div><div style={{fontSize:'15px',fontWeight:700,color:c,marginTop:'3px'}}>{v}</div></div>
                 ))}
               </div>}
@@ -861,14 +785,11 @@ function ScoreBreakdownModal({film,holding,results,weeklyGrosses,allChips,auteur
           {actual==null?<div style={{textAlign:'center',color:T.textSub,padding:'32px',fontSize:'13px'}}>No results yet — check back after opening weekend.</div>:<>
             <div style={S.label}>Points Breakdown</div>
             <div style={{marginTop:'8px'}}>
-              <Row label="Base opening pts" value={`+${baseOpen}`} sub={`$${actual}M actual · ${(actual/film.estM).toFixed(2)}× performance`}/>
-              {eb&&ebBonus>0&&<Row label="🐦 Early Bird +10%" value={`+${ebBonus}`} color={T.green}/>}
-              {analystWin&&<Row label="🎯 Analyst bonus" value="+60" color={T.blue}/>}
-              {auteur&&auteurBon>0&&<Row label="🎭 Auteur +10%" value={`+${auteurBon}`} color={T.orange}/>}
+              <Row label="Base opening pts" value={`+${baseOpen}`} sub={`$${actual}M actual · ${film.estM?(actual/film.estM).toFixed(2)+'×':''} performance`}/>
+              {eb&&ebBonus>0&&<Row label="🐦 Early Bird +10%" value={`+${ebBonus}`} color={T.green} sub="Bought 4+ weeks early and film beat estimate"/>}
+              {analystWin&&<Row label="🎯 Analyst bonus" value="+60" color={T.blue} sub="Predicted opening within 10%"/>}
               {wkPts>0&&<Row label="📅 Weekly grosses" value={`+${wkPts}`} color={T.blue} sub="W1–3: 1pt/$1M · W4+: 1.1pts/$1M"/>}
-              {lb>0&&<Row label="🦵 Legs (W2 drop <30%)" value="+25" color={T.green}/>}
-              {isWW&&<Row label="🥇 Weekend #1" value="+15" color={T.gold}/>}
-              {sb!==0&&<Row label={sb>0?'📉 Short WIN':'📉 Short LOSE'} value={sb>0?'+100':'-30'} color={sb>0?T.green:T.red}/>}
+              {lb>0&&<Row label="🦵 Legs (W2 drop <30%)" value="+25" color={T.green} sub="Strong hold — word of mouth is working"/>}
             </div>
             <div style={{marginTop:'20px',background:T.surfaceUp,borderRadius:'14px',padding:'20px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
               <div style={S.label}>Total Points</div>
@@ -926,10 +847,11 @@ function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEven
               <div style={{fontSize:'13px',color:T.textSub}}>{film.dist} · {film.genre} · W{film.week} · Ph{film.phase}</div>
               {film.starActor&&<div style={{fontSize:'13px',color:T.textSub,marginTop:'2px'}}>⭐ {film.starActor}</div>}
               <div style={{display:'flex',gap:'12px',marginTop:'10px',flexWrap:'wrap'}}>
-                <div><div style={S.label}>Est</div><div style={{fontSize:'15px',fontWeight:700,marginTop:'2px'}}>${film.estM}M</div></div>
-                <div><div style={S.label}>IPO</div><div style={{fontSize:'15px',fontWeight:700,marginTop:'2px'}}>${film.basePrice}M</div></div>
+                {film.estM!=null&&<div><div style={S.label}>Est</div><div style={{fontSize:'15px',fontWeight:700,marginTop:'2px'}}>${film.estM}M</div></div>}
+                <div><div style={S.label}>IPO</div><div style={{fontSize:'15px',fontWeight:700,marginTop:'2px',color:film.basePrice!=null?T.gold:T.textDim}}>{film.basePrice!=null?`$${film.basePrice}M`:'🔒 TBC'}</div></div>
                 {actual!=null&&<div><div style={S.label}>Actual</div><div style={{fontSize:'15px',fontWeight:700,color:T.green,marginTop:'2px'}}>${actual}M</div></div>}
                 {film.rt!=null&&<div><div style={S.label}>RT</div><div style={{fontSize:'15px',fontWeight:700,color:film.rt>=75?T.green:T.red,marginTop:'2px'}}>{film.rt}%</div></div>}
+                <div><div style={S.label}>Opens</div><div style={{fontSize:'13px',fontWeight:600,marginTop:'2px',color:T.textSub}}>{dateLabel(film.week)}</div></div>
               </div>
               <div style={{display:'flex',gap:'8px',marginTop:'10px',alignItems:'center',flexWrap:'wrap'}}>
                 {onTogglePick&&<PickButton filmId={film.id} userId={profile.id} allPicks={allPicks} onToggle={onTogglePick} size="sm"/>}
@@ -945,20 +867,25 @@ function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEven
         {tab==='info'&&(
           <div style={{flex:1,overflowY:'auto',padding:'16px 24px 24px'}}>
             {results[film.id]==null&&(()=>{
-              const drivers=calcPriceDrivers(film,rosters,phase,players.length,currentWeek,news,allPicks)
+              // If this film has no IPO price yet (future slate), show locked notice instead
+              if(film.basePrice==null){
+                return(
+                  <div style={{...S.card,marginBottom:'18px',padding:'20px',background:T.surfaceUp,border:`1px solid ${T.border}`,textAlign:'center'}}>
+                    <div style={{fontSize:'28px',marginBottom:'8px'}}>🔒</div>
+                    <div style={{fontSize:'13px',fontWeight:700,color:T.textSub,marginBottom:'4px'}}>Pricing not yet revealed</div>
+                    <div style={{fontSize:'12px',color:T.textDim,lineHeight:1.6}}>This film's IPO price will be revealed when {PHASE_NAMES[film.phase]} (Phase {film.phase}) opens. You can watchlist it now to be notified.</div>
+                  </div>
+                )
+              }
+              const drivers=calcPriceDrivers(film,rosters,phase,players.length,currentWeek,[],allPicks)
               const basePrice=filmValues[film.id]??film.basePrice
-              const composite=drivers.ownershipMult*drivers.timeMult*drivers.rtMult*drivers.signalMult*drivers.buzzMult
+              const composite=drivers.ownershipMult*drivers.timeMult*drivers.rtMult*drivers.buzzMult
               const finalPrice=Math.round(basePrice*composite)
               const buzz=calcBuzzIndex({...film,hasResult:false},allPicks,news,rosters,players.length,currentWeek,finalPrice)
               const rows=[
                 {label:'Ownership',mult:drivers.ownershipMult,desc:`${rosters.filter(r=>r.film_id===film.id&&r.phase===phase&&r.active).length}/${players.length} players hold`},
-                {label:'Time to Release',mult:drivers.timeMult,desc:currentWeek!=null?`${film.week-currentWeek} week${film.week-currentWeek===1?'':'s'} out`:'—'},
+                {label:'Time to Release',mult:drivers.timeMult,desc:currentWeek!=null?`${Math.max(0,film.week-currentWeek)} week${film.week-currentWeek===1?'':'s'} out`:'—'},
                 {label:'Rotten Tomatoes',mult:drivers.rtMult,desc:film.rt!=null?`${film.rt}% critic score`:'No score yet'},
-                {label:'News Signals',mult:drivers.signalMult,desc:(()=>{
-                  const cutoff=Date.now()-14*86400000
-                  const recent=news.filter(n=>n.film_id===film.id&&new Date(n.signal_date).getTime()>cutoff&&n.price_impact!=null)
-                  return recent.length?`${recent.length} signal${recent.length===1?'':'s'} (14d)`:'No recent signals'
-                })()},
                 {label:'Watchlist Heat',mult:drivers.buzzMult,desc:(()=>{
                   const cutoff=Date.now()-7*86400000
                   const recent=allPicks.filter(p=>p.film_id===film.id&&new Date(p.picked_at).getTime()>cutoff).length
@@ -1005,6 +932,21 @@ function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEven
                 </button>
               )})}
             </div>
+            {/* Embedded trailer */}
+            {film.trailer&&film.trailer.includes('youtube.com/embed/')&&(
+              <div style={{marginBottom:'20px'}}>
+                <div style={{...S.label,marginBottom:'8px'}}>Trailer</div>
+                <div style={{position:'relative',paddingBottom:'56.25%',borderRadius:'12px',overflow:'hidden',background:T.surfaceUp}}>
+                  <iframe
+                    src={`${film.trailer}?rel=0&modestbranding=1`}
+                    title={`${film.title} trailer`}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',border:'none',borderRadius:'12px'}}
+                  />
+                </div>
+              </div>
+            )}
             {onShowtimes&&<button onClick={()=>onShowtimes(film)} style={{...S.btn,background:`${T.green}18`,border:`1px solid ${T.green}44`,color:T.green,padding:'10px 18px',fontSize:'13px',width:'100%',marginBottom:'12px',textTransform:'none',letterSpacing:0,borderRadius:'10px'}}>🎟 Find Showtimes Near Me</button>}
             <div style={{display:'flex',gap:'8px',flexWrap:'wrap',marginBottom:'20px'}}>
               {BOOKING_CHAINS.map(chain=>(
@@ -1507,39 +1449,55 @@ export default function App(){
     setPhaseTransitioning(false)
   }
 
-  const filmVal=(film)=>Math.round((filmValues[film.id]??film.basePrice)*calcDemandMult(film,rosters,curPhase(),players.length,cfg.current_week,news,allPicks))
-  const isEarlyBird=(h)=>{const f=films.find(fl=>fl.id===h.film_id);return f?f.week-(h.acquired_week||h.bought_week||0)>=EARLY_BIRD_WEEKS:false}
-  const auteurOn=(pid,fid)=>auteurDecl.find(a=>a.player_id===pid&&a.phase===curPhase())?.film_ids?.includes(fid)||false
-  const shortBonus=(pid,fid)=>{const c=allChips.find(c=>c.player_id===pid);if(!c?.short_film_id||c.short_film_id!==fid)return 0;return c.short_result==='win'?100:c.short_result==='lose'?-30:0}
+  const filmVal=(film)=>{
+    // Future-phase films have no price yet — return null to show locked state
+    if(film.basePrice==null)return null
+    return Math.round((filmValues[film.id]??film.basePrice)*calcDemandMult(film,rosters,curPhase(),players.length,cfg.current_week,allPicks))
+  }
+  const isEarlyBird=(h)=>{
+    const f=films.find(fl=>fl.id===h.film_id)
+    if(!f)return false
+    // Must have bought 4+ weeks before release
+    const qualifies=f.week-(h.acquired_week||h.bought_week||0)>=EARLY_BIRD_WEEKS
+    if(!qualifies)return false
+    // Only 1 Early Bird tag allowed per phase — earliest acquired holding wins
+    const phaseHoldings=rosters.filter(r=>r.player_id===h.player_id&&r.phase===h.phase&&films.find(fl=>fl.id===r.film_id))
+    const qualifying=phaseHoldings.filter(r=>{
+      const rf=films.find(fl=>fl.id===r.film_id)
+      return rf&&rf.week-(r.acquired_week||r.bought_week||0)>=EARLY_BIRD_WEEKS
+    })
+    if(qualifying.length===0)return false
+    // The earliest-acquired qualifying film gets the tag
+    const earliest=qualifying.reduce((a,b)=>(a.acquired_week||a.bought_week||99)<(b.acquired_week||b.bought_week||99)?a:b)
+    return earliest.id===h.id
+  }
   const analystOn=(pid,fid)=>{const c=allChips.find(c=>c.player_id===pid);return c?.analyst_film_id===fid&&c?.analyst_result==='win'}
-  const wwBonus=(fid)=>Object.values(wwWinners).includes(fid)?15:0
   const forecasterPhaseScore=(pid,ph)=>{
     const phFilms=films.filter(f=>f.phase===ph&&results[f.id]!=null);if(!phFilms.length)return null
     const pfc=allForecasts.filter(f=>f.player_id===pid&&phFilms.find(pf=>pf.id===f.film_id));if(!pfc.length)return null
     return pfc.reduce((s,fc)=>s+Math.abs(fc.predicted_m-results[fc.film_id])/results[fc.film_id],0)/pfc.length
   }
-  const forecasterBonus=(pid,ph)=>{const sc=players.map(p=>({id:p.id,s:forecasterPhaseScore(p.id,ph)})).filter(x=>x.s!=null);if(!sc.length)return 0;return sc.reduce((a,b)=>a.s<b.s?a:b).id===pid?15:0}
-  const seasonForecasterBonus=(pid)=>{const ss=players.map(p=>{const sc=[1,2,3,4,5].map(ph=>forecasterPhaseScore(p.id,ph)).filter(s=>s!=null);return{id:p.id,s:sc.length?sc.reduce((a,b)=>a+b,0)/sc.length:null}}).filter(x=>x.s!=null);if(!ss.length)return 0;return ss.reduce((a,b)=>a.s<b.s?a:b).id===pid?50:0}
   const calcPhasePoints=(pid,ph)=>{
     let t=0
     rosters.filter(r=>r.player_id===pid&&r.phase===ph&&films.find(f=>f.id===r.film_id)).forEach(h=>{
       const film=films.find(f=>f.id===h.film_id);if(!film)return
       const actual=results[film.id];if(actual==null)return
       let op=calcOpeningPts(film,actual,isEarlyBird(h),analystOn(pid,film.id))
-      if(auteurOn(pid,film.id))op=Math.round(op*1.1)
-      t+=op+Math.round(calcWeeklyPts(weeklyG[film.id]||{}))+calcLegsBonus(actual,weeklyG[film.id]?.[2])+wwBonus(film.id)+shortBonus(pid,film.id)
+      t+=op+Math.round(calcWeeklyPts(weeklyG[film.id]||{}))+calcLegsBonus(actual,weeklyG[film.id]?.[2])
     })
     return t
   }
-  const calcPoints=(pid)=>{let t=[1,2,3,4,5].reduce((s,ph)=>s+calcPhasePoints(pid,ph),0);if(oscarPreds.find(o=>o.player_id===pid)?.correct)t+=75;return t}
+  const calcPoints=(pid)=>ALL_PHASES.reduce((s,ph)=>s+calcPhasePoints(pid,ph),0)
 
   const buyFilm=async(film)=>{
     if(!profile)return notify('Create a profile first',T.red)
     const ph=curPhase()
     if(film.phase!==ph){haptic.warn();return notify(`Film is Phase ${film.phase} — you are in Phase ${ph}`,T.red)}
+    if(film.basePrice==null){haptic.warn();return notify('Film pricing not yet revealed — wait for the slate to open',T.red)}
     if(rosters.find(r=>r.player_id===profile.id&&r.film_id===film.id&&r.active)){haptic.warn();return notify('Already in your roster',T.red)}
     if(rosters.filter(r=>r.player_id===profile.id&&r.phase===ph&&r.active&&films.find(f=>f.id===r.film_id)).length>=MAX_ROSTER){haptic.warn();return notify(`Phase roster full (${MAX_ROSTER} max)`,T.red)}
     const price=filmVal(film),left=budgetLeft(profile.id)
+    if(price==null){haptic.warn();return notify('Film pricing not yet revealed',T.red)}
     if(price>left){haptic.warn();return notify(`Not enough budget — need $${price}M, have $${left}M`,T.red)}
     const{error}=await supabase.from('rosters').insert({player_id:profile.id,film_id:film.id,bought_price:price,bought_week:cfg.current_week,acquired_week:cfg.current_week,phase:ph,active:true,league_id:league?.id})
     if(error){haptic.warn();return notify(error.message,T.red)}
@@ -1550,7 +1508,8 @@ export default function App(){
   }
   const sellFilm=async(film)=>{
     const h=rosters.find(r=>r.player_id===profile.id&&r.film_id===film.id&&r.active);if(!h)return
-    const win=isWindow(),val=filmVal(film),fee=win?0:cfg.tx_fee,proceeds=Math.max(0,val-fee)
+    const val=filmVal(film)??film.basePrice??0
+    const win=isWindow(),fee=win?0:cfg.tx_fee,proceeds=Math.max(0,val-fee)
     await supabase.from('rosters').update({active:false,sold_price:proceeds,sold_week:cfg.current_week}).eq('id',h.id)
     await supabase.from('transactions').insert([{player_id:profile.id,film_id:film.id,type:'sell',price:proceeds,week:cfg.current_week},...(fee>0?[{player_id:profile.id,film_id:film.id,type:'fee',price:fee,week:cfg.current_week}]:[])])
     await logActivity(profile.id,'sell',{film_id:film.id,film_title:film.title,proceeds,player_name:profile.name},league?.id)
@@ -1577,20 +1536,17 @@ export default function App(){
     if(chips?.recut_used)return notify('Recut already used',T.red)
     if(!confirm('Activate THE RECUT? Your roster clears — zero fees.'))return
     for(const h of rosters.filter(r=>r.player_id===profile.id&&r.active))
-      await supabase.from('rosters').update({active:false,sold_price:filmVal(films.find(f=>f.id===h.film_id)||{}),sold_week:cfg.current_week}).eq('id',h.id)
+      await supabase.from('rosters').update({active:false,sold_price:filmVal(films.find(f=>f.id===h.film_id)||{})??(films.find(f=>f.id===h.film_id)?.basePrice??0),sold_week:cfg.current_week}).eq('id',h.id)
     if(chips)await supabase.from('chips').update({recut_used:true}).eq('player_id',profile.id).eq('league_id',league?.id)
     else await supabase.from('chips').insert({player_id:profile.id,recut_used:true,league_id:league?.id})
     await logActivity(profile.id,'chip_recut',{player_name:profile.name},league?.id)
     notify('🎬 RECUT activated',T.purple);triggerConfetti();setChipModal(null);loadData(league?.id)
   }
-  const activateShort=async(filmId,pred)=>{
-    if(chips?.short_film_id)return notify('Short already used',T.red)
-    if(allChips.find(c=>c.short_film_id===filmId))return notify('Film already shorted',T.red)
-    if(chips)await supabase.from('chips').update({short_film_id:filmId,short_phase:curPhase(),short_prediction:pred}).eq('player_id',profile.id).eq('league_id',league?.id)
-    else await supabase.from('chips').insert({player_id:profile.id,short_film_id:filmId,short_phase:curPhase(),short_prediction:pred,league_id:league?.id})
-    const ft=films.find(f=>f.id===filmId)?.title
-    await logActivity(profile.id,'chip_short',{film_title:ft,prediction:pred,player_name:profile.name},league?.id)
-    notify(`📉 SHORT on ${ft}`,T.red);triggerConfetti();setChipModal(null);loadData(league?.id)
+  const resolveChips=async(filmId,actualM)=>{
+    const film=films.find(f=>f.id===filmId);if(!film)return
+    for(const c of allChips){
+      if(c.analyst_film_id===filmId&&!c.analyst_result){const within=c.analyst_prediction&&Math.abs(actualM-c.analyst_prediction)/c.analyst_prediction<=0.1;await supabase.from('chips').update({analyst_result:within?'win':'lose'}).eq('player_id',c.player_id)}
+    }
   }
   const activateAnalyst=async(filmId,pred)=>{
     if(chips?.analyst_film_id)return notify('Analyst already used',T.red)
@@ -1605,7 +1561,6 @@ export default function App(){
   const resolveChips=async(filmId,actualM)=>{
     const film=films.find(f=>f.id===filmId);if(!film)return
     for(const c of allChips){
-      if(c.short_film_id===filmId&&!c.short_result)await supabase.from('chips').update({short_result:(actualM/film.estM)<0.6?'win':'lose'}).eq('player_id',c.player_id)
       if(c.analyst_film_id===filmId&&!c.analyst_result){const within=c.analyst_prediction&&Math.abs(actualM-c.analyst_prediction)/c.analyst_prediction<=0.1;await supabase.from('chips').update({analyst_result:within?'win':'lose'}).eq('player_id',c.player_id)}
     }
   }
@@ -1614,15 +1569,6 @@ export default function App(){
     await supabase.from('oscar_predictions').insert({player_id:profile.id,best_picture_film_id:filmId,league_id:league?.id})
     await logActivity(profile.id,'oscar',{film_title:films.find(f=>f.id===filmId)?.title,player_name:profile.name},league?.id)
     notify(`🏆 Locked — ${films.find(f=>f.id===filmId)?.title}`,T.gold);loadData(league?.id)
-  }
-  const submitAuteur=async(actor,filmIds)=>{
-    if(filmIds.length<2)return notify('Select at least 2 films',T.red)
-    const ph=curPhase(),ex=auteurDecl.find(a=>a.player_id===profile.id&&a.phase===ph)
-    if(ex)await supabase.from('auteur_declarations').update({star_actor:actor,film_ids:filmIds}).eq('id',ex.id)
-    else await supabase.from('auteur_declarations').insert({player_id:profile.id,phase:ph,star_actor:actor,film_ids:filmIds,league_id:league?.id})
-    await logActivity(profile.id,'auteur',{actor,film_count:filmIds.length,player_name:profile.name},league?.id)
-    notify(`🎭 Auteur — ${actor} · ${filmIds.length} films`,T.orange)
-    setChipModal(null);setAuteurActor('');setAuteurFilms([]);loadData(league?.id)
   }
   const saveForecast=async(filmId,predicted)=>{
     const ex=allForecasts.find(f=>f.player_id===profile.id&&f.film_id===filmId)
@@ -1708,11 +1654,8 @@ export default function App(){
     {id:'community',icon:'👥',label:'Community'},
     {id:'feed',icon:'📡',label:'Feed'},
     ...(hasNews?[{id:'signals',icon:'⚡',label:'Signals'}]:[]),
-    ...(hasFridayForecasts||hasResults?[{id:'friday',icon:'🎯',label:'Weekend Forecast'}]:[]),
     ...(polls.length>0?[{id:'polls',icon:'🗳',label:'Polls'}]:[]),
     {id:'intent',icon:'👁️',label:'Watchlist'},
-    {id:'trades',icon:'🔄',label:'Trades'},
-    ...(sealedWindowOpen?[{id:'sealed',icon:'🔒',label:'Sealed Bid'}]:[]),
     {id:'forecaster',icon:'📊',label:'Forecaster'},
     {id:'oscar',icon:'🏆',label:'Oscars'},
     {id:'results',icon:'📋',label:'Results'},
@@ -1743,7 +1686,6 @@ export default function App(){
                     <span style={{color:col,marginRight:'8px'}}>●</span>
                     <span style={{color:T.text,fontSize:'13px',fontWeight:500}}>{n.headline}</span>
                     {film&&<span style={{color:T.textDim,fontSize:'11px',marginLeft:'8px'}}>· {film.title}</span>}
-                    {n.price_impact!=null&&Math.abs(n.price_impact)>=2&&<span style={{color:col,fontSize:'11px',marginLeft:'8px',fontWeight:700,fontFamily:T.mono}}>{n.price_impact>0?'▲':'▼'}{Math.abs(n.price_impact).toFixed(0)}%</span>}
                   </span>
                 )
               })}
@@ -1818,32 +1760,17 @@ export default function App(){
 
         {/* THE PULSE — daily check-in · hidden until player has bought first film */}
         {hasEverBought&&(()=>{
-          const cutoff=Date.now()-48*3600000
-          const movers=films.filter(f=>results[f.id]==null).map(f=>{
-            const recent=news.filter(n=>n.film_id===f.id&&new Date(n.signal_date).getTime()>cutoff&&n.price_impact!=null)
-            const move=recent.reduce((s,n)=>s+Number(n.price_impact),0)
-            return{f,move}
-          }).filter(x=>Math.abs(x.move)>=3).sort((a,b)=>Math.abs(b.move)-Math.abs(a.move)).slice(0,3)
           const openingWeek=films.filter(f=>f.week===cfg.current_week&&results[f.id]==null).slice(0,3)
           const heating=films.filter(f=>results[f.id]==null).map(f=>({f,buzz:calcBuzzIndex({...f,hasResult:false},allPicks,news,rosters,players.length,cfg.current_week)||0})).sort((a,b)=>b.buzz-a.buzz).slice(0,3)
-          if(movers.length===0&&openingWeek.length===0&&heating.length===0)return null
+          if(openingWeek.length===0&&heating.length===0)return null
           return(
             <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:'10px',marginBottom:'14px'}}>
-              {movers.length>0&&<div style={{...S.card,padding:'12px'}}>
-                <div style={{...S.label,marginBottom:'8px',color:T.gold}}>📊 Movers (48h)</div>
-                {movers.map(({f,move})=>(
-                  <div key={f.id} onClick={()=>setFilmDetail(f)} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',cursor:'pointer'}}>
-                    <span style={{fontSize:'12px',color:T.text,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:'70%'}}>{f.title.split(':')[0]}</span>
-                    <span style={{fontSize:'12px',color:move>0?T.green:T.red,fontFamily:T.mono,fontWeight:700}}>{move>0?'▲':'▼'}{Math.abs(move).toFixed(0)}%</span>
-                  </div>
-                ))}
-              </div>}
               {openingWeek.length>0&&<div style={{...S.card,padding:'12px'}}>
                 <div style={{...S.label,marginBottom:'8px',color:T.green}}>🎬 Opening This Week</div>
                 {openingWeek.map(f=>(
                   <div key={f.id} onClick={()=>setFilmDetail(f)} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',cursor:'pointer'}}>
                     <span style={{fontSize:'12px',color:T.text,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:'70%'}}>{f.title.split(':')[0]}</span>
-                    <span style={{fontSize:'11px',color:T.textSub,fontFamily:T.mono}}>${f.estM}M</span>
+                    <span style={{fontSize:'11px',color:T.textSub,fontFamily:T.mono}}>{f.estM?`$${f.estM}M`:'—'}</span>
                   </div>
                 ))}
               </div>}
@@ -1900,19 +1827,11 @@ export default function App(){
                   <div>
                     <div style={{fontSize:'13px',fontWeight:600,lineHeight:1.3,color:T.text,display:'flex',alignItems:'center',gap:'6px'}}>
                       <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{film.title}</span>
-                      {/* Price change indicator — based on news signals in last 48h */}
-                      {actual==null&&(()=>{
-                        const cutoff=Date.now()-48*3600000
-                        const recent=news.filter(n=>n.film_id===film.id&&new Date(n.signal_date).getTime()>cutoff&&n.price_impact!=null)
-                        if(!recent.length)return null
-                        const move=recent.reduce((s,n)=>s+Number(n.price_impact),0)
-                        if(Math.abs(move)<2)return null
-                        return <span style={{fontSize:'10px',fontWeight:700,color:move>0?T.green:T.red,fontFamily:T.mono,flexShrink:0}}>{move>0?'▲':'▼'}{Math.abs(move).toFixed(0)}%</span>
-                      })()}
                     </div>
                     <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px',display:'flex',gap:'6px',alignItems:'center',flexWrap:'wrap'}}>
                       <span>{film.dist}</span>
                       {film.rt!=null&&<><span style={{color:T.textDim}}>·</span><span style={{color:film.rt>=75?T.green:film.rt>=55?T.gold:T.red}}>RT {film.rt}%</span></>}
+                      <span style={{color:T.textDim}}>·</span><span style={{color:T.textDim}}>{dateLabel(film.week)}</span>
                     </div>
                   </div>
                   {/* Buzz Index · limited to first 30 cards for perf */}
@@ -1932,9 +1851,13 @@ export default function App(){
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:'8px'}}>
                     <div>
                       <div style={S.label}>Price</div>
-                      <div style={{fontSize:'15px',fontWeight:800,color:T.gold,fontFamily:T.mono}}>${val}M</div>
+                      {val!=null
+                        ?<div style={{fontSize:'15px',fontWeight:800,color:T.gold,fontFamily:T.mono}}>${val}M</div>
+                        :<div style={{fontSize:'13px',fontWeight:700,color:T.textDim}}>🔒 TBC</div>
+                      }
                     </div>
-                    {!owned&&actual==null&&<Btn onClick={e=>{e.stopPropagation();buyFilm(film)}} color={T.gold} size="sm">Buy</Btn>}
+                    {!owned&&actual==null&&val!=null&&<Btn onClick={e=>{e.stopPropagation();buyFilm(film)}} color={T.gold} size="sm">Buy</Btn>}
+                    {!owned&&actual==null&&val==null&&<div style={{fontSize:'10px',color:T.textDim,textAlign:'right',lineHeight:1.4}}>Slate<br/>locked</div>}
                     {owned&&actual==null&&<Btn onClick={e=>{e.stopPropagation();sellFilm(film)}} color={T.red} textColor="#fff" size="sm">Sell</Btn>}
                   </div>
                 </div>
@@ -1960,25 +1883,26 @@ export default function App(){
         const actual=results[film.id]
         const eb=isEarlyBird(h)
         let op=actual!=null?calcOpeningPts(film,actual,eb,analystOn(profile.id,film.id)):0
-        if(auteurOn(profile.id,film.id))op=Math.round(op*1.1)
         const wp=Math.round(calcWeeklyPts(weeklyG[film.id]||{}))
         const lb=calcLegsBonus(actual,weeklyG[film.id]?.[2])
-        const wb=wwBonus(film.id),sb=shortBonus(profile.id,film.id)
-        const total=op+wp+lb+wb+sb
+        const total=op+wp+lb
         return(
           <div key={h.id} className="hoverable" onClick={()=>setScoreModal({film,holding:h})} style={{...S.card,marginBottom:'10px',cursor:'pointer'}}>
             <div style={{display:'flex',gap:'12px'}}>
               <FilmPoster film={film} width={50} height={75} radius={7}/>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:'14px',fontWeight:700,marginBottom:'4px'}}>{film.title}</div>
-                <div style={{fontSize:'11px',color:T.textSub,marginBottom:'8px'}}>{film.dist} · W{film.week} · Bought ${h.bought_price}M{eb&&' · 🐦 EB'}</div>
+                <div style={{fontSize:'11px',color:T.textSub,marginBottom:'8px'}}>{film.dist} · {dateLabel(film.week)} · Bought ${h.bought_price}M{eb&&' · 🐦 EB'}</div>
                 {actual!=null?<div style={{display:'flex',gap:'10px',alignItems:'baseline'}}>
                   <span style={{fontSize:'10px',color:T.textDim,letterSpacing:'1.5px'}}>SCORED</span>
                   <span style={{fontSize:'20px',fontWeight:900,color:T.gold,fontFamily:T.mono}}>{total}pts</span>
                 </div>:<div style={{display:'flex',gap:'10px',alignItems:'baseline'}}>
                   <span style={{fontSize:'10px',color:T.textDim,letterSpacing:'1.5px'}}>VALUE</span>
-                  <span style={{fontSize:'18px',fontWeight:800,color:T.gold,fontFamily:T.mono}}>${filmVal(film)}M</span>
-                  <span style={{fontSize:'11px',color:filmVal(film)>h.bought_price?T.green:filmVal(film)<h.bought_price?T.red:T.textSub,fontFamily:T.mono}}>{filmVal(film)>h.bought_price?'+':''}{filmVal(film)-h.bought_price}M</span>
+                  {filmVal(film)!=null
+                    ?<><span style={{fontSize:'18px',fontWeight:800,color:T.gold,fontFamily:T.mono}}>${filmVal(film)}M</span>
+                    <span style={{fontSize:'11px',color:filmVal(film)>h.bought_price?T.green:filmVal(film)<h.bought_price?T.red:T.textSub,fontFamily:T.mono}}>{filmVal(film)>h.bought_price?'+':''}{filmVal(film)-h.bought_price}M</span></>
+                    :<span style={{fontSize:'15px',color:T.textDim}}>—</span>
+                  }
                 </div>}
               </div>
               {actual==null&&<Btn onClick={e=>{e.stopPropagation();sellFilm(film)}} color={T.red} textColor="#fff" size="sm" sx={{alignSelf:'center'}}>Sell</Btn>}
@@ -2038,12 +1962,12 @@ export default function App(){
           <Section id="basics" icon="🎬" color={T.gold} title="What is BOXD?" summary="The core game in 30 seconds.">
             BOXD is fantasy box office. You build a roster of films you think will outperform their estimates, and you score points when real-world weekend grosses come in.
             <br/><br/>
-            The season runs in <Highlight>5 phases</Highlight>. Each phase covers a stretch of weeks ({PHASE_NAMES[1]}, {PHASE_NAMES[2]}, {PHASE_NAMES[3]}, {PHASE_NAMES[4]}, {PHASE_NAMES[5]}). You get a fresh budget per phase and pick up to <Highlight>{MAX_ROSTER} films</Highlight> per phase.
+            The season runs in <Highlight>6 phases</Highlight>. Each phase covers a stretch of weeks ({PHASE_NAMES[1]}, {PHASE_NAMES[2]}, {PHASE_NAMES[3]}, {PHASE_NAMES[4]}, {PHASE_NAMES[5]}, {PHASE_NAMES[6]}). You get a fresh budget per phase and pick up to <Highlight>{MAX_ROSTER} films</Highlight> per phase.
             <br/><br/>
             Results land <Highlight color={T.green}>every Monday</Highlight>. Films that beat their estimate score big. Films that flop cost you. Highest total points at the end wins.
           </Section>
           <Section id="phases" icon="📅" color={T.gold} title="Phases & the season clock" summary="How time moves and when budgets reset.">
-            The season has 5 phases. The commissioner advances phases manually. When a phase ends:
+            The season has 6 phases. The commissioner advances phases manually. When a phase ends:
             <br/>• Any unspent budget gets <Highlight color={T.green}>banked</Highlight> and added to next phase's budget
             <br/>• Your roster from that phase stays locked in (films keep scoring as their weeks land)
             <br/>• You get a new roster slot allowance for the new phase
@@ -2063,11 +1987,10 @@ export default function App(){
 
         <Group title="💰 Buying & Selling">
           <Section id="market" icon="🎬" color={T.blue} title="The Market" summary="How prices work, and why they move.">
-            Every film has a base price (its IPO). The actual price you pay is the IPO multiplied by 5 live drivers:
+            Every film has a base price (its IPO). The actual price you pay is the IPO multiplied by 4 live drivers:
             <br/>• <Highlight>Ownership</Highlight> — more players holding it = higher price (up to +30%)
-            <br/>• <Highlight>Time to release</Highlight> — closer to opening = higher price (8wks out = −22%, release week = +18%)
+            <br/>• <Highlight>Time to release</Highlight> — 6+ weeks out = −15%, graduates to +10% at release week
             <br/>• <Highlight>RT Score</Highlight> — better critics = higher price (≥90% = +15%)
-            <br/>• <Highlight color={T.red}>News Signals</Highlight> — cumulative ±25% over 14 days
             <br/>• <Highlight>Watchlist Heat</Highlight> — how many players added it this week
             <br/><br/>
             Tap any film and open the <Highlight>Info</Highlight> tab to see exactly which driver is pushing the price up or down right now.
@@ -2079,7 +2002,9 @@ export default function App(){
             <br/><br/>
             Buying <Highlight color={T.green}>early</Highlight> ({EARLY_BIRD_WEEKS}+ weeks before release) earns you the 🐦 <Highlight color={T.green}>Early Bird</Highlight> tag — +10% on opening points if the film beats estimate by 10%+.
             <br/><br/>
-            <Highlight>Pricing IS the conviction layer.</Highlight> Buying a film at $20M when later buyers pay $35M means you spotted it first — and you also have more budget left.
+            <Highlight color={T.red}>Only one Early Bird per phase.</Highlight> If you qualify on multiple films, the earliest acquired one gets the tag. Buy first, buy cheap, and pick the right film.
+            <br/><br/>
+            <Highlight>Pricing IS the conviction layer.</Highlight> Buying a film 6 weeks out means you pay 15% less than someone who buys at release week.
           </Section>
           <Section id="selling" icon="📉" color={T.red} title="Selling a film" summary="When and why to drop a film from your roster.">
             Click <Highlight>Sell</Highlight> on any active film. You get current market value minus a <Highlight color={T.red}>$5M transaction fee</Highlight> (zero fee during phase free-trade windows).
@@ -2130,15 +2055,10 @@ export default function App(){
             This is why "small films with great reviews" can sometimes outscore blockbusters — they hold their audience week after week.
           </Section>
           <Section id="bonuses" icon="🏆" color={T.gold} title="All the bonuses" summary="Every modifier in the scoring engine.">
-            On top of opening + weekly, you can stack these:
-            <br/>• 🐦 <Highlight color={T.green}>Early Bird +10%</Highlight> if you bought {EARLY_BIRD_WEEKS}+ weeks before release AND the film beats estimate by 10%+
-            <br/>• 🥇 <Highlight color={T.gold}>Weekend #1 +15pts</Highlight> flat if your film topped the box office that weekend
-            <br/>• 🎯 <Highlight color={T.blue}>Analyst +60pts</Highlight> if you used the Analyst chip and your forecast was within 10%
-            <br/>• 🎭 <Highlight color={T.orange}>Auteur +10%</Highlight> on opening points for every film by your declared actor
-            <br/>• 📉 <Highlight color={T.red}>Short +100pts / −30pts</Highlight> depending on outcome
-            <br/>• 📊 <Highlight color={T.blue}>Forecaster +15pts</Highlight> for most accurate predictions in a phase
-            <br/>• 🌟 <Highlight color={T.gold}>Season Forecaster +50pts</Highlight> for most accurate across the whole season
-            <br/>• 🏆 <Highlight color={T.gold}>Oscar Best Picture +75pts</Highlight> if your pick wins
+            On top of opening + weekly + legs, you can earn these:
+            <br/>• 🐦 <Highlight color={T.green}>Early Bird +10%</Highlight> on opening pts if you bought {EARLY_BIRD_WEEKS}+ weeks before release AND the film beats estimate by 10%+. One Early Bird per phase — earliest qualifying pick gets it.
+            <br/>• 🎯 <Highlight color={T.blue}>Analyst +60pts</Highlight> flat if you used your Analyst chip and your opening prediction was within 10%
+            <br/>• 📊 <Highlight color={T.blue}>Forecaster bonus</Highlight> for most accurate predictions (see Forecaster)
           </Section>
           <Section id="reading" icon="🔍" color={T.gold} title="Reading the score breakdown" summary="Tap any of your scored films for the full math.">
             Open <Highlight>Roster</Highlight>, tap any scored film. The <Highlight>Score Breakdown</Highlight> modal shows every line: base opening, EB bonus, RT effect, weekly grosses, legs, all chip bonuses, total.
@@ -2147,25 +2067,13 @@ export default function App(){
           </Section>
         </Group>
 
-        <Group title="⚡ Chips — Your 4 One-Time Power Moves">
+        <Group title="⚡ Chips — Your 2 One-Time Power Moves">
           <Section id="recut" icon="🎬" color={T.purple} title="THE RECUT" summary="Nuke your roster, zero fees. Save for catastrophe.">
-            Clears your entire active roster — every film gets sold at current market value with <Highlight color={T.green}>zero transaction fees</Highlight>.
+            Clears your entire active roster — every film sold at current market value with <Highlight color={T.green}>zero transaction fees</Highlight>.
             <br/><br/>
-            Use it when:
-            <br/>• Your roster is full of films you no longer believe in
-            <br/>• A wave of bad news has tanked multiple films at once
-            <br/>• You want to reset before a major phase pivot
+            Use it when your roster is full of films you no longer believe in, or when you want to reset completely before going into a new stretch of releases.
             <br/><br/>
             <Highlight color={T.red}>One-time use across the entire season.</Highlight> Don't waste it on a single bad pick.
-          </Section>
-          <Section id="short" icon="📉" color={T.red} title="SHORT" summary="Bet against a film. Big upside if it bombs.">
-            Pick any film you <Highlight>don't own</Highlight>. If it underperforms by 40%+ (actual &lt; 60% of estimate), you score <Highlight color={T.green}>+100pts</Highlight>.
-            <br/><br/>
-            If it hits estimate or overperforms, you lose <Highlight color={T.red}>30pts</Highlight>.
-            <br/><br/>
-            Use when you've spotted a film with weak tracking but lots of marketing hype. Tentpoles with bad early reviews are classic short targets.
-            <br/><br/>
-            Each film can only be shorted by <Highlight>one player</Highlight> per season — first come, first served.
           </Section>
           <Section id="analyst" icon="🎯" color={T.blue} title="ANALYST" summary="Predict opening number. Within 10% = +60pts.">
             Pick a film you <Highlight>own</Highlight>, then commit to a specific opening number ($M). If the actual opening lands within 10% of your prediction, you get a flat <Highlight color={T.blue}>+60pts bonus</Highlight> on top of normal scoring.
@@ -2174,52 +2082,20 @@ export default function App(){
             <br/><br/>
             Best used on films you've researched obsessively — sequels with predictable patterns, films with strong pre-sales data.
           </Section>
-          <Section id="auteur" icon="🎭" color={T.orange} title="AUTEUR" summary="Declare an actor, score +10% on all their films this phase.">
-            At the start of a phase, declare a star actor + <Highlight>2 or more</Highlight> of their films releasing that phase. Every one of those films you own gets a permanent <Highlight color={T.orange}>+10% opening points multiplier</Highlight>.
-            <br/><br/>
-            Best phases for Auteur: ones with multiple films from one heavy-hitter (Tom Cruise summer, Scorsese awards season).
-            <br/><br/>
-            You can only declare <Highlight>one Auteur per phase</Highlight>, and you must lock it in before the films open.
-          </Section>
         </Group>
 
         <Group title="🎮 Side Games & Tools">
-          <Section id="forecaster" icon="📊" color={T.blue} title="The Forecaster" summary="Predict opening numbers for every film. Most accurate wins.">
-            Open <Highlight>Forecaster</Highlight>. For every upcoming film, type your predicted opening ($M). The system tracks your accuracy across all films.
+          <Section id="forecaster" icon="📊" color={T.blue} title="The Forecaster" summary="Predict opening numbers for every film. Track your accuracy.">
+            Open <Highlight>Forecaster</Highlight>. For every upcoming film, type your predicted opening ($M). The system tracks your accuracy across all predictions and shows you how you compare to the rest of the league.
             <br/><br/>
-            <Highlight color={T.blue}>+15pts</Highlight> per phase for the most accurate forecaster (across all their predictions, not just one).
-            <br/><br/>
-            <Highlight color={T.gold}>+50pts</Highlight> at season end for the most accurate forecaster across the entire season.
-            <br/><br/>
-            Even if you don't own a film, forecasting it builds your accuracy score. Lazy players who only forecast their own roster have a harder time winning this.
+            Purely for fun and bragging rights — no points impact. But getting good at forecasting makes you a better buyer.
           </Section>
-          <Section id="weekend" icon="🎯" color={T.gold} title="Weekend Forecast" summary="Weekly top-3 prediction game. Locks Thursday.">
-            Every week, predict the top 3 grossing films of that weekend:
-            <br/>• 🥇 1st place correct = <Highlight color={T.gold}>+30pts</Highlight>
-            <br/>• 🥈 2nd place correct = <Highlight color={T.gold}>+20pts</Highlight>
-            <br/>• 🥉 3rd place correct = <Highlight color={T.gold}>+10pts</Highlight>
-            <br/>• <Highlight color={T.green}>+5pts</Highlight> if any of your 3 picks lands anywhere in actual top 3
+          <Section id="oscar" icon="🏆" color={T.gold} title="Oscar Best Picture pick" summary="One pick all season. Purely for fun.">
+            From the Oscars page, pick one film as your Best Picture prediction. Lock it in once and see how it plays out at season end.
             <br/><br/>
-            <Highlight color={T.red}>Locks Thursday at midnight</Highlight> — no last-minute switches once tracking is public.
-          </Section>
-          <Section id="oscar" icon="🏆" color={T.gold} title="Oscar Best Picture pick" summary="One pick all season. +75pts if you nail it.">
-            From the Oscars page, pick one film as your Best Picture prediction. Lock it in early for credibility.
-            <br/><br/>
-            Once the Academy announces the winner, the commissioner marks it. If your pick wins, you get a flat <Highlight color={T.gold}>+75pts</Highlight> added to your total.
+            <Highlight>No points awarded</Highlight> — this is a social call. Bragging rights only.
             <br/><br/>
             <Highlight>One pick per player, no changes</Highlight>. Choose carefully.
-          </Section>
-          <Section id="sealed" icon="🔒" color={T.blue} title="Sealed-bid auctions" summary="Blind bidding for hot films. Highest wins.">
-            Commissioner opens a sealed-bid window for a specific high-demand film. Every player submits a <Highlight>blind bid</Highlight>. Highest bid wins the film at that price — second-highest bid loses their money? No: only the winner pays.
-            <br/><br/>
-            Used sparingly — typically for franchise tentpoles where everyone wants in. Adds drama and rewards conviction.
-          </Section>
-          <Section id="signals" icon="📡" color={T.red} title="News Signals" summary="How real news moves prices in the league.">
-            The commissioner publishes news as <Highlight>signals</Highlight>. Each signal has a sentiment (positive/negative/neutral) and a price impact (%).
-            <br/><br/>
-            Signal impact decays over <Highlight>14 days</Highlight> and is capped at ±25% cumulative per film. A flurry of positive trailer drops and good RT scores can push a price up 20%+ in days. Bad reviews can crater a film overnight.
-            <br/><br/>
-            Watch the <Highlight color={T.red}>Signals page</Highlight> daily during your phase. The news ticker at the top of Market shows the most recent ones.
           </Section>
           <Section id="watchlist" icon="👁" color={T.blue} title="Watchlist" summary="Track films without committing budget.">
             Hit the 👁 button on any film to add it to your watchlist. Other players see your watchlist count, which contributes to that film's <Highlight color={T.red}>Heat</Highlight> driver.
@@ -2227,22 +2103,19 @@ export default function App(){
             Use the <Highlight>Community → Most Anticipated</Highlight> tab to see which films the whole league is watching — a strong signal of where prices are heading.
           </Section>
           <Section id="polls" icon="🗳" color={T.blue} title="Quick Polls" summary="Commissioner-posted opinion checks.">
-            Anyone can vote on polls posted by the commissioner ("Will Avatar 3 hit $200M opening?" — Yes/No). Live tally bars show how the league is split. Mostly social — no points awarded — but the data is interesting.
+            Anyone can vote on polls posted by the commissioner. Live tally bars show how the league is split. Social only — no points awarded.
           </Section>
           <Section id="motw" icon="🎬" color={T.gold} title="Movie of the Week" summary="Commissioner spotlight + bull/bear case.">
-            Each week, the commissioner can pin a Movie of the Week to the top of Market — usually a contentious film with a clear bull case AND bear case. Reads like a market-strategy memo.
-            <br/><br/>
-            Pure information, no scoring impact. Helps the league converge on talking points.
+            Each week, the commissioner can pin a Movie of the Week to the top of Market — a contentious film with a clear bull case AND bear case. Pure information, no scoring impact.
           </Section>
         </Group>
 
         <Group title="📡 Reading the Charts">
           <Section id="buzz" icon="⚡" color={T.orange} title="The Buzz Index" summary="A single 0-100 score for film heat.">
-            Composite of 4 inputs:
-            <br/>• <Highlight>30%</Highlight> Watchlist (recent picks in last 14d)
-            <br/>• <Highlight>30%</Highlight> Signal density (recent positive news)
-            <br/>• <Highlight>20%</Highlight> Ownership (how many players hold)
-            <br/>• <Highlight>20%</Highlight> Time pressure (closeness to release)
+            Composite of 3 inputs:
+            <br/>• <Highlight>40%</Highlight> Watchlist heat (recent picks in last 14d)
+            <br/>• <Highlight>30%</Highlight> Ownership (how many players hold it)
+            <br/>• <Highlight>30%</Highlight> Time pressure (closeness to release)
             <br/><br/>
             <Highlight color={T.red}>70+</Highlight> = red hot. Price will already be high. Buy early or skip.
             <br/><Highlight color={T.orange}>50-69</Highlight> = warming up. Still a decent entry.
@@ -2261,14 +2134,6 @@ export default function App(){
             From Friday evening to Sunday night, the Pulse swaps to <Highlight color={T.red}>Weekend Live</Highlight>: a red-pulse indicator showing the films opening that weekend plus your projected score.
             <br/><br/>
             Don't expect minute-by-minute updates — opening estimates only land Saturday afternoon for matinées, full weekend numbers Monday morning. But the mode reminds you the game is alive.
-          </Section>
-          <Section id="taste" icon="🎭" color={T.purple} title="Taste cards" summary="Auto-generated personality from your picks.">
-            Visit any player's profile — at the top, BOXD generates a one-sentence summary of their style:
-            <br/>• <Highlight>Early-mover scout</Highlight> — buys 4+ weeks before release
-            <br/>• <Highlight>Timing-aware</Highlight> — mixed entry windows
-            <br/>• <Highlight>Momentum buyer</Highlight> — usually buys hype already in motion
-            <br/><br/>
-            Plus their top genre, hit rate (% of films that overperformed), and recurring distributor. Built from picks + roster — so the more you play, the more accurate.
           </Section>
         </Group>
 
@@ -2437,17 +2302,13 @@ export default function App(){
         </div>
       </div>
     )
-    const shortStatus=chips?.short_film_id?(()=>{const f=films.find(fl=>fl.id===chips.short_film_id);return `📉 ${f?.title||'?'} · ${chips.short_result||'pending'}`})():null
     const analystStatus=chips?.analyst_film_id?(()=>{const f=films.find(fl=>fl.id===chips.analyst_film_id);return `🎯 ${f?.title||'?'} · ${chips.analyst_result||'pending'}`})():null
-    const auteurStatus=(()=>{const a=auteurDecl.find(a=>a.player_id===profile.id&&a.phase===ph);return a?`🎭 ${a.star_actor} · ${a.film_ids?.length||0} films`:null})()
     return(
       <div style={{animation:'fadeUp .2s ease'}}>
         <div style={S.pageTitle}>Your Chips</div>
         <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Each chip is one-time use across the whole season.</div>
-        <ChipCard icon="🎬" name="THE RECUT" color={T.purple} used={recutUsed} onClick={activateRecut} desc="Clear your entire roster with zero transaction fees. Press the reset button when things go wrong."/>
-        <ChipCard icon="📉" name="SHORT" color={T.red} used={shortUsed} status={shortStatus} onClick={()=>setChipModal('short')} desc="Bet against a film. If it underperforms by 40%+, win 100pts. If it overperforms or breaks even, lose 30pts."/>
-        <ChipCard icon="🎯" name="ANALYST" color={T.blue} used={analystUsed} status={analystStatus} onClick={()=>setChipModal('analyst')} desc="Pick a film you own and predict its opening number. Within 10% = +60pts bonus on top of normal scoring."/>
-        <ChipCard icon="🎭" name="AUTEUR" color={T.orange} used={!!auteurDecl.find(a=>a.player_id===profile.id&&a.phase===ph)} status={auteurStatus} onClick={()=>setChipModal('auteur')} desc="Declare an actor and 2+ films they appear in this phase. All their films get +10% opening pts."/>
+        <ChipCard icon="🎬" name="THE RECUT" color={T.purple} used={recutUsed} onClick={activateRecut} desc="Clear your entire roster with zero transaction fees. Use it when things go wrong — no fees, clean slate."/>
+        <ChipCard icon="🎯" name="ANALYST" color={T.blue} used={analystUsed} status={analystStatus} onClick={()=>setChipModal('analyst')} desc="Pick a film you own and commit to a specific opening number ($M). Within 10% of actual = +60pts on top of normal scoring."/>
       </div>
     )
   }
@@ -2508,7 +2369,7 @@ export default function App(){
     return(
       <div style={{animation:'fadeUp .2s ease'}}>
         <div style={S.pageTitle}>The Forecaster</div>
-        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Predict opening weekends. Most accurate per phase wins +15pts. Most accurate over the season wins +50pts.</div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Predict opening weekends for every film. Track your accuracy vs the league — purely for bragging rights.</div>
         {fcFilms.length===0?<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No upcoming films to forecast.</div>:fcFilms.map(f=>{
           const cur=forecasts[f.id],val=edit[f.id]??cur??''
           return(
@@ -2532,15 +2393,15 @@ export default function App(){
 
   // ── OSCAR PAGE ───────────────────────────────────────────────────────────
   const OscarPage=()=>{
-    const eligible=films.filter(f=>['Drama','Awards','Animation'].includes(f.genre)||f.phase>=4)
+    const eligible=films.filter(f=>['Drama','Awards','Animation'].includes(f.genre)||f.phase>=5)
     return(
       <div style={{animation:'fadeUp .2s ease'}}>
         <div style={S.pageTitle}>🏆 Oscar Pick</div>
-        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Pick the eventual Best Picture winner. Correct = +75pts at end of season.</div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Pick the eventual Best Picture winner. Purely for bragging rights — no points impact.</div>
         {myOscar?(()=>{const pick=films.find(f=>f.id===myOscar.best_picture_film_id);return(
           <div style={{...S.card,padding:'24px',textAlign:'center',background:`linear-gradient(135deg,${T.gold}14,${T.surface})`,border:`1px solid ${T.gold}66`}}>
             {pick&&<><FilmPoster film={pick} width={120} height={180} radius={10}/><div style={{fontSize:'18px',fontWeight:700,marginTop:'12px',marginBottom:'4px'}}>{pick.title}</div><div style={{fontSize:'12px',color:T.textSub,marginBottom:'10px'}}>{pick.dist}</div></>}
-            <Pill color={myOscar.correct==null?T.gold:myOscar.correct?T.green:T.red}>{myOscar.correct==null?'Locked':myOscar.correct?'✓ Correct +75pts':'✗ Wrong'}</Pill>
+            <Pill color={myOscar.correct==null?T.gold:myOscar.correct?T.green:T.red}>{myOscar.correct==null?'Locked ✓':myOscar.correct?'✓ Correct':'✗ Wrong'}</Pill>
           </div>
         )})():<>{eligible.map(f=>(
           <div key={f.id} className="hoverable" onClick={()=>{if(confirm(`Lock in ${f.title} as your Best Picture pick? You can't change it later.`))submitOscarPick(f.id)}} style={{...S.card,marginBottom:'8px',cursor:'pointer',display:'flex',gap:'12px',alignItems:'center'}}>
@@ -2603,7 +2464,6 @@ export default function App(){
             <div key={n.id} className="hoverable" onClick={()=>film&&setFilmDetail(film)} style={{...S.card,marginBottom:'8px',cursor:film?'pointer':'default',borderLeft:`3px solid ${col}`}}>
               <div style={{display:'flex',justifyContent:'space-between',gap:'10px',marginBottom:'6px'}}>
                 <div style={{fontSize:'14px',fontWeight:700,color:T.text,lineHeight:1.3}}>{n.headline}</div>
-                {n.price_impact!=null&&<div style={{fontSize:'13px',fontWeight:700,color:col,fontFamily:T.mono,flexShrink:0}}>{n.price_impact>0?'+':''}{n.price_impact}%</div>}
               </div>
               {n.detail&&<div style={{fontSize:'12px',color:T.textSub,lineHeight:1.5,marginBottom:'8px'}}>{n.detail}</div>}
               <div style={{display:'flex',gap:'8px',alignItems:'center',fontSize:'10px',color:T.textDim}}>
@@ -2711,13 +2571,13 @@ export default function App(){
           ))
         })()}
         {tab==='players'&&players.map(p=>{
-          const taste=generateTasteCard(p.id,allPicks,films,results,rosters)
+          const filmCount=rosters.filter(r=>r.player_id===p.id).length
           return(
             <div key={p.id} className="hoverable" onClick={()=>goToProfile(p)} style={{...S.card,marginBottom:'8px',cursor:'pointer',display:'flex',gap:'12px',alignItems:'center'}}>
               <div style={{width:'44px',height:'44px',borderRadius:'50%',background:p.color||T.gold,color:'#000',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'17px',fontWeight:700,flexShrink:0}}>{p.name?.[0]||'?'}</div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:'14px',fontWeight:700,color:p.color||T.gold}}>{p.name}</div>
-                {taste?<div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>{taste.styleLabel}{taste.primaryGenre?` · ${taste.primaryGenre}`:''}{taste.hitRate!=null?` · ${taste.hitRate}% hit rate`:''}</div>:<div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>{rosters.filter(r=>r.player_id===p.id).length} films picked</div>}
+                <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>{filmCount} film{filmCount!==1?'s':''} picked</div>
               </div>
               <div style={{textAlign:'right'}}><div style={{fontSize:'17px',fontWeight:800,color:T.gold,fontFamily:T.mono}}>{calcPoints(p.id)}</div><div style={S.label}>pts</div></div>
             </div>
@@ -2986,7 +2846,7 @@ export default function App(){
                   return{
                     league_id:league?.id,film_id:f.id,signal_type:s.type,
                     headline:s.head(f),detail:s.detail(f),
-                    sentiment:s.sent,price_impact:s.imp,
+                    sentiment:s.sent,price_impact:null,
                     created_by:profile.id,
                     signal_date:new Date(Date.now()-(i*3600000*4)).toISOString(),
                   }
@@ -3511,7 +3371,7 @@ export default function App(){
     <div style={{animation:'fadeUp .2s ease'}}>
       <div style={S.pageTitle}>🗺 Slate Heatmap</div>
       <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px'}}>Films by phase and week · color = buzz</div>
-      {[1,2,3,4,5].map(phN=>{
+      {ALL_PHASES.map(phN=>{
         const phFilms=films.filter(f=>f.phase===phN);if(phFilms.length===0)return null
         return(
           <div key={phN} style={{marginBottom:'18px'}}>
@@ -3603,17 +3463,16 @@ export default function App(){
     const[det,setDet]=useState('')
     const[type,setType]=useState('rt_score')
     const[sent,setSent]=useState('positive')
-    const[imp,setImp]=useState(5)
     const submit=async()=>{
       if(!head.trim())return notify('Need a headline',T.red)
-      await supabase.from('news_signals').insert({league_id:league?.id,film_id:selFilm||null,signal_type:type,headline:head.trim(),detail:det.trim()||null,sentiment:sent,price_impact:Number(imp),created_by:profile.id})
+      await supabase.from('news_signals').insert({league_id:league?.id,film_id:selFilm||null,signal_type:type,headline:head.trim(),detail:det.trim()||null,sentiment:sent,price_impact:null,created_by:profile.id})
       notify('📡 Signal published',T.red);loadNews(league?.id);setNewSignalOpen(false)
     }
     return(
       <div style={{position:'fixed',inset:0,background:'#000000CC',display:'flex',alignItems:'center',justifyContent:'center',zIndex:900,padding:'20px'}} onClick={()=>setNewSignalOpen(false)}>
         <div style={{background:T.surface,border:`1px solid ${T.red}44`,borderRadius:'16px',padding:'24px',width:'100%',maxWidth:'420px',maxHeight:'90vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
           <div style={{fontSize:'18px',fontWeight:700,marginBottom:'4px',color:T.red}}>📡 New Signal</div>
-          <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Publish news that moves prices</div>
+          <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Publish news for context — no price impact</div>
           <select value={selFilm} onChange={e=>setSelFilm(e.target.value)} style={{...S.inp,marginBottom:'10px'}}>
             <option value="">Attached to which film? (optional)</option>
             {films.map(f=><option key={f.id} value={f.id}>{f.title}</option>)}
@@ -3623,13 +3482,9 @@ export default function App(){
           </select>
           <input value={head} onChange={e=>setHead(e.target.value)} placeholder="Headline" style={{...S.inp,marginBottom:'10px'}}/>
           <textarea value={det} onChange={e=>setDet(e.target.value)} placeholder="Detail (optional)" style={{...S.inp,minHeight:'60px',marginBottom:'10px',resize:'vertical',fontFamily:T.mono}}/>
-          <div style={{display:'flex',gap:'10px',marginBottom:'10px'}}>
-            <select value={sent} onChange={e=>setSent(e.target.value)} style={{...S.inp,flex:1}}>
-              <option value="positive">Positive</option><option value="neutral">Neutral</option><option value="negative">Negative</option>
-            </select>
-            <input type="number" value={imp} onChange={e=>setImp(e.target.value)} placeholder="Impact %" style={{...S.inp,flex:1}}/>
-          </div>
-          <div style={{fontSize:'10px',color:T.textDim,marginBottom:'14px'}}>Price impact: −25 to +25 · cumulative across signals (capped)</div>
+          <select value={sent} onChange={e=>setSent(e.target.value)} style={{...S.inp,marginBottom:'14px'}}>
+            <option value="positive">Positive</option><option value="neutral">Neutral</option><option value="negative">Negative</option>
+          </select>
           <div style={{display:'flex',gap:'10px'}}>
             <Btn onClick={()=>setNewSignalOpen(false)} variant="outline" color={T.textSub} sx={{flex:1}}>Cancel</Btn>
             <Btn onClick={submit} color={T.red} textColor="#fff" sx={{flex:2}}>Publish</Btn>
@@ -3650,12 +3505,9 @@ export default function App(){
       case 'community':return <CommunityPage/>
       case 'feed':return <FeedPage/>
       case 'signals':return <SignalsPage/>
-      case 'friday':return <FridayForecastPage/>
       case 'motw':return <MovieOfWeekPage/>
       case 'polls':return <PollsPage/>
       case 'intent':return <IntentPage/>
-      case 'trades':return <TradesPage/>
-      case 'sealed':return <SealedBidPage/>
       case 'forecaster':return <ForecasterPage/>
       case 'oscar':return <OscarPage/>
       case 'results':return <ResultsPage/>
@@ -3666,7 +3518,7 @@ export default function App(){
       case 'warroom':return <WarRoomPage/>
       case 'commissioner':return <CommissionerPage/>
       case 'distributor':return <DistributorPage/>
-      case 'profile':return profilePlayer?<PlayerProfilePage player={profilePlayer} films={films} rosters={rosters} results={results} weeklyG={weeklyG} allChips={allChips} auteurDecl={auteurDecl} wwWinners={wwWinners} oscarPreds={oscarPreds} allPicks={allPicks} calcPoints={calcPoints} calcPhasePoints={calcPhasePoints} budgetLeft={budgetLeft} cur={cur} isEarlyBird={isEarlyBird} analystActive={analystOn} auteurBonus={auteurOn} shortBonus={(pid,fid)=>shortBonus(pid,fid)} wwBonus={wwBonus} curPhase_ref={curPhase()} onBack={()=>setPage(prevPage)}/>:null
+      case 'profile':return profilePlayer?<PlayerProfilePage player={profilePlayer} films={films} rosters={rosters} results={results} weeklyG={weeklyG} allChips={allChips} oscarPreds={oscarPreds} allPicks={allPicks} calcPoints={calcPoints} calcPhasePoints={calcPhasePoints} budgetLeft={budgetLeft} cur={cur} isEarlyBird={isEarlyBird} analystActive={analystOn} curPhase_ref={curPhase()} onBack={()=>setPage(prevPage)}/>:null
       default:return <MarketPage/>
     }
   }
@@ -3682,8 +3534,7 @@ export default function App(){
   const myJustScored=justScored.filter(f=>myRoster.find(r=>r.film_id===f.id)||rosters.find(r=>r.player_id===profile.id&&r.film_id===f.id))
   const myJustScoredPts=myJustScored.reduce((s,f)=>{
     const h=rosters.find(r=>r.player_id===profile.id&&r.film_id===f.id);if(!h)return s
-    let op=calcOpeningPts(f,results[f.id],isEarlyBird(h),analystOn(profile.id,f.id))
-    if(auteurOn(profile.id,f.id))op=Math.round(op*1.1)
+    const op=calcOpeningPts(f,results[f.id],isEarlyBird(h),analystOn(profile.id,f.id))
     return s+op
   },0)
   const resultsBannerVisible=!resultsDismissed&&justScored.length>0&&page!=='report'
@@ -3708,7 +3559,6 @@ export default function App(){
               {id:'league',icon:'🥇',label:'League'},
               {id:'community',icon:'👥',label:'Community'},
               ...(hasNews?[{id:'signals',icon:'⚡',label:'Signals'}]:[]),
-              ...(hasFridayForecasts||hasResults?[{id:'friday',icon:'🎯',label:'Weekend Forecast'}]:[]),
               ...(movieOfWeek?[{id:'motw',icon:'🎬',label:'Movie of Week'}]:[]),
               ...(polls.length>0?[{id:'polls',icon:'🗳',label:'Polls'}]:[]),
               {id:'feed',icon:'📡',label:'Feed'},
@@ -3724,7 +3574,6 @@ export default function App(){
           <div style={{padding:'0 12px'}}>
             {[
               {id:'intent',icon:'👁️',label:'Watchlist'},
-              {id:'trades',icon:'🔄',label:'Trades',badge:pendingForMe.length||null},
               {id:'forecaster',icon:'📊',label:'Forecaster'},
               {id:'oscar',icon:'🏆',label:'Oscars'},
               {id:'results',icon:'📋',label:'Results'},
@@ -3732,7 +3581,6 @@ export default function App(){
               ...(hasPicks&&films.length>0?[{id:'slate',icon:'🗺',label:'Slate Map'}]:[]),
               ...(hasResults?[{id:'report',icon:'📰',label:'Match Report'}]:[]),
               ...(hasPicks?[{id:'intelligence',icon:'📡',label:'Intelligence'}]:[]),
-              ...(sealedWindowOpen?[{id:'sealed',icon:'🔒',label:'Sealed Bid'}]:[]),
             ].map(nav=>(
               <button key={nav.id} onClick={()=>navigate(nav.id)} style={{display:'flex',alignItems:'center',gap:'12px',padding:'9px 12px',background:page===nav.id?T.surfaceUp:'transparent',border:'none',borderRadius:'8px',cursor:'pointer',width:'100%',fontFamily:T.mono,fontSize:'12px',color:page===nav.id?T.gold:T.textSub,fontWeight:page===nav.id?700:400,marginBottom:'2px'}}>
                 <span style={{fontSize:'14px'}}>{nav.icon}</span><span style={{flex:1,textAlign:'left'}}>{nav.label}</span>
@@ -3838,65 +3686,27 @@ export default function App(){
       {/* MODALS */}
       {filmDetail&&<FilmDetailModal film={filmDetail} profile={profile} players={players} results={results} allPicks={allPicks} marketingEvents={marketingEvents} news={news} rosters={rosters} filmValues={filmValues} currentWeek={cfg.current_week} phase={ph} onTogglePick={togglePick} onBookingClick={trackBookingClick} onShowtimes={(f)=>{setShowtimesFilm(f);setFilmDetail(null)}} onClose={()=>setFilmDetail(null)} league={league}/>}
       {showtimesFilm&&<ShowtimesModal film={showtimesFilm} onClose={()=>setShowtimesFilm(null)} onBookingClick={trackBookingClick} supabaseUrl={SUPABASE_URL} anonKey={SUPABASE_ANON_KEY}/>}
-      {scoreModal&&<ScoreBreakdownModal film={scoreModal.film} holding={scoreModal.holding} results={results} weeklyGrosses={weeklyG} allChips={allChips} auteurDeclarations={auteurDecl} weekendWinners={wwWinners} isEarlyBird={isEarlyBird} onClose={()=>setScoreModal(null)}/>}
-      {tradeModal&&<TradeModal profile={profile} players={players} rosters={rosters} films={films} filmVal={filmVal} curPhase={curPhase} onClose={()=>setTradeModal(false)} notify={notify} onDone={()=>{setTradeModal(false);loadTrades(league?.id)}} league={league}/>}
+      {scoreModal&&<ScoreBreakdownModal film={scoreModal.film} holding={scoreModal.holding} results={results} weeklyGrosses={weeklyG} allChips={allChips} isEarlyBird={isEarlyBird} onClose={()=>setScoreModal(null)}/>}
       {profileEditOpen&&<ProfileEditModal/>}
       {newSignalOpen&&<NewSignalModal/>}
 
-      {/* CHIP MODAL */}
-      {chipModal==='short'&&(
-        <div style={{position:'fixed',inset:0,background:'#000000CC',display:'flex',alignItems:'center',justifyContent:'center',zIndex:700,padding:'20px'}} onClick={()=>setChipModal(null)}>
-          <div style={{background:T.surface,border:`1px solid ${T.red}44`,borderRadius:'16px',padding:'24px',width:'100%',maxWidth:'400px',maxHeight:'80vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
-            <div style={{fontSize:'18px',fontWeight:700,color:T.red,marginBottom:'6px'}}>📉 SHORT</div>
-            <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Pick a film to bet against. Wins +100pts, loses −30pts.</div>
-            {films.filter(f=>f.phase===ph&&results[f.id]==null).map(f=>(
-              <div key={f.id} onClick={()=>{if(confirm(`Short ${f.title}?`))activateShort(f.id,Math.round(f.estM*0.6))}} className="hoverable" style={{...S.card,marginBottom:'6px',cursor:'pointer',display:'flex',gap:'10px',alignItems:'center'}}>
-                <FilmPoster film={f} width={36} height={54} radius={5}/>
-                <div style={{flex:1}}><div style={{fontSize:'12px',fontWeight:600}}>{f.title}</div><div style={{fontSize:'10px',color:T.textSub}}>est ${f.estM}M</div></div>
-                <div style={{color:T.red,fontSize:'16px'}}>›</div>
-              </div>
-            ))}
-            <Btn onClick={()=>setChipModal(null)} variant="outline" color={T.textSub} full sx={{marginTop:'10px'}}>Cancel</Btn>
-          </div>
-        </div>
-      )}
+      {/* ANALYST CHIP MODAL */}
       {chipModal==='analyst'&&(
         <div style={{position:'fixed',inset:0,background:'#000000CC',display:'flex',alignItems:'center',justifyContent:'center',zIndex:700,padding:'20px'}} onClick={()=>setChipModal(null)}>
           <div style={{background:T.surface,border:`1px solid ${T.blue}44`,borderRadius:'16px',padding:'24px',width:'100%',maxWidth:'400px',maxHeight:'80vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
             <div style={{fontSize:'18px',fontWeight:700,color:T.blue,marginBottom:'6px'}}>🎯 ANALYST</div>
-            <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Pick a film you own + predict opening. Within 10% = +60pts.</div>
+            <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Pick a film you own + predict its opening weekend. Within 10% of actual = +60pts.</div>
             {myRoster.map(h=>{
               const f=films.find(fl=>fl.id===h.film_id);if(!f)return null
               return(
                 <div key={h.id} onClick={()=>{const pred=prompt(`Predict opening for ${f.title} ($M)`);if(pred&&!isNaN(Number(pred)))activateAnalyst(f.id,Number(pred))}} className="hoverable" style={{...S.card,marginBottom:'6px',cursor:'pointer',display:'flex',gap:'10px',alignItems:'center'}}>
                   <FilmPoster film={f} width={36} height={54} radius={5}/>
-                  <div style={{flex:1}}><div style={{fontSize:'12px',fontWeight:600}}>{f.title}</div><div style={{fontSize:'10px',color:T.textSub}}>est ${f.estM}M</div></div>
+                  <div style={{flex:1}}><div style={{fontSize:'12px',fontWeight:600}}>{f.title}</div><div style={{fontSize:'10px',color:T.textSub}}>{f.estM?`est $${f.estM}M`:'—'}</div></div>
                   <div style={{color:T.blue,fontSize:'16px'}}>›</div>
                 </div>
               )
             })}
             <Btn onClick={()=>setChipModal(null)} variant="outline" color={T.textSub} full sx={{marginTop:'10px'}}>Cancel</Btn>
-          </div>
-        </div>
-      )}
-      {chipModal==='auteur'&&(
-        <div style={{position:'fixed',inset:0,background:'#000000CC',display:'flex',alignItems:'center',justifyContent:'center',zIndex:700,padding:'20px'}} onClick={()=>setChipModal(null)}>
-          <div style={{background:T.surface,border:`1px solid ${T.orange}44`,borderRadius:'16px',padding:'24px',width:'100%',maxWidth:'420px',maxHeight:'80vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
-            <div style={{fontSize:'18px',fontWeight:700,color:T.orange,marginBottom:'6px'}}>🎭 AUTEUR</div>
-            <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Declare an actor + 2+ of their films this phase. +10% opening pts on all.</div>
-            <input value={auteurActor} onChange={e=>setAuteurActor(e.target.value)} placeholder="Actor name (e.g. Tom Cruise)" style={{...S.inp,marginBottom:'14px'}}/>
-            <div style={{...S.label,marginBottom:'8px'}}>Pick 2+ films</div>
-            {films.filter(f=>f.phase===ph).map(f=>(
-              <div key={f.id} onClick={()=>setAuteurFilms(auteurFilms.includes(f.id)?auteurFilms.filter(id=>id!==f.id):[...auteurFilms,f.id])} style={{...S.card,marginBottom:'6px',cursor:'pointer',display:'flex',gap:'10px',alignItems:'center',border:`1px solid ${auteurFilms.includes(f.id)?T.orange+'66':T.border}`}}>
-                <FilmPoster film={f} width={36} height={54} radius={5}/>
-                <div style={{flex:1}}><div style={{fontSize:'12px',fontWeight:600}}>{f.title}</div><div style={{fontSize:'10px',color:T.textSub}}>{f.starActor||'—'}</div></div>
-                <div style={{color:auteurFilms.includes(f.id)?T.orange:T.textDim,fontSize:'16px'}}>{auteurFilms.includes(f.id)?'✓':'○'}</div>
-              </div>
-            ))}
-            <div style={{display:'flex',gap:'10px',marginTop:'14px'}}>
-              <Btn onClick={()=>setChipModal(null)} variant="outline" color={T.textSub} sx={{flex:1}}>Cancel</Btn>
-              <Btn onClick={()=>submitAuteur(auteurActor.trim(),auteurFilms)} color={T.orange} textColor="#fff" sx={{flex:2}} disabled={!auteurActor.trim()||auteurFilms.length<2}>Lock In</Btn>
-            </div>
           </div>
         </div>
       )}
@@ -3927,7 +3737,7 @@ export default function App(){
               <Btn onClick={async()=>{
                 if(!newFilm.title.trim())return notify('Title required',T.red)
                 const id=newFilm.title.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,40)+'-'+Date.now().toString(36)
-                const{error}=await supabase.from('films').insert({id,title:newFilm.title.trim(),dist:newFilm.dist.trim(),genre:newFilm.genre,base_price:newFilm.basePrice,est_m:newFilm.estM,rt:newFilm.rt?Number(newFilm.rt):null,week:newFilm.week,phase:newFilm.phase,active:true})
+                const{error}=await supabase.from('films').insert({id,title:newFilm.title.trim(),dist:newFilm.dist.trim(),genre:newFilm.genre,base_price:newFilm.basePrice||null,est_m:newFilm.estM||null,rt:newFilm.rt?Number(newFilm.rt):null,week:newFilm.week,phase:newFilm.phase,star_actor:newFilm.starActor||null,trailer:newFilm.trailer||null,active:true})
                 if(error)return notify(error.message,T.red)
                 notify('Film added',T.green);setAddFilm(false);setNewFilm({...newFilm,title:'',dist:''});loadData(league?.id)
               }} color={T.gold} sx={{flex:2}}>Add</Btn>
