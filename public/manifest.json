@@ -1,49 +1,15 @@
 {
-  "name": "BOXD · Fantasy Box Office",
+  "name": "BOXD — Fantasy Film League",
   "short_name": "BOXD",
-  "description": "Fantasy box office league manager",
+  "description": "Draft films like stocks. Score on real box office. Beat your league.",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0D0A08",
   "theme_color": "#0D0A08",
-  "orientation": "portrait-primary",
   "icons": [
-    {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "Market",
-      "short_name": "Market",
-      "description": "Browse and acquire films",
-      "url": "/?page=market",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
-    },
-    {
-      "name": "My Roster",
-      "short_name": "Roster",
-      "description": "View your current roster",
-      "url": "/?page=roster",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
-    },
-    {
-      "name": "League",
-      "short_name": "League",
-      "description": "See league standings",
-      "url": "/?page=league",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
-    }
-  ],
-  "categories": ["games", "entertainment", "sports"],
-  "lang": "en-GB"
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
 }
