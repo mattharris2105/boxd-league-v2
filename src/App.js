@@ -24,9 +24,9 @@ const EARLY_BIRD_WEEKS   = 4
 const MAX_ROSTER         = 6
 const DRAFT_MIN          = 4
 const DRAFT_PENALTY      = 5
-const PHASE_BUDGETS      = {1:80,2:130,3:100,4:120,5:120,6:110}
-const PHASE_NAMES        = {1:'May Opener',2:'Summer Kickoff',3:'Blockbuster Summer',4:'Late Summer',5:'Autumn Slate',6:'Awards & Holiday'}
-const ALL_PHASES         = [1,2,3,4,5,6]
+const PHASE_BUDGETS      = {1:150,2:180,3:120,4:110}
+const PHASE_NAMES        = {1:'Summer (May–Jun)',2:'Blockbuster Summer (Jul–Aug)',3:'Autumn Slate',4:'Awards & Holiday'}
+const ALL_PHASES         = [1,2,3,4]
 // Season anchor: Week 1 = 1 May 2026
 const SEASON_ANCHOR      = new Date('2026-05-01')
 function weekToDate(wk){return new Date(SEASON_ANCHOR.getTime()+(wk-1)*7*86400000)}
@@ -137,6 +137,7 @@ const GLOBAL_CSS = `
   @keyframes tickerScroll{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
 
   button:focus-visible{outline:2px solid #E8A02066;outline-offset:2px;}
+  input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #E8A02066;outline-offset:1px;border-color:#E8A02088 !important;}
   @media(min-width:768px){
     .film-grid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))!important;}
   }
@@ -307,7 +308,7 @@ function FilmPoster({film,width,height,radius=8,imgStyle={},owned=false,scored=f
     <div ref={containerRef} onMouseMove={onMouseMove} onMouseLeave={onMouseLeave} style={{width:w,height:h,borderRadius:radius,flexShrink:0,overflow:'hidden',position:'relative',contain:'strict',transform:'translateZ(0)',isolation:'isolate',transition:tilt?'transform .2s ease':'none',willChange:tilt?'transform':'auto'}}>
       {url===undefined&&<div style={{position:'absolute',inset:0,background:`linear-gradient(90deg,${T.surfaceUp} 25%,${T.border} 50%,${T.surfaceUp} 75%)`,backgroundSize:'200% 100%',animation:'shimmer 1.6s ease-in-out infinite'}}/>}
       {url===null&&<div style={{position:'absolute',inset:0,background:`linear-gradient(145deg,${gc}28 0%,${T.surfaceUp} 100%)`,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:5}}><div style={{fontSize:typeof width==='number'?Math.max(16,width*0.28):20,lineHeight:1}}>🎬</div><div style={{fontSize:'9px',color:gc,textAlign:'center',padding:'0 6px',lineHeight:1.2}}>{film?.genre}</div></div>}
-      {url&&<img src={url} alt={film?.title} style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',display:'block',...imgStyle}} onError={()=>setUrl(null)}/>}
+      {url&&<img src={url} alt={film?.title} loading="lazy" decoding="async" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',display:'block',...imgStyle}} onError={()=>setUrl(null)}/>}
       {owned&&url&&<div className="poster-shine"/>}
       {scored&&url&&<div style={{position:'absolute',inset:0,background:`linear-gradient(to top, ${T.green}44, transparent 60%)`,pointerEvents:'none'}}/>}
     </div>
@@ -613,7 +614,7 @@ function CreateProfile({session,onCreated,notify}){
   )
 }
 
-function PlayerProfilePage({player,films,rosters,results,weeklyG,allChips,oscarPreds,allPicks,calcPoints,calcPhasePoints,budgetLeft,cur,isEarlyBird,analystActive,curPhase_ref,onBack}){
+function PlayerProfilePage({player,badges=[],films,rosters,results,weeklyG,allChips,oscarPreds,allPicks,calcPoints,calcPhasePoints,budgetLeft,cur,isEarlyBird,analystActive,curPhase_ref,onBack}){
   const[activePhase,setActivePhase]=useState(null)
   const totalPts=calcPoints(player.id)
   const chip=allChips.find(c=>c.player_id===player.id)
@@ -687,6 +688,15 @@ function PlayerProfilePage({player,films,rosters,results,weeklyG,allChips,oscarP
           </div>
         </div>
 
+        {badges.length>0&&(
+          <div style={{display:'flex',gap:'6px',flexWrap:'wrap',marginBottom:'12px'}}>
+            {badges.map(b=>(
+              <span key={b.name} title={b.desc} style={{background:T.surfaceUp,border:`1px solid ${T.gold}33`,borderRadius:'20px',padding:'5px 11px',fontSize:'11px',fontWeight:600,color:T.gold,display:'inline-flex',gap:'5px',alignItems:'center',cursor:'help'}}>
+                {b.icon} {b.name}
+              </span>
+            ))}
+          </div>
+        )}
         <div style={{display:'flex',gap:'8px',marginBottom:'12px'}}>
           <StatBox label="Films ever" value={allHoldings.length}/>
           <StatBox label="Total spend" value={`${cur}${totalSpend}M`} color={T.textSub}/>
@@ -1157,6 +1167,20 @@ export default function App(){
   const[session,setSession]=useState(null)
   const[loading,setLoading]=useState(true)
   const[dataLoading,setDataLoading]=useState(false)
+  const[loadError,setLoadError]=useState(null)
+  const[syncLog,setSyncLog]=useState(null)
+  const[syncBusy,setSyncBusy]=useState(false)
+  // ── PWA INSTALL ───────────────────────────────────────────────────────────
+  const isStandalone=window.matchMedia?.('(display-mode: standalone)')?.matches||window.navigator.standalone===true
+  const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent||'')
+  const[installEvt,setInstallEvt]=useState(null)
+  const[installHidden,setInstallHidden]=useState(()=>{try{return localStorage.getItem('boxd_install_hidden')==='1'}catch{return true}})
+  useEffect(()=>{
+    if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{})
+    const onPrompt=e=>{e.preventDefault();setInstallEvt(e)}
+    window.addEventListener('beforeinstallprompt',onPrompt)
+    return()=>window.removeEventListener('beforeinstallprompt',onPrompt)
+  },[])
   const[profile,setProfile]=useState(null)
   const[page,setPage]=useState('market')
   const[players,setPlayers]=useState([])
@@ -1191,8 +1215,6 @@ export default function App(){
   const[auteurFilms,setAuteurFilms]=useState([])
   const[moreOpen,setMoreOpen]=useState(false)
   const[sidebarOpen,setSidebarOpen]=useState(true)
-  const[marketSearch,setMarketSearch]=useState('')
-  const[marketGenre,setMarketGenre]=useState('All')
   const[allPicks,setAllPicks]=useState([])
   const[marketingEvents,setMarketingEvents]=useState([])
   const[bookingClicks,setBookingClicks]=useState([])
@@ -1353,13 +1375,15 @@ export default function App(){
 
   const loadData=async(leagueId)=>{
     const lid=leagueId||league?.id;if(!lid)return
-    setDataLoading(true)
+    setDataLoading(true);setLoadError(null)
+    try{
     const memberIds=(await supabase.from('league_members').select('user_id').eq('league_id',lid)).data?.map(m=>m.user_id)||[]
     // CRITICAL: load films FIRST so UI can render, then everything else in parallel
-    const[{data:fl},{data:cf}]=await Promise.all([
+    const[{data:fl,error:flErr},{data:cf}]=await Promise.all([
       supabase.from('films').select('*').eq('active',true).order('phase').order('week'),
       supabase.from('league_config').select('*').eq('league_id',lid).maybeSingle(),
     ])
+    if(flErr)throw flErr
     if(fl)setFilms(fl.map(f=>({
       id:f.id,title:f.title,dist:f.dist,genre:f.genre,
       franchise:f.franchise,starActor:f.star_actor,
@@ -1404,8 +1428,14 @@ export default function App(){
       loadNews(lid)
       loadFridayForecasts(lid)
       loadMovieOfWeek(lid)
+      supabase.from('sync_log').select('*').order('run_at',{ascending:false}).limit(1).maybeSingle().then(({data})=>{if(data)setSyncLog(data)}).catch?.(()=>{})
       loadPolls(lid)
     },100)
+    }catch(e){
+      console.error('loadData failed:',e)
+      setLoadError(e?.message||'Could not reach the database')
+      setDataLoading(false)
+    }
   }
 
   const curPhase=()=>cfg.current_phase||1
@@ -1488,6 +1518,21 @@ export default function App(){
     return t
   }
   const calcPoints=(pid)=>ALL_PHASES.reduce((s,ph)=>s+calcPhasePoints(pid,ph),0)
+  // ── ACHIEVEMENTS — derived live from existing data, no storage needed ────
+  const calcBadges=(pid)=>{
+    const out=[]
+    const mine=rosters.filter(r=>r.player_id===pid)
+    const scored=mine.map(h=>{const f=films.find(fl=>fl.id===h.film_id);return f&&results[f.id]!=null?{h,f,actual:results[f.id]}:null}).filter(Boolean)
+    const chip=allChips.find(c=>c.player_id===pid)
+    if(chip?.analyst_result==='win')out.push({icon:'🎯',name:'Oracle',desc:'Analyst prediction landed within 10%'})
+    if(scored.some(({h,f,actual})=>isEarlyBird(h)&&f.estM&&actual/f.estM>=1.1))out.push({icon:'🐦',name:'Early Riser',desc:'Scored an Early Bird bonus'})
+    if(scored.some(({h,actual})=>h.bought_price>0&&actual/h.bought_price>=3))out.push({icon:'💰',name:'Moneyball',desc:'A pick opened at 3× what you paid'})
+    if(scored.some(({f,actual})=>calcOpeningPts(f,actual,false,false)>=100))out.push({icon:'🏆',name:'Century',desc:'100 opening points on a single film'})
+    if(scored.some(({f,actual})=>calcLegsBonus(actual,weeklyG[f.id]?.[2])>0))out.push({icon:'🦵',name:'Legs',desc:'Earned a word-of-mouth legs bonus'})
+    if(ALL_PHASES.some(p=>mine.filter(r=>r.phase===p).length>=MAX_ROSTER))out.push({icon:'📈',name:'Full House',desc:`Held a full roster of ${MAX_ROSTER} in one phase`})
+    if(allForecasts.filter(f=>f.player_id===pid).length>=5)out.push({icon:'🔮',name:'Forecaster',desc:'Logged 5+ opening predictions'})
+    return out
+  }
 
   const buyFilm=async(film)=>{
     if(!profile)return notify('Create a profile first',T.red)
@@ -1691,7 +1736,116 @@ export default function App(){
   }
 
   // ── MARKET PAGE ─────────────────────────────────────────────────────────
+  // ── RELEASE CALENDAR STRIP ──────────────────────────────────────────────
+  // Horizontal scrolling week-by-week view of upcoming films.
+  // Shows the next ~8 weeks. Each column = one release week.
+  // Tapping a film card opens FilmDetail; eye icon toggles watchlist.
+  const ReleaseCalendarStrip=()=>{
+    const upcomingFilms=films.filter(f=>results[f.id]==null)
+    if(upcomingFilms.length===0)return null
+
+    // Build week columns — show from current week through next 8 release weeks
+    const releaseWeeks=[...new Set(upcomingFilms.map(f=>f.week))]
+      .filter(wk=>wk>=cfg.current_week)
+      .sort((a,b)=>a-b)
+      .slice(0,8)
+
+    if(releaseWeeks.length===0)return null
+
+    return(
+      <div style={{marginBottom:'16px'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'8px'}}>
+          <div style={{...S.label,color:T.textSub}}>📅 Release Calendar</div>
+          <div style={{fontSize:'10px',color:T.textDim}}>scroll →</div>
+        </div>
+        <div style={{overflowX:'auto',paddingBottom:'6px',scrollbarWidth:'thin',scrollbarColor:`${T.border} transparent`,WebkitOverflowScrolling:'touch'}}>
+          <div style={{display:'flex',gap:'10px',minWidth:'max-content',paddingRight:'16px'}}>
+            {releaseWeeks.map(wk=>{
+              const weekFilms=upcomingFilms.filter(f=>f.week===wk)
+              const isNow=wk===cfg.current_week
+              const dateStr=dateLabel(wk)
+              return(
+                <div key={wk} style={{
+                  background: isNow?`${T.gold}10`:T.surfaceUp,
+                  border:`1px solid ${isNow?T.gold+'55':T.border}`,
+                  borderRadius:'12px',
+                  padding:'10px',
+                  minWidth:'130px',
+                  maxWidth:'150px',
+                  flexShrink:0,
+                }}>
+                  {/* Week header */}
+                  <div style={{marginBottom:'8px',paddingBottom:'8px',borderBottom:`1px solid ${T.border}`}}>
+                    <div style={{fontSize:'11px',fontWeight:700,color:isNow?T.gold:T.text}}>{isNow?'🎬 This Week':dateStr}</div>
+                    <div style={{fontSize:'9px',color:T.textDim,marginTop:'2px'}}>{isNow?dateStr:''}{weekFilms.length} film{weekFilms.length!==1?'s':''}</div>
+                  </div>
+                  {/* Film list for this week */}
+                  <div style={{display:'flex',flexDirection:'column',gap:'7px'}}>
+                    {weekFilms.map(film=>{
+                      const isPicked=allPicks.some(p=>p.film_id===film.id&&p.user_id===profile?.id)
+                      const owned=rosters.find(r=>r.player_id===profile?.id&&r.film_id===film.id&&r.active)
+                      const gc=GENRE_COL[film.genre]||T.textSub
+                      const val=filmVal(film)
+                      return(
+                        <div key={film.id} style={{position:'relative'}}>
+                          {/* Film row */}
+                          <div onClick={()=>setFilmDetail(film)} style={{
+                            display:'flex',gap:'7px',alignItems:'center',
+                            cursor:'pointer',
+                            background: owned?`${T.gold}14`:T.surface,
+                            border:`1px solid ${owned?T.gold+'44':gc+'22'}`,
+                            borderRadius:'8px',
+                            padding:'6px 7px',
+                          }}>
+                            <FilmPoster film={film} width={28} height={42} radius={4}/>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{
+                                fontSize:'10px',fontWeight:600,
+                                color:owned?T.gold:T.text,
+                                lineHeight:1.3,
+                                overflow:'hidden',
+                                display:'-webkit-box',
+                                WebkitLineClamp:2,
+                                WebkitBoxOrient:'vertical',
+                              }}>{film.title}</div>
+                              <div style={{fontSize:'9px',color:T.textDim,marginTop:'2px'}}>
+                                {val!=null?`$${val}M`:'🔒'}
+                                {film.rt!=null&&<span style={{color:film.rt>=75?T.green:T.red,marginLeft:'4px'}}> {film.rt}%</span>}
+                              </div>
+                            </div>
+                            {/* Watchlist eye toggle */}
+                            <button
+                              onClick={e=>{e.stopPropagation();if(profile)togglePick(film.id)}}
+                              style={{
+                                background:'none',border:'none',cursor:'pointer',
+                                padding:'2px',lineHeight:1,flexShrink:0,
+                                fontSize:'12px',
+                                opacity:isPicked?1:0.35,
+                                color:isPicked?T.gold:'#fff',
+                                transition:'opacity .15s',
+                              }}
+                              title={isPicked?'Remove from watchlist':'Add to watchlist'}
+                              aria-label={`${isPicked?'Remove':'Add'} ${film.title} ${isPicked?'from':'to'} watchlist`}
+                            >👁</button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const MarketPage=()=>{
+    // Local input state — keeps focus while typing (App-level state caused
+    // a full page remount on every keystroke, dropping focus/keyboard)
+    const[marketSearch,setMarketSearch]=useState('')
+    const[marketGenre,setMarketGenre]=useState('All')
     const visible=phaseFilms.filter(f=>{
       if(marketGenre!=='All'&&f.genre!==marketGenre)return false
       if(marketSearch&&!f.title.toLowerCase().includes(marketSearch.toLowerCase())&&!f.dist.toLowerCase().includes(marketSearch.toLowerCase()))return false
@@ -1718,6 +1872,9 @@ export default function App(){
             </div>
           )
         })()}
+
+        {/* RELEASE CALENDAR — always visible */}
+        <ReleaseCalendarStrip/>
 
         {/* NEWS TICKER · hidden until first buy */}
         {hasEverBought&&<NewsTickerStrip/>}
@@ -1748,6 +1905,41 @@ export default function App(){
                   </div>
                 ))}
               </div>
+            </div>
+          )
+        })()}
+
+        {/* SEASON STORYLINES — auto-generated narrative, derived live */}
+        {(()=>{
+          if(players.length<2)return null
+          const ranked=players.map(p=>({p,pts:calcPoints(p.id)})).sort((a,b)=>b.pts-a.pts)
+          const stories=[]
+          if(ranked[0].pts>0){
+            const gap=ranked[0].pts-ranked[1].pts
+            stories.push(gap===0
+              ?`🤝 ${ranked[0].p.name} and ${ranked[1].p.name} are dead level at the top`
+              :`👑 ${ranked[0].p.name} leads by ${gap}pts`)
+          }
+          let tight=null
+          for(let i=0;i<ranked.length-1;i++){
+            const d=ranked[i].pts-ranked[i+1].pts
+            if(ranked[i].pts>0&&(tight==null||d<tight.d))tight={d,a:ranked[i].p.name,b:ranked[i+1].p.name}
+          }
+          if(tight&&tight.d>0&&tight.d<=15)stories.push(`⚔️ Tightest battle: ${tight.a} vs ${tight.b} — just ${tight.d}pts in it`)
+          const recent=films.filter(f=>results[f.id]!=null&&f.estM&&f.week>=cfg.current_week-2)
+          if(recent.length){
+            const top=recent.reduce((a,b)=>results[a.id]/a.estM>results[b.id]/b.estM?a:b)
+            const ratio=results[top.id]/top.estM
+            if(ratio>=1.2)stories.push(`🚀 ${top.title} smashed its estimate — ${ratio.toFixed(1)}× opening`)
+            else if(ratio<=0.6)stories.push(`💥 ${top.title} fell hard — ${Math.round(ratio*100)}% of estimate`)
+          }
+          const hot=films.filter(f=>results[f.id]==null&&f.phase===curPhase()).map(f=>({f,buzz:calcBuzzIndex({...f,hasResult:false},allPicks,news,rosters,players.length,cfg.current_week)||0})).sort((a,b)=>b.buzz-a.buzz)[0]
+          if(hot&&hot.buzz>=50)stories.push(`🔥 ${hot.f.title} is the league's hottest property right now`)
+          if(stories.length===0)return null
+          return(
+            <div style={{...S.card,marginBottom:'14px',background:`linear-gradient(135deg,${T.gold}08,${T.surface})`,border:`1px solid ${T.gold}22`}}>
+              <div style={{...S.label,color:T.gold,marginBottom:'8px'}}>📰 Season Storylines</div>
+              {stories.map((s,i)=><div key={i} style={{fontSize:'12px',color:T.text,lineHeight:1.8}}>{s}</div>)}
             </div>
           )
         })()}
@@ -1803,6 +1995,14 @@ export default function App(){
           </select>
         </div>
 
+        {visible.length===0&&(
+          <div style={{...S.card,textAlign:'center',padding:'40px 20px'}}>
+            <div style={{fontSize:'28px',marginBottom:'8px'}}>🔍</div>
+            <div style={{fontSize:'14px',fontWeight:600,color:T.text,marginBottom:'4px'}}>No films match</div>
+            <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px'}}>Try a different search or genre.</div>
+            <Btn onClick={()=>{setMarketSearch('');setMarketGenre('All')}} variant="outline" color={T.gold} size="sm">Clear filters</Btn>
+          </div>
+        )}
         <div className="film-grid" style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:'10px'}}>
           {visible.map(film=>{
             const actual=results[film.id]
@@ -1956,12 +2156,12 @@ export default function App(){
           <Section id="basics" icon="🎬" color={T.gold} title="What is BOXD?" summary="The core game in 30 seconds.">
             BOXD is fantasy box office. You build a roster of films you think will outperform their estimates, and you score points when real-world weekend grosses come in.
             <br/><br/>
-            The season runs in <Highlight>6 phases</Highlight>. Each phase covers a stretch of weeks ({PHASE_NAMES[1]}, {PHASE_NAMES[2]}, {PHASE_NAMES[3]}, {PHASE_NAMES[4]}, {PHASE_NAMES[5]}, {PHASE_NAMES[6]}). You get a fresh budget per phase and pick up to <Highlight>{MAX_ROSTER} films</Highlight> per phase.
+            The season runs in <Highlight>4 phases</Highlight>. Each phase covers a stretch of weeks ({PHASE_NAMES[1]}, {PHASE_NAMES[2]}, {PHASE_NAMES[3]}, {PHASE_NAMES[4]}). You get a fresh budget per phase and pick up to <Highlight>{MAX_ROSTER} films</Highlight> per phase.
             <br/><br/>
             Results land <Highlight color={T.green}>every Monday</Highlight>. Films that beat their estimate score big. Films that flop cost you. Highest total points at the end wins.
           </Section>
           <Section id="phases" icon="📅" color={T.gold} title="Phases & the season clock" summary="How time moves and when budgets reset.">
-            The season has 6 phases. The commissioner advances phases manually. When a phase ends:
+            The season has 4 phases. The commissioner advances phases manually. When a phase ends:
             <br/>• Any unspent budget gets <Highlight color={T.green}>banked</Highlight> and added to next phase's budget
             <br/>• Your roster from that phase stays locked in (films keep scoring as their weeks land)
             <br/>• You get a new roster slot allowance for the new phase
@@ -2182,6 +2382,7 @@ export default function App(){
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:'14px',fontWeight:700}}>{s.p.name}</div>
                 <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>{rosters.filter(r=>r.player_id===s.p.id&&r.active).length} films · {cur}{budgetLeft(s.p.id)}M left</div>
+                {i>0&&standings[i-1].pts-s.pts>0&&<div style={{fontSize:'10px',color:T.textDim,fontFamily:T.mono,marginTop:'2px'}}>▲ {standings[i-1].pts-s.pts}pts to catch {standings[i-1].p.name}</div>}
               </div>
               {delta!==0&&<div style={{fontSize:'11px',color:delta>0?T.green:T.red,fontFamily:T.mono,fontWeight:700}}>{delta>0?'▲':'▼'}{Math.abs(delta)}</div>}
               <div style={{textAlign:'right'}}>
@@ -2387,7 +2588,7 @@ export default function App(){
 
   // ── OSCAR PAGE ───────────────────────────────────────────────────────────
   const OscarPage=()=>{
-    const eligible=films.filter(f=>['Drama','Awards','Animation'].includes(f.genre)||f.phase>=5)
+    const eligible=films.filter(f=>['Drama','Awards','Animation'].includes(f.genre)||f.phase>=3)
     return(
       <div style={{animation:'fadeUp .2s ease'}}>
         <div style={S.pageTitle}>🏆 Oscar Pick</div>
@@ -2782,6 +2983,90 @@ export default function App(){
   }
 
   // ── COMMISSIONER PAGE ────────────────────────────────────────────────────
+  // ── FILM EDITOR ROW — inline edit + delete for commissioner slate view ───
+  const FilmEditorRow=({film,results,weeklyG,onSave,onDelete})=>{
+    const[open,setOpen]=useState(false)
+    const[vals,setVals]=useState({
+      title:film.title,dist:film.dist,genre:film.genre,
+      base_price:film.basePrice??'',est_m:film.estM??'',
+      rt:film.rt??'',star_actor:film.starActor??'',
+      trailer:film.trailer??'',week:film.week,phase:film.phase,
+      actual_m:results[film.id]??'',
+      week2:weeklyG[film.id]?.[2]??'',
+      week3:weeklyG[film.id]?.[3]??'',
+    })
+    const set=(k,v)=>setVals(prev=>({...prev,[k]:v}))
+    const inp={...S.inp,fontSize:'11px',padding:'5px 8px',marginBottom:'6px'}
+    const actual=results[film.id]
+    return(
+      <div style={{borderBottom:`1px solid ${T.border}`,padding:'8px 0'}}>
+        {/* Collapsed row */}
+        <div style={{display:'flex',gap:'8px',alignItems:'center',cursor:'pointer'}} onClick={()=>setOpen(o=>!o)}>
+          <div style={{flex:1,minWidth:0}}>
+            <span style={{fontSize:'12px',fontWeight:600,color:T.text}}>{film.title}</span>
+            <span style={{fontSize:'10px',color:T.textSub,marginLeft:'8px'}}>P{film.phase} · W{film.week} · {film.dist}</span>
+            {actual!=null&&<span style={{fontSize:'10px',color:T.green,marginLeft:'8px',fontFamily:T.mono}}>✓ ${actual}M</span>}
+            {film.basePrice==null&&<span style={{fontSize:'10px',color:T.textDim,marginLeft:'8px'}}>🔒 TBC</span>}
+          </div>
+          <span style={{color:T.textDim,fontSize:'12px'}}>{open?'▲':'▼'}</span>
+          <button onClick={e=>{e.stopPropagation();onDelete()}} aria-label={`Delete ${film.title}`} style={{background:'none',border:`1px solid ${T.red}44`,borderRadius:'6px',color:T.red,fontSize:'11px',padding:'3px 8px',cursor:'pointer',flexShrink:0}}>🗑</button>
+        </div>
+        {/* Expanded editor */}
+        {open&&(
+          <div style={{marginTop:'10px',background:T.surfaceUp,borderRadius:'10px',padding:'12px'}}>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',marginBottom:'6px'}}>
+              <div><div style={{...S.label,marginBottom:'4px'}}>Title</div><input value={vals.title} onChange={e=>set('title',e.target.value)} style={inp}/></div>
+              <div><div style={{...S.label,marginBottom:'4px'}}>Distributor</div><input value={vals.dist} onChange={e=>set('dist',e.target.value)} style={inp}/></div>
+              <div><div style={{...S.label,marginBottom:'4px'}}>Genre</div>
+                <select value={vals.genre} onChange={e=>set('genre',e.target.value)} style={inp}>
+                  {['Action','Horror','Drama','Family','Sci-Fi','Animation','Comedy','Thriller','Adventure','Concert'].map(g=><option key={g}>{g}</option>)}
+                </select>
+              </div>
+              <div><div style={{...S.label,marginBottom:'4px'}}>Phase</div>
+                <select value={vals.phase} onChange={e=>set('phase',Number(e.target.value))} style={inp}>
+                  {ALL_PHASES.map(p=><option key={p} value={p}>P{p} — {PHASE_NAMES[p]}</option>)}
+                </select>
+              </div>
+              <div><div style={{...S.label,marginBottom:'4px'}}>Week #</div><input type="number" value={vals.week} onChange={e=>set('week',Number(e.target.value))} style={inp}/></div>
+              <div><div style={{...S.label,marginBottom:'4px'}}>IPO Price ($M)</div><input type="number" value={vals.base_price} onChange={e=>set('base_price',e.target.value)} placeholder="leave blank = TBC" style={inp}/></div>
+              <div><div style={{...S.label,marginBottom:'4px'}}>Est Opening ($M)</div><input type="number" value={vals.est_m} onChange={e=>set('est_m',e.target.value)} style={inp}/></div>
+              <div><div style={{...S.label,marginBottom:'4px'}}>RT Score (0–100)</div><input type="number" value={vals.rt} onChange={e=>set('rt',e.target.value)} style={inp}/></div>
+              <div><div style={{...S.label,marginBottom:'4px'}}>Star Actor</div><input value={vals.star_actor} onChange={e=>set('star_actor',e.target.value)} style={inp}/></div>
+            </div>
+            <div><div style={{...S.label,marginBottom:'4px'}}>Trailer URL (youtube embed)</div><input value={vals.trailer} onChange={e=>set('trailer',e.target.value)} placeholder="https://www.youtube.com/embed/..." style={{...inp,width:'100%',boxSizing:'border-box'}}/></div>
+            <div style={{...S.label,marginBottom:'8px',marginTop:'10px',color:T.green}}>Results</div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'8px'}}>
+              <div><div style={{...S.label,marginBottom:'4px'}}>Opening W/E ($M)</div><input type="number" value={vals.actual_m} onChange={e=>set('actual_m',e.target.value)} style={inp}/></div>
+              <div><div style={{...S.label,marginBottom:'4px'}}>Week 2 ($M)</div><input type="number" value={vals.week2} onChange={e=>set('week2',e.target.value)} style={inp}/></div>
+              <div><div style={{...S.label,marginBottom:'4px'}}>Week 3 ($M)</div><input type="number" value={vals.week3} onChange={e=>set('week3',e.target.value)} style={inp}/></div>
+            </div>
+            <div style={{display:'flex',gap:'8px',marginTop:'10px'}}>
+              <Btn onClick={()=>setOpen(false)} variant="outline" color={T.textSub} size="sm" sx={{flex:1}}>Cancel</Btn>
+              <Btn onClick={()=>{
+                const updates={
+                  title:vals.title.trim()||film.title,
+                  dist:vals.dist.trim()||film.dist,
+                  genre:vals.genre,
+                  phase:Number(vals.phase),
+                  week:Number(vals.week),
+                  base_price:vals.base_price!==''?Number(vals.base_price):null,
+                  est_m:vals.est_m!==''?Number(vals.est_m):null,
+                  rt:vals.rt!==''?Number(vals.rt):null,
+                  star_actor:vals.star_actor.trim()||null,
+                  trailer:vals.trailer.trim()||null,
+                  actual_m:vals.actual_m!==''?vals.actual_m:null,
+                  week2:vals.week2!==''?vals.week2:null,
+                  week3:vals.week3!==''?vals.week3:null,
+                }
+                onSave(updates);setOpen(false)
+              }} color={T.green} textColor="#0D0A08" size="sm" sx={{flex:2}}>Save Changes</Btn>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   const CommissionerPage=()=>{
     const [tab,setTab]=useState('phase')
     const TabBtn=({id,label})=><button onClick={()=>setTab(id)} style={{...S.btn,background:'none',border:'none',padding:'8px 14px',fontSize:'12px',fontWeight:tab===id?700:400,color:tab===id?T.gold:T.textSub,borderBottom:`2px solid ${tab===id?T.gold:'transparent'}`,borderRadius:0,textTransform:'none',letterSpacing:0}}>{label}</button>
@@ -2927,6 +3212,82 @@ export default function App(){
           </div>
 
           {/* ── EXPORT CURRENT SLATE ─────────────────────────────────────── */}
+          {/* ── DATA HEALTH ─────────────────────────────────────────────── */}
+          {(()=>{
+            const cur=films.filter(f=>f.phase===ph)
+            const pendingResults=films.filter(f=>f.week<cfg.current_week&&results[f.id]==null)
+            const missingRT=cur.filter(f=>f.rt==null&&results[f.id]==null)
+            const missingEst=cur.filter(f=>f.estM==null)
+            const missingTrailer=cur.filter(f=>!f.trailer)
+            const unpriced=cur.filter(f=>f.basePrice==null)
+            const priceLeaks=films.filter(f=>f.phase>ph&&f.basePrice!=null)
+            const Stat=({label,items,color,critical})=>(
+              <details style={{background:T.surfaceUp,borderRadius:'8px',padding:'8px 10px',border:`1px solid ${items.length===0?T.green+'33':critical?T.red+'55':color+'44'}`}}>
+                <summary style={{cursor:'pointer',listStyle:'none',display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:'11px',color:items.length===0?T.green:critical?T.red:T.text}}>
+                  <span>{label}</span>
+                  <span style={{fontFamily:T.mono,fontWeight:800,fontSize:'13px'}}>{items.length===0?'✓':items.length}</span>
+                </summary>
+                {items.length>0&&<div style={{marginTop:'8px',maxHeight:'140px',overflow:'auto'}}>
+                  {items.map(f=>(
+                    <div key={f.id} onClick={()=>setFilmDetail(f)} style={{fontSize:'10px',color:T.textSub,padding:'3px 0',cursor:'pointer',fontFamily:T.mono}}>· {f.title}</div>
+                  ))}
+                </div>}
+              </details>
+            )
+            return(
+              <div style={{...S.card,marginBottom:'12px',border:`1px solid ${priceLeaks.length>0?T.red+'55':pendingResults.length>0?T.orange+'44':T.green+'33'}`}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}}>
+                  <div>
+                    <div style={{fontSize:'14px',fontWeight:700,color:T.text}}>🩺 Data Health</div>
+                    <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>Phase {ph} coverage · tap any stat to see the films</div>
+                  </div>
+                  {pendingResults.length>0&&<Btn onClick={()=>setPage('warroom')} color={T.orange} textColor="#0D0A08" size="sm">Fix in War Room</Btn>}
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))',gap:'8px'}}>
+                  <Stat label="⏳ Results overdue" items={pendingResults} color={T.orange} critical={pendingResults.length>0}/>
+                  <Stat label="🍅 Missing RT" items={missingRT} color={T.gold}/>
+                  <Stat label="📊 Missing estimate" items={missingEst} color={T.gold}/>
+                  <Stat label="🎞 Missing trailer" items={missingTrailer} color={T.blue}/>
+                  <Stat label="🔒 Unpriced (current)" items={unpriced} color={T.gold}/>
+                  <Stat label="🚨 Future price leak" items={priceLeaks} color={T.red} critical={priceLeaks.length>0}/>
+                </div>
+                {/* Source health + manual sync trigger */}
+                <div style={{marginTop:'10px',display:'flex',gap:'10px',alignItems:'center',background:T.surfaceUp,borderRadius:'8px',padding:'8px 10px'}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:'11px',fontWeight:700,color:T.text}}>🔄 Auto-sync · TMDB + OMDb</div>
+                    <div style={{fontSize:'10px',color:syncLog?.status==='partial'?T.orange:T.textSub,marginTop:'2px'}}>
+                      {syncLog
+                        ?`Last run ${new Date(syncLog.run_at).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})} · ${syncLog.films_updated}/${syncLog.films_checked} updated${(syncLog.conflicts?.length||0)>0?` · ${syncLog.conflicts.length} title conflict${syncLog.conflicts.length!==1?'s':''}`:''}${(syncLog.errors?.length||0)>0?` · ${syncLog.errors.length} errors`:''}`
+                        :'Never run — deploy the sync-metadata Edge Function to enable'}
+                    </div>
+                  </div>
+                  <Btn onClick={async()=>{
+                    setSyncBusy(true)
+                    try{
+                      const res=await fetch(`${SUPABASE_URL}/functions/v1/sync-metadata`,{method:'POST',headers:{Authorization:`Bearer ${SUPABASE_ANON_KEY}`}})
+                      const j=await res.json().catch(()=>null)
+                      if(!res.ok||!j?.ok)throw new Error(j?.error||`HTTP ${res.status} — is sync-metadata deployed?`)
+                      notify(`🔄 Sync done: ${j.updated} of ${j.checked} films updated`,T.green)
+                      loadData(league?.id)
+                    }catch(e){notify(`Sync failed: ${e.message}`,T.red)}
+                    setSyncBusy(false)
+                  }} color={T.blue} textColor="#fff" size="sm" disabled={syncBusy}>{syncBusy?'Syncing…':'Sync now'}</Btn>
+                </div>
+                {priceLeaks.length>0&&(
+                  <div style={{marginTop:'10px',display:'flex',gap:'10px',alignItems:'center',background:`${T.red}10`,borderRadius:'8px',padding:'8px 10px'}}>
+                    <div style={{flex:1,fontSize:'10px',color:T.red,lineHeight:1.5}}>Future-phase films have visible prices — players could forward-plan. Lock them back to TBC?</div>
+                    <Btn onClick={async()=>{
+                      if(!confirm(`Set base_price to NULL for ${priceLeaks.length} future-phase film${priceLeaks.length!==1?'s':''}?`))return
+                      for(const f of priceLeaks)await supabase.from('films').update({base_price:null}).eq('id',f.id)
+                      notify(`🔒 ${priceLeaks.length} prices locked`,T.green);loadData(league?.id)
+                    }} color={T.red} textColor="#fff" size="sm">Lock all</Btn>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+
+          {/* ── EXPORT ──────────────────────────────────────────────────── */}
           <div style={{...S.card,marginBottom:'12px',border:`1px solid ${T.blue}33`}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}}>
               <div><div style={{fontSize:'14px',fontWeight:700,color:T.blue}}>📥 Export Current Slate</div><div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>Pulls everything from DB · active + inactive · all grosses</div></div>
@@ -3014,37 +3375,30 @@ export default function App(){
             </div>
             <details style={{marginTop:'8px'}}>
               <summary style={{cursor:'pointer',fontSize:'11px',color:T.textSub}}>Preview as table ({films.length} films in current view)</summary>
-              <div style={{maxHeight:'320px',overflow:'auto',marginTop:'8px',background:T.surfaceUp,borderRadius:'8px'}}>
-                <table style={{width:'100%',borderCollapse:'collapse',fontFamily:T.mono,fontSize:'10px'}}>
-                  <thead style={{position:'sticky',top:0,background:T.surfaceUp}}>
-                    <tr>
-                      {['Title','Date','Ph','Dist','Genre','Base','Est','RT'].map(h=><th key={h} style={{padding:'6px 8px',textAlign:'left',color:T.gold,borderBottom:`1px solid ${T.border}`,fontWeight:700}}>{h}</th>)}
-                      {[1,2,3,4,5].map(w=><th key={w} style={{padding:'6px 8px',textAlign:'right',color:T.green,borderBottom:`1px solid ${T.border}`,fontWeight:700}}>W{w}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {films.slice(0,200).map(f=>{
-                      const seasonAnchor=new Date('2026-01-05')
-                      const launchDate=new Date(seasonAnchor.getTime()+(f.week-1)*7*86400000).toISOString().split('T')[0]
-                      return(
-                        <tr key={f.id} style={{borderBottom:`1px solid ${T.border}`}}>
-                          <td style={{padding:'5px 8px',color:T.text,whiteSpace:'nowrap',maxWidth:'180px',overflow:'hidden',textOverflow:'ellipsis'}}>{f.title}</td>
-                          <td style={{padding:'5px 8px',color:T.textSub}}>{launchDate}</td>
-                          <td style={{padding:'5px 8px',color:T.gold}}>P{f.phase}</td>
-                          <td style={{padding:'5px 8px',color:T.textSub,maxWidth:'120px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.dist}</td>
-                          <td style={{padding:'5px 8px',color:T.textSub}}>{f.genre}</td>
-                          <td style={{padding:'5px 8px',color:T.text,textAlign:'right'}}>{f.basePrice}</td>
-                          <td style={{padding:'5px 8px',color:T.text,textAlign:'right'}}>{f.estM}</td>
-                          <td style={{padding:'5px 8px',color:T.textSub,textAlign:'right'}}>{f.rt??'—'}</td>
-                          {[1,2,3,4,5].map(w=>{
-                            const v=w===1?results[f.id]:weeklyG[f.id]?.[w]
-                            return<td key={w} style={{padding:'5px 8px',color:v!=null?T.green:T.textDim,textAlign:'right'}}>{v??'—'}</td>
-                          })}
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+              <div style={{maxHeight:'420px',overflow:'auto',marginTop:'8px'}}>
+                {films.slice(0,200).map(f=>(
+                  <FilmEditorRow key={f.id} film={f} results={results} weeklyG={weeklyG}
+                    onSave={async(updates)=>{
+                      await supabase.from('films').update(updates).eq('id',f.id)
+                      if(updates.actual_m!=null){
+                        await dbUpsert('results','film_id',f.id,{actual_m:Number(updates.actual_m)})
+                        await resolveChips(f.id,Number(updates.actual_m))
+                      }
+                      if(updates.week2!=null)await dbUpsertWeekly(f.id,2,Number(updates.week2))
+                      if(updates.week3!=null)await dbUpsertWeekly(f.id,3,Number(updates.week3))
+                      notify(`✓ ${f.title} updated`,T.green);loadData(league?.id)
+                    }}
+                    onDelete={async()=>{
+                      if(!confirm(`Delete "${f.title}"? This also removes results and rosters.`))return
+                      await supabase.from('rosters').delete().eq('film_id',f.id)
+                      await supabase.from('results').delete().eq('film_id',f.id)
+                      await supabase.from('weekly_grosses').delete().eq('film_id',f.id)
+                      await supabase.from('film_values').delete().eq('film_id',f.id)
+                      await supabase.from('films').delete().eq('id',f.id)
+                      notify(`🗑 ${f.title} deleted`,T.red);loadData(league?.id)
+                    }}
+                  />
+                ))}
                 {films.length>200&&<div style={{fontSize:'10px',color:T.textDim,padding:'8px',textAlign:'center'}}>showing first 200 of {films.length}</div>}
               </div>
             </details>
@@ -3057,13 +3411,14 @@ export default function App(){
               Paste your wide-format CSV. Adds new films AND writes weekly grosses in one operation. Existing films matched by title (fuzzy) — duplicates skipped.
             </div>
             <textarea
-              value={bulkFilmsCsv}
-              onChange={e=>{setBulkFilmsCsv(e.target.value);setBulkFilmsPreview(null)}}
+              defaultValue={bulkFilmsCsv}
+              onBlur={e=>setBulkFilmsCsv(e.target.value)}
               placeholder={`Title\tLaunch Date\tPhase\tDistributor\tGenre\tBase\tEst\tRT\tStar\tTrailer\tWk1\tWk2\tWk3\nAvatar: Fire and Ash\t2026-12-19\t5\t20th Century\tSci-Fi\t65\t250\t90\tSam Worthington\thttps://youtu.be/abc123\t145\t78\t42\nWicked: For Good\t2026-11-21\t5\tUniversal\tFamily\t50\t180\t85\tCynthia Erivo\thttps://youtu.be/xyz456\t92\t55\t30`}
               style={{...S.inp,minHeight:'180px',fontFamily:T.mono,fontSize:'11px',resize:'vertical',whiteSpace:'pre',marginBottom:'10px'}}
             />
             <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
               <Btn onClick={()=>{
+                setBulkFilmsPreview(null)
                 const lines=bulkFilmsCsv.split('\n').map(l=>l.replace(/\r$/,'')).filter(l=>l.trim())
                 if(lines.length===0)return notify('Nothing to parse',T.red)
                 // Detect delimiter
@@ -3143,7 +3498,7 @@ export default function App(){
                 })
                 setBulkFilmsPreview({films:films_,grosses:grosses_,errs,header:headerRow})
                 notify(`Parsed ${films_.length} films · ${grosses_.length} gross rows${errs.length?` · ${errs.length} error${errs.length!==1?'s':''}`:''}`,errs.length?T.orange:T.green)
-              }} color={T.gold} size="sm" disabled={!bulkFilmsCsv.trim()}>Parse & Preview</Btn>
+              }} color={T.gold} size="sm">Parse & Preview</Btn>
               <Btn onClick={async()=>{
                 if(!bulkFilmsPreview)return notify('Parse first',T.red)
                 const total=bulkFilmsPreview.films.length+bulkFilmsPreview.grosses.length
@@ -3250,10 +3605,23 @@ export default function App(){
   }
 
 
-  // ── WAR ROOM PAGE — batch results entry ──────────────────────────────────
+  // ── WAR ROOM PAGE — batch results entry + manual film amend ─────────────
   const WarRoomPage=()=>{
     const[entries,setEntries]=useState({})
-    const upcoming=films.filter(f=>f.week<=cfg.current_week&&results[f.id]==null)
+    const[filterPhase,setFilterPhase]=useState('all')
+    const[filterStatus,setFilterStatus]=useState('pending')  // 'pending' | 'all'
+    const[search,setSearch]=useState('')
+
+    // "pending" = week has passed but no result yet (old logic)
+    // "all" = every film in the DB
+    const pendingFilms=films.filter(f=>f.week<=cfg.current_week&&results[f.id]==null)
+    const allFilms=films.filter(f=>{
+      const matchPhase=filterPhase==='all'||f.phase===Number(filterPhase)
+      const matchStatus=filterStatus==='pending'?(f.week<=cfg.current_week&&results[f.id]==null):true
+      const matchSearch=!search.trim()||f.title.toLowerCase().includes(search.toLowerCase())
+      return matchPhase&&matchStatus&&matchSearch
+    })
+
     const saveAll=async()=>{
       const toSave=Object.entries(entries).filter(([_,v])=>v.actual&&!isNaN(Number(v.actual)))
       if(toSave.length===0)return notify('Nothing to save',T.red)
@@ -3261,35 +3629,95 @@ export default function App(){
         await dbUpsert('results','film_id',filmId,{actual_m:Number(v.actual)})
         const film=films.find(f=>f.id===filmId)
         if(film){await dbUpsert('film_values','film_id',filmId,{current_value:calcMarketValue(film,Number(v.actual))});resolveChips(filmId,Number(v.actual))}
-        if(v.week2)await dbUpsertWeekly(filmId,2,Number(v.week2))
-        if(v.week3)await dbUpsertWeekly(filmId,3,Number(v.week3))
+        if(v.week2&&!isNaN(Number(v.week2)))await dbUpsertWeekly(filmId,2,Number(v.week2))
+        if(v.week3&&!isNaN(Number(v.week3)))await dbUpsertWeekly(filmId,3,Number(v.week3))
+        // Also save any film field edits
+        const filmEdits={}
+        if(v.est_m!==undefined&&v.est_m!==''&&!isNaN(Number(v.est_m)))filmEdits.est_m=Number(v.est_m)
+        if(v.rt!==undefined&&v.rt!==''&&!isNaN(Number(v.rt)))filmEdits.rt=Number(v.rt)
+        if(v.base_price!==undefined&&v.base_price!=='')filmEdits.base_price=Number(v.base_price)||null
+        if(Object.keys(filmEdits).length)await supabase.from('films').update(filmEdits).eq('id',filmId)
       }
       notify(`✓ Saved ${toSave.length} result${toSave.length!==1?'s':''}`,T.green)
       setEntries({});loadData(league?.id)
     }
+
+    const setEntry=(filmId,key,val)=>setEntries(prev=>({...prev,[filmId]:{...prev[filmId],[key]:val}}))
+
     return(
       <div style={{animation:'fadeUp .2s ease'}}>
         <div style={S.pageTitle}>⚡ War Room</div>
-        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px'}}>Batch enter weekend results · saves all at once</div>
-        {upcoming.length===0?<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>All caught up.</div>:<>
-          {upcoming.map(f=>(
-            <div key={f.id} style={{...S.card,marginBottom:'8px'}}>
-              <div style={{display:'flex',gap:'12px',alignItems:'center',marginBottom:'10px'}}>
-                <FilmPoster film={f} width={42} height={63} radius={6}/>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:'13px',fontWeight:600}}>{f.title}</div>
-                  <div style={{fontSize:'11px',color:T.textSub}}>{f.dist} · W{f.week} · est ${f.estM}M</div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px'}}>Enter results + manually amend any film in the slate</div>
+
+        {/* Controls */}
+        <div style={{display:'flex',gap:'8px',marginBottom:'12px',flexWrap:'wrap'}}>
+          <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{...S.inp,flex:'none',fontSize:'11px',padding:'6px 10px'}}>
+            <option value="pending">⏳ Pending results only</option>
+            <option value="all">📋 All films</option>
+          </select>
+          <select value={filterPhase} onChange={e=>setFilterPhase(e.target.value)} style={{...S.inp,flex:'none',fontSize:'11px',padding:'6px 10px'}}>
+            <option value="all">All phases</option>
+            {ALL_PHASES.map(p=><option key={p} value={p}>Phase {p} — {PHASE_NAMES[p]}</option>)}
+          </select>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search film…" style={{...S.inp,flex:1,fontSize:'11px',padding:'6px 10px',minWidth:'120px'}}/>
+        </div>
+
+        {allFilms.length===0
+          ?<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>
+            {filterStatus==='pending'?'All caught up — no films awaiting results.':'No films match your filters.'}
+            <div style={{fontSize:'11px',color:T.textDim,marginTop:'8px'}}>Switch to "All films" to browse the full slate.</div>
+          </div>
+          :<>
+            {allFilms.map(f=>{
+              const actual=results[f.id]
+              const e=entries[f.id]||{}
+              const hasEdits=Object.values(e).some(v=>v!=='')
+              return(
+                <div key={f.id} style={{...S.card,marginBottom:'8px',border:`1px solid ${actual!=null?T.green+'33':hasEdits?T.gold+'44':T.border}`}}>
+                  {/* Film header */}
+                  <div style={{display:'flex',gap:'10px',alignItems:'center',marginBottom:'10px'}}>
+                    <FilmPoster film={f} width={42} height={63} radius={6}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:'13px',fontWeight:600,color:T.text}}>{f.title}</div>
+                      <div style={{fontSize:'10px',color:T.textSub,marginTop:'2px'}}>{f.dist} · {dateLabel(f.week)} · P{f.phase}</div>
+                      <div style={{display:'flex',gap:'8px',marginTop:'4px',flexWrap:'wrap'}}>
+                        {f.estM&&<span style={{fontSize:'10px',color:T.textSub}}>Est ${f.estM}M</span>}
+                        {f.basePrice!=null&&<span style={{fontSize:'10px',color:T.gold}}>IPO ${f.basePrice}M</span>}
+                        {f.rt!=null&&<span style={{fontSize:'10px',color:f.rt>=75?T.green:T.red}}>RT {f.rt}%</span>}
+                        {actual!=null&&<span style={{fontSize:'10px',color:T.green,fontWeight:700}}>✓ Actual ${actual}M</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Results row */}
+                  <div style={{...S.label,marginBottom:'6px',color:T.green}}>Results</div>
+                  <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px',marginBottom:'10px'}}>
+                    <input value={e.actual??actual??''} onChange={ev=>setEntry(f.id,'actual',ev.target.value)}
+                      placeholder={actual!=null?`Was $${actual}M`:"Opening W/E $M"} style={{...S.inp,fontSize:'11px',padding:'5px 8px',color:actual!=null?T.green:T.text}}/>
+                    <input value={e.week2??weeklyG[f.id]?.[2]??''} onChange={ev=>setEntry(f.id,'week2',ev.target.value)}
+                      placeholder={weeklyG[f.id]?.[2]?`Was $${weeklyG[f.id][2]}M`:"Week 2 $M"} style={{...S.inp,fontSize:'11px',padding:'5px 8px'}}/>
+                    <input value={e.week3??weeklyG[f.id]?.[3]??''} onChange={ev=>setEntry(f.id,'week3',ev.target.value)}
+                      placeholder={weeklyG[f.id]?.[3]?`Was $${weeklyG[f.id][3]}M`:"Week 3 $M"} style={{...S.inp,fontSize:'11px',padding:'5px 8px'}}/>
+                  </div>
+
+                  {/* Film details row */}
+                  <div style={{...S.label,marginBottom:'6px',color:T.gold}}>Film Details</div>
+                  <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px'}}>
+                    <input value={e.est_m??''} onChange={ev=>setEntry(f.id,'est_m',ev.target.value)}
+                      placeholder={f.estM?`Est: $${f.estM}M`:"Est $M"} style={{...S.inp,fontSize:'11px',padding:'5px 8px'}}/>
+                    <input value={e.rt??''} onChange={ev=>setEntry(f.id,'rt',ev.target.value)}
+                      placeholder={f.rt!=null?`RT: ${f.rt}%`:"RT score"} style={{...S.inp,fontSize:'11px',padding:'5px 8px'}}/>
+                    <input value={e.base_price??''} onChange={ev=>setEntry(f.id,'base_price',ev.target.value)}
+                      placeholder={f.basePrice!=null?`IPO: $${f.basePrice}M`:"IPO price"} style={{...S.inp,fontSize:'11px',padding:'5px 8px'}}/>
+                  </div>
                 </div>
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'8px'}}>
-                <input value={entries[f.id]?.actual||''} onChange={e=>setEntries({...entries,[f.id]:{...entries[f.id],actual:e.target.value}})} placeholder="Opening" style={{...S.inp,fontSize:'12px'}}/>
-                <input value={entries[f.id]?.week2||''} onChange={e=>setEntries({...entries,[f.id]:{...entries[f.id],week2:e.target.value}})} placeholder="Week 2" style={{...S.inp,fontSize:'12px'}}/>
-                <input value={entries[f.id]?.week3||''} onChange={e=>setEntries({...entries,[f.id]:{...entries[f.id],week3:e.target.value}})} placeholder="Week 3" style={{...S.inp,fontSize:'12px'}}/>
-              </div>
-            </div>
-          ))}
-          <Btn onClick={saveAll} color={T.green} textColor="#0D0A08" full size="lg" sx={{marginTop:'12px'}}>Save All Results</Btn>
-        </>}
+              )
+            })}
+            <Btn onClick={saveAll} color={T.green} textColor="#0D0A08" full size="lg" sx={{marginTop:'12px',marginBottom:'60px'}}>
+              Save All Changes ({Object.keys(entries).filter(id=>Object.values(entries[id]).some(v=>v!=='')).length} films edited)
+            </Btn>
+          </>
+        }
       </div>
     )
   }
@@ -3512,7 +3940,7 @@ export default function App(){
       case 'warroom':return <WarRoomPage/>
       case 'commissioner':return <CommissionerPage/>
       case 'distributor':return <DistributorPage/>
-      case 'profile':return profilePlayer?<PlayerProfilePage player={profilePlayer} films={films} rosters={rosters} results={results} weeklyG={weeklyG} allChips={allChips} oscarPreds={oscarPreds} allPicks={allPicks} calcPoints={calcPoints} calcPhasePoints={calcPhasePoints} budgetLeft={budgetLeft} cur={cur} isEarlyBird={isEarlyBird} analystActive={analystOn} curPhase_ref={curPhase()} onBack={()=>setPage(prevPage)}/>:null
+      case 'profile':return profilePlayer?<PlayerProfilePage player={profilePlayer} badges={calcBadges(profilePlayer.id)} films={films} rosters={rosters} results={results} weeklyG={weeklyG} allChips={allChips} oscarPreds={oscarPreds} allPicks={allPicks} calcPoints={calcPoints} calcPhasePoints={calcPhasePoints} budgetLeft={budgetLeft} cur={cur} isEarlyBird={isEarlyBird} analystActive={analystOn} curPhase_ref={curPhase()} onBack={()=>setPage(prevPage)}/>:null
       default:return <MarketPage/>
     }
   }
@@ -3638,6 +4066,27 @@ export default function App(){
 
         {/* MAIN CONTENT */}
         <div style={{padding:'20px',maxWidth:'1100px',margin:'0 auto'}}>
+          {!isStandalone&&!installHidden&&(installEvt||isIOS)&&profile&&(
+            <div style={{background:`linear-gradient(135deg,${T.gold}14,${T.surface})`,border:`1px solid ${T.gold}44`,borderRadius:'12px',padding:'12px 14px',marginBottom:'14px',display:'flex',gap:'12px',alignItems:'center'}}>
+              <span style={{fontSize:'20px'}}>📲</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:'13px',fontWeight:700,color:T.gold}}>Get the BOXD app</div>
+                <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>{installEvt?'One tap — home-screen icon, full screen, no browser.':'Tap Share, then "Add to Home Screen".'}</div>
+              </div>
+              {installEvt&&<Btn onClick={async()=>{installEvt.prompt();try{await installEvt.userChoice}catch{};setInstallEvt(null)}} color={T.gold} size="sm">Install</Btn>}
+              <button onClick={()=>{setInstallHidden(true);try{localStorage.setItem('boxd_install_hidden','1')}catch{}}} aria-label="Dismiss install prompt" style={{background:'none',border:'none',color:T.textDim,fontSize:'16px',cursor:'pointer',padding:'4px 8px'}}>×</button>
+            </div>
+          )}
+          {loadError&&(
+            <div style={{background:`${T.red}14`,border:`1px solid ${T.red}55`,borderRadius:'12px',padding:'14px 16px',marginBottom:'14px',display:'flex',gap:'12px',alignItems:'center'}}>
+              <span style={{fontSize:'18px'}}>⚠️</span>
+              <div style={{flex:1}}>
+                <div style={{fontSize:'13px',fontWeight:700,color:T.red}}>Couldn't load league data</div>
+                <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>{loadError}</div>
+              </div>
+              <Btn onClick={()=>loadData(league?.id)} color={T.red} textColor="#fff" size="sm">Retry</Btn>
+            </div>
+          )}
           {dataLoading?<PageSkeleton/>:renderPage()}
         </div>
       </div>
