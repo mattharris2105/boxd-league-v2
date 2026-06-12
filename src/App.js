@@ -698,7 +698,7 @@ function PlayerProfilePage({player,badges=[],reviews=[],onOpenFilm,films,rosters
               {player.favourite_film_id&&(()=>{const ff=films.find(f=>f.id===player.favourite_film_id);if(!ff)return null;return(
                 <div onClick={()=>onOpenFilm&&onOpenFilm(ff)} style={{display:'flex',gap:'8px',alignItems:'center',background:T.surfaceUp,borderRadius:'10px',padding:'6px 10px',cursor:'pointer'}}>
                   <FilmPoster film={ff} width={24} height={36} radius={4}/>
-                  <div><div style={{fontSize:'9px',color:T.textDim,letterSpacing:'1px'}}>FAVOURITE</div><div style={{fontSize:'11px',fontWeight:700,color:T.gold}}>{ff.title}</div></div>
+                  <div><div style={{fontSize:'9px',color:T.textDim,letterSpacing:'1px'}}>MOST EXCITED FOR</div><div style={{fontSize:'11px',fontWeight:700,color:T.gold}}>{ff.title}</div></div>
                 </div>
               )})()}
               {player.letterboxd_url&&<a href={player.letterboxd_url} target="_blank" rel="noopener noreferrer" style={{fontSize:'11px',color:T.green,textDecoration:'none',fontWeight:700,background:T.surfaceUp,borderRadius:'10px',padding:'10px 12px'}}>📗 Letterboxd ↗</a>}
@@ -1490,6 +1490,23 @@ export default function App(){
   },[session])
 
   const notify=(msg,color=T.gold)=>{setNotif({msg,color});setTimeout(()=>setNotif(null),3000)}
+  const updateLeagueConfig=async(patch)=>{
+    const{data,error}=await supabase.from('league_config').update(patch).eq('league_id',league?.id).select()
+    if(error){notify(`Config error: ${error.message}`,T.red);return false}
+    if(!data||data.length===0){
+      // No row matched this league — repair: claim an orphan row or create one
+      const{data:orphan}=await supabase.from('league_config').select('id').is('league_id',null).limit(1).maybeSingle()
+      if(orphan){
+        const{error:e2}=await supabase.from('league_config').update({...patch,league_id:league?.id}).eq('id',orphan.id)
+        if(e2){notify(`Config error: ${e2.message}`,T.red);return false}
+      }else{
+        const{error:e3}=await supabase.from('league_config').insert({league_id:league?.id,current_week:cfg.current_week,current_phase:cfg.current_phase,phase_window_active:cfg.phase_window_active??false,...patch})
+        if(e3){notify(`Config error: ${e3.message}`,T.red);return false}
+      }
+    }
+    await loadData(league?.id)
+    return true
+  }
   const goToProfile=(player)=>{setPrevPage(page);setProfilePlayer(player);setPage('profile')}
   const isCommissioner=session?.user?.email===COMMISSIONER_EMAIL||league?.commissioner_id===session?.user?.id
 
@@ -1657,13 +1674,14 @@ export default function App(){
       const chipWinner=chipWin?players.find(p=>p.id===chipWin.player_id):null
       for(const p of players) await bankBudget(p.id,completedPhase)
       const nextPhase=completedPhase+1
-      await supabase.from('league_config').update({
+      const ok=await updateLeagueConfig({
         current_phase:nextPhase,
         phase_window_active:false,
         phase_window_opened_at:null,
         draft_window_open:false,
         draft_deadline:null,
-      }).eq('league_id',league?.id)
+      })
+      if(!ok)throw new Error('Could not write league config — check Data Health')
       await logActivity(session.user.id,'phase_advance',{from_phase:completedPhase,to_phase:nextPhase,league:league?.name},league?.id)
       await sendNotification('phase_advance',{league_id:league?.id,from_phase:completedPhase,to_phase:nextPhase,players:players.map(p=>({id:p.id}))})
       setPhaseCeremony({phase:completedPhase,scores:phaseScores,winner:phaseWinner,mvp:mvpHolding,chipWinner,chipWin})
@@ -2866,9 +2884,16 @@ export default function App(){
       <div style={{animation:'fadeUp .2s ease'}}>
         <div style={S.pageTitle}>The Forecaster</div>
         <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Predict opening weekends for every film. Track your accuracy vs the league — purely for bragging rights.</div>
-        {board.length>0&&(
-          <div style={{...S.card,marginBottom:'16px',border:`1px solid ${T.blue}33`}}>
+        <div style={{...S.card,marginBottom:'16px',border:`1px solid ${T.blue}33`}}>
             <div style={{...S.label,color:T.blue,marginBottom:'10px'}}>🏅 Accuracy Leaderboard</div>
+            {board.length===0&&(()=>{
+              const resulted=films.filter(f=>results[f.id]!=null).length
+              const totalCalls=allForecasts.length
+              return <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.7,padding:'4px 0'}}>
+                The table appears once predictions can be scored against actual openings.
+                So far: {totalCalls} prediction{totalCalls!==1?'s':''} logged · {resulted} film{resulted!==1?'s':''} opened — {totalCalls===0?'make your first calls below.':'none of the logged predictions were on films that have opened yet. Predict upcoming films below and the table fills in as they release.'}
+              </div>
+            })()}
             {board.map((b,i)=>(
               <div key={b.p.id} style={{display:'flex',gap:'10px',alignItems:'center',padding:'7px 0',borderBottom:i<board.length-1?`1px solid ${T.border}`:'none'}}>
                 <span style={{fontSize:'13px',width:'24px',color:i===0?T.gold:T.textSub,fontWeight:800,fontFamily:T.mono}}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`}</span>
@@ -2878,9 +2903,8 @@ export default function App(){
                 <span style={{fontSize:'14px',fontWeight:800,color:b.acc>=80?T.green:b.acc>=60?T.gold:T.red,fontFamily:T.mono}}>{b.acc}%</span>
               </div>
             ))}
-            <div style={{fontSize:'9px',color:T.textDim,marginTop:'8px'}}>Accuracy = 100% minus average error vs actual openings · only resulted films count</div>
+            {board.length>0&&<div style={{fontSize:'9px',color:T.textDim,marginTop:'8px'}}>Accuracy = 100% minus average error vs actual openings · only resulted films count</div>}
           </div>
-        )}
         {fcFilms.length===0?<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No upcoming films to forecast.</div>:fcFilms.map(f=>{
           const cur=forecasts[f.id],val=edit[f.id]??cur??''
           return(
@@ -3261,6 +3285,30 @@ export default function App(){
             <StatBox label="Booking clicks" value={clicksTotal} color={T.green}/>
             <StatBox label="Slate vs est" value={slateRatio!=null?`${slateRatio.toFixed(2)}×`:'—'} color={slateRatio>=1?T.green:slateRatio!=null?T.red:T.textSub}/>
           </div>
+          {(()=>{
+            // Conversion funnel + audience lock-in timing + genre benchmark
+            const distPickRows=allPicks.filter(p=>distFilms.find(f=>f.id===p.film_id)&&p.picked_at)
+            const ownConv=watchers>0?Math.round(owners/watchers*100):null
+            const clickConv=watchers>0?Math.round(clicksTotal/watchers*100):null
+            const lockIns=distPickRows.map(p=>{const f=distFilms.find(fl=>fl.id===p.film_id);const wk=Math.max(1,Math.floor((new Date(p.picked_at)-SEASON_ANCHOR)/(7*86400000))+1);return f.week-wk}).filter(n=>n>=0).sort((a,b)=>a-b)
+            const medLock=lockIns.length?lockIns[Math.floor(lockIns.length/2)]:null
+            const allLock=allPicks.filter(p=>p.picked_at).map(p=>{const f=films.find(fl=>fl.id===p.film_id);if(!f)return null;const wk=Math.max(1,Math.floor((new Date(p.picked_at)-SEASON_ANCHOR)/(7*86400000))+1);return f.week-wk}).filter(n=>n!=null&&n>=0).sort((a,b)=>a-b)
+            const leagueLock=allLock.length?allLock[Math.floor(allLock.length/2)]:null
+            const topG=Object.entries(distFilms.reduce((a,f)=>({...a,[f.genre]:(a[f.genre]||0)+1}),{})).sort((a,b)=>b[1]-a[1])[0]?.[0]
+            const genreComps=films.filter(f=>f.genre===topG&&f.dist!==selDist&&results[f.id]!=null&&f.estM)
+            const genreAvg=genreComps.length?genreComps.reduce((s,f)=>s+results[f.id]/f.estM,0)/genreComps.length:null
+            return(
+              <div style={{...S.card,marginBottom:'14px',background:T.surfaceUp}}>
+                <div style={{...S.label,marginBottom:'10px',color:T.blue}}>Audience Insight</div>
+                <div style={{fontSize:'12px',color:T.text,lineHeight:1.9}}>
+                  {ownConv!=null&&<div>🔁 <strong style={{color:T.gold}}>{ownConv}%</strong> of watchers convert to owning the film{clickConv!=null&&<> · <strong style={{color:T.green}}>{clickConv}%</strong> click through to book</>}</div>}
+                  {medLock!=null&&<div>⏱ Audience locks in <strong style={{color:T.gold}}>{medLock} week{medLock!==1?'s':''} before release</strong>{leagueLock!=null&&<span style={{color:T.textSub}}> (league median: {leagueLock}w)</span>}{leagueLock!=null&&medLock>leagueLock&&<span style={{color:T.green}}> — earlier commitment than average</span>}</div>}
+                  {slateRatio!=null&&genreAvg!=null&&topG&&<div>🎭 {topG} slate performs <strong style={{color:slateRatio>=genreAvg?T.green:T.red}}>{slateRatio>=genreAvg?'+':''}{Math.round((slateRatio-genreAvg)*100)}pts vs est</strong> against other distributors' {topG.toLowerCase()} titles ({genreAvg.toFixed(2)}× benchmark)</div>}
+                  {distPickRows.length===0&&<div style={{color:T.textDim}}>Insight builds as watchlist activity accrues on this slate.</div>}
+                </div>
+              </div>
+            )
+          })()}
           <div style={{...S.label,marginBottom:'8px'}}>Slate — tap a film for its intent report</div>
           {distFilms.map(f=>{
             const w=allPicks.filter(p=>p.film_id===f.id).length
@@ -3461,8 +3509,8 @@ export default function App(){
       rt:film.rt??'',star_actor:film.starActor??'',
       trailer:film.trailer??'',week:film.week,phase:film.phase,
       actual_m:results[film.id]??'',
-      week2:weeklyG[film.id]?.[2]??'',
-      week3:weeklyG[film.id]?.[3]??'',
+      week2:weeklyG[film.id]?.[2]??'',week3:weeklyG[film.id]?.[3]??'',
+      week4:weeklyG[film.id]?.[4]??'',week5:weeklyG[film.id]?.[5]??'',week6:weeklyG[film.id]?.[6]??'',
     })
     const set=(k,v)=>setVals(prev=>({...prev,[k]:v}))
     const inp={...S.inp,fontSize:'11px',padding:'5px 8px',marginBottom:'6px'}
@@ -3508,6 +3556,9 @@ export default function App(){
               <div><div style={{...S.label,marginBottom:'4px'}}>Opening W/E ($M)</div><input type="number" value={vals.actual_m} onChange={e=>set('actual_m',e.target.value)} style={inp}/></div>
               <div><div style={{...S.label,marginBottom:'4px'}}>Week 2 ($M)</div><input type="number" value={vals.week2} onChange={e=>set('week2',e.target.value)} style={inp}/></div>
               <div><div style={{...S.label,marginBottom:'4px'}}>Week 3 ($M)</div><input type="number" value={vals.week3} onChange={e=>set('week3',e.target.value)} style={inp}/></div>
+              <div><div style={{...S.label,marginBottom:'4px'}}>Week 4 ($M)</div><input type="number" value={vals.week4} onChange={e=>set('week4',e.target.value)} style={inp}/></div>
+              <div><div style={{...S.label,marginBottom:'4px'}}>Week 5 ($M)</div><input type="number" value={vals.week5} onChange={e=>set('week5',e.target.value)} style={inp}/></div>
+              <div><div style={{...S.label,marginBottom:'4px'}}>Week 6 ($M)</div><input type="number" value={vals.week6} onChange={e=>set('week6',e.target.value)} style={inp}/></div>
             </div>
             <div style={{display:'flex',gap:'8px',marginTop:'10px'}}>
               <Btn onClick={()=>setOpen(false)} variant="outline" color={T.textSub} size="sm" sx={{flex:1}}>Cancel</Btn>
@@ -3524,8 +3575,8 @@ export default function App(){
                   star_actor:vals.star_actor.trim()||null,
                   trailer:vals.trailer.trim()||null,
                   actual_m:vals.actual_m!==''?vals.actual_m:null,
-                  week2:vals.week2!==''?vals.week2:null,
-                  week3:vals.week3!==''?vals.week3:null,
+                  week2:vals.week2!==''?vals.week2:null,week3:vals.week3!==''?vals.week3:null,
+                  week4:vals.week4!==''?vals.week4:null,week5:vals.week5!==''?vals.week5:null,week6:vals.week6!==''?vals.week6:null,
                 }
                 onSave(updates);setOpen(false)
               }} color={T.green} textColor="#0D0A08" size="sm" sx={{flex:2}}>Save Changes</Btn>
@@ -3565,8 +3616,8 @@ export default function App(){
               <StatBox label="Window" value={win?'Open':'Closed'} color={win?T.green:T.textSub}/>
             </div>
             <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
-              <Btn onClick={async()=>{await supabase.from('league_config').update({current_week:cfg.current_week+1}).eq('league_id',league?.id);loadData(league?.id);notify(`Week ${cfg.current_week+1}`,T.gold)}} color={T.gold} size="sm">Week +1</Btn>
-              <Btn onClick={async()=>{await supabase.from('league_config').update({current_week:Math.max(1,cfg.current_week-1)}).eq('league_id',league?.id);loadData(league?.id);notify(`Week ${cfg.current_week-1}`,T.gold)}} variant="outline" color={T.gold} size="sm">Week −1</Btn>
+              <Btn onClick={async()=>{if(await updateLeagueConfig({current_week:cfg.current_week+1}))notify(`Week ${cfg.current_week+1}`,T.gold)}} color={T.gold} size="sm">Week +1</Btn>
+              <Btn onClick={async()=>{if(await updateLeagueConfig({current_week:Math.max(1,cfg.current_week-1)}))notify(`Week ${Math.max(1,cfg.current_week-1)}`,T.gold)}} variant="outline" color={T.gold} size="sm">Week −1</Btn>
               <Btn onClick={advancePhase} color={T.purple} textColor="#fff" size="sm" disabled={phaseTransitioning}>Advance Phase →</Btn>
             </div>
           </div>
@@ -3624,7 +3675,7 @@ export default function App(){
             <div style={{fontSize:'12px',color:T.textSub,marginBottom:'12px'}}>72hr period at phase start where sells have no fees.</div>
             <Btn onClick={async()=>{
               const newState=!win
-              await supabase.from('league_config').update({phase_window_active:newState,phase_window_opened_at:newState?new Date().toISOString():null}).eq('league_id',league?.id)
+              await updateLeagueConfig({phase_window_active:newState,phase_window_opened_at:newState?new Date().toISOString():null})
               loadData(league?.id);notify(`Window ${newState?'opened':'closed'}`,newState?T.green:T.red)
             }} color={win?T.red:T.green} textColor={win?'#fff':'#0D0A08'} size="sm">{win?'Close Window':'Open Window'}</Btn>
           </div>
@@ -3634,7 +3685,7 @@ export default function App(){
             <Btn onClick={async()=>{
               const newState=!draftWindowOpen
               const dl=newState?new Date(Date.now()+72*3600000).toISOString():null
-              await supabase.from('league_config').update({draft_window_open:newState,draft_deadline:dl}).eq('league_id',league?.id)
+              await updateLeagueConfig({draft_window_open:newState,draft_deadline:dl})
               loadData(league?.id);notify(`Draft ${newState?'opened':'closed'}`,newState?T.green:T.red)
             }} color={draftWindowOpen?T.red:T.orange} textColor="#fff" size="sm">{draftWindowOpen?'Close Draft':'Open Draft'}</Btn>
           </div>
@@ -3644,7 +3695,7 @@ export default function App(){
             <Btn onClick={async()=>{
               const newState=!sealedWindowOpen
               const dl=newState?new Date(Date.now()+48*3600000).toISOString():null
-              await supabase.from('league_config').update({sealed_bid_window_open:newState,sealed_bid_deadline:dl}).eq('league_id',league?.id)
+              await updateLeagueConfig({sealed_bid_window_open:newState,sealed_bid_deadline:dl})
               loadData(league?.id);notify(`Sealed bid ${newState?'opened':'closed'}`,newState?T.green:T.red)
             }} color={sealedWindowOpen?T.red:T.blue} textColor="#fff" size="sm">{sealedWindowOpen?'Close':'Open'} Bid Window</Btn>
           </div>
@@ -3853,8 +3904,7 @@ export default function App(){
                         await dbUpsert('results','film_id',f.id,{actual_m:Number(updates.actual_m)})
                         await resolveChips(f.id,Number(updates.actual_m))
                       }
-                      if(updates.week2!=null)await dbUpsertWeekly(f.id,2,Number(updates.week2))
-                      if(updates.week3!=null)await dbUpsertWeekly(f.id,3,Number(updates.week3))
+                      for(const w of [2,3,4,5,6]){if(updates[`week${w}`]!=null)await dbUpsertWeekly(f.id,w,Number(updates[`week${w}`]))}
                       notify(`✓ ${f.title} updated`,T.green);loadData(league?.id)
                     }}
                     onDelete={async()=>{
@@ -4098,8 +4148,7 @@ export default function App(){
         await dbUpsert('results','film_id',filmId,{actual_m:Number(v.actual)})
         const film=films.find(f=>f.id===filmId)
         if(film){await dbUpsert('film_values','film_id',filmId,{current_value:calcMarketValue(film,Number(v.actual))});resolveChips(filmId,Number(v.actual))}
-        if(v.week2&&!isNaN(Number(v.week2)))await dbUpsertWeekly(filmId,2,Number(v.week2))
-        if(v.week3&&!isNaN(Number(v.week3)))await dbUpsertWeekly(filmId,3,Number(v.week3))
+        for(const w of [2,3,4,5,6]){const wv=v[`week${w}`];if(wv&&!isNaN(Number(wv)))await dbUpsertWeekly(filmId,w,Number(wv))}
         // Also save any film field edits
         const filmEdits={}
         if(v.est_m!==undefined&&v.est_m!==''&&!isNaN(Number(v.est_m)))filmEdits.est_m=Number(v.est_m)
@@ -4163,10 +4212,16 @@ export default function App(){
                   <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px',marginBottom:'10px'}}>
                     <input value={e.actual??actual??''} onChange={ev=>setEntry(f.id,'actual',ev.target.value)}
                       placeholder={actual!=null?`Was $${actual}M`:"Opening W/E $M"} style={{...S.inp,fontSize:'11px',padding:'5px 8px',color:actual!=null?T.green:T.text}}/>
-                    <input value={e.week2??weeklyG[f.id]?.[2]??''} onChange={ev=>setEntry(f.id,'week2',ev.target.value)}
-                      placeholder={weeklyG[f.id]?.[2]?`Was $${weeklyG[f.id][2]}M`:"Week 2 $M"} style={{...S.inp,fontSize:'11px',padding:'5px 8px'}}/>
-                    <input value={e.week3??weeklyG[f.id]?.[3]??''} onChange={ev=>setEntry(f.id,'week3',ev.target.value)}
-                      placeholder={weeklyG[f.id]?.[3]?`Was $${weeklyG[f.id][3]}M`:"Week 3 $M"} style={{...S.inp,fontSize:'11px',padding:'5px 8px'}}/>
+                    {[2,3].map(w=>(
+                      <input key={w} value={e[`week${w}`]??weeklyG[f.id]?.[w]??''} onChange={ev=>setEntry(f.id,`week${w}`,ev.target.value)}
+                        placeholder={weeklyG[f.id]?.[w]?`Was $${weeklyG[f.id][w]}M`:`Week ${w} $M`} style={{...S.inp,fontSize:'11px',padding:'5px 8px'}}/>
+                    ))}
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px',marginBottom:'10px'}}>
+                    {[4,5,6].map(w=>(
+                      <input key={w} value={e[`week${w}`]??weeklyG[f.id]?.[w]??''} onChange={ev=>setEntry(f.id,`week${w}`,ev.target.value)}
+                        placeholder={weeklyG[f.id]?.[w]?`Was $${weeklyG[f.id][w]}M`:`Week ${w} $M`} style={{...S.inp,fontSize:'11px',padding:'5px 8px'}}/>
+                    ))}
                   </div>
 
                   {/* Film details row */}
@@ -4325,6 +4380,7 @@ export default function App(){
     const[avatarUrl,setAvatarUrl]=useState(profile?.avatar_url||'')
     const[favFilm,setFavFilm]=useState(profile?.favourite_film_id||'')
     const[letterboxd,setLetterboxd]=useState(profile?.letterboxd_url||'')
+    const[uploading,setUploading]=useState(false)
     const save=async()=>{
       await supabase.from('profiles').update({name:name.trim(),bio:bio.trim(),color:col,avatar_url:avatarUrl.trim()||null,favourite_film_id:favFilm||null,letterboxd_url:letterboxd.trim()||null}).eq('id',profile.id)
       loadProfile();notify('Profile updated',T.green);setProfileEditOpen(false)
@@ -4337,12 +4393,31 @@ export default function App(){
           <input value={name} onChange={e=>setName(e.target.value)} style={{...S.inp,marginBottom:'14px'}}/>
           <div style={{...S.label,marginBottom:'6px'}}>Bio</div>
           <textarea value={bio} onChange={e=>setBio(e.target.value)} placeholder="One-line tagline…" style={{...S.inp,minHeight:'60px',marginBottom:'14px',resize:'vertical',fontFamily:T.mono}}/>
-          <div style={{...S.label,marginBottom:'6px'}}>Profile photo URL <span style={{textTransform:'none',letterSpacing:0,color:T.textDim}}>(paste any image link)</span></div>
-          <input value={avatarUrl} onChange={e=>setAvatarUrl(e.target.value)} placeholder="https://…" style={{...S.inp,marginBottom:'14px'}}/>
-          <div style={{...S.label,marginBottom:'6px'}}>Favourite film</div>
+          <div style={{...S.label,marginBottom:'6px'}}>Profile photo</div>
+          <div style={{display:'flex',gap:'8px',alignItems:'center',marginBottom:'8px'}}>
+            {avatarUrl&&<img src={avatarUrl} alt="" style={{width:'40px',height:'40px',borderRadius:'50%',objectFit:'cover',border:`2px solid ${col}`}} onError={e=>{e.target.style.display='none'}}/>}
+            <label style={{...S.btn,background:T.surfaceUp,border:`1px solid ${T.gold}44`,color:T.gold,fontSize:'12px',padding:'9px 14px',cursor:uploading?'wait':'pointer',textTransform:'none',letterSpacing:0,borderRadius:'9px',flex:1,textAlign:'center'}}>
+              {uploading?'Uploading…':'📷 Upload from device'}
+              <input type="file" accept="image/*" disabled={uploading} onChange={async e=>{
+                const file=e.target.files?.[0];if(!file)return
+                if(file.size>4*1024*1024)return notify('Image too large — max 4MB',T.red)
+                setUploading(true)
+                const ext=(file.name.split('.').pop()||'jpg').toLowerCase()
+                const path=`${profile.id}.${ext}`
+                const{error}=await supabase.storage.from('avatars').upload(path,file,{upsert:true,contentType:file.type})
+                setUploading(false)
+                if(error)return notify(`Upload failed: ${error.message}`,T.red)
+                const{data}=supabase.storage.from('avatars').getPublicUrl(path)
+                setAvatarUrl(`${data.publicUrl}?v=${Date.now()}`)
+                notify('Photo uploaded — hit Save',T.green)
+              }} style={{display:'none'}}/>
+            </label>
+          </div>
+          <input value={avatarUrl} onChange={e=>setAvatarUrl(e.target.value)} placeholder="…or paste an image URL" style={{...S.inp,marginBottom:'14px',fontSize:'11px'}}/>
+          <div style={{...S.label,marginBottom:'6px'}}>Most excited for</div>
           <select value={favFilm} onChange={e=>setFavFilm(e.target.value)} style={{...S.inp,marginBottom:'14px'}}>
             <option value="">None selected</option>
-            {films.map(f=><option key={f.id} value={f.id}>{f.title}</option>)}
+            {films.filter(f=>results[f.id]==null).sort((a,b)=>a.week-b.week).map(f=><option key={f.id} value={f.id}>{f.title} ({dateLabel(f.week)})</option>)}
           </select>
           <div style={{...S.label,marginBottom:'6px'}}>Letterboxd profile</div>
           <input value={letterboxd} onChange={e=>setLetterboxd(e.target.value)} placeholder="https://letterboxd.com/you" style={{...S.inp,marginBottom:'14px'}}/>
@@ -4613,7 +4688,7 @@ export default function App(){
       {/* GLOBAL SEARCH */}
       {!searchOpen&&profile&&(
         <button onClick={()=>setSearchOpen(true)} aria-label="Search films, players and pages"
-          style={{position:'fixed',top:'calc(12px + env(safe-area-inset-top))',right:'14px',zIndex:64,width:'40px',height:'40px',borderRadius:'50%',background:T.surface,border:`1px solid ${T.gold}44`,color:T.gold,fontSize:'16px',cursor:'pointer',boxShadow:'0 4px 16px #00000066',display:'flex',alignItems:'center',justifyContent:'center'}}>🔍</button>
+          style={{position:'fixed',bottom:isMobile?'calc(84px + env(safe-area-inset-bottom))':'24px',right:'16px',zIndex:64,width:'40px',height:'40px',borderRadius:'50%',background:T.surface,border:`1px solid ${T.gold}44`,color:T.gold,fontSize:'16px',cursor:'pointer',boxShadow:'0 4px 16px #00000066',display:'flex',alignItems:'center',justifyContent:'center'}}>🔍</button>
       )}
       {searchOpen&&<GlobalSearchOverlay/>}
 
