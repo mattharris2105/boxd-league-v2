@@ -614,7 +614,7 @@ function CreateProfile({session,onCreated,notify}){
   )
 }
 
-function PlayerProfilePage({player,badges=[],films,rosters,results,weeklyG,allChips,oscarPreds,allPicks,calcPoints,calcPhasePoints,budgetLeft,cur,isEarlyBird,analystActive,curPhase_ref,onBack}){
+function PlayerProfilePage({player,badges=[],reviews=[],onOpenFilm,films,rosters,results,weeklyG,allChips,oscarPreds,allPicks,calcPoints,calcPhasePoints,budgetLeft,cur,isEarlyBird,analystActive,curPhase_ref,onBack}){
   const[activePhase,setActivePhase]=useState(null)
   const totalPts=calcPoints(player.id)
   const chip=allChips.find(c=>c.player_id===player.id)
@@ -682,12 +682,59 @@ function PlayerProfilePage({player,badges=[],films,rosters,results,weeklyG,allCh
         <div style={{background:T.surfaceUp,borderRadius:'16px',padding:'24px',marginBottom:'16px',position:'relative',overflow:'hidden'}}>
           <div style={{position:'absolute',top:0,left:0,right:0,height:'4px',background:pc}}/>
           <div style={{display:'flex',alignItems:'center',gap:'18px'}}>
-            <div style={{width:'68px',height:'68px',borderRadius:'50%',background:pc,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'30px',fontWeight:900,color:'#000',flexShrink:0}}>{player.name?.[0]||'?'}</div>
+            <div style={{width:'68px',height:'68px',borderRadius:'50%',background:pc,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'30px',fontWeight:900,color:'#000',flexShrink:0,overflow:'hidden',border:`2px solid ${pc}`}}>
+              {player.avatar_url?<img src={player.avatar_url} alt={player.name} loading="lazy" style={{width:'100%',height:'100%',objectFit:'cover'}} onError={e=>{e.target.style.display='none'}}/>:player.name?.[0]||'?'}
+            </div>
             <div style={{flex:1}}><div style={{fontSize:'26px',fontWeight:900,color:pc,letterSpacing:'-0.5px'}}>{player.name}</div><div style={{fontSize:'13px',color:T.textSub,marginTop:'6px'}}>{activeNow.length} films active · {budgetLeft(player.id)}M left</div>{player.bio&&<div style={{fontSize:'12px',color:T.textSub,marginTop:'4px',fontStyle:'italic'}}>"{player.bio}"</div>}</div>
             <div style={{textAlign:'right'}}><div style={{fontSize:'48px',fontWeight:900,color:T.gold,lineHeight:1,letterSpacing:'-2px'}}>{totalPts}</div><div style={S.label}>grand pts</div></div>
           </div>
         </div>
 
+        {/* ── IDENTITY — bio, fav film, letterboxd, recently watched, watchlist ── */}
+        {(player.bio||player.favourite_film_id||player.letterboxd_url)&&(
+          <div style={{...S.card,marginBottom:'12px'}}>
+            {player.bio&&<div style={{fontSize:'13px',color:T.text,fontStyle:'italic',lineHeight:1.6,marginBottom:'10px'}}>"{player.bio}"</div>}
+            <div style={{display:'flex',gap:'10px',flexWrap:'wrap',alignItems:'center'}}>
+              {player.favourite_film_id&&(()=>{const ff=films.find(f=>f.id===player.favourite_film_id);if(!ff)return null;return(
+                <div onClick={()=>onOpenFilm&&onOpenFilm(ff)} style={{display:'flex',gap:'8px',alignItems:'center',background:T.surfaceUp,borderRadius:'10px',padding:'6px 10px',cursor:'pointer'}}>
+                  <FilmPoster film={ff} width={24} height={36} radius={4}/>
+                  <div><div style={{fontSize:'9px',color:T.textDim,letterSpacing:'1px'}}>FAVOURITE</div><div style={{fontSize:'11px',fontWeight:700,color:T.gold}}>{ff.title}</div></div>
+                </div>
+              )})()}
+              {player.letterboxd_url&&<a href={player.letterboxd_url} target="_blank" rel="noopener noreferrer" style={{fontSize:'11px',color:T.green,textDecoration:'none',fontWeight:700,background:T.surfaceUp,borderRadius:'10px',padding:'10px 12px'}}>📗 Letterboxd ↗</a>}
+            </div>
+          </div>
+        )}
+        {(()=>{
+          const myReviews=reviews.filter(r=>r.user_id===player.id).sort((a,b)=>new Date(b.updated_at)-new Date(a.updated_at)).slice(0,4)
+          const myWatch=(allPicks||[]).filter(p=>p.user_id===player.id).map(p=>films.find(f=>f.id===p.film_id)).filter(Boolean).slice(0,6)
+          if(myReviews.length===0&&myWatch.length===0)return null
+          return(
+            <div style={{...S.card,marginBottom:'12px'}}>
+              {myReviews.length>0&&<>
+                <div style={{...S.label,marginBottom:'8px'}}>Recently Watched</div>
+                <div style={{display:'flex',gap:'8px',overflowX:'auto',paddingBottom:'6px',marginBottom:myWatch.length?'12px':0}}>
+                  {myReviews.map(r=>{const f=films.find(fl=>fl.id===r.film_id);if(!f)return null;return(
+                    <div key={r.id} onClick={()=>onOpenFilm&&onOpenFilm(f)} style={{cursor:'pointer',flexShrink:0,textAlign:'center'}}>
+                      <FilmPoster film={f} width={52} height={78} radius={6}/>
+                      <div style={{fontSize:'9px',color:T.gold,fontFamily:T.mono,marginTop:'3px'}}>{'★'.repeat(r.rating)}</div>
+                    </div>
+                  )})}
+                </div>
+              </>}
+              {myWatch.length>0&&<>
+                <div style={{...S.label,marginBottom:'8px'}}>Watchlist</div>
+                <div style={{display:'flex',gap:'8px',overflowX:'auto',paddingBottom:'4px'}}>
+                  {myWatch.map(f=>(
+                    <div key={f.id} onClick={()=>onOpenFilm&&onOpenFilm(f)} style={{cursor:'pointer',flexShrink:0}}>
+                      <FilmPoster film={f} width={52} height={78} radius={6}/>
+                    </div>
+                  ))}
+                </div>
+              </>}
+            </div>
+          )
+        })()}
         {badges.length>0&&(
           <div style={{display:'flex',gap:'6px',flexWrap:'wrap',marginBottom:'12px'}}>
             {badges.map(b=>(
@@ -813,9 +860,67 @@ function ScoreBreakdownModal({film,holding,results,weeklyGrosses,allChips,isEarl
   )
 }
 
-function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEvents=[],news=[],rosters=[],filmValues={},currentWeek=null,phase=1,onTogglePick,onBookingClick,onShowtimes,onClose,league}){
+function ReviewThread({thread,players,onAdd}){
+  const[open,setOpen]=useState(false)
+  const[txt,setTxt]=useState('')
+  if(!open)return(
+    <button onClick={()=>setOpen(true)} style={{background:'none',border:'none',color:T.textDim,fontSize:'10px',cursor:'pointer',padding:'4px 0 0',fontFamily:T.mono}}>
+      💬 {thread.length>0?`${thread.length} comment${thread.length!==1?'s':''}`:'Reply'}
+    </button>
+  )
+  return(
+    <div style={{marginTop:'8px',paddingLeft:'10px',borderLeft:`2px solid ${T.border}`}}>
+      {thread.map(c=>{
+        const p=players.find(pl=>pl.id===c.user_id)
+        return(
+          <div key={c.id} style={{marginBottom:'6px'}}>
+            <span style={{fontSize:'10px',fontWeight:700,color:p?.color||T.textSub}}>{p?.name||'Player'}</span>
+            <span style={{fontSize:'11px',color:T.text,marginLeft:'6px'}}>{c.body}</span>
+          </div>
+        )
+      })}
+      {onAdd&&(
+        <div style={{display:'flex',gap:'6px',marginTop:'6px'}}>
+          <input value={txt} onChange={e=>setTxt(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&txt.trim()){onAdd(txt);setTxt('')}}} placeholder="Reply…" style={{...S.inp,fontSize:'11px',padding:'6px 10px',flex:1}}/>
+          <Btn onClick={()=>{if(txt.trim()){onAdd(txt);setTxt('')}}} color={T.gold} size="sm" disabled={!txt.trim()}>↩</Btn>
+        </div>
+      )}
+      <button onClick={()=>setOpen(false)} style={{background:'none',border:'none',color:T.textDim,fontSize:'10px',cursor:'pointer',padding:'4px 0 0'}}>Hide</button>
+    </div>
+  )
+}
+
+function ReviewEditor({existing,onSave,onDelete}){
+  const[rating,setRating]=useState(existing?.rating||0)
+  const[body,setBody]=useState(existing?.body||'')
+  const[open,setOpen]=useState(false)
+  if(!open&&!existing)return <Btn onClick={()=>setOpen(true)} variant="outline" color={T.gold} size="sm" sx={{marginBottom:'10px'}}>⭐ Write a review</Btn>
+  if(!open&&existing)return(
+    <div style={{display:'flex',gap:'8px',alignItems:'center',marginBottom:'10px',background:`${T.gold}0C`,border:`1px solid ${T.gold}33`,borderRadius:'10px',padding:'8px 12px'}}>
+      <span style={{fontSize:'12px',color:T.gold,fontFamily:T.mono}}>{'★'.repeat(existing.rating)}{'☆'.repeat(5-existing.rating)}</span>
+      <span style={{flex:1,fontSize:'11px',color:T.textSub,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{existing.body||'Your review'}</span>
+      <Btn onClick={()=>setOpen(true)} variant="outline" color={T.textSub} size="sm">Edit</Btn>
+    </div>
+  )
+  return(
+    <div style={{background:T.surfaceUp,borderRadius:'10px',padding:'12px',marginBottom:'10px'}}>
+      <div style={{display:'flex',gap:'4px',marginBottom:'8px'}}>
+        {[1,2,3,4,5].map(n=>(
+          <button key={n} onClick={()=>setRating(n)} aria-label={`Rate ${n} star${n!==1?'s':''}`} style={{background:'none',border:'none',cursor:'pointer',fontSize:'22px',padding:'2px',color:n<=rating?T.gold:T.textDim,lineHeight:1}}>★</button>
+        ))}
+      </div>
+      <textarea value={body} onChange={e=>setBody(e.target.value)} placeholder="Your take (optional)" maxLength={280} style={{...S.inp,minHeight:'60px',resize:'vertical',marginBottom:'8px',fontSize:'12px'}}/>
+      <div style={{display:'flex',gap:'8px'}}>
+        {onDelete&&<Btn onClick={()=>{onDelete();setOpen(false)}} variant="outline" color={T.red} size="sm">Delete</Btn>}
+        <Btn onClick={()=>setOpen(false)} variant="outline" color={T.textSub} size="sm" sx={{marginLeft:'auto'}}>Cancel</Btn>
+        <Btn onClick={()=>{if(rating===0)return;onSave(rating,body.trim());setOpen(false)}} color={T.gold} size="sm" disabled={rating===0}>{existing?'Update':'Post'}</Btn>
+      </div>
+    </div>
+  )
+}
+
+function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEvents=[],news=[],rosters=[],filmValues={},weeklyG={},reviews=[],reviewComments=[],onAddReviewComment,bookingClicks=[],onSaveReview,onDeleteReview,currentWeek=null,phase=1,onTogglePick,onBookingClick,onShowtimes,onClose,league}){
   const[comments,setComments]=useState([])
-  const[reactions,setReactions]=useState([])
   const[text,setText]=useState('')
   const[tab,setTab]=useState('info')
   const actual=results[film.id],gc=GENRE_COL[film.genre]||T.textSub
@@ -823,24 +928,14 @@ function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEven
   const vel7=pickVelocity(film.id,allPicks,7),vel1=pickVelocity(film.id,allPicks,1)
   const eventsForFilm=(marketingEvents||[]).filter(e=>e.film_id===film.id).sort((a,b)=>new Date(a.event_date)-new Date(b.event_date))
   useEffect(()=>{
-    loadComments();loadReactions()
+    loadComments()
     const ch=supabase.channel(`film-detail-${film.id}`)
       .on('postgres_changes',{event:'*',schema:'public',table:'film_comments',filter:`film_id=eq.${film.id}`},loadComments)
-      .on('postgres_changes',{event:'*',schema:'public',table:'reactions',filter:`target_id=eq.${film.id}`},loadReactions)
       .subscribe()
     return()=>supabase.removeChannel(ch)
   },[])
   const loadComments=async()=>{const{data}=await supabase.from('film_comments').select('*').eq('film_id',film.id).order('created_at',{ascending:true});if(data)setComments(data)}
-  const loadReactions=async()=>{const{data}=await supabase.from('reactions').select('*').eq('target_type','film').eq('target_id',film.id);if(data)setReactions(data)}
   const post=async()=>{if(!text.trim())return;await supabase.from('film_comments').insert({user_id:profile.id,film_id:film.id,comment:text.trim(),league_id:league?.id});setText('');loadComments()}
-  const toggleReaction=async(emoji)=>{
-    const mine=reactions.find(r=>r.user_id===profile.id&&r.emoji===emoji)
-    if(mine)await supabase.from('reactions').delete().eq('id',mine.id)
-    else await supabase.from('reactions').insert({user_id:profile.id,target_type:'film',target_id:film.id,emoji})
-    loadReactions()
-  }
-  const counts=EMOJI_OPTIONS.reduce((a,e)=>({...a,[e]:reactions.filter(r=>r.emoji===e).length}),{})
-  const myEmojis=reactions.filter(r=>r.user_id===profile.id).map(r=>r.emoji)
   const TabBtn=({id,label})=><button onClick={()=>setTab(id)} style={{...S.btn,background:'none',border:'none',fontSize:'13px',fontWeight:tab===id?700:400,color:tab===id?T.gold:T.textSub,padding:'10px 16px',borderBottom:`2px solid ${tab===id?T.gold:'transparent'}`,borderRadius:0,textTransform:'none',letterSpacing:0}}>{label}</button>
   return(
     <div style={{position:'fixed',inset:0,background:'#000000CC',display:'flex',alignItems:'center',justifyContent:'center',zIndex:800,padding:'12px'}} onClick={onClose}>
@@ -934,14 +1029,6 @@ function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEven
                 </div>
               )
             })()}
-            <div style={{...S.label,marginBottom:'10px'}}>Reactions</div>
-            <div style={{display:'flex',gap:'6px',flexWrap:'wrap',marginBottom:'20px'}}>
-              {EMOJI_OPTIONS.map(emoji=>{const count=counts[emoji],ismine=myEmojis.includes(emoji);return(
-                <button key={emoji} onClick={()=>toggleReaction(emoji)} style={{background:ismine?`${T.gold}22`:T.surfaceUp,border:`1px solid ${ismine?T.gold+'66':T.border}`,borderRadius:'20px',padding:'6px 12px',cursor:'pointer',fontSize:'14px',display:'flex',alignItems:'center',gap:'5px',fontFamily:T.mono,color:count>0?(ismine?T.gold:T.text):T.textSub,transition:'all .15s'}}>
-                  {emoji}{count>0&&<span style={{fontSize:'11px'}}>{count}</span>}
-                </button>
-              )})}
-            </div>
             {/* Embedded trailer */}
             {film.trailer&&film.trailer.includes('youtube.com/embed/')&&(
               <div style={{marginBottom:'20px'}}>
@@ -957,6 +1044,76 @@ function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEven
                 </div>
               </div>
             )}
+            {/* ── WEEKLY PERFORMANCE — gross by week + price impact ───── */}
+            {actual!=null&&(()=>{
+              const weeks=weeklyG[film.id]||{}
+              const ipo=film.basePrice
+              const valueNow=calcMarketValue(film,actual)
+              const rows=[{wk:1,gross:actual,note:'Opening weekend'}]
+              Object.keys(weeks).map(Number).sort((a,b)=>a-b).forEach(w=>{
+                const prev=w===2?actual:weeks[w-1]
+                const drop=prev?Math.round((1-weeks[w]/prev)*100):null
+                rows.push({wk:w,gross:weeks[w],note:drop!=null?`${drop>=0?'−':'+'}${Math.abs(drop)}% vs prior week`:''})
+              })
+              const cume=rows.reduce((s,r)=>s+r.gross,0)
+              return(
+                <div style={{...S.card,marginBottom:'20px',background:T.surfaceUp,border:`1px solid ${T.border}`}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'10px'}}>
+                    <div style={{...S.label,color:T.green}}>Weekly Performance</div>
+                    <div style={{fontSize:'11px',color:T.textSub,fontFamily:T.mono}}>Cume ${cume.toFixed(1)}M</div>
+                  </div>
+                  {rows.map(r=>(
+                    <div key={r.wk} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'7px 0',borderBottom:`1px solid ${T.border}`,fontSize:'12px'}}>
+                      <span style={{color:T.textSub,width:'36px',fontFamily:T.mono}}>W{r.wk}</span>
+                      <span style={{flex:1,fontSize:'10px',color:T.textDim}}>{r.note}</span>
+                      <span style={{color:T.text,fontFamily:T.mono,fontWeight:700}}>${r.gross}M</span>
+                    </div>
+                  ))}
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0 2px'}}>
+                    <span style={{...S.label}}>Price impact</span>
+                    <span style={{fontSize:'13px',fontFamily:T.mono}}>
+                      {ipo!=null&&<span style={{color:T.textDim}}>IPO ${ipo}M → </span>}
+                      <span style={{color:valueNow>=(ipo||0)?T.green:T.red,fontWeight:800}}>${valueNow}M now</span>
+                    </span>
+                  </div>
+                </div>
+              )
+            })()}
+            {/* ── LEAGUE REVIEWS ─────────────────────────────────────── */}
+            {(()=>{
+              const filmReviews=reviews.filter(r=>r.film_id===film.id)
+              const avg=filmReviews.length?filmReviews.reduce((s,r)=>s+r.rating,0)/filmReviews.length:null
+              const myReview=profile?filmReviews.find(r=>r.user_id===profile.id):null
+              const released=currentWeek!=null&&film.week<=currentWeek
+              return(
+                <div style={{marginBottom:'20px'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'10px'}}>
+                    <div style={S.label}>League Reviews</div>
+                    {avg!=null&&<div style={{fontSize:'13px',fontWeight:800,color:T.gold,fontFamily:T.mono}}>★{avg.toFixed(1)} <span style={{fontSize:'10px',color:T.textSub,fontWeight:400}}>· {filmReviews.length}</span></div>}
+                  </div>
+                  {released&&profile&&onSaveReview&&<ReviewEditor existing={myReview} onSave={(rating,body)=>onSaveReview(film.id,rating,body)} onDelete={myReview&&onDeleteReview?()=>onDeleteReview(myReview.id):null}/>}
+                  {!released&&<div style={{fontSize:'11px',color:T.textDim,marginBottom:'10px'}}>Reviews open once the film releases.</div>}
+                  {filmReviews.filter(r=>r.user_id!==profile?.id).map(r=>{
+                    const p=players.find(pl=>pl.id===r.user_id)
+                    const verified=bookingClicks.some(b=>b.user_id===r.user_id&&b.film_id===film.id)
+                    const thread=reviewComments.filter(c=>c.review_id===r.id)
+                    return(
+                      <div key={r.id} style={{background:T.surfaceUp,borderRadius:'10px',padding:'10px 12px',marginBottom:'8px'}}>
+                        <div style={{display:'flex',gap:'8px',alignItems:'center',marginBottom:r.body?'6px':0}}>
+                          <div style={{width:'26px',height:'26px',borderRadius:'50%',background:p?.color||T.gold,color:'#000',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',fontWeight:800,flexShrink:0}}>{p?.name?.[0]||'?'}</div>
+                          <span style={{fontSize:'12px',fontWeight:700,color:p?.color||T.text}}>{p?.name||'Player'}</span>
+                          <span style={{fontSize:'12px',color:T.gold,fontFamily:T.mono}}>{'★'.repeat(r.rating)}{'☆'.repeat(5-r.rating)}</span>
+                          {verified&&<span title="Booked through BOXD" style={{fontSize:'10px',color:T.green,fontWeight:700}}>🎟 Verified</span>}
+                        </div>
+                        {r.body&&<div style={{fontSize:'12px',color:T.text,lineHeight:1.6}}>{r.body}</div>}
+                        <ReviewThread thread={thread} players={players} onAdd={onAddReviewComment?body=>onAddReviewComment(r.id,body):null}/>
+                      </div>
+                    )
+                  })}
+                  {filmReviews.length===0&&released&&<div style={{fontSize:'11px',color:T.textDim}}>No reviews yet — be the first.</div>}
+                </div>
+              )
+            })()}
             {onShowtimes&&<button onClick={()=>onShowtimes(film)} style={{...S.btn,background:`${T.green}18`,border:`1px solid ${T.green}44`,color:T.green,padding:'10px 18px',fontSize:'13px',width:'100%',marginBottom:'12px',textTransform:'none',letterSpacing:0,borderRadius:'10px'}}>🎟 Find Showtimes Near Me</button>}
             <div style={{display:'flex',gap:'8px',flexWrap:'wrap',marginBottom:'20px'}}>
               {BOOKING_CHAINS.map(chain=>(
@@ -1131,7 +1288,19 @@ function ShowtimesModal({film,onClose,onBookingClick,supabaseUrl,anonKey}){
               <button onClick={()=>setMethod('postcode')} style={{...S.btn,background:method==='postcode'?`${T.blue}22`:T.surfaceUp,color:method==='postcode'?T.blue:T.textSub,border:`1px solid ${method==='postcode'?T.blue+'66':T.border}`,padding:'8px 16px',fontSize:'12px',flex:1,textTransform:'none',letterSpacing:0}}>📮 Enter postcode</button>
             </div>
             {method==='gps'?<Btn onClick={locateGPS} color={T.blue} textColor="#fff" full size="lg">Find Cinemas Near Me</Btn>:<div style={{display:'flex',gap:'8px'}}><input value={postcode} onChange={e=>setPostcode(e.target.value)} onKeyDown={e=>e.key==='Enter'&&locatePostcode()} placeholder="e.g. SW1A 1AA" style={{...S.inp,flex:1,textTransform:'uppercase'}}/><Btn onClick={locatePostcode} color={T.blue} textColor="#fff" size="lg">Search</Btn></div>}
-            {state==='error'&&<div style={{fontSize:'13px',color:T.red,marginTop:'10px',padding:'10px 14px',background:`${T.red}12`,borderRadius:'9px'}}>⚠️ {error}</div>}
+            {state==='error'&&<div style={{marginTop:'10px'}}>
+              <div style={{fontSize:'13px',color:T.red,padding:'10px 14px',background:`${T.red}12`,borderRadius:'9px',marginBottom:'10px'}}>⚠️ {error}</div>
+              <div style={{...S.label,marginBottom:'8px'}}>Book direct instead</div>
+              <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
+                {BOOKING_CHAINS.map(chain=>(
+                  <a key={chain.id} href={chain.url} target="_blank" rel="noopener noreferrer"
+                    onClick={()=>onBookingClick&&onBookingClick(film.id,chain.id)}
+                    style={{background:T.surfaceUp,border:`1px solid ${chain.color}66`,borderRadius:'9px',padding:'9px 14px',fontSize:'12px',color:T.text,textDecoration:'none',fontWeight:600}}>
+                    {chain.label} ↗
+                  </a>
+                ))}
+              </div>
+            </div>}
           </div>}
           {state==='locating'&&<div style={{textAlign:'center',padding:'40px 0',color:T.textSub}}><div style={{fontSize:'32px',marginBottom:'12px'}}>📍</div><div>Finding your location…</div></div>}
           {state==='loading'&&<div style={{textAlign:'center',padding:'40px 0',color:T.textSub}}><div style={{fontSize:'32px',marginBottom:'12px'}}>🎬</div><div style={{marginBottom:'8px'}}>Searching for showtimes…</div><div style={{width:'40px',height:'3px',background:T.gold,borderRadius:'2px',margin:'0 auto',animation:'pulse 1.2s ease-in-out infinite'}}/></div>}
@@ -1170,6 +1339,29 @@ export default function App(){
   const[loadError,setLoadError]=useState(null)
   const[syncLog,setSyncLog]=useState(null)
   const[syncBusy,setSyncBusy]=useState(false)
+  const[reviews,setReviews]=useState([])
+  const[reviewComments,setReviewComments]=useState([])
+  const loadReviewComments=async()=>{const{data}=await supabase.from('review_comments').select('*').order('created_at',{ascending:true});if(data)setReviewComments(data)}
+  const addReviewComment=async(reviewId,body)=>{
+    if(!profile||!body.trim())return
+    await supabase.from('review_comments').insert({review_id:reviewId,user_id:profile.id,body:body.trim()})
+    loadReviewComments()
+  }
+  const[searchOpen,setSearchOpen]=useState(false)
+  const saveReview=async(filmId,rating,body)=>{
+    if(!profile)return notify('Create a profile first',T.red)
+    const existing=reviews.find(r=>r.user_id===profile.id&&r.film_id===filmId)
+    if(existing)await supabase.from('film_reviews').update({rating,body:body||null,updated_at:new Date().toISOString()}).eq('id',existing.id)
+    else await supabase.from('film_reviews').insert({league_id:league?.id,user_id:profile.id,film_id:filmId,rating,body:body||null})
+    const{data}=await supabase.from('film_reviews').select('*').eq('league_id',league?.id).order('updated_at',{ascending:false})
+    if(data)setReviews(data)
+    notify(existing?'✏️ Review updated':'⭐ Review posted',T.gold)
+  }
+  const deleteReview=async(reviewId)=>{
+    await supabase.from('film_reviews').delete().eq('id',reviewId)
+    setReviews(reviews.filter(r=>r.id!==reviewId))
+    notify('Review removed',T.textSub)
+  }
   // ── PWA INSTALL ───────────────────────────────────────────────────────────
   const isStandalone=window.matchMedia?.('(display-mode: standalone)')?.matches||window.navigator.standalone===true
   const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent||'')
@@ -1428,6 +1620,8 @@ export default function App(){
       loadNews(lid)
       loadFridayForecasts(lid)
       loadMovieOfWeek(lid)
+      supabase.from('film_reviews').select('*').eq('league_id',lid).order('updated_at',{ascending:false}).then(({data})=>{if(data)setReviews(data)})
+      loadReviewComments()
       supabase.from('sync_log').select('*').order('run_at',{ascending:false}).limit(1).maybeSingle().then(({data})=>{if(data)setSyncLog(data)}).catch?.(()=>{})
       loadPolls(lid)
     },100)
@@ -1695,6 +1889,7 @@ export default function App(){
     ...(hasNews?[{id:'signals',icon:'⚡',label:'Signals'}]:[]),
     ...(polls.length>0?[{id:'polls',icon:'🗳',label:'Polls'}]:[]),
     {id:'intent',icon:'👁️',label:'Watchlist'},
+    {id:'reviews',icon:'⭐',label:'Reviews'},
     {id:'forecaster',icon:'📊',label:'Forecaster'},
     {id:'oscar',icon:'🏆',label:'Oscars'},
     {id:'results',icon:'📋',label:'Results'},
@@ -1837,6 +2032,104 @@ export default function App(){
             })}
           </div>
         </div>
+      </div>
+    )
+  }
+
+  // ── GLOBAL SEARCH — one box for everything: films, players, pages ───────
+  const GlobalSearchOverlay=()=>{
+    const[q,setQ]=useState('')
+    const nq=q.trim().toLowerCase()
+    const PAGES=[
+      {id:'market',icon:'🎬',label:'Market'},{id:'roster',icon:'🎞',label:'My Roster'},
+      {id:'league',icon:'🏆',label:'Standings'},{id:'chips',icon:'⚡',label:'Chips'},
+      {id:'intent',icon:'👁️',label:'Watchlist'},{id:'reviews',icon:'⭐',label:'Reviews'},{id:'forecaster',icon:'📊',label:'Forecaster'},
+      {id:'oscar',icon:'🏅',label:'Oscars'},{id:'results',icon:'📋',label:'Results'},
+      {id:'community',icon:'👥',label:'Community'},{id:'feed',icon:'📰',label:'League Feed'},
+      {id:'slate',icon:'🗺',label:'Slate Map'},{id:'intelligence',icon:'📡',label:'Intelligence'},
+      {id:'distributor',icon:'📈',label:'Distributor Insights'},{id:'howto',icon:'❓',label:'How to Play'},
+      ...(isCommissioner?[{id:'commissioner',icon:'⚙️',label:'Commissioner'},{id:'warroom',icon:'⚡',label:'War Room'}]:[]),
+    ]
+    const rank=(text)=>{const t=text.toLowerCase();return t.startsWith(nq)?0:t.includes(nq)?1:2}
+    const filmHits=nq?films.filter(f=>`${f.title} ${f.dist} ${f.starActor||''}`.toLowerCase().includes(nq)).sort((a,b)=>rank(a.title)-rank(b.title)).slice(0,6):[]
+    const playerHits=nq?players.filter(p=>(p.name||'').toLowerCase().includes(nq)).slice(0,4):[]
+    const pageHits=nq?PAGES.filter(p=>p.label.toLowerCase().includes(nq)).slice(0,5):PAGES.slice(0,8)
+    const close=()=>setSearchOpen(false)
+    return(
+      <div style={{position:'fixed',inset:0,background:'#000000DD',zIndex:650,display:'flex',flexDirection:'column',alignItems:'center',paddingTop:'calc(20px + env(safe-area-inset-top))'}} onClick={close}>
+        <div style={{width:'100%',maxWidth:'480px',padding:'0 16px'}} onClick={e=>e.stopPropagation()}>
+          <input
+            autoFocus value={q} onChange={e=>setQ(e.target.value)}
+            onKeyDown={e=>{if(e.key==='Escape')close()}}
+            placeholder="Search films, players, pages…"
+            aria-label="Global search"
+            style={{...S.inp,fontSize:'15px',padding:'14px 16px',borderRadius:'14px',border:`1px solid ${T.gold}55`,boxShadow:`0 8px 32px #000000AA`}}
+          />
+          <div style={{marginTop:'10px',maxHeight:'65vh',overflowY:'auto',borderRadius:'14px'}}>
+            {filmHits.length>0&&<div style={{...S.label,padding:'8px 4px 4px'}}>Films</div>}
+            {filmHits.map(f=>(
+              <div key={f.id} onClick={()=>{setFilmDetail(f);close()}} className="hoverable" style={{...S.card,marginBottom:'6px',cursor:'pointer',display:'flex',gap:'10px',alignItems:'center',padding:'8px 12px'}}>
+                <FilmPoster film={f} width={30} height={45} radius={4}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:'13px',fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{f.title}</div>
+                  <div style={{fontSize:'10px',color:T.textSub}}>{f.dist} · {dateLabel(f.week)} · P{f.phase}</div>
+                </div>
+                <span style={{fontSize:'11px',color:T.gold,fontFamily:T.mono}}>{results[f.id]!=null?`$${results[f.id]}M`:f.basePrice!=null?`$${filmVal(f)}M`:'🔒'}</span>
+              </div>
+            ))}
+            {playerHits.length>0&&<div style={{...S.label,padding:'8px 4px 4px'}}>Players</div>}
+            {playerHits.map(p=>(
+              <div key={p.id} onClick={()=>{goToProfile(p);close()}} className="hoverable" style={{...S.card,marginBottom:'6px',cursor:'pointer',display:'flex',gap:'10px',alignItems:'center',padding:'8px 12px'}}>
+                <div style={{width:'30px',height:'30px',borderRadius:'50%',background:p.color||T.gold,color:'#000',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'13px',fontWeight:800}}>{p.name?.[0]||'?'}</div>
+                <div style={{flex:1,fontSize:'13px',fontWeight:600}}>{p.name}</div>
+                <span style={{fontSize:'11px',color:T.gold,fontFamily:T.mono}}>{calcPoints(p.id)}pts</span>
+              </div>
+            ))}
+            <div style={{...S.label,padding:'8px 4px 4px'}}>{nq?'Pages':'Go to'}</div>
+            {pageHits.map(p=>(
+              <div key={p.id} onClick={()=>{setPage(p.id);close()}} className="hoverable" style={{...S.card,marginBottom:'6px',cursor:'pointer',display:'flex',gap:'10px',alignItems:'center',padding:'10px 12px'}}>
+                <span style={{fontSize:'15px'}}>{p.icon}</span>
+                <span style={{fontSize:'13px',fontWeight:600}}>{p.label}</span>
+              </div>
+            ))}
+            {nq&&filmHits.length===0&&playerHits.length===0&&pageHits.length===0&&(
+              <div style={{...S.card,textAlign:'center',padding:'24px',color:T.textSub,fontSize:'12px'}}>Nothing found for "{q}"</div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── REVIEWS FEED PAGE ─────────────────────────────────────────────────
+  const ReviewsPage=()=>{
+    const sorted=[...reviews].sort((a,b)=>new Date(b.updated_at)-new Date(a.updated_at))
+    return(
+      <div style={{animation:'fadeUp .2s ease'}}>
+        <div style={S.pageTitle}>⭐ League Reviews</div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px'}}>What the league actually thought — tap any review to open the film</div>
+        {sorted.length===0&&<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub,fontSize:'13px'}}>No reviews yet. Once films release, rate them from the film card.</div>}
+        {sorted.map(r=>{
+          const film=films.find(f=>f.id===r.film_id);if(!film)return null
+          const p=players.find(pl=>pl.id===r.user_id)
+          const thread=reviewComments.filter(c=>c.review_id===r.id)
+          const verified=bookingClicks.some(b=>b.user_id===r.user_id&&b.film_id===film.id)
+          return(
+            <div key={r.id} onClick={()=>setFilmDetail(film)} className="hoverable" style={{...S.card,marginBottom:'10px',cursor:'pointer',display:'flex',gap:'12px'}}>
+              <FilmPoster film={film} width={48} height={72} radius={6}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:'13px',fontWeight:700,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{film.title}</div>
+                <div style={{display:'flex',gap:'8px',alignItems:'center',marginTop:'3px',flexWrap:'wrap'}}>
+                  <span style={{fontSize:'11px',fontWeight:700,color:p?.color||T.textSub}}>{p?.name||'Player'}</span>
+                  <span style={{fontSize:'12px',color:T.gold,fontFamily:T.mono}}>{'★'.repeat(r.rating)}{'☆'.repeat(5-r.rating)}</span>
+                  {verified&&<span style={{fontSize:'9px',color:T.green,fontWeight:700}}>🎟</span>}
+                  {thread.length>0&&<span style={{fontSize:'10px',color:T.textDim}}>💬 {thread.length}</span>}
+                </div>
+                {r.body&&<div style={{fontSize:'12px',color:T.text,lineHeight:1.5,marginTop:'5px',overflow:'hidden',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical'}}>{r.body}</div>}
+              </div>
+            </div>
+          )
+        })}
       </div>
     )
   }
@@ -2025,6 +2318,7 @@ export default function App(){
                     <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px',display:'flex',gap:'6px',alignItems:'center',flexWrap:'wrap'}}>
                       <span>{film.dist}</span>
                       {film.rt!=null&&<><span style={{color:T.textDim}}>·</span><span style={{color:film.rt>=75?T.green:film.rt>=55?T.gold:T.red}}>RT {film.rt}%</span></>}
+                      {(()=>{const fr=reviews.filter(r=>r.film_id===film.id);if(!fr.length)return null;const avg=fr.reduce((s,r)=>s+r.rating,0)/fr.length;return<><span style={{color:T.textDim}}>·</span><span style={{color:T.gold}}>★{avg.toFixed(1)}</span></>})()}
                       <span style={{color:T.textDim}}>·</span><span style={{color:T.textDim}}>{dateLabel(film.week)}</span>
                     </div>
                   </div>
@@ -2559,12 +2853,34 @@ export default function App(){
 
   // ── FORECASTER PAGE ──────────────────────────────────────────────────────
   const ForecasterPage=()=>{
+    // ── ACCURACY LEADERBOARD — avg % error across all resulted forecasts ──
+    const board=players.map(p=>{
+      const mine=allForecasts.filter(f=>f.player_id===p.id&&results[f.film_id]!=null&&results[f.film_id]>0)
+      if(mine.length===0)return null
+      const err=mine.reduce((s,f)=>s+Math.abs(Number(f.predicted_m)-results[f.film_id])/results[f.film_id],0)/mine.length
+      return{p,err,n:mine.length,acc:Math.max(0,Math.round((1-err)*100))}
+    }).filter(Boolean).sort((a,b)=>a.err-b.err)
     const [edit,setEdit]=useState({})
     const fcFilms=films.filter(f=>f.phase===ph&&results[f.id]==null)
     return(
       <div style={{animation:'fadeUp .2s ease'}}>
         <div style={S.pageTitle}>The Forecaster</div>
         <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Predict opening weekends for every film. Track your accuracy vs the league — purely for bragging rights.</div>
+        {board.length>0&&(
+          <div style={{...S.card,marginBottom:'16px',border:`1px solid ${T.blue}33`}}>
+            <div style={{...S.label,color:T.blue,marginBottom:'10px'}}>🏅 Accuracy Leaderboard</div>
+            {board.map((b,i)=>(
+              <div key={b.p.id} style={{display:'flex',gap:'10px',alignItems:'center',padding:'7px 0',borderBottom:i<board.length-1?`1px solid ${T.border}`:'none'}}>
+                <span style={{fontSize:'13px',width:'24px',color:i===0?T.gold:T.textSub,fontWeight:800,fontFamily:T.mono}}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`}</span>
+                <div style={{width:'24px',height:'24px',borderRadius:'50%',background:b.p.color||T.gold,color:'#000',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',fontWeight:800}}>{b.p.name?.[0]||'?'}</div>
+                <span style={{flex:1,fontSize:'12px',fontWeight:600}}>{b.p.name}</span>
+                <span style={{fontSize:'10px',color:T.textDim,fontFamily:T.mono}}>{b.n} call{b.n!==1?'s':''}</span>
+                <span style={{fontSize:'14px',fontWeight:800,color:b.acc>=80?T.green:b.acc>=60?T.gold:T.red,fontFamily:T.mono}}>{b.acc}%</span>
+              </div>
+            ))}
+            <div style={{fontSize:'9px',color:T.textDim,marginTop:'8px'}}>Accuracy = 100% minus average error vs actual openings · only resulted films count</div>
+          </div>
+        )}
         {fcFilms.length===0?<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No upcoming films to forecast.</div>:fcFilms.map(f=>{
           const cur=forecasts[f.id],val=edit[f.id]??cur??''
           return(
@@ -2615,6 +2931,7 @@ export default function App(){
     return(
       <div style={{animation:'fadeUp .2s ease'}}>
         <div style={S.pageTitle}>Results</div>
+        <div style={{fontSize:'11px',color:T.textSub,marginBottom:'14px',lineHeight:1.6}}>Opening weekends land Monday (auto-ingest or commissioner entry) · points = opening vs estimate, then weekly grosses and legs bonuses stack on top.</div>
         <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>{resulted.length} films scored · most recent first</div>
         {resulted.length===0?<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No results yet.</div>:resulted.map(f=>{
           const actual=results[f.id]
@@ -2915,10 +3232,159 @@ export default function App(){
   // ── DISTRIBUTOR INSIGHTS PAGE (with Sentiment Splits) ────────────────────
   const DistributorPage=()=>{
     const dists=[...new Set(films.map(f=>f.dist))]
+    const pickCounts={};allPicks.forEach(p=>{pickCounts[p.film_id]=(pickCounts[p.film_id]||0)+1})
+    const[selDist,setSelDist]=useState(null)
+    const[b2bFilmId,setB2bFilmId]=useState('')
+    const b2bFilm=films.find(f=>f.id===b2bFilmId)
+    const openDist=(d)=>{
+      const distFilms=films.filter(f=>f.dist===d).sort((a,b)=>(pickCounts[b.id]||0)-(pickCounts[a.id]||0))
+      setSelDist(d);setB2bFilmId(distFilms[0]?.id||'')
+    }
+    // ── DISTRIBUTOR DETAIL VIEW ──────────────────────────────────────────
+    if(selDist){
+      const distFilms=films.filter(f=>f.dist===selDist).sort((a,b)=>a.week-b.week)
+      const watchers=allPicks.filter(p=>distFilms.find(f=>f.id===p.film_id)).length
+      const owners=rosters.filter(r=>r.active&&distFilms.find(f=>f.id===r.film_id)).length
+      const clicksTotal=bookingClicks.filter(b=>distFilms.find(f=>f.id===b.film_id)).length
+      const resulted=distFilms.filter(f=>results[f.id]!=null)
+      const totalActual=resulted.reduce((s,f)=>s+results[f.id],0)
+      const totalEst=resulted.filter(f=>f.estM).reduce((s,f)=>s+f.estM,0)
+      const slateRatio=totalEst>0?totalActual/totalEst:null
+      return(
+        <div style={{animation:'fadeUp .2s ease'}}>
+          <button onClick={()=>setSelDist(null)} style={{background:'none',border:'none',color:T.blue,fontSize:'13px',cursor:'pointer',padding:'0 0 12px',fontWeight:600}}>‹ All distributors</button>
+          <div style={S.pageTitle}>{selDist}</div>
+          <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px'}}>{distFilms.length} films on the 2026 slate · {resulted.length} opened</div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(100px,1fr))',gap:'8px',marginBottom:'16px'}}>
+            <StatBox label="Watchers" value={watchers} color={T.gold}/>
+            <StatBox label="Owners" value={owners} color={T.gold}/>
+            <StatBox label="Booking clicks" value={clicksTotal} color={T.green}/>
+            <StatBox label="Slate vs est" value={slateRatio!=null?`${slateRatio.toFixed(2)}×`:'—'} color={slateRatio>=1?T.green:slateRatio!=null?T.red:T.textSub}/>
+          </div>
+          <div style={{...S.label,marginBottom:'8px'}}>Slate — tap a film for its intent report</div>
+          {distFilms.map(f=>{
+            const w=allPicks.filter(p=>p.film_id===f.id).length
+            const sel=f.id===b2bFilmId
+            return(
+              <div key={f.id} onClick={()=>setB2bFilmId(f.id)} className="hoverable" style={{...S.card,marginBottom:'6px',cursor:'pointer',display:'flex',gap:'10px',alignItems:'center',padding:'8px 12px',border:`1px solid ${sel?T.gold+'66':T.border}`}}>
+                <FilmPoster film={f} width={30} height={45} radius={4}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:'12px',fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{f.title}</div>
+                  <div style={{fontSize:'10px',color:T.textSub}}>{dateLabel(f.week)} · P{f.phase}{results[f.id]!=null?` · ✓ $${results[f.id]}M`:''}</div>
+                </div>
+                <span style={{fontSize:'10px',color:T.textSub,fontFamily:T.mono}}>👁 {w}</span>
+                <span style={{color:sel?T.gold:T.textDim}}>{sel?'▾':'›'}</span>
+              </div>
+            )
+          })}
+          <div style={{marginTop:'14px'}}/>
+
+        {/* ── B2B FILM INTENT REPORT ─────────────────────────────────── */}
+        {b2bFilm&&(()=>{
+          const filmPicks=allPicks.filter(p=>p.film_id===b2bFilm.id&&p.picked_at)
+          // Weekly intent buckets from first pick to now
+          const weekOf=d=>Math.max(1,Math.floor((new Date(d)-SEASON_ANCHOR)/(7*86400000))+1)
+          const nowWk=cfg.current_week
+          const buckets={}
+          filmPicks.forEach(p=>{const w=weekOf(p.picked_at);buckets[w]=(buckets[w]||0)+1})
+          const firstWk=filmPicks.length?Math.min(...Object.keys(buckets).map(Number)):nowWk
+          const weeks=[];for(let w=firstWk;w<=Math.min(nowWk,b2bFilm.week);w++)weeks.push(w)
+          const maxAdds=Math.max(1,...weeks.map(w=>buckets[w]||0))
+          // Marketing events + 7-day lift
+          const events=marketingEvents.filter(m=>m.film_id===b2bFilm.id&&m.event_date)
+          const eventWeeks=new Set(events.map(e=>weekOf(e.event_date)))
+          const lift=e=>{
+            const t=new Date(e.event_date).getTime()
+            const before=filmPicks.filter(p=>{const d=new Date(p.picked_at).getTime();return d>=t-7*86400000&&d<t}).length
+            const after=filmPicks.filter(p=>{const d=new Date(p.picked_at).getTime();return d>=t&&d<t+7*86400000}).length
+            return{before,after}
+          }
+          // Forecast spread
+          const fcs=allForecasts.filter(f=>f.film_id===b2bFilm.id).map(f=>Number(f.predicted_m)).filter(n=>!isNaN(n)).sort((a,b)=>a-b)
+          const median=fcs.length?fcs[Math.floor(fcs.length/2)]:null
+          const clicks=bookingClicks.filter(b=>b.film_id===b2bFilm.id).length
+          const owners=rosters.filter(r=>r.film_id===b2bFilm.id&&r.active).length
+          const actual=results[b2bFilm.id]
+          const exportCSV=()=>{
+            const rows=[['week','week_commencing','watchlist_adds','marketing_event'].join(',')]
+            weeks.forEach(w=>{
+              const ev=events.find(e=>weekOf(e.event_date)===w)
+              rows.push([w,dateLabel(w),buckets[w]||0,ev?`"${(ev.title||ev.event_type||'event').replace(/"/g,"'")}"`:''].join(','))
+            })
+            rows.push('')
+            rows.push(['metric','value'].join(','))
+            rows.push(['film',`"${b2bFilm.title}"`].join(','))
+            rows.push(['distributor',`"${b2bFilm.dist}"`].join(','))
+            rows.push(['total_watchers',filmPicks.length].join(','))
+            rows.push(['active_owners',owners].join(','))
+            rows.push(['booking_clicks',clicks].join(','))
+            rows.push(['crowd_forecast_median_m',median??''].join(','))
+            rows.push(['crowd_forecast_n',fcs.length].join(','))
+            rows.push(['estimate_m',b2bFilm.estM??''].join(','))
+            rows.push(['actual_opening_m',actual??''].join(','))
+            const blob=new Blob([rows.join('\n')],{type:'text/csv'})
+            const a=document.createElement('a');a.href=URL.createObjectURL(blob)
+            a.download=`boxd-intent-${b2bFilm.id}.csv`;a.click();URL.revokeObjectURL(a.href)
+          }
+          return(
+            <div style={{...S.card,marginBottom:'16px',border:`1px solid ${T.gold}33`,background:`linear-gradient(135deg,${T.gold}06,${T.surface})`}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:'10px',marginBottom:'10px',flexWrap:'wrap'}}>
+                <div style={{fontSize:'14px',fontWeight:800,color:T.gold}}>🎯 Film Intent Report</div>
+                <Btn onClick={exportCSV} variant="outline" color={T.blue} size="sm">⬇ CSV</Btn>
+              </div>
+              {/* Intent curve */}
+              <div style={{...S.label,marginBottom:'6px'}}>Watchlist adds per week{eventWeeks.size>0&&' · ▲ marketing event'}</div>
+              {filmPicks.length===0
+                ?<div style={{fontSize:'11px',color:T.textDim,padding:'14px 0'}}>No watchlist activity yet for this title.</div>
+                :<div style={{display:'flex',alignItems:'flex-end',gap:'3px',height:'70px',marginBottom:'4px'}}>
+                  {weeks.map(w=>{
+                    const v=buckets[w]||0
+                    return(
+                      <div key={w} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:'2px',height:'100%',justifyContent:'flex-end'}} title={`${dateLabel(w)}: ${v} adds`}>
+                        {v>0&&<span style={{fontSize:'8px',color:T.textSub,fontFamily:T.mono}}>{v}</span>}
+                        <div style={{width:'100%',height:`${Math.max(3,(v/maxAdds)*52)}px`,background:eventWeeks.has(w)?T.orange:T.gold,borderRadius:'3px 3px 0 0',opacity:v===0?0.15:1}}/>
+                        <span style={{fontSize:'7px',color:eventWeeks.has(w)?T.orange:T.textDim}}>{eventWeeks.has(w)?'▲':''}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              }
+              {/* Marketing lift readouts */}
+              {events.slice(0,3).map(e=>{
+                const{before,after}=lift(e)
+                const pct=before>0?Math.round(((after-before)/before)*100):(after>0?100:0)
+                return(
+                  <div key={e.id} style={{fontSize:'10px',color:T.textSub,marginBottom:'3px'}}>
+                    ▲ <span style={{color:T.orange}}>{e.title||e.event_type||'Event'}</span> · {new Date(e.event_date).toLocaleDateString('en-GB',{day:'numeric',month:'short'})} → <span style={{color:pct>=0?T.green:T.red,fontWeight:700,fontFamily:T.mono}}>{pct>=0?'+':''}{pct}%</span> adds (7d: {before}→{after})
+                  </div>
+                )
+              })}
+              {/* Headline metrics */}
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(90px,1fr))',gap:'8px',marginTop:'12px'}}>
+                <StatBox label="Watchers" value={filmPicks.length} color={T.gold}/>
+                <StatBox label="Owners" value={owners} color={T.gold}/>
+                <StatBox label="Booking clicks" value={clicks} color={T.green}/>
+                <StatBox label="Crowd forecast" value={median!=null?`$${median}M`:'—'} color={T.blue}/>
+                {b2bFilm.estM!=null&&<StatBox label="Studio est" value={`$${b2bFilm.estM}M`} color={T.text}/>}
+                {actual!=null&&<StatBox label="Actual" value={`$${actual}M`} color={T.green}/>}
+              </div>
+              {median!=null&&actual!=null&&(
+                <div style={{fontSize:'10px',color:T.textSub,marginTop:'8px'}}>
+                  Crowd accuracy: forecast ${median}M vs actual ${actual}M — <span style={{color:Math.abs(median-actual)/actual<=0.15?T.green:T.orange,fontWeight:700}}>{Math.round(Math.abs(median-actual)/actual*100)}% off</span> ({fcs.length} predictions)
+                </div>
+              )}
+            </div>
+          )
+        })()}
+
+        </div>
+      )
+    }
+    // ── DISTRIBUTOR LIST VIEW ────────────────────────────────────────────
     return(
       <div style={{animation:'fadeUp .2s ease'}}>
         <div style={S.pageTitle}>📈 Distributor Insights</div>
-        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px'}}>How the league reads each distributor's slate</div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px'}}>Tap a distributor for their slate report · how the league reads each slate</div>
         {dists.map(d=>{
           const distFilms=films.filter(f=>f.dist===d)
           const distResulted=distFilms.filter(f=>results[f.id]!=null)
@@ -2961,8 +3427,11 @@ export default function App(){
           else if(distPicks.length<3)headline=`Limited engagement with ${d}'s slate so far.`
           else headline=`Mixed signals — the league is undecided on ${d}.`
           return(
-            <div key={d} style={{...S.card,marginBottom:'12px'}}>
-              <div style={{fontSize:'15px',fontWeight:700,color:T.blue,marginBottom:'4px'}}>{d}</div>
+            <div key={d} onClick={()=>openDist(d)} className="hoverable" style={{...S.card,marginBottom:'12px',cursor:'pointer'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'4px'}}>
+                <div style={{fontSize:'15px',fontWeight:700,color:T.blue}}>{d}</div>
+                <span style={{color:T.textDim,fontSize:'14px'}}>›</span>
+              </div>
               <div style={{fontSize:'12px',color:T.text,marginBottom:'12px',lineHeight:1.5,fontStyle:'italic'}}>{headline}</div>
               <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'8px',marginBottom:'12px'}}>
                 <StatBox label="Early-mover" value={`${earlyPct}%`} color={earlyPct>=60?T.green:T.text}/>
@@ -3853,18 +4322,30 @@ export default function App(){
     const[name,setName]=useState(profile?.name||'')
     const[bio,setBio]=useState(profile?.bio||'')
     const[col,setCol]=useState(profile?.color||PLAYER_COLORS[0])
+    const[avatarUrl,setAvatarUrl]=useState(profile?.avatar_url||'')
+    const[favFilm,setFavFilm]=useState(profile?.favourite_film_id||'')
+    const[letterboxd,setLetterboxd]=useState(profile?.letterboxd_url||'')
     const save=async()=>{
-      await supabase.from('profiles').update({name:name.trim(),bio:bio.trim(),color:col}).eq('id',profile.id)
+      await supabase.from('profiles').update({name:name.trim(),bio:bio.trim(),color:col,avatar_url:avatarUrl.trim()||null,favourite_film_id:favFilm||null,letterboxd_url:letterboxd.trim()||null}).eq('id',profile.id)
       loadProfile();notify('Profile updated',T.green);setProfileEditOpen(false)
     }
     return(
       <div style={{position:'fixed',inset:0,background:'#000000CC',display:'flex',alignItems:'center',justifyContent:'center',zIndex:900,padding:'20px'}} onClick={()=>setProfileEditOpen(false)}>
-        <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'16px',padding:'24px',width:'100%',maxWidth:'380px'}} onClick={e=>e.stopPropagation()}>
+        <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'16px',padding:'24px',width:'100%',maxWidth:'380px',maxHeight:'85vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
           <div style={{fontSize:'18px',fontWeight:700,marginBottom:'16px'}}>Edit profile</div>
           <div style={{...S.label,marginBottom:'6px'}}>Name</div>
           <input value={name} onChange={e=>setName(e.target.value)} style={{...S.inp,marginBottom:'14px'}}/>
           <div style={{...S.label,marginBottom:'6px'}}>Bio</div>
           <textarea value={bio} onChange={e=>setBio(e.target.value)} placeholder="One-line tagline…" style={{...S.inp,minHeight:'60px',marginBottom:'14px',resize:'vertical',fontFamily:T.mono}}/>
+          <div style={{...S.label,marginBottom:'6px'}}>Profile photo URL <span style={{textTransform:'none',letterSpacing:0,color:T.textDim}}>(paste any image link)</span></div>
+          <input value={avatarUrl} onChange={e=>setAvatarUrl(e.target.value)} placeholder="https://…" style={{...S.inp,marginBottom:'14px'}}/>
+          <div style={{...S.label,marginBottom:'6px'}}>Favourite film</div>
+          <select value={favFilm} onChange={e=>setFavFilm(e.target.value)} style={{...S.inp,marginBottom:'14px'}}>
+            <option value="">None selected</option>
+            {films.map(f=><option key={f.id} value={f.id}>{f.title}</option>)}
+          </select>
+          <div style={{...S.label,marginBottom:'6px'}}>Letterboxd profile</div>
+          <input value={letterboxd} onChange={e=>setLetterboxd(e.target.value)} placeholder="https://letterboxd.com/you" style={{...S.inp,marginBottom:'14px'}}/>
           <div style={{...S.label,marginBottom:'10px'}}>Colour</div>
           <div style={{display:'flex',gap:'10px',marginBottom:'20px',flexWrap:'wrap'}}>
             {PLAYER_COLORS.map(c=><div key={c} onClick={()=>setCol(c)} style={{width:'30px',height:'30px',borderRadius:'50%',background:c,cursor:'pointer',border:`3px solid ${col===c?'#fff':'transparent'}`,boxSizing:'border-box'}}/>)}
@@ -3930,6 +4411,7 @@ export default function App(){
       case 'motw':return <MovieOfWeekPage/>
       case 'polls':return <PollsPage/>
       case 'intent':return <IntentPage/>
+      case 'reviews':return <ReviewsPage/>
       case 'forecaster':return <ForecasterPage/>
       case 'oscar':return <OscarPage/>
       case 'results':return <ResultsPage/>
@@ -3940,7 +4422,7 @@ export default function App(){
       case 'warroom':return <WarRoomPage/>
       case 'commissioner':return <CommissionerPage/>
       case 'distributor':return <DistributorPage/>
-      case 'profile':return profilePlayer?<PlayerProfilePage player={profilePlayer} badges={calcBadges(profilePlayer.id)} films={films} rosters={rosters} results={results} weeklyG={weeklyG} allChips={allChips} oscarPreds={oscarPreds} allPicks={allPicks} calcPoints={calcPoints} calcPhasePoints={calcPhasePoints} budgetLeft={budgetLeft} cur={cur} isEarlyBird={isEarlyBird} analystActive={analystOn} curPhase_ref={curPhase()} onBack={()=>setPage(prevPage)}/>:null
+      case 'profile':return profilePlayer?<PlayerProfilePage player={profilePlayer} badges={calcBadges(profilePlayer.id)} reviews={reviews} onOpenFilm={f=>setFilmDetail(f)} films={films} rosters={rosters} results={results} weeklyG={weeklyG} allChips={allChips} oscarPreds={oscarPreds} allPicks={allPicks} calcPoints={calcPoints} calcPhasePoints={calcPhasePoints} budgetLeft={budgetLeft} cur={cur} isEarlyBird={isEarlyBird} analystActive={analystOn} curPhase_ref={curPhase()} onBack={()=>setPage(prevPage)}/>:null
       default:return <MarketPage/>
     }
   }
@@ -3996,6 +4478,7 @@ export default function App(){
           <div style={{padding:'0 12px'}}>
             {[
               {id:'intent',icon:'👁️',label:'Watchlist'},
+              {id:'reviews',icon:'⭐',label:'Reviews'},
               {id:'forecaster',icon:'📊',label:'Forecaster'},
               {id:'oscar',icon:'🏆',label:'Oscars'},
               {id:'results',icon:'📋',label:'Results'},
@@ -4127,7 +4610,14 @@ export default function App(){
       {notif&&<div style={{position:'fixed',bottom:isMobile?'90px':'24px',left:'50%',transform:'translateX(-50%)',background:T.surface,border:`1px solid ${notif.color}66`,borderRadius:'12px',padding:'12px 20px',fontSize:'13px',color:notif.color,fontFamily:T.mono,fontWeight:600,zIndex:1000,animation:'fadeUp .2s ease',boxShadow:'0 8px 24px #00000088',maxWidth:'90vw'}}>{notif.msg}</div>}
 
       {/* MODALS */}
-      {filmDetail&&<FilmDetailModal film={filmDetail} profile={profile} players={players} results={results} allPicks={allPicks} marketingEvents={marketingEvents} news={news} rosters={rosters} filmValues={filmValues} currentWeek={cfg.current_week} phase={ph} onTogglePick={togglePick} onBookingClick={trackBookingClick} onShowtimes={(f)=>{setShowtimesFilm(f);setFilmDetail(null)}} onClose={()=>setFilmDetail(null)} league={league}/>}
+      {/* GLOBAL SEARCH */}
+      {!searchOpen&&profile&&(
+        <button onClick={()=>setSearchOpen(true)} aria-label="Search films, players and pages"
+          style={{position:'fixed',top:'calc(12px + env(safe-area-inset-top))',right:'14px',zIndex:64,width:'40px',height:'40px',borderRadius:'50%',background:T.surface,border:`1px solid ${T.gold}44`,color:T.gold,fontSize:'16px',cursor:'pointer',boxShadow:'0 4px 16px #00000066',display:'flex',alignItems:'center',justifyContent:'center'}}>🔍</button>
+      )}
+      {searchOpen&&<GlobalSearchOverlay/>}
+
+      {filmDetail&&<FilmDetailModal film={filmDetail} profile={profile} players={players} results={results} allPicks={allPicks} marketingEvents={marketingEvents} news={news} rosters={rosters} filmValues={filmValues} weeklyG={weeklyG} reviews={reviews} reviewComments={reviewComments} onAddReviewComment={addReviewComment} bookingClicks={bookingClicks} onSaveReview={saveReview} onDeleteReview={deleteReview} currentWeek={cfg.current_week} phase={ph} onTogglePick={togglePick} onBookingClick={trackBookingClick} onShowtimes={(f)=>{setShowtimesFilm(f);setFilmDetail(null)}} onClose={()=>setFilmDetail(null)} league={league}/>}
       {showtimesFilm&&<ShowtimesModal film={showtimesFilm} onClose={()=>setShowtimesFilm(null)} onBookingClick={trackBookingClick} supabaseUrl={SUPABASE_URL} anonKey={SUPABASE_ANON_KEY}/>}
       {scoreModal&&<ScoreBreakdownModal film={scoreModal.film} holding={scoreModal.holding} results={results} weeklyGrosses={weeklyG} allChips={allChips} isEarlyBird={isEarlyBird} onClose={()=>setScoreModal(null)}/>}
       {profileEditOpen&&<ProfileEditModal/>}
