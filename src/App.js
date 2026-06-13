@@ -38,7 +38,20 @@ const ALL_PHASES         = [1,2,3,4]
 const SEASON_ANCHOR      = new Date('2026-05-01')
 function weekToDate(wk){return new Date(SEASON_ANCHOR.getTime()+(wk-1)*7*86400000)}
 function dateLabel(wk){const d=weekToDate(wk);return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})}
-const TMDB_TOKEN         = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI4ZjA0OTBiOGU0OWQxNjFmYmIzMjBmYjg5NGJhOTQ1MyIsIm5iZiI6MTc3NTA4Mjg0Mi4xNzcsInN1YiI6IjY5Y2Q5ZDVhZGE4ZjEwZmZmNTJmNmE3MiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.fxBTZG1YMdHkUUgz55l2TUWGa7YKsDUz8JbuFgr84q0'
+// TMDB read token lives in an env var, never committed to the repo (GitHub's
+// secret scanner flags hardcoded keys). Set REACT_APP_TMDB_TOKEN in Vercel.
+// The Edge Functions use their own TMDB_TOKEN secret server-side.
+const TMDB_TOKEN         = process.env.REACT_APP_TMDB_TOKEN || ''
+// Awin affiliate wrap — earns commission on cinema bookings. Set
+// REACT_APP_AWIN_ID (your publisher ID) + per-merchant IDs in Vercel.
+// If unset, links pass through untouched so booking always works.
+const AWIN_ID            = process.env.REACT_APP_AWIN_ID || ''
+const AWIN_MERCHANTS     = {odeon:'',vue:'',cineworld:''} // fill merchant IDs when you have them
+function affiliateWrap(url,chainId){
+  const mid=AWIN_MERCHANTS[chainId]
+  if(!AWIN_ID||!mid)return url
+  return `https://www.awin1.com/cread.php?awinmid=${mid}&awinaffid=${AWIN_ID}&ued=${encodeURIComponent(url)}`
+}
 const EMOJI_OPTIONS      = ['🔥','💀','😂','🎯','📈','📉','👑','💸','🍿','😬']
 const PLAYER_COLORS      = ['#E8A020','#3DD68C','#F04F5A','#4A9EF5','#F08030','#B06EF0','#FF5C8A','#74C0FC']
 
@@ -267,6 +280,7 @@ async function fetchTMDBPoster(title,tmdbId){
   const key = tmdbId?`id:${tmdbId}`:title
   if(posterCache[key]!==undefined) return posterCache[key]
   posterCache[key]=null
+  if(!TMDB_TOKEN) return null // no client token set — FilmPoster shows its gradient fallback
   if(tmdbId){
     try{
       const res=await fetch(`https://api.themoviedb.org/3/movie/${tmdbId}?language=en-US`,{headers:{Authorization:`Bearer ${TMDB_TOKEN}`}})
@@ -374,7 +388,10 @@ function calcPriceDrivers(film,rosters,phase,totalPlayers,currentWeek,filmNews=[
   if(totalPlayers>0){
     const owners=rosters.filter(r=>r.film_id===film.id&&r.phase===phase&&r.active).length
     const pct=owners/totalPlayers
-    ownershipMult=pct>=0.7?1.30:pct>=0.55?1.22:pct>=0.40?1.15:pct>=0.25?1.08:pct>=0.10?1.00:pct>=0.02?0.92:0.80
+    // Ownership is a DEMAND signal only — popular films cost more, but a film
+    // few people own is never discounted for it (neutral 1.0). This keeps
+    // small leagues from pricing most of the slate below IPO.
+    ownershipMult=pct>=0.7?1.30:pct>=0.55?1.22:pct>=0.40?1.15:pct>=0.25?1.08:1.00
   }
   // Time-to-release multiplier:
   // 6+ weeks out: -15% (early discovery discount)
@@ -1243,12 +1260,32 @@ function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEven
                       <span style={{color:T.text,fontFamily:T.mono,fontWeight:700}}>${r.gross}M</span>
                     </div>
                   ))}
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0 2px'}}>
-                    <span style={{...S.label}}>Price impact</span>
-                    <span style={{fontSize:'13px',fontFamily:T.mono}}>
-                      {ipo!=null&&<span style={{color:T.textDim}}>IPO ${ipo}M → </span>}
-                      <span style={{color:valueNow>=(ipo||0)?T.green:T.red,fontWeight:800}}>${valueNow}M now</span>
-                    </span>
+                  <div style={{paddingTop:'8px',marginTop:'4px',borderTop:`1px solid ${T.border}`}}>
+                    <div style={{...S.label,color:T.gold,marginBottom:'8px'}}>Settled Price Breakdown</div>
+                    {(()=>{
+                      const ratio=film.estM?actual/film.estM:1
+                      const perf=ratio>=2?2:ratio>=1.5?1.6:ratio>=1.3?1.35:ratio>=1.1?1.15:ratio>=0.95?1:ratio>=0.8?0.85:ratio>=0.6?0.65:ratio>=0.4?0.45:0.25
+                      const rtMult=film.rt!=null?(film.rt>=90?1.15:film.rt>=75?1.08:film.rt<50?0.9:1):1
+                      const driverRows=[
+                        {label:'Base price (IPO)',val:ipo!=null?`$${ipo}M`:'—',sub:'What it floated at',col:T.text},
+                        {label:'Box office vs estimate',val:`${perf>=1?'+':''}${Math.round((perf-1)*100)}%`,sub:`$${actual}M actual vs $${film.estM||'?'}M est · ${ratio.toFixed(2)}×`,col:perf>=1?T.green:T.red},
+                        ...(film.rt!=null?[{label:'Critics (RT)',val:`${rtMult>=1?'+':''}${Math.round((rtMult-1)*100)}%`,sub:`${film.rt}% score`,col:rtMult>1?T.green:rtMult<1?T.red:T.textSub}]:[]),
+                      ]
+                      return driverRows.map(d=>(
+                        <div key={d.label} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',borderBottom:`1px solid ${T.border}`,fontSize:'12px'}}>
+                          <div><div style={{color:T.text}}>{d.label}</div><div style={{fontSize:'10px',color:T.textDim,marginTop:'1px'}}>{d.sub}</div></div>
+                          <div style={{fontFamily:T.mono,fontWeight:700,color:d.col}}>{d.val}</div>
+                        </div>
+                      ))
+                    })()}
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0 2px'}}>
+                      <span style={{...S.label,color:T.gold}}>Final value</span>
+                      <span style={{fontSize:'13px',fontFamily:T.mono}}>
+                        {ipo!=null&&<span style={{color:T.textDim}}>${ipo}M → </span>}
+                        <span style={{color:valueNow>=(ipo||0)?T.green:T.red,fontWeight:800,fontSize:'17px'}}>${valueNow}M</span>
+                        {ipo!=null&&ipo>0&&<span style={{color:valueNow>=ipo?T.green:T.red,fontSize:'11px',marginLeft:'6px'}}>({valueNow>=ipo?'+':''}{Math.round((valueNow/ipo-1)*100)}%)</span>}
+                      </span>
+                    </div>
                   </div>
                 </div>
               )
@@ -1291,7 +1328,7 @@ function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEven
             {onShowtimes&&<button onClick={()=>onShowtimes(film)} style={{...S.btn,background:`${T.green}18`,border:`1px solid ${T.green}44`,color:T.green,padding:'10px 18px',fontSize:'13px',width:'100%',marginBottom:'12px',textTransform:'none',letterSpacing:0,borderRadius:'10px'}}>🎟 Find Showtimes Near Me</button>}
             <div style={{display:'flex',gap:'8px',flexWrap:'wrap',marginBottom:'20px'}}>
               {BOOKING_CHAINS.map(chain=>(
-                <a key={chain.id} href={`${chain.url}${encodeURIComponent(film.title.toLowerCase().replace(/\s+/g,'-'))}`} target="_blank" rel="noopener noreferrer" onClick={()=>onBookingClick&&onBookingClick(film.id,chain.id)} style={{background:T.surfaceUp,border:`1px solid ${T.border}`,borderRadius:'9px',padding:'8px 14px',textDecoration:'none',fontSize:'12px',color:T.text,fontFamily:T.mono,display:'flex',alignItems:'center',gap:'6px'}}>
+                <a key={chain.id} href={affiliateWrap(`${chain.url}${encodeURIComponent(film.title.toLowerCase().replace(/\s+/g,'-'))}`,chain.id)} target="_blank" rel="noopener noreferrer" onClick={()=>onBookingClick&&onBookingClick(film.id,chain.id)} style={{background:T.surfaceUp,border:`1px solid ${T.border}`,borderRadius:'9px',padding:'8px 14px',textDecoration:'none',fontSize:'12px',color:T.text,fontFamily:T.mono,display:'flex',alignItems:'center',gap:'6px'}}>
                   <span style={{width:'8px',height:'8px',borderRadius:'50%',background:chain.color,flexShrink:0}}/>{chain.label}
                 </a>
               ))}
@@ -1465,7 +1502,7 @@ function ShowtimesModal({film,onClose,onBookingClick,supabaseUrl,anonKey}){
               <div style={{...S.label,marginBottom:'8px'}}>Book direct instead</div>
               <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
                 {BOOKING_CHAINS.map(chain=>(
-                  <a key={chain.id} href={chain.url} target="_blank" rel="noopener noreferrer"
+                  <a key={chain.id} href={affiliateWrap(chain.url,chain.id)} target="_blank" rel="noopener noreferrer"
                     onClick={()=>onBookingClick&&onBookingClick(film.id,chain.id)}
                     style={{background:T.surfaceUp,border:`1px solid ${chain.color}66`,borderRadius:'9px',padding:'9px 14px',fontSize:'12px',color:T.text,textDecoration:'none',fontWeight:600}}>
                     {chain.label} ↗
@@ -1955,6 +1992,37 @@ export default function App(){
     if(scored.some(({f,actual})=>calcLegsBonus(actual,weeklyG[f.id]?.[2])>0))out.push({icon:'🦵',name:'Legs',desc:'Earned a word-of-mouth legs bonus'})
     if(ALL_PHASES.some(p=>mine.filter(r=>r.phase===p).length>=MAX_ROSTER))out.push({icon:'📈',name:'Full House',desc:`Held a full roster of ${MAX_ROSTER} in one phase`})
     if(allForecasts.filter(f=>f.player_id===pid).length>=5)out.push({icon:'🔮',name:'Forecaster',desc:'Logged 5+ opening predictions'})
+    // Hot streak — 3+ consecutive resulted picks (by release order) that beat estimate
+    const chrono=scored.filter(({f})=>f.estM).sort((a,b)=>a.f.week-b.f.week)
+    let run=0,best=0
+    chrono.forEach(({f,actual})=>{if(actual/f.estM>=1.0){run++;best=Math.max(best,run)}else run=0})
+    if(best>=3)out.push({icon:'🔥',name:`${best}-Streak`,desc:`${best} straight picks beat their estimate`})
+    return out
+  }
+  // ── SEASON SUPERLATIVES — auto-awarded titles across the league ──────────
+  const calcSuperlatives=()=>{
+    if(players.length<2)return []
+    const stat=(pid)=>{
+      const mine=rosters.filter(r=>r.player_id===pid)
+      const scored=mine.map(h=>{const f=films.find(fl=>fl.id===h.film_id);return f&&results[f.id]!=null?{h,f,actual:results[f.id]}:null}).filter(Boolean)
+      const bestRoi=Math.max(0,...scored.map(({h,actual})=>h.bought_price>0?actual/h.bought_price:0))
+      const fcs=allForecasts.filter(f=>f.player_id===pid&&results[f.film_id]!=null&&results[f.film_id]>0)
+      const fcErr=fcs.length?fcs.reduce((s,f)=>s+Math.abs(Number(f.predicted_m)-results[f.film_id])/results[f.film_id],0)/fcs.length:null
+      const ebCount=scored.filter(({h,f,actual})=>isEarlyBird(h)&&f.estM&&actual/f.estM>=1.1).length
+      const picks=allPicks.filter(p=>p.user_id===pid).length
+      return{pid,bestRoi,fcErr,fcN:fcs.length,ebCount,picks}
+    }
+    const s=players.map(p=>stat(p.id))
+    const name=pid=>players.find(p=>p.id===pid)?.name||'—'
+    const out=[]
+    const roi=s.filter(x=>x.bestRoi>0).sort((a,b)=>b.bestRoi-a.bestRoi)[0]
+    if(roi)out.push({icon:'💎',title:'Best Investment',who:name(roi.pid),detail:`${roi.bestRoi.toFixed(1)}× return on a single pick`})
+    const acc=s.filter(x=>x.fcErr!=null&&x.fcN>=2).sort((a,b)=>a.fcErr-b.fcErr)[0]
+    if(acc)out.push({icon:'🎯',title:'Sharpest Forecaster',who:name(acc.pid),detail:`${Math.round((1-acc.fcErr)*100)}% accuracy over ${acc.fcN} calls`})
+    const eb=s.filter(x=>x.ebCount>0).sort((a,b)=>b.ebCount-a.ebCount)[0]
+    if(eb)out.push({icon:'🐦',title:'Early Bird',who:name(eb.pid),detail:`${eb.ebCount} early picks that paid off`})
+    const scout=s.sort((a,b)=>b.picks-a.picks)[0]
+    if(scout&&scout.picks>0)out.push({icon:'👁',title:'Most Active Scout',who:name(scout.pid),detail:`${scout.picks} films watchlisted`})
     return out
   }
 
@@ -2166,105 +2234,90 @@ export default function App(){
   // Shows the next ~8 weeks. Each column = one release week.
   // Tapping a film card opens FilmDetail; eye icon toggles watchlist.
   const ReleaseCalendarStrip=()=>{
-    const upcomingFilms=films.filter(f=>results[f.id]==null)
-    if(upcomingFilms.length===0)return null
+    // Collapsible, condensed week-rail. Scrolls BOTH directions so you can
+    // look back at past weeks. Each week column has a capped height with its
+    // own internal scroll, so a busy week never stretches the whole strip.
+    const[collapsed,setCollapsed]=useState(false)
+    const railRef=useRef(null)
+    const allWeeks=[...new Set(films.map(f=>f.week))].sort((a,b)=>a-b)
+    if(allWeeks.length===0)return null
 
-    // Build week columns — show from current week through next 8 release weeks
-    const releaseWeeks=[...new Set(upcomingFilms.map(f=>f.week))]
-      .filter(wk=>wk>=cfg.current_week)
-      .sort((a,b)=>a-b)
-      .slice(0,8)
-
-    if(releaseWeeks.length===0)return null
+    // Auto-scroll so the current week sits near the left on first paint
+    useEffect(()=>{
+      if(railRef.current){
+        const cur=railRef.current.querySelector('[data-now="1"]')
+        if(cur)railRef.current.scrollLeft=Math.max(0,cur.offsetLeft-12)
+      }
+    },[collapsed])
 
     return(
-      <div style={{marginBottom:'16px'}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'8px'}}>
-          <div style={{...S.label,color:T.textSub}}>📅 Release Calendar</div>
-          <div style={{fontSize:'10px',color:T.textDim}}>scroll →</div>
+      <div style={{marginBottom:'14px'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'6px'}}>
+          <button onClick={()=>setCollapsed(c=>!c)} style={{background:'none',border:'none',cursor:'pointer',padding:0,display:'flex',alignItems:'center',gap:'6px'}} aria-label="Toggle release calendar">
+            <span style={{...S.label,color:T.textSub}}>📅 Release Calendar</span>
+            <span style={{fontSize:'10px',color:T.textDim}}>{collapsed?'▸':'▾'}</span>
+          </button>
+          {!collapsed&&<div style={{fontSize:'10px',color:T.textDim}}>‹ scroll ›</div>}
         </div>
-        <div style={{overflowX:'auto',paddingBottom:'6px',scrollbarWidth:'thin',scrollbarColor:`${T.border} transparent`,WebkitOverflowScrolling:'touch'}}>
-          <div style={{display:'flex',gap:'10px',minWidth:'max-content',paddingRight:'16px'}}>
-            {releaseWeeks.map(wk=>{
-              const weekFilms=upcomingFilms.filter(f=>f.week===wk)
-              const isNow=wk===cfg.current_week
-              const dateStr=dateLabel(wk)
-              return(
-                <div key={wk} style={{
-                  background: isNow?`${T.gold}10`:T.surfaceUp,
-                  border:`1px solid ${isNow?T.gold+'55':T.border}`,
-                  borderRadius:'12px',
-                  padding:'10px',
-                  minWidth:'130px',
-                  maxWidth:'150px',
-                  flexShrink:0,
-                }}>
-                  {/* Week header */}
-                  <div style={{marginBottom:'8px',paddingBottom:'8px',borderBottom:`1px solid ${T.border}`}}>
-                    <div style={{fontSize:'11px',fontWeight:700,color:isNow?T.gold:T.text}}>{isNow?'🎬 This Week':dateStr}</div>
-                    <div style={{fontSize:'9px',color:T.textDim,marginTop:'2px'}}>{isNow?dateStr:''}{weekFilms.length} film{weekFilms.length!==1?'s':''}</div>
-                  </div>
-                  {/* Film list for this week */}
-                  <div style={{display:'flex',flexDirection:'column',gap:'7px'}}>
-                    {weekFilms.map(film=>{
-                      const isPicked=allPicks.some(p=>p.film_id===film.id&&p.user_id===profile?.id)
-                      const owned=rosters.find(r=>r.player_id===profile?.id&&r.film_id===film.id&&r.active)
-                      const gc=GENRE_COL[film.genre]||T.textSub
-                      const val=filmVal(film)
-                      return(
-                        <div key={film.id} style={{position:'relative'}}>
-                          {/* Film row */}
-                          <div onClick={()=>setFilmDetail(film)} style={{
-                            display:'flex',gap:'7px',alignItems:'center',
-                            cursor:'pointer',
-                            background: owned?`${T.gold}14`:T.surface,
+        {!collapsed&&(
+          <div ref={railRef} style={{overflowX:'auto',paddingBottom:'4px',scrollbarWidth:'thin',scrollbarColor:`${T.border} transparent`,WebkitOverflowScrolling:'touch'}}>
+            <div style={{display:'flex',gap:'8px',minWidth:'max-content',paddingRight:'12px'}}>
+              {allWeeks.map(wk=>{
+                const weekFilms=films.filter(f=>f.week===wk)
+                const isNow=wk===cfg.current_week
+                const isPast=wk<cfg.current_week
+                return(
+                  <div key={wk} data-now={isNow?'1':'0'} style={{
+                    background:isNow?`${T.gold}10`:T.surfaceUp,
+                    border:`1px solid ${isNow?T.gold+'55':T.border}`,
+                    borderRadius:'10px',padding:'8px',width:'126px',flexShrink:0,
+                    opacity:isPast?0.6:1,
+                  }}>
+                    <div style={{marginBottom:'6px',paddingBottom:'6px',borderBottom:`1px solid ${T.border}`}}>
+                      <div style={{fontSize:'10px',fontWeight:700,color:isNow?T.gold:isPast?T.textDim:T.text}}>{isNow?'🎬 This Week':dateLabel(wk)}</div>
+                      <div style={{fontSize:'8px',color:T.textDim,marginTop:'1px'}}>{isNow?dateLabel(wk)+' · ':''}{weekFilms.length} film{weekFilms.length!==1?'s':''}</div>
+                    </div>
+                    {/* Capped-height inner scroll so busy weeks stay compact */}
+                    <div style={{display:'flex',flexDirection:'column',gap:'5px',maxHeight:'168px',overflowY:'auto',scrollbarWidth:'thin'}}>
+                      {weekFilms.map(film=>{
+                        const isPicked=allPicks.some(p=>p.film_id===film.id&&p.user_id===profile?.id)
+                        const owned=rosters.find(r=>r.player_id===profile?.id&&r.film_id===film.id&&r.active)
+                        const gc=GENRE_COL[film.genre]||T.textSub
+                        const actual=results[film.id]
+                        const val=actual!=null?null:filmVal(film)
+                        return(
+                          <div key={film.id} onClick={()=>setFilmDetail(film)} style={{
+                            display:'flex',gap:'6px',alignItems:'center',cursor:'pointer',
+                            background:owned?`${T.gold}14`:T.surface,
                             border:`1px solid ${owned?T.gold+'44':gc+'22'}`,
-                            borderRadius:'8px',
-                            padding:'6px 7px',
+                            borderRadius:'7px',padding:'5px 6px',
                           }}>
-                            <FilmPoster film={film} width={28} height={42} radius={4}/>
+                            <FilmPoster film={film} width={24} height={36} radius={3}/>
                             <div style={{flex:1,minWidth:0}}>
-                              <div style={{
-                                fontSize:'10px',fontWeight:600,
-                                color:owned?T.gold:T.text,
-                                lineHeight:1.3,
-                                overflow:'hidden',
-                                display:'-webkit-box',
-                                WebkitLineClamp:2,
-                                WebkitBoxOrient:'vertical',
-                              }}>{film.title}</div>
-                              <div style={{fontSize:'9px',color:T.textDim,marginTop:'2px'}}>
-                                {val!=null?`$${val}M`:'🔒'}
-                                {film.rt!=null&&<span style={{color:film.rt>=75?T.green:T.red,marginLeft:'4px'}}> {film.rt}%</span>}
+                              <div style={{fontSize:'9px',fontWeight:600,color:owned?T.gold:T.text,lineHeight:1.25,overflow:'hidden',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical'}}>{film.title}</div>
+                              <div style={{fontSize:'8px',color:T.textDim,marginTop:'1px'}}>
+                                {actual!=null?<span style={{color:T.green}}>${actual}M</span>:val!=null?`$${val}M`:'🔒'}
+                                {film.rt!=null&&<span style={{color:film.rt>=75?T.green:T.red,marginLeft:'3px'}}>{film.rt}%</span>}
                               </div>
                             </div>
-                            {/* Watchlist eye toggle */}
-                            <button
-                              onClick={e=>{e.stopPropagation();if(profile)togglePick(film.id)}}
-                              style={{
-                                background:'none',border:'none',cursor:'pointer',
-                                padding:'2px',lineHeight:1,flexShrink:0,
-                                fontSize:'12px',
-                                opacity:isPicked?1:0.35,
-                                color:isPicked?T.gold:'#fff',
-                                transition:'opacity .15s',
-                              }}
+                            {actual==null&&<button onClick={e=>{e.stopPropagation();if(profile)togglePick(film.id)}}
+                              style={{background:'none',border:'none',cursor:'pointer',padding:'1px',lineHeight:1,flexShrink:0,fontSize:'11px',opacity:isPicked?1:0.3,color:isPicked?T.gold:'#fff'}}
                               title={isPicked?'Remove from watchlist':'Add to watchlist'}
-                              aria-label={`${isPicked?'Remove':'Add'} ${film.title} ${isPicked?'from':'to'} watchlist`}
-                            >👁</button>
+                              aria-label={`${isPicked?'Remove':'Add'} ${film.title} ${isPicked?'from':'to'} watchlist`}>👁</button>}
                           </div>
-                        </div>
-                      )
-                    })}
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     )
   }
+
 
   // ── GLOBAL SEARCH — one box for everything: films, players, pages ───────
   const GlobalSearchOverlay=()=>{
@@ -2706,7 +2759,7 @@ export default function App(){
         <Group title="💰 Buying & Selling">
           <Section id="market" icon="🎬" color={T.blue} title="The Market" summary="How prices work, and why they move.">
             Every film has a base price (its IPO). The actual price you pay is the IPO multiplied by 4 live drivers:
-            <br/>• <Highlight>Ownership</Highlight> — more players holding it = higher price (up to +30%)
+            <br/>• <Highlight>Ownership</Highlight> — popular films cost more (up to +30%); a film few people own is never discounted for it
             <br/>• <Highlight>Time to release</Highlight> — 6+ weeks out = −15%, graduates to +10% at release week
             <br/>• <Highlight>RT Score</Highlight> — better critics = higher price (≥90% = +15%)
             <br/>• <Highlight>Watchlist Heat</Highlight> — how many players added it this week
@@ -2917,6 +2970,26 @@ export default function App(){
           )
         })}
         {standings.length===0&&<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No players yet.</div>}
+        {(()=>{
+          const sups=calcSuperlatives()
+          if(sups.length===0)return null
+          return(
+            <div style={{...S.card,marginTop:'18px',border:`1px solid ${T.gold}22`,background:`linear-gradient(135deg,${T.gold}06,${T.surface})`}}>
+              <div style={{...S.label,color:T.gold,marginBottom:'12px'}}>🏅 Season Superlatives</div>
+              {sups.map(s=>(
+                <div key={s.title} style={{display:'flex',gap:'10px',alignItems:'center',padding:'8px 0',borderBottom:`1px solid ${T.border}`}}>
+                  <span style={{fontSize:'20px',width:'28px',textAlign:'center'}}>{s.icon}</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:'12px',fontWeight:700,color:T.text}}>{s.title}</div>
+                    <div style={{fontSize:'10px',color:T.textDim,marginTop:'1px'}}>{s.detail}</div>
+                  </div>
+                  <div style={{fontSize:'12px',fontWeight:700,color:T.gold}}>{s.who}</div>
+                </div>
+              ))}
+              <div style={{fontSize:'9px',color:T.textDim,marginTop:'8px'}}>Auto-awarded from live data · updates as the season plays out</div>
+            </div>
+          )
+        })()}
       </div>
     )
   }
@@ -3339,7 +3412,7 @@ export default function App(){
                 <span style={{fontSize:'11px',color:T.textSub}}>{going.length} going</span>
                 <div style={{flex:1}}/>
                 <Btn onClick={()=>toggleAttend(s.id)} color={iGo?T.green:T.surfaceUp} textColor={iGo?'#0D0A08':T.text} size="sm">{iGo?'✓ Going':'Join'}</Btn>
-                <a href={s.booking_url||chain.url} target="_blank" rel="noopener noreferrer" onClick={()=>trackBookingClick(s.film_id,chain.id)} style={{background:T.gold,color:'#0D0A08',borderRadius:'8px',padding:'7px 12px',fontSize:'12px',fontWeight:700,textDecoration:'none'}}>🎟 Book</a>
+                <a href={s.booking_url||affiliateWrap(chain.url,chain.id)} target="_blank" rel="noopener noreferrer" onClick={()=>trackBookingClick(s.film_id,chain.id)} style={{background:T.gold,color:'#0D0A08',borderRadius:'8px',padding:'7px 12px',fontSize:'12px',fontWeight:700,textDecoration:'none'}}>🎟 Book</a>
                 {s.host_id===profile?.id&&<button onClick={()=>cancelScreening(s.id)} style={{background:'none',border:'none',color:T.textDim,cursor:'pointer',fontSize:'12px'}}>✕</button>}
               </div>
             </div>
