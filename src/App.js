@@ -2,7 +2,14 @@ import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabase'
 
 const SUPABASE_URL = 'https://yxluqkfanhzktinayvex.supabase.co'
-const SUPABASE_ANON_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY || ''
+// The client in ./supabase already holds a valid anon key. Reuse it so
+// direct Edge Function fetches (ingest, showtimes) authenticate even when
+// the REACT_APP_ env var isn't set in Vercel — the empty-string fallback
+// was causing "load failed" 401s on every Edge call.
+const SUPABASE_ANON_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY
+  || supabase?.supabaseKey
+  || supabase?.rest?.headers?.apikey
+  || ''
 
 const T = {
   bg:'#0D0A08',surface:'#161210',surfaceUp:'#1E1916',
@@ -573,18 +580,70 @@ function InviteLanding({code,onLogin}){
 
 function Login(){
   const[email,setEmail]=useState('')
+  const[password,setPassword]=useState('')
+  const[mode,setMode]=useState('password') // 'password' | 'magic'
   const[sent,setSent]=useState(false)
   const[busy,setBusy]=useState(false)
-  const go=async e=>{e.preventDefault();setBusy(true);const{error}=await supabase.auth.signInWithOtp({email,options:{emailRedirectTo:'https://boxd-league-v2.vercel.app'}});if(error)alert(error.message);else setSent(true);setBusy(false)}
+  const[err,setErr]=useState('')
+  const REDIRECT=typeof window!=='undefined'?window.location.origin:'https://boxd-league-v2.vercel.app'
+
+  const passwordAuth=async e=>{
+    e.preventDefault();setBusy(true);setErr('')
+    // Try sign-in first; if the account doesn't exist yet, sign them up.
+    let{error}=await supabase.auth.signInWithPassword({email:email.trim(),password})
+    if(error&&/invalid login credentials/i.test(error.message)){
+      const su=await supabase.auth.signUp({email:email.trim(),password,options:{emailRedirectTo:REDIRECT}})
+      if(su.error)error=su.error
+      else if(!su.data.session){setErr('Account created — check your email to confirm, then sign in.');setBusy(false);return}
+      else error=null
+    }
+    if(error)setErr(error.message)
+    setBusy(false)
+  }
+  const magicAuth=async e=>{
+    e.preventDefault();setBusy(true);setErr('')
+    const{error}=await supabase.auth.signInWithOtp({email:email.trim(),options:{emailRedirectTo:REDIRECT}})
+    if(error)setErr(error.message);else setSent(true)
+    setBusy(false)
+  }
+
   return(
     <div style={{minHeight:'100vh',background:T.bg,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:T.mono,padding:'20px'}}>
-      <div style={{width:'100%',maxWidth:'320px'}}>
+      <div style={{width:'100%',maxWidth:'340px'}}>
         <div style={{fontSize:'56px',fontWeight:900,color:T.gold,letterSpacing:'-3px',marginBottom:'6px',lineHeight:1}}>BOXD</div>
-        <div style={{fontSize:'11px',color:T.textDim,letterSpacing:'3px',marginBottom:'44px'}}>FANTASY BOX OFFICE</div>
-        {sent?<div style={{textAlign:'center'}}><div style={{fontSize:'16px',color:T.text,marginBottom:'8px'}}>Check your email ✉️</div><div style={{fontSize:'13px',color:T.textSub}}>{email}</div></div>:<form onSubmit={go}>
-          <input type="email" placeholder="your@email.com" value={email} onChange={e=>setEmail(e.target.value)} required style={{...S.inp,marginBottom:'12px',fontSize:'14px',padding:'14px 16px'}}/>
-          <button type="submit" disabled={busy} style={{width:'100%',background:T.gold,color:'#0D0A08',border:'none',borderRadius:'10px',padding:'14px',fontSize:'13px',fontWeight:700,cursor:'pointer',letterSpacing:'1px',fontFamily:T.mono}}>{busy?'SENDING…':'SEND MAGIC LINK'}</button>
-        </form>}
+        <div style={{fontSize:'11px',color:T.textDim,letterSpacing:'3px',marginBottom:'40px'}}>FANTASY BOX OFFICE</div>
+        {sent?(
+          <div style={{textAlign:'center'}}>
+            <div style={{fontSize:'16px',color:T.text,marginBottom:'8px'}}>Check your email ✉️</div>
+            <div style={{fontSize:'13px',color:T.textSub,marginBottom:'20px'}}>{email}</div>
+            <button onClick={()=>setSent(false)} style={{background:'none',border:`1px solid ${T.border}`,color:T.textSub,borderRadius:'10px',padding:'10px 20px',cursor:'pointer',fontFamily:T.mono,fontSize:'12px'}}>Back</button>
+          </div>
+        ):(
+          <>
+            <form onSubmit={mode==='password'?passwordAuth:magicAuth}>
+              <input type="email" placeholder="your@email.com" value={email} onChange={e=>setEmail(e.target.value)} required autoComplete="email"
+                style={{...S.inp,marginBottom:'12px',fontSize:'14px',padding:'14px 16px'}}/>
+              {mode==='password'&&(
+                <input type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} required autoComplete="current-password" minLength={6}
+                  style={{...S.inp,marginBottom:'12px',fontSize:'14px',padding:'14px 16px'}}/>
+              )}
+              {err&&<div style={{fontSize:'12px',color:T.red,marginBottom:'12px',lineHeight:1.5}}>{err}</div>}
+              <button type="submit" disabled={busy}
+                style={{width:'100%',background:T.gold,color:'#0D0A08',border:'none',borderRadius:'10px',padding:'14px',fontSize:'13px',fontWeight:700,cursor:'pointer',letterSpacing:'1px',fontFamily:T.mono}}>
+                {busy?'…':mode==='password'?'SIGN IN':'SEND MAGIC LINK'}
+              </button>
+            </form>
+            <div style={{textAlign:'center',marginTop:'16px'}}>
+              <button onClick={()=>{setMode(mode==='password'?'magic':'password');setErr('')}}
+                style={{background:'none',border:'none',color:T.textSub,fontSize:'12px',cursor:'pointer',fontFamily:T.mono,textDecoration:'underline'}}>
+                {mode==='password'?'Prefer a magic link instead?':'Use a password instead'}
+              </button>
+            </div>
+            <div style={{fontSize:'10px',color:T.textDim,textAlign:'center',marginTop:'20px',lineHeight:1.6}}>
+              {mode==='password'?"New here? Just enter an email + password — we'll create your account.":"We'll email you a one-tap sign-in link."}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
@@ -919,8 +978,102 @@ function ReviewEditor({existing,onSave,onDelete}){
   )
 }
 
+// ── COMMENT NODE — recursive threaded comment with likes + reply ──────────
+function CommentNode({comment,comments,players,profile,commentLikes,onLike,onReply,onDelete,depth}){
+  const[replyOpen,setReplyOpen]=useState(false)
+  const[replyText,setReplyText]=useState('')
+  const[replyGif,setReplyGif]=useState('')
+  const[gifOpen,setGifOpen]=useState(false)
+  const p=players.find(pl=>pl.id===comment.user_id)
+  const replies=comments.filter(c=>c.parent_id===comment.id)
+  const likes=commentLikes.filter(l=>l.comment_id===comment.id)
+  const iLiked=likes.some(l=>l.user_id===profile?.id)
+  const renderBody=(txt)=>(txt||'').split(/(@\w+)/g).map((part,i)=>{
+    if(part.startsWith('@')){const m=players.find(pl=>`@${pl.name}`===part);return<span key={i} style={{color:m?.color||T.gold,fontWeight:600}}>{part}</span>}
+    return part
+  })
+  return(
+    <div style={{display:'flex',gap:'10px',marginBottom:'14px',marginLeft:depth>0?'16px':0,paddingLeft:depth>0?'8px':0,borderLeft:depth>0?`2px solid ${T.border}`:'none'}}>
+      <div style={{width:'30px',height:'30px',borderRadius:'50%',background:p?.color||T.gold,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'12px',fontWeight:700,color:'#0D0A08'}}>{p?.name?.[0]||'?'}</div>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{display:'flex',gap:'8px',alignItems:'baseline',marginBottom:'3px'}}>
+          <span style={{fontSize:'12px',fontWeight:700,color:p?.color||T.gold}}>{p?.name||'Player'}</span>
+          <span style={{fontSize:'10px',color:T.textDim}}>{timeAgo(comment.created_at)}</span>
+        </div>
+        {comment.comment&&<div style={{fontSize:'13px',color:T.text,lineHeight:1.5,marginBottom:comment.gif_url?'6px':0}}>{renderBody(comment.comment)}</div>}
+        {comment.gif_url&&<img src={comment.gif_url} alt="" loading="lazy" style={{maxWidth:'180px',maxHeight:'140px',borderRadius:'8px',marginBottom:'4px'}}/>}
+        <div style={{display:'flex',gap:'14px',alignItems:'center',marginTop:'4px'}}>
+          <button onClick={()=>onLike(comment.id)} style={{background:'none',border:'none',cursor:'pointer',fontSize:'11px',color:iLiked?T.gold:T.textDim,padding:0,fontWeight:iLiked?700:400}}>♥ {likes.length>0?likes.length:''}</button>
+          {depth<3&&<button onClick={()=>setReplyOpen(!replyOpen)} style={{background:'none',border:'none',cursor:'pointer',fontSize:'11px',color:T.textDim,padding:0}}>↩ Reply</button>}
+          {comment.user_id===profile?.id&&<button onClick={()=>onDelete(comment.id)} style={{background:'none',border:'none',cursor:'pointer',fontSize:'11px',color:T.textDim,padding:0}}>✕</button>}
+        </div>
+        {replyOpen&&(
+          <div style={{marginTop:'8px'}}>
+            {replyGif&&<div style={{position:'relative',display:'inline-block',marginBottom:'6px'}}><img src={replyGif} alt="" style={{maxHeight:'60px',borderRadius:'6px'}}/><button onClick={()=>setReplyGif('')} style={{position:'absolute',top:'-5px',right:'-5px',background:T.red,color:'#fff',border:'none',borderRadius:'50%',width:'18px',height:'18px',cursor:'pointer',fontSize:'10px'}}>×</button></div>}
+            {gifOpen&&<GifPicker onPick={u=>{setReplyGif(u);setGifOpen(false)}} onClose={()=>setGifOpen(false)}/>}
+            <div style={{display:'flex',gap:'6px'}}>
+              <button onClick={()=>setGifOpen(true)} style={{background:T.surfaceUp,border:`1px solid ${T.border}`,borderRadius:'8px',color:T.gold,fontSize:'10px',fontWeight:700,padding:'8px',cursor:'pointer'}}>GIF</button>
+              <input value={replyText} onChange={e=>setReplyText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){onReply(comment.id,replyText,replyGif);setReplyText('');setReplyGif('');setReplyOpen(false)}}} placeholder="Reply…" style={{...S.inp,flex:1,fontSize:'12px',padding:'8px 10px'}}/>
+              <Btn onClick={()=>{onReply(comment.id,replyText,replyGif);setReplyText('');setReplyGif('');setReplyOpen(false)}} color={T.blue} textColor="#fff" size="sm">↩</Btn>
+            </div>
+          </div>
+        )}
+        {replies.map(r=>(
+          <div key={r.id} style={{marginTop:'12px'}}>
+            <CommentNode comment={r} comments={comments} players={players} profile={profile} commentLikes={commentLikes} onLike={onLike} onReply={onReply} onDelete={onDelete} depth={depth+1}/>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── GIF PICKER — Tenor search (free public key) ───────────────────────────
+function GifPicker({onPick,onClose}){
+  const[q,setQ]=useState('')
+  const[gifs,setGifs]=useState([])
+  const[loading,setLoading]=useState(false)
+  const search=async(term)=>{
+    setLoading(true)
+    try{
+      // Tenor's public demo key — fine for low volume; swap for your own later
+      const key='AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ'
+      const url=term.trim()
+        ? `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(term)}&key=${key}&client_key=boxd&limit=12&media_filter=tinygif`
+        : `https://tenor.googleapis.com/v2/featured?key=${key}&client_key=boxd&limit=12&media_filter=tinygif`
+      const res=await fetch(url)
+      const data=await res.json()
+      setGifs((data.results||[]).map(g=>({preview:g.media_formats?.tinygif?.url,full:g.media_formats?.tinygif?.url})).filter(g=>g.preview))
+    }catch{setGifs([])}
+    setLoading(false)
+  }
+  useEffect(()=>{search('')},[])
+  return(
+    <div style={{background:T.surfaceUp,border:`1px solid ${T.border}`,borderRadius:'12px',padding:'10px',marginBottom:'10px'}}>
+      <div style={{display:'flex',gap:'8px',marginBottom:'8px'}}>
+        <input autoFocus value={q} onChange={e=>{setQ(e.target.value)}} onKeyDown={e=>e.key==='Enter'&&search(q)} placeholder="Search GIFs…" style={{...S.inp,flex:1,fontSize:'12px',padding:'8px 10px'}}/>
+        <Btn onClick={()=>search(q)} color={T.gold} size="sm">Go</Btn>
+        <button onClick={onClose} style={{background:'none',border:`1px solid ${T.border}`,borderRadius:'8px',color:T.textSub,cursor:'pointer',padding:'0 10px'}}>×</button>
+      </div>
+      {loading?<div style={{fontSize:'11px',color:T.textSub,padding:'10px',textAlign:'center'}}>Loading…</div>:
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px',maxHeight:'200px',overflowY:'auto'}}>
+          {gifs.map((g,i)=>(
+            <img key={i} src={g.preview} alt="" onClick={()=>onPick(g.full)} style={{width:'100%',height:'70px',objectFit:'cover',borderRadius:'6px',cursor:'pointer'}}/>
+          ))}
+          {gifs.length===0&&<div style={{gridColumn:'1/-1',fontSize:'11px',color:T.textDim,textAlign:'center',padding:'10px'}}>No GIFs found</div>}
+        </div>
+      }
+      <div style={{fontSize:'9px',color:T.textDim,textAlign:'right',marginTop:'4px'}}>via Tenor</div>
+    </div>
+  )
+}
+
+
 function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEvents=[],news=[],rosters=[],filmValues={},weeklyG={},reviews=[],reviewComments=[],onAddReviewComment,bookingClicks=[],onSaveReview,onDeleteReview,currentWeek=null,phase=1,onTogglePick,onBookingClick,onShowtimes,onClose,league}){
   const[comments,setComments]=useState([])
+  const[commentLikes,setCommentLikes]=useState([])
+  const[gifUrl,setGifUrl]=useState('')
+  const[gifPickerOpen,setGifPickerOpen]=useState(false)
   const[text,setText]=useState('')
   const[tab,setTab]=useState('info')
   const actual=results[film.id],gc=GENRE_COL[film.genre]||T.textSub
@@ -928,14 +1081,31 @@ function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEven
   const vel7=pickVelocity(film.id,allPicks,7),vel1=pickVelocity(film.id,allPicks,1)
   const eventsForFilm=(marketingEvents||[]).filter(e=>e.film_id===film.id).sort((a,b)=>new Date(a.event_date)-new Date(b.event_date))
   useEffect(()=>{
-    loadComments()
+    loadComments();loadCommentLikes()
     const ch=supabase.channel(`film-detail-${film.id}`)
       .on('postgres_changes',{event:'*',schema:'public',table:'film_comments',filter:`film_id=eq.${film.id}`},loadComments)
+      .on('postgres_changes',{event:'*',schema:'public',table:'comment_likes'},loadCommentLikes)
       .subscribe()
     return()=>supabase.removeChannel(ch)
   },[])
   const loadComments=async()=>{const{data}=await supabase.from('film_comments').select('*').eq('film_id',film.id).order('created_at',{ascending:true});if(data)setComments(data)}
-  const post=async()=>{if(!text.trim())return;await supabase.from('film_comments').insert({user_id:profile.id,film_id:film.id,comment:text.trim(),league_id:league?.id});setText('');loadComments()}
+  const loadCommentLikes=async()=>{const{data}=await supabase.from('comment_likes').select('*');if(data)setCommentLikes(data)}
+  const postWithGif=async()=>{
+    if(!text.trim()&&!gifUrl)return
+    await supabase.from('film_comments').insert({user_id:profile.id,film_id:film.id,comment:text.trim(),gif_url:gifUrl||null,league_id:league?.id})
+    setText('');setGifUrl('');loadComments()
+  }
+  const postReply=async(parentId,body,gif)=>{
+    if(!body.trim()&&!gif)return
+    await supabase.from('film_comments').insert({user_id:profile.id,film_id:film.id,comment:body.trim(),parent_id:parentId,gif_url:gif||null,league_id:league?.id})
+    loadComments()
+  }
+  const toggleCommentLike=async(commentId)=>{
+    const mine=commentLikes.find(l=>l.comment_id===commentId&&l.user_id===profile.id)
+    if(mine)await supabase.from('comment_likes').delete().eq('id',mine.id)
+    else await supabase.from('comment_likes').insert({comment_id:commentId,user_id:profile.id})
+    loadCommentLikes()
+  }
   const TabBtn=({id,label})=><button onClick={()=>setTab(id)} style={{...S.btn,background:'none',border:'none',fontSize:'13px',fontWeight:tab===id?700:400,color:tab===id?T.gold:T.textSub,padding:'10px 16px',borderBottom:`2px solid ${tab===id?T.gold:'transparent'}`,borderRadius:0,textTransform:'none',letterSpacing:0}}>{label}</button>
   return(
     <div style={{position:'fixed',inset:0,background:'#000000CC',display:'flex',alignItems:'center',justifyContent:'center',zIndex:800,padding:'12px'}} onClick={onClose}>
@@ -1149,27 +1319,25 @@ function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEven
         {tab==='comments'&&(
           <>
             <div style={{flex:1,overflowY:'auto',padding:'12px 24px'}}>
-              {comments.length===0&&<div style={{fontSize:'14px',color:T.textSub,padding:'20px 0'}}>No comments yet — be first!</div>}
-              {comments.map(c=>{
-                const p=players.find(pl=>pl.id===c.user_id)
-                return(
-                  <div key={c.id} style={{display:'flex',gap:'12px',marginBottom:'18px'}}>
-                    <div style={{width:'32px',height:'32px',borderRadius:'50%',background:p?.color||T.gold,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'13px',fontWeight:700,color:'#0D0A08'}}>{p?.name?.[0]||'?'}</div>
-                    <div style={{flex:1}}>
-                      <div style={{display:'flex',gap:'8px',alignItems:'baseline',marginBottom:'4px'}}><span style={{fontSize:'13px',fontWeight:600,color:p?.color||T.gold}}>{p?.name}</span><span style={{fontSize:'11px',color:T.textDim}}>{timeAgo(c.created_at)}</span></div>
-                      <div style={{fontSize:'14px',color:T.text,lineHeight:1.55}}>
-                        {c.comment.split(/(@\w+)/g).map((part,i)=>{if(part.startsWith('@')){const mentioned=players.find(p=>`@${p.name}`===part);return<span key={i} style={{color:mentioned?.color||T.gold,fontWeight:600}}>{part}</span>}return part})}
-                      </div>
-                    </div>
-                    {c.user_id===profile.id&&<button onClick={()=>supabase.from('film_comments').delete().eq('id',c.id).then(loadComments)} style={{background:'none',border:'none',color:T.textDim,cursor:'pointer',fontSize:'13px',padding:'2px 8px'}}>✕</button>}
-                  </div>
-                )
-              })}
+              {comments.filter(c=>!c.parent_id).length===0&&<div style={{fontSize:'14px',color:T.textSub,padding:'20px 0'}}>No comments yet — start the conversation!</div>}
+              {comments.filter(c=>!c.parent_id).map(c=>(
+                <CommentNode key={c.id} comment={c} comments={comments} players={players} profile={profile}
+                  commentLikes={commentLikes} onLike={toggleCommentLike} onReply={postReply}
+                  onDelete={cid=>supabase.from('film_comments').delete().eq('id',cid).then(loadComments)} depth={0}/>
+              ))}
             </div>
-            <div style={{padding:'16px 24px 24px',borderTop:`1px solid ${T.border}`,flexShrink:0}}>
-              <div style={{display:'flex',gap:'12px'}}>
-                <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>e.key==='Enter'&&post()} placeholder="Add a comment… use @ to mention" style={{...S.inp,flex:1,fontSize:'15px',padding:'13px 16px'}}/>
-                <Btn onClick={post} color={T.blue} textColor="#fff" size="lg">Post</Btn>
+            <div style={{padding:'14px 24px 24px',borderTop:`1px solid ${T.border}`,flexShrink:0}}>
+              {gifUrl&&(
+                <div style={{position:'relative',display:'inline-block',marginBottom:'8px'}}>
+                  <img src={gifUrl} alt="" style={{maxHeight:'80px',borderRadius:'8px'}}/>
+                  <button onClick={()=>setGifUrl('')} style={{position:'absolute',top:'-6px',right:'-6px',background:T.red,color:'#fff',border:'none',borderRadius:'50%',width:'20px',height:'20px',cursor:'pointer',fontSize:'11px'}}>×</button>
+                </div>
+              )}
+              {gifPickerOpen&&<GifPicker onPick={u=>{setGifUrl(u);setGifPickerOpen(false)}} onClose={()=>setGifPickerOpen(false)}/>}
+              <div style={{display:'flex',gap:'10px',alignItems:'center'}}>
+                <button onClick={()=>setGifPickerOpen(true)} title="Add a GIF" style={{background:T.surfaceUp,border:`1px solid ${T.border}`,borderRadius:'10px',color:T.gold,fontSize:'11px',fontWeight:700,padding:'12px 12px',cursor:'pointer',flexShrink:0}}>GIF</button>
+                <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>e.key==='Enter'&&postWithGif()} placeholder="Add a comment… @ to mention" style={{...S.inp,flex:1,fontSize:'15px',padding:'13px 16px'}}/>
+                <Btn onClick={postWithGif} color={T.blue} textColor="#fff" size="lg">Post</Btn>
               </div>
             </div>
           </>
@@ -1491,19 +1659,11 @@ export default function App(){
 
   const notify=(msg,color=T.gold)=>{setNotif({msg,color});setTimeout(()=>setNotif(null),3000)}
   const updateLeagueConfig=async(patch)=>{
-    const{data,error}=await supabase.from('league_config').update(patch).eq('league_id',league?.id).select()
+    // Upsert on league_id: updates the existing row, or creates one if truly
+    // absent — no separate insert path, so no primary-key collision.
+    const row={league_id:league?.id,current_week:cfg.current_week,current_phase:cfg.current_phase,...patch}
+    const{error}=await supabase.from('league_config').update(patch).eq('league_id',league?.id)
     if(error){notify(`Config error: ${error.message}`,T.red);return false}
-    if(!data||data.length===0){
-      // No row matched this league — repair: claim an orphan row or create one
-      const{data:orphan}=await supabase.from('league_config').select('id').is('league_id',null).limit(1).maybeSingle()
-      if(orphan){
-        const{error:e2}=await supabase.from('league_config').update({...patch,league_id:league?.id}).eq('id',orphan.id)
-        if(e2){notify(`Config error: ${e2.message}`,T.red);return false}
-      }else{
-        const{error:e3}=await supabase.from('league_config').insert({league_id:league?.id,current_week:cfg.current_week,current_phase:cfg.current_phase,phase_window_active:cfg.phase_window_active??false,...patch})
-        if(e3){notify(`Config error: ${e3.message}`,T.red);return false}
-      }
-    }
     await loadData(league?.id)
     return true
   }
