@@ -1037,7 +1037,11 @@ function GifPicker({onPick,onClose}){
     setLoading(true)
     try{
       // Tenor's public demo key — fine for low volume; swap for your own later
-      const key='AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ'
+      // GIF search key lives in an env var, never committed to the repo.
+      // Set REACT_APP_TENOR_KEY in Vercel; if absent, the picker simply
+      // shows nothing rather than exposing a key in source.
+      const key=process.env.REACT_APP_TENOR_KEY||''
+      if(!key){setGifs([]);setLoading(false);return}
       const url=term.trim()
         ? `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(term)}&key=${key}&client_key=boxd&limit=12&media_filter=tinygif`
         : `https://tenor.googleapis.com/v2/featured?key=${key}&client_key=boxd&limit=12&media_filter=tinygif`
