@@ -1512,6 +1512,37 @@ export default function App(){
   const[syncLog,setSyncLog]=useState(null)
   const[syncBusy,setSyncBusy]=useState(false)
   const[reviews,setReviews]=useState([])
+  const[allComments,setAllComments]=useState([])
+  const loadAllComments=async(lid)=>{const id=lid||league?.id;if(!id)return;const{data}=await supabase.from('film_comments').select('*').eq('league_id',id).order('created_at',{ascending:false}).limit(60);if(data)setAllComments(data)}
+  const[screenings,setScreenings]=useState([])
+  const[attendees,setAttendees]=useState([])
+  const loadScreenings=async(lid)=>{
+    const id=lid||league?.id;if(!id)return
+    const{data:s}=await supabase.from('screenings').select('*').eq('league_id',id).order('screening_at',{ascending:true})
+    if(s)setScreenings(s)
+    const{data:a}=await supabase.from('screening_attendees').select('*')
+    if(a)setAttendees(a)
+  }
+  const hostScreening=async({filmId,cinema,city,at,note,bookingUrl})=>{
+    if(!profile)return notify('Create a profile first',T.red)
+    const{data,error}=await supabase.from('screenings').insert({league_id:league?.id,host_id:profile.id,film_id:filmId,cinema,city,screening_at:at||null,note:note||null,booking_url:bookingUrl||null}).select().maybeSingle()
+    if(error)return notify(`Couldn't post: ${error.message}`,T.red)
+    if(data)await supabase.from('screening_attendees').insert({screening_id:data.id,user_id:profile.id})
+    const f=films.find(fl=>fl.id===filmId)
+    await logActivity(profile.id,'screening',{film_title:f?.title,cinema,player_name:profile.name},league?.id)
+    notify('🎟 Screening posted',T.green);loadScreenings()
+  }
+  const toggleAttend=async(screeningId)=>{
+    const mine=attendees.find(a=>a.screening_id===screeningId&&a.user_id===profile.id)
+    if(mine)await supabase.from('screening_attendees').delete().eq('id',mine.id)
+    else await supabase.from('screening_attendees').insert({screening_id:screeningId,user_id:profile.id})
+    loadScreenings()
+  }
+  const cancelScreening=async(id)=>{
+    if(!confirm('Cancel this screening?'))return
+    await supabase.from('screenings').delete().eq('id',id)
+    loadScreenings();notify('Screening cancelled',T.textSub)
+  }
   const[reviewComments,setReviewComments]=useState([])
   const loadReviewComments=async()=>{const{data}=await supabase.from('review_comments').select('*').order('created_at',{ascending:true});if(data)setReviewComments(data)}
   const addReviewComment=async(reviewId,body)=>{
@@ -1663,11 +1694,26 @@ export default function App(){
 
   const notify=(msg,color=T.gold)=>{setNotif({msg,color});setTimeout(()=>setNotif(null),3000)}
   const updateLeagueConfig=async(patch)=>{
-    // Upsert on league_id: updates the existing row, or creates one if truly
-    // absent — no separate insert path, so no primary-key collision.
-    const row={league_id:league?.id,current_week:cfg.current_week,current_phase:cfg.current_phase,...patch}
-    const{error}=await supabase.from('league_config').update(patch).eq('league_id',league?.id)
+    // Update and RETURN the row so we can confirm it actually changed.
+    // (.select() after .update() returns [] when zero rows matched — that's
+    //  the silent failure that made the week "say" it moved but not move.)
+    let{data,error}=await supabase.from('league_config').update(patch).eq('league_id',league?.id).select()
     if(error){notify(`Config error: ${error.message}`,T.red);return false}
+    if(!data||data.length===0){
+      // Nothing matched on league_id — the row's league_id is probably null/wrong.
+      // Find the actual config row and update it by its primary key instead,
+      // stamping the correct league_id on the way through.
+      const{data:rows}=await supabase.from('league_config').select('*')
+      const target=(rows||[]).find(r=>r.league_id===league?.id)||(rows||[])[0]
+      if(!target){
+        const{error:insErr}=await supabase.from('league_config').insert({league_id:league?.id,current_week:1,current_phase:1,...patch})
+        if(insErr){notify(`Config error: ${insErr.message}`,T.red);return false}
+      }else{
+        const{data:fixed,error:e2}=await supabase.from('league_config').update({...patch,league_id:league?.id}).eq('id',target.id).select()
+        if(e2){notify(`Config error: ${e2.message}`,T.red);return false}
+        if(!fixed||fixed.length===0){notify('Update blocked — likely a database permission (RLS) issue on league_config',T.red);return false}
+      }
+    }
     await loadData(league?.id)
     return true
   }
@@ -1803,6 +1849,8 @@ export default function App(){
       loadMovieOfWeek(lid)
       supabase.from('film_reviews').select('*').eq('league_id',lid).order('updated_at',{ascending:false}).then(({data})=>{if(data)setReviews(data)})
       loadReviewComments()
+      loadScreenings(lid)
+      loadAllComments(lid)
       supabase.from('sync_log').select('*').order('run_at',{ascending:false}).limit(1).maybeSingle().then(({data})=>{if(data)setSyncLog(data)}).catch?.(()=>{})
       loadPolls(lid)
     },100)
@@ -3232,17 +3280,117 @@ export default function App(){
   }
 
   // ── COMMUNITY PAGE ───────────────────────────────────────────────────────
+  const ScreeningsTab=()=>{
+    const[hostOpen,setHostOpen]=useState(false)
+    const[filmId,setFilmId]=useState('')
+    const[cinema,setCinema]=useState('')
+    const[city,setCity]=useState('')
+    const[at,setAt]=useState('')
+    const[note,setNote]=useState('')
+    const upcoming=screenings.filter(s=>!s.screening_at||new Date(s.screening_at)>=new Date(Date.now()-86400000))
+    return(
+      <div>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'12px'}}>
+          <div style={{fontSize:'12px',color:T.textSub}}>Going to see something? Post it — others can join and book too.</div>
+          <Btn onClick={()=>setHostOpen(!hostOpen)} color={T.gold} size="sm">{hostOpen?'Close':'+ Host'}</Btn>
+        </div>
+        {hostOpen&&(
+          <div style={{...S.card,marginBottom:'14px',border:`1px solid ${T.gold}33`}}>
+            <select value={filmId} onChange={e=>setFilmId(e.target.value)} style={{...S.inp,marginBottom:'8px',fontSize:'13px'}}>
+              <option value="">Which film?</option>
+              {films.filter(f=>results[f.id]==null||f.week>=cfg.current_week-2).map(f=><option key={f.id} value={f.id}>{f.title}</option>)}
+            </select>
+            <div style={{display:'flex',gap:'8px',marginBottom:'8px'}}>
+              <input value={cinema} onChange={e=>setCinema(e.target.value)} placeholder="Cinema (e.g. Odeon Leicester Sq)" style={{...S.inp,flex:1,fontSize:'13px'}}/>
+              <input value={city} onChange={e=>setCity(e.target.value)} placeholder="City" style={{...S.inp,width:'90px',fontSize:'13px'}}/>
+            </div>
+            <input type="datetime-local" value={at} onChange={e=>setAt(e.target.value)} style={{...S.inp,marginBottom:'8px',fontSize:'13px'}}/>
+            <input value={note} onChange={e=>setNote(e.target.value)} placeholder="Note (optional) — 'IMAX, grabbing food after'" style={{...S.inp,marginBottom:'10px',fontSize:'13px'}}/>
+            <Btn onClick={()=>{if(!filmId)return notify('Pick a film',T.red);hostScreening({filmId,cinema,city,at:at?new Date(at).toISOString():null,note});setHostOpen(false);setFilmId('');setCinema('');setCity('');setAt('');setNote('')}} color={T.gold} full>Post screening</Btn>
+          </div>
+        )}
+        {upcoming.length===0&&!hostOpen&&<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No screenings posted. Be the first to organise one.</div>}
+        {upcoming.map(s=>{
+          const f=films.find(fl=>fl.id===s.film_id)
+          const host=players.find(p=>p.id===s.host_id)
+          const going=attendees.filter(a=>a.screening_id===s.id)
+          const iGo=going.some(a=>a.user_id===profile?.id)
+          const chain=BOOKING_CHAINS.find(c=>s.cinema?.toLowerCase().includes(c.id))||BOOKING_CHAINS[0]
+          return(
+            <div key={s.id} style={{...S.card,marginBottom:'10px'}}>
+              <div style={{display:'flex',gap:'12px'}}>
+                {f&&<FilmPoster film={f} width={46} height={69} radius={6}/>}
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:'14px',fontWeight:700}}>{f?.title||'Film'}</div>
+                  <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>
+                    {s.cinema||'TBC'}{s.city?`, ${s.city}`:''}
+                    {s.screening_at&&<> · {new Date(s.screening_at).toLocaleString('en-GB',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</>}
+                  </div>
+                  <div style={{fontSize:'10px',color:T.textDim,marginTop:'2px'}}>Hosted by {host?.name||'someone'}</div>
+                  {s.note&&<div style={{fontSize:'11px',color:T.text,marginTop:'6px',fontStyle:'italic'}}>"{s.note}"</div>}
+                </div>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:'8px',marginTop:'10px',flexWrap:'wrap'}}>
+                <div style={{display:'flex',marginRight:'4px'}}>
+                  {going.slice(0,5).map((a,i)=>{const ap=players.find(pl=>pl.id===a.user_id);return(
+                    <div key={a.id} title={ap?.name} style={{width:'24px',height:'24px',borderRadius:'50%',background:ap?.color||T.gold,color:'#000',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',fontWeight:800,marginLeft:i?'-8px':0,border:`2px solid ${T.surface}`}}>{ap?.name?.[0]||'?'}</div>
+                  )})}
+                </div>
+                <span style={{fontSize:'11px',color:T.textSub}}>{going.length} going</span>
+                <div style={{flex:1}}/>
+                <Btn onClick={()=>toggleAttend(s.id)} color={iGo?T.green:T.surfaceUp} textColor={iGo?'#0D0A08':T.text} size="sm">{iGo?'✓ Going':'Join'}</Btn>
+                <a href={s.booking_url||chain.url} target="_blank" rel="noopener noreferrer" onClick={()=>trackBookingClick(s.film_id,chain.id)} style={{background:T.gold,color:'#0D0A08',borderRadius:'8px',padding:'7px 12px',fontSize:'12px',fontWeight:700,textDecoration:'none'}}>🎟 Book</a>
+                {s.host_id===profile?.id&&<button onClick={()=>cancelScreening(s.id)} style={{background:'none',border:'none',color:T.textDim,cursor:'pointer',fontSize:'12px'}}>✕</button>}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
   const CommunityPage=()=>{
-    const[tab,setTab]=useState('anticipated')
+    const[tab,setTab]=useState('buzz')
     const TabBtn=({id,label})=><button onClick={()=>setTab(id)} style={{...S.btn,background:'none',border:'none',padding:'8px 14px',fontSize:'12px',fontWeight:tab===id?700:400,color:tab===id?T.gold:T.textSub,borderBottom:`2px solid ${tab===id?T.gold:'transparent'}`,borderRadius:0,textTransform:'none',letterSpacing:0}}>{label}</button>
     return(
       <div style={{animation:'fadeUp .2s ease'}}>
         <div style={S.pageTitle}>Community</div>
-        <div style={{display:'flex',gap:'4px',borderBottom:`1px solid ${T.border}`,marginBottom:'14px'}}>
-          <TabBtn id="anticipated" label="🔥 Most Anticipated"/>
+        <div style={{display:'flex',gap:'4px',borderBottom:`1px solid ${T.border}`,marginBottom:'14px',overflowX:'auto'}}>
+          <TabBtn id="buzz" label="💬 Buzz"/>
+          <TabBtn id="screenings" label="🎟 Screenings"/>
+          <TabBtn id="anticipated" label="🔥 Anticipated"/>
           <TabBtn id="watchlists" label="👁 Watchlists"/>
           <TabBtn id="players" label="👥 Players"/>
         </div>
+        {tab==='buzz'&&(()=>{
+          // Unified social feed: reviews + comments merged, newest first
+          const items=[
+            ...reviews.map(r=>({type:'review',id:'r'+r.id,at:r.updated_at,user:r.user_id,film:r.film_id,rating:r.rating,body:r.body})),
+            ...allComments.map(c=>({type:'comment',id:'c'+c.id,at:c.created_at,user:c.user_id,film:c.film_id,body:c.comment,gif:c.gif_url})),
+          ].filter(x=>x.body||x.gif||x.rating).sort((a,b)=>new Date(b.at)-new Date(a.at)).slice(0,40)
+          if(items.length===0)return <div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No chatter yet. Open any film → Comments or drop a review to start the conversation.</div>
+          return items.map(item=>{
+            const p=players.find(pl=>pl.id===item.user)
+            const f=films.find(fl=>fl.id===item.film)
+            return(
+              <div key={item.id} onClick={()=>f&&setFilmDetail(f)} className="hoverable" style={{...S.card,marginBottom:'8px',cursor:'pointer',display:'flex',gap:'10px'}}>
+                {f&&<FilmPoster film={f} width={38} height={57} radius={5}/>}
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:'flex',gap:'6px',alignItems:'baseline',flexWrap:'wrap'}}>
+                    <span style={{fontSize:'12px',fontWeight:700,color:p?.color||T.gold}}>{p?.name||'Player'}</span>
+                    <span style={{fontSize:'10px',color:T.textDim}}>{item.type==='review'?'reviewed':'commented on'}</span>
+                    <span style={{fontSize:'11px',fontWeight:600,color:T.text}}>{f?.title||'a film'}</span>
+                    {item.rating&&<span style={{fontSize:'11px',color:T.gold,fontFamily:T.mono}}>{'★'.repeat(item.rating)}</span>}
+                  </div>
+                  {item.body&&<div style={{fontSize:'12px',color:T.textSub,lineHeight:1.5,marginTop:'4px',overflow:'hidden',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical'}}>{item.body}</div>}
+                  {item.gif&&<img src={item.gif} alt="" loading="lazy" style={{maxHeight:'70px',borderRadius:'6px',marginTop:'4px'}}/>}
+                  <div style={{fontSize:'10px',color:T.textDim,marginTop:'4px'}}>{timeAgo(item.at)}</div>
+                </div>
+              </div>
+            )
+          })
+        })()}
+        {tab==='screenings'&&<ScreeningsTab/>}
         {tab==='anticipated'&&(()=>{
           const ranked=films.filter(f=>results[f.id]==null).map(f=>({f,count:allPicks.filter(p=>p.film_id===f.id).length})).filter(x=>x.count>0).sort((a,b)=>b.count-a.count).slice(0,20)
           if(ranked.length===0)return <div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No watchlist data yet.</div>
