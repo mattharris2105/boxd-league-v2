@@ -1979,6 +1979,33 @@ export default function App(){
     return t
   }
   const calcPoints=(pid)=>ALL_PHASES.reduce((s,ph)=>s+calcPhasePoints(pid,ph),0)
+  // ── OPENING ESTIMATOR — suggests an Est from comparable resulted films ───
+  // Uses your own slate's actual performance as the benchmark, layered:
+  //   1. same distributor + genre (tightest comp)
+  //   2. same genre across all distributors
+  //   3. same distributor across all genres
+  //   4. global median opening
+  // RT/buzz nudge the number up or down within a sensible band.
+  const estimateOpening=(film)=>{
+    const resulted=films.filter(f=>results[f.id]!=null&&f.id!==film.id)
+    if(resulted.length===0)return null
+    const median=arr=>{const s=[...arr].sort((a,b)=>a-b);return s.length?s[Math.floor(s.length/2)]:null}
+    const openOf=f=>results[f.id]
+    let base=null,basis=''
+    const sameDG=resulted.filter(f=>f.dist===film.dist&&f.genre===film.genre)
+    const sameG=resulted.filter(f=>f.genre===film.genre)
+    const sameD=resulted.filter(f=>f.dist===film.dist)
+    if(sameDG.length>=2){base=median(sameDG.map(openOf));basis=`${film.dist} ${film.genre} films`}
+    else if(sameG.length>=2){base=median(sameG.map(openOf));basis=`${film.genre} films`}
+    else if(sameD.length>=2){base=median(sameD.map(openOf));basis=`${film.dist} films`}
+    else{base=median(resulted.map(openOf));basis='all resulted films'}
+    if(base==null)return null
+    // Nudge by RT if we have it (good reviews → slightly higher opening expectation)
+    let mult=1
+    if(film.rt!=null)mult*=film.rt>=80?1.15:film.rt>=60?1.0:film.rt>=40?0.9:0.8
+    const est=Math.max(1,Math.round(base*mult))
+    return{est,basis,n:(sameDG.length>=2?sameDG:sameG.length>=2?sameG:sameD.length>=2?sameD:resulted).length}
+  }
   // ── ACHIEVEMENTS — derived live from existing data, no storage needed ────
   const calcBadges=(pid)=>{
     const out=[]
@@ -3931,7 +3958,12 @@ export default function App(){
               </div>
               <div><div style={{...S.label,marginBottom:'4px'}}>Week #</div><input type="number" value={vals.week} onChange={e=>set('week',Number(e.target.value))} style={inp}/></div>
               <div><div style={{...S.label,marginBottom:'4px'}}>IPO Price ($M)</div><input type="number" value={vals.base_price} onChange={e=>set('base_price',e.target.value)} placeholder="leave blank = TBC" style={inp}/></div>
-              <div><div style={{...S.label,marginBottom:'4px'}}>Est Opening ($M)</div><input type="number" value={vals.est_m} onChange={e=>set('est_m',e.target.value)} style={inp}/></div>
+              <div><div style={{...S.label,marginBottom:'4px'}}>Est Opening ($M)</div>
+                <div style={{display:'flex',gap:'4px'}}>
+                  <input type="number" value={vals.est_m} onChange={e=>set('est_m',e.target.value)} style={{...inp,flex:1}}/>
+                  {(()=>{const sug=estimateOpening(film);return sug?<button onClick={()=>set('est_m',sug.est)} title={`Based on ${sug.n} ${sug.basis}`} style={{background:`${T.blue}18`,border:`1px solid ${T.blue}44`,borderRadius:'6px',color:T.blue,fontSize:'10px',fontWeight:700,padding:'0 8px',cursor:'pointer',whiteSpace:'nowrap'}}>≈ ${sug.est}</button>:null})()}
+                </div>
+              </div>
               <div><div style={{...S.label,marginBottom:'4px'}}>RT Score (0–100)</div><input type="number" value={vals.rt} onChange={e=>set('rt',e.target.value)} style={inp}/></div>
               <div><div style={{...S.label,marginBottom:'4px'}}>Star Actor</div><input value={vals.star_actor} onChange={e=>set('star_actor',e.target.value)} style={inp}/></div>
             </div>
@@ -4092,31 +4124,8 @@ export default function App(){
               <div style={{fontSize:'14px',fontWeight:700}}>Films · {films.length}</div>
               <Btn onClick={()=>setAddFilm(true)} color={T.gold} size="sm">+ Add Film</Btn>
             </div>
-            <div style={{fontSize:'11px',color:T.textSub}}>Use War Room to enter weekend results in bulk.</div>
+            <div style={{fontSize:'11px',color:T.textSub}}>Tap any film below to edit or delete it · use War Room for bulk weekend results.</div>
           </div>
-        </>}
-
-        {tab==='bulk'&&<>
-          {/* ── SLATE MANAGER — Single wide-format CSV for everything ───── */}
-          <div style={{...S.card,marginBottom:'12px'}}>
-            <div style={{fontSize:'15px',fontWeight:700,color:T.gold,marginBottom:'6px'}}>📋 Slate Manager</div>
-            <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.5,marginBottom:'12px'}}>
-              One CSV imports new films AND their weekly grosses in one go. Export the current slate, edit in Excel/Sheets, paste back. Launch Date auto-computes the week number from a fixed anchor.
-            </div>
-            <div style={{background:T.surfaceUp,borderRadius:'8px',padding:'10px 12px',marginBottom:'12px'}}>
-              <div style={{...S.label,marginBottom:'6px'}}>Column layout</div>
-              <div style={{fontSize:'10px',color:T.textSub,fontFamily:T.mono,lineHeight:1.6,whiteSpace:'pre-wrap'}}>
-                Title · Launch Date · Phase · Distributor · Genre · Base · Est · RT · Star · Trailer · Wk1 · Wk2 · Wk3 · Wk4 · Wk5 · Wk6 · Wk7 · Wk8
-              </div>
-              <div style={{fontSize:'10px',color:T.textDim,marginTop:'6px',lineHeight:1.5}}>
-                <strong style={{color:T.text}}>Required:</strong> Title, Phase, Distributor, Genre, Base, Est<br/>
-                <strong style={{color:T.text}}>Optional:</strong> Launch Date (YYYY-MM-DD), RT %, Star actor, any Wk# columns<br/>
-                <strong style={{color:T.text}}>Smart:</strong> tab or comma separator · header row auto-detected · case-insensitive headers
-              </div>
-            </div>
-          </div>
-
-          {/* ── EXPORT CURRENT SLATE ─────────────────────────────────────── */}
           {/* ── DATA HEALTH ─────────────────────────────────────────────── */}
           {(()=>{
             const cur=films.filter(f=>f.phase===ph)
@@ -4156,6 +4165,25 @@ export default function App(){
                   <Stat label="🔒 Unpriced (current)" items={unpriced} color={T.gold}/>
                   <Stat label="🚨 Future price leak" items={priceLeaks} color={T.red} critical={priceLeaks.length>0}/>
                 </div>
+                {/* Bulk estimate fill — suggests Est for every current-phase film missing one */}
+                {missingEst.length>0&&(()=>{
+                  const fillable=missingEst.map(f=>({f,sug:estimateOpening(f)})).filter(x=>x.sug)
+                  if(fillable.length===0)return(
+                    <div style={{marginTop:'10px',fontSize:'10px',color:T.textDim,background:T.surfaceUp,borderRadius:'8px',padding:'8px 10px'}}>
+                      📊 {missingEst.length} film{missingEst.length!==1?'s':''} missing an estimate, but no resulted films yet to benchmark against. Estimates can be suggested once a few films have opened.
+                    </div>
+                  )
+                  return(
+                    <div style={{marginTop:'10px',display:'flex',gap:'10px',alignItems:'center',background:`${T.blue}10`,borderRadius:'8px',padding:'8px 10px'}}>
+                      <div style={{flex:1,fontSize:'10px',color:T.blue,lineHeight:1.5}}>Suggest estimates for {fillable.length} film{fillable.length!==1?'s':''} from comparable resulted titles. You can fine-tune any of them afterwards.</div>
+                      <Btn onClick={async()=>{
+                        if(!confirm(`Auto-fill estimates for ${fillable.length} film${fillable.length!==1?'s':''}? You can edit them individually afterwards.`))return
+                        for(const{f,sug} of fillable)await supabase.from('films').update({est_m:sug.est}).eq('id',f.id)
+                        notify(`✓ Filled ${fillable.length} estimate${fillable.length!==1?'s':''}`,T.green);loadData(league?.id)
+                      }} color={T.blue} textColor="#fff" size="sm">Fill all</Btn>
+                    </div>
+                  )
+                })()}
                 {/* Source health + manual sync trigger */}
                 <div style={{marginTop:'10px',display:'flex',gap:'10px',alignItems:'center',background:T.surfaceUp,borderRadius:'8px',padding:'8px 10px'}}>
                   <div style={{flex:1,minWidth:0}}>
@@ -4191,6 +4219,57 @@ export default function App(){
               </div>
             )
           })()}
+          {/* ── EDITABLE FILM LIST ──────────────────────────────────────── */}
+          <div style={{...S.card,marginBottom:'12px'}}>
+            <div style={{...S.label,marginBottom:'8px'}}>All films · tap to edit</div>
+            <div style={{maxHeight:'520px',overflow:'auto'}}>
+              {films.map(f=>(
+                <FilmEditorRow key={f.id} film={f} results={results} weeklyG={weeklyG}
+                  onSave={async(updates)=>{
+                    await supabase.from('films').update(updates).eq('id',f.id)
+                    if(updates.actual_m!=null){
+                      await dbUpsert('results','film_id',f.id,{actual_m:Number(updates.actual_m)})
+                      await resolveChips(f.id,Number(updates.actual_m))
+                    }
+                    for(const w of [2,3,4,5,6]){if(updates[`week${w}`]!=null)await dbUpsertWeekly(f.id,w,Number(updates[`week${w}`]))}
+                    notify(`✓ ${f.title} updated`,T.green);loadData(league?.id)
+                  }}
+                  onDelete={async()=>{
+                    if(!confirm(`Delete "${f.title}"? This also removes results and rosters.`))return
+                    await supabase.from('rosters').delete().eq('film_id',f.id)
+                    await supabase.from('results').delete().eq('film_id',f.id)
+                    await supabase.from('weekly_grosses').delete().eq('film_id',f.id)
+                    await supabase.from('film_values').delete().eq('film_id',f.id)
+                    await supabase.from('films').delete().eq('id',f.id)
+                    notify(`🗑 ${f.title} deleted`,T.red);loadData(league?.id)
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </>}
+
+        {tab==='bulk'&&<>
+          {/* ── SLATE MANAGER — Single wide-format CSV for everything ───── */}
+          <div style={{...S.card,marginBottom:'12px'}}>
+            <div style={{fontSize:'15px',fontWeight:700,color:T.gold,marginBottom:'6px'}}>📋 Slate Manager</div>
+            <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.5,marginBottom:'12px'}}>
+              One CSV imports new films AND their weekly grosses in one go. Export the current slate, edit in Excel/Sheets, paste back. Launch Date auto-computes the week number from a fixed anchor.
+            </div>
+            <div style={{background:T.surfaceUp,borderRadius:'8px',padding:'10px 12px',marginBottom:'12px'}}>
+              <div style={{...S.label,marginBottom:'6px'}}>Column layout</div>
+              <div style={{fontSize:'10px',color:T.textSub,fontFamily:T.mono,lineHeight:1.6,whiteSpace:'pre-wrap'}}>
+                Title · Launch Date · Phase · Distributor · Genre · Base · Est · RT · Star · Trailer · Wk1 · Wk2 · Wk3 · Wk4 · Wk5 · Wk6 · Wk7 · Wk8
+              </div>
+              <div style={{fontSize:'10px',color:T.textDim,marginTop:'6px',lineHeight:1.5}}>
+                <strong style={{color:T.text}}>Required:</strong> Title, Phase, Distributor, Genre, Base, Est<br/>
+                <strong style={{color:T.text}}>Optional:</strong> Launch Date (YYYY-MM-DD), RT %, Star actor, any Wk# columns<br/>
+                <strong style={{color:T.text}}>Smart:</strong> tab or comma separator · header row auto-detected · case-insensitive headers
+              </div>
+            </div>
+          </div>
+
+          {/* ── EXPORT CURRENT SLATE ─────────────────────────────────────── */}
 
           {/* ── EXPORT ──────────────────────────────────────────────────── */}
           <div style={{...S.card,marginBottom:'12px',border:`1px solid ${T.blue}33`}}>
@@ -4217,7 +4296,7 @@ export default function App(){
                   const resMap={};(allRes||[]).forEach(r=>{resMap[r.film_id]=r.actual_m})
                   const allWkNums=[...new Set((allWg||[]).map(w=>w.week_num))]
                   const maxWk=Math.max(1,...allWkNums,1)
-                  const wkCount=Math.min(Math.max(maxWk,3),10)
+                  const wkCount=Math.min(Math.max(maxWk,6),10)
                   const wkHdr=Array.from({length:wkCount},(_,i)=>`Wk${i+1}`).join(',')
                   const header=`Title,Launch Date,Phase,Distributor,Genre,Base,Est,RT,Star,Trailer,${wkHdr}`
                   const seasonAnchor=new Date('2026-01-05')
@@ -4257,7 +4336,7 @@ export default function App(){
                   const resMap={};(allRes||[]).forEach(r=>{resMap[r.film_id]=r.actual_m})
                   const allWkNums=[...new Set((allWg||[]).map(w=>w.week_num))]
                   const maxWk=Math.max(1,...allWkNums,1)
-                  const wkCount=Math.min(Math.max(maxWk,3),10)
+                  const wkCount=Math.min(Math.max(maxWk,6),10)
                   const wkHdr=Array.from({length:wkCount},(_,i)=>`Wk${i+1}`).join(',')
                   const header=`Title,Launch Date,Phase,Distributor,Genre,Base,Est,RT,Star,Trailer,${wkHdr}`
                   const seasonAnchor=new Date('2026-01-05')
@@ -4317,7 +4396,7 @@ export default function App(){
             <textarea
               defaultValue={bulkFilmsCsv}
               onBlur={e=>setBulkFilmsCsv(e.target.value)}
-              placeholder={`Title\tLaunch Date\tPhase\tDistributor\tGenre\tBase\tEst\tRT\tStar\tTrailer\tWk1\tWk2\tWk3\nAvatar: Fire and Ash\t2026-12-19\t5\t20th Century\tSci-Fi\t65\t250\t90\tSam Worthington\thttps://youtu.be/abc123\t145\t78\t42\nWicked: For Good\t2026-11-21\t5\tUniversal\tFamily\t50\t180\t85\tCynthia Erivo\thttps://youtu.be/xyz456\t92\t55\t30`}
+              placeholder={`Title\tLaunch Date\tPhase\tDistributor\tGenre\tBase\tEst\tRT\tStar\tTrailer\tWk1\tWk2\tWk3\tWk4\tWk5\tWk6\nAvatar: Fire and Ash\t2026-12-19\t4\t20th Century\tSci-Fi\t65\t250\t90\tSam Worthington\thttps://youtu.be/abc123\t145\t78\t42\t25\t15\t9\nWicked: For Good\t2026-11-21\t4\tUniversal\tFamily\t50\t180\t85\tCynthia Erivo\thttps://youtu.be/xyz456\t92\t55\t30\t18\t10\t6`}
               style={{...S.inp,minHeight:'180px',fontFamily:T.mono,fontSize:'11px',resize:'vertical',whiteSpace:'pre',marginBottom:'10px'}}
             />
             <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
