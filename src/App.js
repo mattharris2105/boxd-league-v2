@@ -336,12 +336,28 @@ function FilmPoster({film,width,height,radius=8,imgStyle={},owned=false,scored=f
   )
 }
 
-function calcMarketValue(film,actualM){
+function calcMarketValue(film,actualM,weeklyGrosses={}){
   if(actualM==null) return film.basePrice
-  const r=actualM/film.estM
+  const r=film.estM?actualM/film.estM:1
+  // Opening performance multiplier
   const perf=r>=2?2:r>=1.5?1.6:r>=1.3?1.35:r>=1.1?1.15:r>=0.95?1:r>=0.8?0.85:r>=0.6?0.65:r>=0.4?0.45:0.25
+  // Critics multiplier
   const rt=film.rt!=null?(film.rt>=90?1.15:film.rt>=75?1.08:film.rt<50?0.9:1):1
-  return Math.round(Math.max(film.basePrice*0.15,Math.min(film.basePrice*3,film.basePrice*perf*rt)))
+  // LEGS multiplier — weekly grosses now affect value, not just points.
+  // Strong holds = value goes UP (audiences keep coming = the film is worth more).
+  // Weak drops = value drifts down. Cumulative gross vs opening is the signal.
+  const wg=weeklyGrosses||{}
+  const weekNums=Object.keys(wg).map(Number).filter(n=>n>=2)
+  let legsMult=1
+  if(weekNums.length>0){
+    const cumeWeekly=weekNums.reduce((s,w)=>s+Number(wg[w]),0)
+    const totalGross=actualM+cumeWeekly
+    const legRatio=totalGross/actualM // 1.0 = no legs, 2.0+ = excellent legs
+    // Map: legRatio 1.0→1.0x, 1.5→1.10x, 2.0→1.20x, 2.5+→1.30x (capped)
+    legsMult=legRatio>=2.5?1.30:legRatio>=2.0?1.20:legRatio>=1.5?1.10:legRatio>=1.2?1.05:1.0
+  }
+  const raw=film.basePrice*perf*rt*legsMult
+  return Math.round(Math.max(film.basePrice*0.15,Math.min(film.basePrice*3.5,raw)))
 }
 function calcOpeningPts(film,actualM,isEB=false,isAnalyst=false){
   if(actualM==null) return 0
@@ -1239,7 +1255,7 @@ function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEven
             {actual!=null&&(()=>{
               const weeks=weeklyG[film.id]||{}
               const ipo=film.basePrice
-              const valueNow=calcMarketValue(film,actual)
+              const valueNow=calcMarketValue(film,actual,weeklyG[film.id]||{})
               const rows=[{wk:1,gross:actual,note:'Opening weekend'}]
               Object.keys(weeks).map(Number).sort((a,b)=>a-b).forEach(w=>{
                 const prev=w===2?actual:weeks[w-1]
@@ -1941,9 +1957,12 @@ export default function App(){
   }
 
   const filmVal=(film)=>{
-    // Future-phase films have no price yet — return null to show locked state
-    if(film.basePrice==null)return null
-    return Math.round((filmValues[film.id]??film.basePrice)*calcDemandMult(film,rosters,curPhase(),players.length,cfg.current_week,allPicks))
+    // Future-phase films with no base_price stay locked (🔒 TBC)
+    // Current-phase films without an estimate get a floor price so they're buyable
+    let bp=film.basePrice
+    if(bp==null&&film.phase===curPhase())bp=5 // $5M floor for unpriced current-phase films
+    if(bp==null)return null
+    return Math.round((filmValues[film.id]??bp)*calcDemandMult(film,rosters,curPhase(),players.length,cfg.current_week,allPicks))
   }
   const isEarlyBird=(h)=>{
     const f=films.find(fl=>fl.id===h.film_id)
@@ -2057,7 +2076,7 @@ export default function App(){
     if(!profile)return notify('Create a profile first',T.red)
     const ph=curPhase()
     if(film.phase!==ph){haptic.warn();return notify(`Film is Phase ${film.phase} — you are in Phase ${ph}`,T.red)}
-    if(film.basePrice==null){haptic.warn();return notify('Film pricing not yet revealed — wait for the slate to open',T.red)}
+    if(film.basePrice==null&&film.phase!==curPhase()){haptic.warn();return notify('Film pricing not yet revealed — wait for the slate to open',T.red)}
     if(rosters.find(r=>r.player_id===profile.id&&r.film_id===film.id&&r.active)){haptic.warn();return notify('Already in your roster',T.red)}
     if(rosters.filter(r=>r.player_id===profile.id&&r.phase===ph&&r.active&&films.find(f=>f.id===r.film_id)).length>=MAX_ROSTER){haptic.warn();return notify(`Phase roster full (${MAX_ROSTER} max)`,T.red)}
     const price=filmVal(film),left=budgetLeft(profile.id)
@@ -2650,7 +2669,16 @@ export default function App(){
                     <div>
                       <div style={S.label}>Price</div>
                       {val!=null
-                        ?<div style={{fontSize:'15px',fontWeight:800,color:T.gold,fontFamily:T.mono}}>${val}M</div>
+                        ?(()=>{
+                          const ipo=film.basePrice||5
+                          const changed=actual!=null&&val!==ipo
+                          return changed?(
+                            <div>
+                              <div style={{fontSize:'10px',color:T.textDim,fontFamily:T.mono,textDecoration:'line-through'}}>${ipo}M</div>
+                              <div style={{fontSize:'15px',fontWeight:800,color:val>=ipo?T.green:T.red,fontFamily:T.mono}}>${val}M {val>=ipo?'▲':'▼'}</div>
+                            </div>
+                          ):<div style={{fontSize:'15px',fontWeight:800,color:T.gold,fontFamily:T.mono}}>${val}M</div>
+                        })()
                         :<div style={{fontSize:'13px',fontWeight:700,color:T.textDim}}>🔒 TBC</div>
                       }
                     </div>
@@ -4404,10 +4432,15 @@ export default function App(){
                     const text=ev.target.result
                     setBulkFilmsCsv(text)
                     setBulkFilmsPreview(null)
-                    notify(`📁 ${file.name} loaded — tap Parse & Preview`,T.gold)
-                    // Also update the textarea's displayed value
+                    // Auto-trigger parse so the user doesn't need a second tap
                     const ta=document.querySelector('[data-bulk-textarea]')
                     if(ta)ta.value=text
+                    // Small delay to let state settle, then click the parse button
+                    setTimeout(()=>{
+                      const parseBtn=document.querySelector('[data-parse-btn]')
+                      if(parseBtn)parseBtn.click()
+                      else notify(`📁 ${file.name} loaded — tap Parse & Preview`,T.gold)
+                    },100)
                   }
                   reader.readAsText(file)
                   e.target.value='' // reset so same file can be re-selected
@@ -4423,9 +4456,13 @@ export default function App(){
               style={{...S.inp,minHeight:'180px',fontFamily:T.mono,fontSize:'11px',resize:'vertical',whiteSpace:'pre',marginBottom:'10px'}}
             />
             <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
-              <Btn onClick={()=>{
+              <Btn data-parse-btn="1" onClick={()=>{
                 setBulkFilmsPreview(null)
-                const lines=bulkFilmsCsv.split('\n').map(l=>l.replace(/\r$/,'')).filter(l=>l.trim())
+                // Read from DOM textarea if state hasn't caught up yet (file upload race)
+                const ta=document.querySelector('[data-bulk-textarea]')
+                const raw=ta?.value||bulkFilmsCsv
+                if(raw)setBulkFilmsCsv(raw)
+                const lines=raw.split('\n').map(l=>l.replace(/\r$/,'')).filter(l=>l.trim())
                 if(lines.length===0)return notify('Nothing to parse',T.red)
                 // Detect delimiter
                 const delim=lines[0].includes('\t')?'\t':','
@@ -4533,7 +4570,7 @@ export default function App(){
                     await dbUpsert('results','film_id',id,{actual_m:row.gross})
                     if(filmObj){
                       const filmForCalc={basePrice:filmObj.basePrice||filmObj.base_price,estM:filmObj.estM||filmObj.est_m,rt:filmObj.rt}
-                      await dbUpsert('film_values','film_id',id,{current_value:calcMarketValue(filmForCalc,row.gross)})
+                      await dbUpsert('film_values','film_id',id,{current_value:calcMarketValue(filmForCalc,row.gross,weeklyG[id]||{})})
                       await resolveChips(id,row.gross)
                     }
                     wroteOpenings++
@@ -4634,7 +4671,7 @@ export default function App(){
       for(const[filmId,v] of toSave){
         await dbUpsert('results','film_id',filmId,{actual_m:Number(v.actual)})
         const film=films.find(f=>f.id===filmId)
-        if(film){await dbUpsert('film_values','film_id',filmId,{current_value:calcMarketValue(film,Number(v.actual))});resolveChips(filmId,Number(v.actual))}
+        if(film){await dbUpsert('film_values','film_id',filmId,{current_value:calcMarketValue(film,Number(v.actual),weeklyG[filmId]||{})});resolveChips(filmId,Number(v.actual))}
         for(const w of [2,3,4,5,6]){const wv=v[`week${w}`];if(wv&&!isNaN(Number(wv)))await dbUpsertWeekly(filmId,w,Number(wv))}
         // Also save any film field edits
         const filmEdits={}
