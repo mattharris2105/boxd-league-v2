@@ -4391,9 +4391,32 @@ export default function App(){
           <div style={{...S.card,marginBottom:'12px',border:`1px solid ${T.gold}33`}}>
             <div style={{fontSize:'14px',fontWeight:700,color:T.gold,marginBottom:'6px'}}>📤 Import Slate (Films + Grosses)</div>
             <div style={{fontSize:'11px',color:T.textSub,marginBottom:'10px',lineHeight:1.5}}>
-              Paste your wide-format CSV. Adds new films AND writes weekly grosses in one operation. Existing films matched by title (fuzzy) — duplicates skipped.
+              Upload a CSV file or paste your data below. Adds new films AND writes weekly grosses in one operation. Existing films matched by title (fuzzy) — duplicates skipped.
+            </div>
+            {/* File upload */}
+            <div style={{display:'flex',gap:'8px',marginBottom:'10px',alignItems:'center'}}>
+              <label style={{...S.btn,background:`${T.gold}14`,border:`1px solid ${T.gold}44`,color:T.gold,fontSize:'12px',padding:'10px 16px',cursor:'pointer',textTransform:'none',letterSpacing:0,borderRadius:'10px',fontWeight:700,flex:1,textAlign:'center'}}>
+                📁 Upload CSV file
+                <input type="file" accept=".csv,.tsv,.txt" onChange={e=>{
+                  const file=e.target.files?.[0];if(!file)return
+                  const reader=new FileReader()
+                  reader.onload=ev=>{
+                    const text=ev.target.result
+                    setBulkFilmsCsv(text)
+                    setBulkFilmsPreview(null)
+                    notify(`📁 ${file.name} loaded — tap Parse & Preview`,T.gold)
+                    // Also update the textarea's displayed value
+                    const ta=document.querySelector('[data-bulk-textarea]')
+                    if(ta)ta.value=text
+                  }
+                  reader.readAsText(file)
+                  e.target.value='' // reset so same file can be re-selected
+                }} style={{display:'none'}}/>
+              </label>
+              <span style={{fontSize:'11px',color:T.textDim}}>or paste below</span>
             </div>
             <textarea
+              data-bulk-textarea="1"
               defaultValue={bulkFilmsCsv}
               onBlur={e=>setBulkFilmsCsv(e.target.value)}
               placeholder={`Title\tLaunch Date\tPhase\tDistributor\tGenre\tBase\tEst\tRT\tStar\tTrailer\tWk1\tWk2\tWk3\tWk4\tWk5\tWk6\nAvatar: Fire and Ash\t2026-12-19\t4\t20th Century\tSci-Fi\t65\t250\t90\tSam Worthington\thttps://youtu.be/abc123\t145\t78\t42\t25\t15\t9\nWicked: For Good\t2026-11-21\t4\tUniversal\tFamily\t50\t180\t85\tCynthia Erivo\thttps://youtu.be/xyz456\t92\t55\t30\t18\t10\t6`}
