@@ -4278,22 +4278,163 @@ export default function App(){
         </>}
 
         {tab==='bulk'&&<>
-          {/* ── SLATE MANAGER — Single wide-format CSV for everything ───── */}
-          <div style={{...S.card,marginBottom:'12px'}}>
-            <div style={{fontSize:'15px',fontWeight:700,color:T.gold,marginBottom:'6px'}}>📋 Slate Manager</div>
-            <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.5,marginBottom:'12px'}}>
-              One CSV imports new films AND their weekly grosses in one go. Export the current slate, edit in Excel/Sheets, paste back. Launch Date auto-computes the week number from a fixed anchor.
+          {/* ── ONE-STEP CSV UPLOAD — uploads file, updates everything ──── */}
+          <div style={{...S.card,marginBottom:'12px',border:`1px solid ${T.gold}33`}}>
+            <div style={{fontSize:'15px',fontWeight:700,color:T.gold,marginBottom:'6px'}}>📤 Upload Slate CSV</div>
+            <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.6,marginBottom:'12px'}}>
+              Upload your CSV file and it will update everything: films, estimates, IPO prices, RT scores, weekly grosses. One step, no copy-pasting.
             </div>
-            <div style={{background:T.surfaceUp,borderRadius:'8px',padding:'10px 12px',marginBottom:'12px'}}>
-              <div style={{...S.label,marginBottom:'6px'}}>Column layout</div>
-              <div style={{fontSize:'10px',color:T.textSub,fontFamily:T.mono,lineHeight:1.6,whiteSpace:'pre-wrap'}}>
-                Title · Launch Date · Phase · Distributor · Genre · Base · Est · RT · Star · Trailer · Wk1 · Wk2 · Wk3 · Wk4 · Wk5 · Wk6 · Wk7 · Wk8
+            <div style={{background:T.surfaceUp,borderRadius:'8px',padding:'10px 12px',marginBottom:'14px'}}>
+              <div style={{...S.label,marginBottom:'6px'}}>Expected columns</div>
+              <div style={{fontSize:'10px',color:T.textSub,fontFamily:T.mono,lineHeight:1.6}}>
+                Title, Launch Date, Phase, Distributor, Genre, Production Budget, Est, RT, Star, Trailer, Wk1, Wk2, Wk3, Wk4, Wk5, Wk6
               </div>
               <div style={{fontSize:'10px',color:T.textDim,marginTop:'6px',lineHeight:1.5}}>
-                <strong style={{color:T.text}}>Required:</strong> Title, Phase, Distributor, Genre, Base, Est<br/>
-                <strong style={{color:T.text}}>Optional:</strong> Launch Date (YYYY-MM-DD), RT %, Star actor, any Wk# columns<br/>
-                <strong style={{color:T.text}}>Smart:</strong> tab or comma separator · header row auto-detected · case-insensitive headers
+                <strong style={{color:T.text}}>Required:</strong> Title + Launch Date (DD/MM/YYYY or YYYY-MM-DD)<br/>
+                <strong style={{color:T.text}}>Formats:</strong> CSV (comma or tab separated) · header row auto-detected
               </div>
+            </div>
+            {bulkBusy?(
+              <div style={{textAlign:'center',padding:'20px',color:T.gold}}>
+                <div style={{fontSize:'14px',fontWeight:700,marginBottom:'6px'}}>Importing…</div>
+                <div style={{fontSize:'11px',color:T.textSub}}>Updating films, prices, and results</div>
+              </div>
+            ):(
+              <label style={{display:'block',background:T.gold,color:'#0D0A08',borderRadius:'12px',padding:'16px',textAlign:'center',cursor:'pointer',fontWeight:700,fontSize:'14px',letterSpacing:'0.5px'}}>
+                📁 Choose CSV File & Import
+                <input type="file" accept=".csv,.tsv,.txt" onChange={async e=>{
+                  const file=e.target.files?.[0];if(!file)return
+                  e.target.value=''
+                  setBulkBusy(true)
+                  try{
+                    const text=await file.text()
+                    const rawLines=text.split('\n').map(l=>l.replace(/\r$/,'')).filter(l=>l.trim())
+                    if(rawLines.length<2)throw new Error('CSV has no data rows')
+                    const delim=rawLines[0].includes('\t')?'\t':','
+                    const parseRow=(line)=>{
+                      if(delim==='\t')return line.split('\t').map(c=>c.trim())
+                      const out=[];let cur='',inQ=false
+                      for(let i=0;i<line.length;i++){
+                        const c=line[i]
+                        if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++}else inQ=!inQ}
+                        else if(c===delim&&!inQ){out.push(cur.trim());cur=''}
+                        else cur+=c
+                      }
+                      out.push(cur.trim())
+                      return out
+                    }
+                    const hdrs=parseRow(rawLines[0]).map(h=>h.toLowerCase().replace(/[^a-z0-9]/g,''))
+                    const col=(name)=>hdrs.indexOf(name)
+                    const ti=col('title'),di=col('launchdate')===-1?col('date'):col('launchdate')
+                    if(ti===-1)throw new Error('No "Title" column found in header')
+                    const distI=col('distributor'),genI=col('genre'),estI=col('est'),rtI=col('rt')
+                    const starI=col('star'),trailI=col('trailer'),phI=col('phase')
+                    const wkIs=[1,2,3,4,5,6].map(w=>[w,col(`wk${w}`)]).filter(([_,i])=>i!==-1)
+
+                    const SEASON_ANCHOR=new Date('2026-05-01')
+                    const parseDate=(s)=>{
+                      if(!s)return null
+                      // DD/MM/YYYY
+                      let m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+                      if(m)return new Date(m[3],m[2]-1,m[1])
+                      // YYYY-MM-DD
+                      m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+                      if(m)return new Date(m[1],m[2]-1,m[3])
+                      return null
+                    }
+                    const dateToWeek=(d)=>Math.max(1,Math.floor((d-SEASON_ANCHOR)/(7*86400000))+1)
+                    const dateToPhase=(d)=>{const w=dateToWeek(d);return w<=9?1:w<=20?2:w<=26?3:4}
+                    const calcIPO=(est)=>{
+                      if(est==null)return null
+                      return est>=80?45:est>=50?30:est>=25?20:est>=15?14:est>=8?10:est>=4?7:5
+                    }
+                    const GENRE_MAP={action:'Action',horror:'Horror',drama:'Drama',family:'Family','sci-fi':'Sci-Fi',scifi:'Sci-Fi',animation:'Animation',comedy:'Comedy',thriller:'Thriller',adventure:'Adventure',concert:'Concert',documentary:'Drama',biography:'Drama',music:'Comedy',mystery:'Thriller',crime:'Thriller',romance:'Drama',fantasy:'Adventure',history:'Drama',war:'Action'}
+                    const slug=(t)=>{const s=t.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40);return s+'-'+Math.abs([...t].reduce((h,c)=>(h*31+c.charCodeAt(0))|0,0)%9999)}
+
+                    let added=0,updated=0,skipped=0,grossRows=0
+                    for(let i=1;i<rawLines.length;i++){
+                      const cells=parseRow(rawLines[i])
+                      const title=cells[ti]?.trim()
+                      if(!title)continue
+                      const dateStr=di!==-1?cells[di]?.trim():''
+                      const d=parseDate(dateStr)
+                      if(!d){skipped++;continue}
+                      const wk=dateToWeek(d)
+                      const ph=phI!==-1&&cells[phI]?Number(cells[phI]):dateToPhase(d)
+                      const est=estI!==-1&&cells[estI]?Number(cells[estI]):null
+                      const rt=rtI!==-1&&cells[rtI]?Number(cells[rtI]):null
+                      const dist=distI!==-1?cells[distI]||'Independent':'Independent'
+                      const genreRaw=genI!==-1?cells[genI]||'Drama':'Drama'
+                      const genre=GENRE_MAP[(genreRaw.split(/\s/)[0]||'').toLowerCase()]||'Drama'
+                      const star=starI!==-1?cells[starI]||null:null
+                      const trailer=trailI!==-1&&(cells[trailI]||'').includes('youtube')?cells[trailI]:null
+                      const basePrice=calcIPO(est!=null&&!isNaN(est)?est:null)
+                      const fid=slug(title)
+
+                      // Upsert the film
+                      const filmData={
+                        id:fid,title,dist:dist.trim(),genre,star_actor:star,
+                        phase:ph,week:wk,
+                        base_price:basePrice,
+                        est_m:est!=null&&!isNaN(est)?est:null,
+                        rt:rt!=null&&!isNaN(rt)?Math.round(rt):null,
+                        trailer,active:true
+                      }
+                      const existing=films.find(f=>f.title.toLowerCase().trim()===title.toLowerCase().trim())
+                      if(existing){
+                        // Update existing film — preserve fields not in CSV
+                        const patch={}
+                        if(filmData.dist)patch.dist=filmData.dist
+                        if(filmData.genre)patch.genre=filmData.genre
+                        if(filmData.star_actor)patch.star_actor=filmData.star_actor
+                        patch.phase=ph;patch.week=wk
+                        if(filmData.est_m!=null)patch.est_m=filmData.est_m
+                        if(filmData.base_price!=null)patch.base_price=filmData.base_price
+                        if(filmData.rt!=null)patch.rt=filmData.rt
+                        if(filmData.trailer)patch.trailer=filmData.trailer
+                        await supabase.from('films').update(patch).eq('id',existing.id)
+                        // Weekly grosses
+                        for(const[w,ci] of wkIs){
+                          const g=cells[ci]?Number(cells[ci]):null
+                          if(g!=null&&!isNaN(g)&&g>0){
+                            if(w===1){
+                              await supabase.from('results').upsert({film_id:existing.id,actual_m:g},{onConflict:'film_id'})
+                              await supabase.from('film_values').upsert({film_id:existing.id,current_value:calcMarketValue({...existing,...patch,basePrice:patch.base_price||existing.basePrice},g,weeklyG[existing.id]||{})},{onConflict:'film_id'})
+                            }else{
+                              await supabase.from('weekly_grosses').upsert({film_id:existing.id,week_num:w,gross_m:g},{onConflict:'film_id,week_num'})
+                            }
+                            grossRows++
+                          }
+                        }
+                        updated++
+                      }else{
+                        // New film
+                        await supabase.from('films').upsert(filmData,{onConflict:'id'})
+                        for(const[w,ci] of wkIs){
+                          const g=cells[ci]?Number(cells[ci]):null
+                          if(g!=null&&!isNaN(g)&&g>0){
+                            if(w===1){
+                              await supabase.from('results').upsert({film_id:fid,actual_m:g},{onConflict:'film_id'})
+                            }else{
+                              await supabase.from('weekly_grosses').upsert({film_id:fid,week_num:w,gross_m:g},{onConflict:'film_id,week_num'})
+                            }
+                            grossRows++
+                          }
+                        }
+                        added++
+                      }
+                    }
+                    notify(`✅ Import complete: ${added} added, ${updated} updated, ${grossRows} gross rows, ${skipped} skipped`,T.green)
+                    loadData(league?.id)
+                  }catch(err){
+                    notify(`Import failed: ${err.message}`,T.red)
+                  }
+                  setBulkBusy(false)
+                }} style={{display:'none'}}/>
+              </label>
+            )}
+            <div style={{fontSize:'10px',color:T.textDim,marginTop:'10px',lineHeight:1.5}}>
+              This updates existing films by title match and adds any new ones. IPO prices are recalculated from estimates. Weekly grosses (Wk1–Wk6) are written directly.
             </div>
           </div>
 
@@ -4415,225 +4556,9 @@ export default function App(){
             </details>
           </div>
 
-          {/* ── IMPORT (UNIFIED) ─────────────────────────────────────────── */}
-          <div style={{...S.card,marginBottom:'12px',border:`1px solid ${T.gold}33`}}>
-            <div style={{fontSize:'14px',fontWeight:700,color:T.gold,marginBottom:'6px'}}>📤 Import Slate (Films + Grosses)</div>
-            <div style={{fontSize:'11px',color:T.textSub,marginBottom:'10px',lineHeight:1.5}}>
-              Upload a CSV file or paste your data below. Adds new films AND writes weekly grosses in one operation. Existing films matched by title (fuzzy) — duplicates skipped.
-            </div>
-            {/* File upload */}
-            <div style={{display:'flex',gap:'8px',marginBottom:'10px',alignItems:'center'}}>
-              <label style={{...S.btn,background:`${T.gold}14`,border:`1px solid ${T.gold}44`,color:T.gold,fontSize:'12px',padding:'10px 16px',cursor:'pointer',textTransform:'none',letterSpacing:0,borderRadius:'10px',fontWeight:700,flex:1,textAlign:'center'}}>
-                📁 Upload CSV file
-                <input type="file" accept=".csv,.tsv,.txt" onChange={e=>{
-                  const file=e.target.files?.[0];if(!file)return
-                  const reader=new FileReader()
-                  reader.onload=ev=>{
-                    const text=ev.target.result
-                    setBulkFilmsCsv(text)
-                    setBulkFilmsPreview(null)
-                    // Auto-trigger parse so the user doesn't need a second tap
-                    const ta=document.querySelector('[data-bulk-textarea]')
-                    if(ta)ta.value=text
-                    // Small delay to let state settle, then click the parse button
-                    setTimeout(()=>{
-                      const parseBtn=document.querySelector('[data-parse-btn]')
-                      if(parseBtn)parseBtn.click()
-                      else notify(`📁 ${file.name} loaded — tap Parse & Preview`,T.gold)
-                    },100)
-                  }
-                  reader.readAsText(file)
-                  e.target.value='' // reset so same file can be re-selected
-                }} style={{display:'none'}}/>
-              </label>
-              <span style={{fontSize:'11px',color:T.textDim}}>or paste below</span>
-            </div>
-            <textarea
-              data-bulk-textarea="1"
-              defaultValue={bulkFilmsCsv}
-              onBlur={e=>setBulkFilmsCsv(e.target.value)}
-              placeholder={`Title\tLaunch Date\tPhase\tDistributor\tGenre\tBase\tEst\tRT\tStar\tTrailer\tWk1\tWk2\tWk3\tWk4\tWk5\tWk6\nAvatar: Fire and Ash\t2026-12-19\t4\t20th Century\tSci-Fi\t65\t250\t90\tSam Worthington\thttps://youtu.be/abc123\t145\t78\t42\t25\t15\t9\nWicked: For Good\t2026-11-21\t4\tUniversal\tFamily\t50\t180\t85\tCynthia Erivo\thttps://youtu.be/xyz456\t92\t55\t30\t18\t10\t6`}
-              style={{...S.inp,minHeight:'180px',fontFamily:T.mono,fontSize:'11px',resize:'vertical',whiteSpace:'pre',marginBottom:'10px'}}
-            />
-            <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
-              <Btn data-parse-btn="1" onClick={()=>{
-                setBulkFilmsPreview(null)
-                // Read from DOM textarea if state hasn't caught up yet (file upload race)
-                const ta=document.querySelector('[data-bulk-textarea]')
-                const raw=ta?.value||bulkFilmsCsv
-                if(raw)setBulkFilmsCsv(raw)
-                const lines=raw.split('\n').map(l=>l.replace(/\r$/,'')).filter(l=>l.trim())
-                if(lines.length===0)return notify('Nothing to parse',T.red)
-                // Detect delimiter
-                const delim=lines[0].includes('\t')?'\t':','
-                // Parse CSV row honoring quotes
-                const parseRow=(line)=>{
-                  if(delim==='\t')return line.split('\t').map(c=>c.trim())
-                  const out=[];let cur='';let inQ=false
-                  for(let i=0;i<line.length;i++){
-                    const c=line[i]
-                    if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++}else inQ=!inQ}
-                    else if(c===','&&!inQ){out.push(cur.trim());cur=''}
-                    else cur+=c
-                  }
-                  out.push(cur.trim())
-                  return out
-                }
-                const headerRow=parseRow(lines[0])
-                const hdrLow=headerRow.map(h=>h.toLowerCase().replace(/[\s_-]/g,''))
-                // Map column indices flexibly
-                const findCol=(...keys)=>{for(const k of keys){const i=hdrLow.findIndex(h=>h===k||h.includes(k));if(i>=0)return i}return -1}
-                const colTitle=findCol('title','film','name')
-                const colDate=findCol('launchdate','releasedate','date','released')
-                const colWeek=findCol('week','wk','weeknum')
-                const colPhase=findCol('phase','ph')
-                const colDist=findCol('distributor','dist','studio')
-                const colGenre=findCol('genre')
-                const colBase=findCol('base','baseprice','ipo')
-                const colEst=findCol('est','estimate','estm')
-                const colRT=findCol('rt','tomatoes','rottentomatoes')
-                const colStar=findCol('star','lead','actor','starring')
-                const colTrailer=findCol('trailer','youtube','yt','video','trailerurl')
-                // Find Wk columns
-                const wkCols=[]
-                hdrLow.forEach((h,i)=>{const m=h.match(/^(?:wk|w|week)(\d+)$/);if(m)wkCols.push({col:i,wk:Number(m[1])})})
-                const hasHeader=colTitle>=0&&colTitle<headerRow.length
-                if(!hasHeader)return notify('Could not detect header row — first row must include "Title"',T.red)
-                if(colDist<0||colGenre<0||colBase<0||colEst<0||colPhase<0)return notify('Missing required columns: Phase, Distributor, Genre, Base, Est',T.red)
-                // Season anchor for date→week conversion
-                const seasonAnchor=new Date('2026-01-05')
-                const dataLines=lines.slice(1)
-                const films_=[]; const grosses_=[]; const errs=[]
-                dataLines.forEach((line,idx)=>{
-                  const cols=parseRow(line)
-                  const title=cols[colTitle]
-                  if(!title){errs.push(`Row ${idx+2}: missing title`);return}
-                  const dist=cols[colDist]||''
-                  const genre=cols[colGenre]||'Drama'
-                  const phase=Number(cols[colPhase])
-                  if(isNaN(phase)){errs.push(`Row ${idx+2}: bad phase`);return}
-                  // Week — from date or explicit
-                  let week=null
-                  if(colDate>=0&&cols[colDate]){
-                    const d=new Date(cols[colDate])
-                    if(!isNaN(d.getTime())){
-                      week=Math.max(1,Math.floor((d.getTime()-seasonAnchor.getTime())/(7*86400000))+1)
-                    }
-                  }
-                  if(week==null&&colWeek>=0){week=Number(cols[colWeek])}
-                  if(week==null||isNaN(week)){errs.push(`Row ${idx+2}: need Launch Date or Week`);return}
-                  const base=Number(cols[colBase]),est=Number(cols[colEst])
-                  if(isNaN(base)||isNaN(est)){errs.push(`Row ${idx+2}: bad base or est`);return}
-                  const film={
-                    title,dist,genre,phase,week,
-                    base_price:base,est_m:est,
-                    rt:colRT>=0&&cols[colRT]&&!isNaN(Number(cols[colRT]))?Number(cols[colRT]):null,
-                    star_actor:colStar>=0?cols[colStar]||null:null,
-                    trailer:colTrailer>=0?cols[colTrailer]||null:null,
-                  }
-                  films_.push(film)
-                  // Parse week columns
-                  wkCols.forEach(({col,wk})=>{
-                    if(cols[col]&&!isNaN(Number(cols[col]))){
-                      grosses_.push({title,week:wk,gross:Number(cols[col])})
-                    }
-                  })
-                })
-                setBulkFilmsPreview({films:films_,grosses:grosses_,errs,header:headerRow})
-                notify(`Parsed ${films_.length} films · ${grosses_.length} gross rows${errs.length?` · ${errs.length} error${errs.length!==1?'s':''}`:''}`,errs.length?T.orange:T.green)
-              }} color={T.gold} size="sm">Parse & Preview</Btn>
-              <Btn onClick={async()=>{
-                if(!bulkFilmsPreview)return notify('Parse first',T.red)
-                const total=bulkFilmsPreview.films.length+bulkFilmsPreview.grosses.length
-                if(!confirm(`Import ${bulkFilmsPreview.films.length} films and ${bulkFilmsPreview.grosses.length} gross rows?`))return
-                setBulkBusy(true)
-                let addedFilms=0,skippedFilms=0,wroteOpenings=0,wroteWeekly=0
-                const titleToId={}
-                // Existing films lookup
-                const norm=s=>s.toLowerCase().replace(/[^a-z0-9]/g,'')
-                films.forEach(f=>{titleToId[norm(f.title)]=f.id})
-                // 1. Films
-                for(const row of bulkFilmsPreview.films){
-                  const nk=norm(row.title)
-                  if(titleToId[nk]){skippedFilms++;continue}
-                  const id=row.title.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,50)+'-'+Math.random().toString(36).slice(2,6)
-                  const{error}=await supabase.from('films').insert({id,...row,active:true})
-                  if(!error){addedFilms++;titleToId[nk]=id}
-                }
-                // 2. Grosses
-                for(const row of bulkFilmsPreview.grosses){
-                  const nk=norm(row.title)
-                  const id=titleToId[nk]
-                  if(!id)continue
-                  if(row.week===1){
-                    const filmObj=films.find(f=>f.id===id)||bulkFilmsPreview.films.find(f=>norm(f.title)===nk)
-                    await dbUpsert('results','film_id',id,{actual_m:row.gross})
-                    if(filmObj){
-                      const filmForCalc={basePrice:filmObj.basePrice||filmObj.base_price,estM:filmObj.estM||filmObj.est_m,rt:filmObj.rt}
-                      await dbUpsert('film_values','film_id',id,{current_value:calcMarketValue(filmForCalc,row.gross,weeklyG[id]||{})})
-                      await resolveChips(id,row.gross)
-                    }
-                    wroteOpenings++
-                  }else{
-                    await dbUpsertWeekly(id,row.week,row.gross)
-                    wroteWeekly++
-                  }
-                }
-                setBulkBusy(false)
-                notify(`✓ ${addedFilms} films added · ${skippedFilms} skipped · ${wroteOpenings} openings · ${wroteWeekly} weekly`,T.green)
-                setBulkFilmsCsv('');setBulkFilmsPreview(null)
-                loadData(league?.id)
-              }} color={T.green} textColor="#0D0A08" size="sm" disabled={!bulkFilmsPreview||bulkBusy}>{bulkBusy?'Importing…':'Import Everything'}</Btn>
-              {bulkFilmsPreview&&<Btn onClick={()=>setBulkFilmsPreview(null)} variant="outline" color={T.textSub} size="sm">Clear</Btn>}
-            </div>
-
-            {bulkFilmsPreview&&<div style={{marginTop:'14px'}}>
-              {/* Detected columns */}
-              <div style={{background:T.surfaceUp,borderRadius:'8px',padding:'10px 12px',marginBottom:'10px',fontSize:'11px',color:T.textSub}}>
-                <strong style={{color:T.text}}>Detected columns:</strong> {bulkFilmsPreview.header.join(' · ')}
-              </div>
-              {bulkFilmsPreview.errs.length>0&&<div style={{background:`${T.red}10`,border:`1px solid ${T.red}33`,borderRadius:'8px',padding:'10px',marginBottom:'10px'}}>
-                <div style={{fontSize:'11px',color:T.red,fontWeight:700,marginBottom:'4px'}}>Errors ({bulkFilmsPreview.errs.length})</div>
-                {bulkFilmsPreview.errs.slice(0,10).map((e,i)=><div key={i} style={{fontSize:'10px',color:T.red,fontFamily:T.mono}}>{e}</div>)}
-              </div>}
-              {bulkFilmsPreview.films.length>0&&<div style={{marginBottom:'10px'}}>
-                <div style={{fontSize:'11px',color:T.green,fontWeight:700,marginBottom:'6px'}}>Films to add ({bulkFilmsPreview.films.length})</div>
-                <div style={{maxHeight:'260px',overflow:'auto',background:T.surfaceUp,borderRadius:'8px'}}>
-                  <table style={{width:'100%',borderCollapse:'collapse',fontFamily:T.mono,fontSize:'10px'}}>
-                    <thead style={{position:'sticky',top:0,background:T.surfaceUp}}>
-                      <tr>
-                        {['Title','Phase','Wk','Dist','Genre','Base','Est','RT','Trailer'].map(h=><th key={h} style={{padding:'6px 8px',textAlign:'left',color:T.gold,borderBottom:`1px solid ${T.border}`,fontWeight:700}}>{h}</th>)}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {bulkFilmsPreview.films.slice(0,80).map((f,i)=>(
-                        <tr key={i} style={{borderBottom:`1px solid ${T.border}`}}>
-                          <td style={{padding:'5px 8px',color:T.text,whiteSpace:'nowrap',maxWidth:'180px',overflow:'hidden',textOverflow:'ellipsis'}}>{f.title}</td>
-                          <td style={{padding:'5px 8px',color:T.gold}}>P{f.phase}</td>
-                          <td style={{padding:'5px 8px',color:T.textSub}}>W{f.week}</td>
-                          <td style={{padding:'5px 8px',color:T.textSub,maxWidth:'120px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.dist}</td>
-                          <td style={{padding:'5px 8px',color:T.textSub}}>{f.genre}</td>
-                          <td style={{padding:'5px 8px',color:T.text,textAlign:'right'}}>{f.base_price}</td>
-                          <td style={{padding:'5px 8px',color:T.text,textAlign:'right'}}>{f.est_m}</td>
-                          <td style={{padding:'5px 8px',color:T.textSub,textAlign:'right'}}>{f.rt??'—'}</td>
-                          <td style={{padding:'5px 8px',color:f.trailer?T.green:T.textDim,textAlign:'center'}}>{f.trailer?'✓':'—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {bulkFilmsPreview.films.length>80&&<div style={{fontSize:'10px',color:T.textDim,padding:'6px',textAlign:'center'}}>… and {bulkFilmsPreview.films.length-80} more</div>}
-                </div>
-              </div>}
-              {bulkFilmsPreview.grosses.length>0&&<div>
-                <div style={{fontSize:'11px',color:T.blue,fontWeight:700,marginBottom:'6px'}}>Gross rows ({bulkFilmsPreview.grosses.length})</div>
-                <div style={{fontSize:'10px',color:T.textSub,fontFamily:T.mono,maxHeight:'120px',overflow:'auto',background:T.surfaceUp,padding:'8px',borderRadius:'8px'}}>
-                  {bulkFilmsPreview.grosses.slice(0,30).map((g,i)=><div key={i}>{g.title.slice(0,40)} · W{g.week} · ${g.gross}M</div>)}
-                  {bulkFilmsPreview.grosses.length>30&&<div style={{color:T.textDim,marginTop:'4px'}}>… and {bulkFilmsPreview.grosses.length-30} more</div>}
-                </div>
-              </div>}
-            </div>}
-          </div>
         </>}
+
+        
 
         {tab==='advanced'&&<>
           <div style={{...S.card,marginBottom:'12px'}}>
