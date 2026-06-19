@@ -56,3 +56,32 @@ self.addEventListener('fetch', (e) => {
     );
   }
 });
+
+/* ── PUSH NOTIFICATIONS ──────────────────────────────────────────────────
+   Handles incoming push messages (for future server-push) and notification
+   taps. Works today for locally-triggered notifications too. */
+self.addEventListener('push', (e) => {
+  let data = {};
+  try { data = e.data ? e.data.json() : {}; } catch { data = { body: e.data && e.data.text() }; }
+  const title = data.title || 'BOXD';
+  const options = {
+    body: data.body || 'Something happened in your league',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    data: { url: data.url || '/' },
+    tag: data.tag || 'boxd-notification',
+    renotify: true,
+  };
+  e.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = e.notification.data?.url || '/';
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      for (const c of list) { if ('focus' in c) return c.focus(); }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+    })
+  );
+});
