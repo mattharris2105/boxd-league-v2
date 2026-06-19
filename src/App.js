@@ -592,6 +592,154 @@ function PriceSparkline({film,rosters,filmValues,width=60,height=20}){
   return <svg width={width} height={height} style={{overflow:'visible'}}><polyline points={pts} fill="none" stroke={col} strokeWidth="1.5" strokeLinejoin="round" opacity="0.9"/></svg>
 }
 
+// ── EMBED WIDGET — compact anticipation badge for distributor/cinema sites ──
+// Usage: <iframe src="https://boxd-league-v2.vercel.app/?embed=FILM_ID" .../>
+function EmbedWidget({filmId}){
+  const[data,setData]=useState(null)
+  useEffect(()=>{(async()=>{
+    const{data:f}=await supabase.from('films').select('*').eq('id',filmId).maybeSingle()
+    if(!f){setData({notfound:true});return}
+    const[{data:pk},{data:fc}]=await Promise.all([
+      supabase.from('picks').select('id').eq('film_id',filmId),
+      supabase.from('forecasts').select('predicted_m').eq('film_id',filmId),
+    ])
+    const fcN=(fc||[]).map(x=>Number(x.predicted_m)).filter(n=>!isNaN(n)).sort((a,b)=>a-b)
+    const median=fcN.length?fcN[Math.floor(fcN.length/2)]:null
+    setData({title:f.title,watchers:(pk||[]).length,forecast:median,rt:f.rt})
+  })()},[filmId])
+  const box=(c)=>(<div style={{fontFamily:'-apple-system,sans-serif',background:'#0D0A08',color:'#F2EAE0',borderRadius:'12px',padding:'16px',maxWidth:'280px',border:'1px solid #2A2420'}}>{c}</div>)
+  if(!data)return box(<div style={{color:'#8A7A6E',fontSize:'13px'}}>Loading…</div>)
+  if(data.notfound)return box(<div style={{color:'#8A7A6E',fontSize:'13px'}}>Film not found</div>)
+  return box(<>
+    <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'10px'}}>
+      <span style={{fontWeight:900,color:'#E8A020',fontSize:'16px',letterSpacing:'-0.5px'}}>BOXD</span>
+      <span style={{fontSize:'9px',color:'#46392E',letterSpacing:'1px'}}>AUDIENCE BUZZ</span>
+    </div>
+    <div style={{fontSize:'15px',fontWeight:700,marginBottom:'10px'}}>{data.title}</div>
+    <div style={{display:'flex',gap:'14px'}}>
+      <div><div style={{fontSize:'20px',fontWeight:800,color:'#E8A020'}}>{data.watchers}</div><div style={{fontSize:'9px',color:'#8A7A6E'}}>WATCHING</div></div>
+      {data.forecast!=null&&<div><div style={{fontSize:'20px',fontWeight:800,color:'#4A9EF5'}}>${data.forecast}M</div><div style={{fontSize:'9px',color:'#8A7A6E'}}>FORECAST</div></div>}
+      {data.rt!=null&&<div><div style={{fontSize:'20px',fontWeight:800,color:data.rt>=60?'#3DD68C':'#F04F5A'}}>{data.rt}%</div><div style={{fontSize:'9px',color:'#8A7A6E'}}>CRITICS</div></div>}
+    </div>
+    <a href="https://boxd-league-v2.vercel.app" target="_blank" rel="noopener noreferrer" style={{display:'block',marginTop:'12px',fontSize:'10px',color:'#46392E',textDecoration:'none'}}>Powered by BOXD ↗</a>
+  </>)
+}
+
+// ── DISTRIBUTOR PORTAL — gated read-only view via ?distributor=CODE ───────
+function DistributorPortal({code}){
+  const[state,setState]=useState('loading')
+  const[access,setAccess]=useState(null)
+  const[films,setFilms]=useState([])
+  const[picks,setPicks]=useState([])
+  const[results,setResults]=useState({})
+  const[bookings,setBookings]=useState([])
+  const[forecasts,setForecasts]=useState([])
+  const[selFilm,setSelFilm]=useState(null)
+  useEffect(()=>{(async()=>{
+    const{data:acc}=await supabase.from('distributor_access').select('*').eq('access_code',code).eq('active',true).maybeSingle()
+    if(!acc){setState('denied');return}
+    setAccess(acc)
+    const{data:fs}=await supabase.from('films').select('*').eq('dist',acc.distributor)
+    const filmIds=(fs||[]).map(f=>f.id)
+    const[{data:pk},{data:rs},{data:bk},{data:fc}]=await Promise.all([
+      supabase.from('picks').select('*').in('film_id',filmIds.length?filmIds:['_']),
+      supabase.from('results').select('*').in('film_id',filmIds.length?filmIds:['_']),
+      supabase.from('booking_clicks').select('*').in('film_id',filmIds.length?filmIds:['_']),
+      supabase.from('forecasts').select('*').in('film_id',filmIds.length?filmIds:['_']),
+    ])
+    setFilms((fs||[]).map(f=>({...f,basePrice:f.base_price,estM:f.est_m,starActor:f.star_actor})))
+    setPicks(pk||[]);setBookings(bk||[]);setForecasts(fc||[])
+    const rmap={};(rs||[]).forEach(r=>rmap[r.film_id]=r.actual_m);setResults(rmap)
+    setState('ok')
+  })()},[code])
+
+  if(state==='loading')return <PortalShell><div style={{textAlign:'center',padding:'60px',color:T.textSub}}>Loading…</div></PortalShell>
+  if(state==='denied')return <PortalShell><div style={{textAlign:'center',padding:'60px'}}><div style={{fontSize:'40px',marginBottom:'12px'}}>🔒</div><div style={{fontSize:'16px',color:T.text,fontWeight:700}}>Invalid or expired access code</div><div style={{fontSize:'12px',color:T.textSub,marginTop:'8px'}}>Contact the league commissioner for a valid link.</div></div></PortalShell>
+
+  const totalWatchers=picks.length
+  const totalBookings=bookings.length
+  const released=films.filter(f=>results[f.id]!=null)
+  const f=selFilm?films.find(x=>x.id===selFilm):null
+
+  if(f){
+    const fp=picks.filter(p=>p.film_id===f.id)
+    const fc=forecasts.filter(x=>x.film_id===f.id).map(x=>Number(x.predicted_m)).filter(n=>!isNaN(n)).sort((a,b)=>a-b)
+    const median=fc.length?fc[Math.floor(fc.length/2)]:null
+    const clicks=bookings.filter(b=>b.film_id===f.id).length
+    const actual=results[f.id]
+    return(
+      <PortalShell access={access}>
+        <button onClick={()=>setSelFilm(null)} style={{background:'none',border:'none',color:T.blue,fontSize:'13px',cursor:'pointer',padding:'0 0 14px',fontWeight:600}}>‹ All films</button>
+        <div style={{fontSize:'22px',fontWeight:800,color:T.text,marginBottom:'4px'}}>{f.title}</div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'18px'}}>{f.genre} · releases week {f.week}</div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(110px,1fr))',gap:'10px',marginBottom:'20px'}}>
+          <PortalStat label="Watchlist adds" value={fp.length}/>
+          <PortalStat label="Booking clicks" value={clicks}/>
+          <PortalStat label="Crowd forecast" value={median!=null?`$${median}M`:'—'}/>
+          {f.estM!=null&&<PortalStat label="Tracking est" value={`$${f.estM}M`}/>}
+          {actual!=null&&<PortalStat label="Actual opening" value={`$${actual}M`} accent/>}
+        </div>
+        {median!=null&&actual!=null&&(
+          <div style={{background:T.surface,borderRadius:'12px',padding:'16px',marginBottom:'16px'}}>
+            <div style={{...S.label,marginBottom:'8px',color:T.blue}}>Crowd forecast accuracy</div>
+            <div style={{fontSize:'13px',color:T.text}}>The audience predicted <strong style={{color:T.gold}}>${median}M</strong> vs actual <strong style={{color:T.green}}>${actual}M</strong> — within <strong>{Math.round(Math.abs(median-actual)/actual*100)}%</strong>.</div>
+          </div>
+        )}
+        <div style={{fontSize:'10px',color:T.textDim,marginTop:'20px'}}>BOXD intent data · {access.distributor} · confidential</div>
+      </PortalShell>
+    )
+  }
+
+  return(
+    <PortalShell access={access}>
+      <div style={{fontSize:'22px',fontWeight:800,color:T.text,marginBottom:'4px'}}>{access.distributor}</div>
+      <div style={{fontSize:'12px',color:T.textSub,marginBottom:'18px'}}>Audience intent across your {films.length}-film slate</div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(110px,1fr))',gap:'10px',marginBottom:'24px'}}>
+        <PortalStat label="Films tracked" value={films.length}/>
+        <PortalStat label="Total watchers" value={totalWatchers}/>
+        <PortalStat label="Booking clicks" value={totalBookings}/>
+        <PortalStat label="Released" value={released.length}/>
+      </div>
+      <div style={{...S.label,marginBottom:'10px',color:T.blue}}>Slate — tap for detail</div>
+      {films.sort((a,b)=>a.week-b.week).map(film=>{
+        const w=picks.filter(p=>p.film_id===film.id).length
+        return(
+          <div key={film.id} onClick={()=>setSelFilm(film.id)} style={{display:'flex',gap:'10px',alignItems:'center',background:T.surface,borderRadius:'10px',padding:'10px 12px',marginBottom:'6px',cursor:'pointer',border:`1px solid ${T.border}`}}>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:'13px',fontWeight:600,color:T.text}}>{film.title}</div>
+              <div style={{fontSize:'10px',color:T.textSub}}>Week {film.week}{results[film.id]!=null?` · opened $${results[film.id]}M`:''}</div>
+            </div>
+            <span style={{fontSize:'11px',color:T.gold,fontFamily:T.mono}}>👁 {w}</span>
+            <span style={{color:T.textDim}}>›</span>
+          </div>
+        )
+      })}
+      <div style={{fontSize:'10px',color:T.textDim,marginTop:'20px'}}>Powered by BOXD · audience intent analytics · confidential</div>
+    </PortalShell>
+  )
+}
+function PortalShell({children,access}){
+  return(
+    <div style={{minHeight:'100vh',background:T.bg,fontFamily:T.mono,padding:'24px 16px'}}>
+      <div style={{maxWidth:'600px',margin:'0 auto'}}>
+        <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'24px',paddingBottom:'16px',borderBottom:`1px solid ${T.border}`}}>
+          <div style={{fontSize:'24px',fontWeight:900,color:T.gold,letterSpacing:'-1px'}}>BOXD</div>
+          <div style={{fontSize:'10px',color:T.textDim,letterSpacing:'2px',borderLeft:`1px solid ${T.border}`,paddingLeft:'10px'}}>DISTRIBUTOR INTELLIGENCE</div>
+        </div>
+        {children}
+      </div>
+    </div>
+  )
+}
+function PortalStat({label,value,accent}){
+  return(
+    <div style={{background:accent?`${T.green}12`:T.surface,borderRadius:'10px',padding:'12px',textAlign:'center',border:`1px solid ${accent?T.green+'33':T.border}`}}>
+      <div style={{fontSize:'20px',fontWeight:800,color:accent?T.green:T.gold,fontFamily:T.mono}}>{value}</div>
+      <div style={{fontSize:'9px',color:T.textSub,marginTop:'2px',textTransform:'uppercase',letterSpacing:'0.5px'}}>{label}</div>
+    </div>
+  )
+}
+
 function InviteLanding({code,onLogin}){
   const[lgData,setLgData]=useState(null)
   const[loading,setLoading]=useState(true)
@@ -1715,6 +1863,7 @@ export default function App(){
   const[sealedBids,setSealedBids]=useState([])
   const[league,setLeague]=useState(null)
   const[myLeagues,setMyLeagues]=useState([])
+  const[publicLeagues,setPublicLeagues]=useState([])
   const[leaguePage,setLeaguePage]=useState('lobby')
   const[inviteCode,setInviteCode]=useState('')
   const[newLeagueName,setNewLeagueName]=useState('')
@@ -1885,6 +2034,16 @@ export default function App(){
     const{error:e2}=await supabase.from('league_members').insert({league_id:lg.id,user_id:session.user.id,role:'player'})
     if(e2&&!e2.message?.includes('duplicate')) return notify(e2.message,T.red)
     notify(`Joined ${lg.name}!`,T.green);setInviteCode('');loadLeagues();enterLeague(lg)
+  }
+  const loadPublicLeagues=async()=>{
+    const{data}=await supabase.from('leagues').select('*').eq('is_public',true).order('member_count',{ascending:false}).limit(30)
+    if(data)setPublicLeagues(data.filter(lg=>!myLeagues.some(m=>m.id===lg.id)))
+  }
+  const joinPublicLeague=async(lg)=>{
+    const{error}=await supabase.from('league_members').insert({league_id:lg.id,user_id:session.user.id,role:'player'})
+    if(error&&!error.message?.includes('duplicate'))return notify(error.message,T.red)
+    await supabase.from('leagues').update({member_count:(lg.member_count||0)+1}).eq('id',lg.id)
+    notify(`Joined ${lg.name}!`,T.green);loadLeagues();enterLeague(lg)
   }
   const leaveLeague=async()=>{
     if(!league||!confirm(`Leave ${league.name}?`)) return
@@ -2253,6 +2412,12 @@ export default function App(){
     notify(`Forecast saved — $${predicted}M`,T.blue);loadData(league?.id)
   }
 
+  const embedFilmId=(()=>{const q=new URLSearchParams(window.location.search);return q.get('embed')||null})()
+  if(embedFilmId)return <EmbedWidget filmId={embedFilmId}/>
+
+  const distCodeFromUrl=(()=>{const q=new URLSearchParams(window.location.search);return q.get('distributor')?.toUpperCase()||null})()
+  if(distCodeFromUrl)return <DistributorPortal code={distCodeFromUrl}/>
+
   const inviteFromUrl=(()=>{const p=window.location.pathname,q=new URLSearchParams(window.location.search);return p.match(/\/join\/([A-Z0-9-]+)/i)?.[1]?.toUpperCase()||q.get('invite')?.toUpperCase()||null})()
   if(inviteFromUrl&&!session&&!loading)return <InviteLanding code={inviteFromUrl} onLogin={()=>{setInviteCode(inviteFromUrl)}}/>
   if(loading)return(<div style={{minHeight:'100vh',background:T.bg,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:T.mono}}><div style={{textAlign:'center'}}><div style={{fontSize:'52px',fontWeight:900,color:T.gold,letterSpacing:'-2px',marginBottom:'16px'}}>BOXD</div><div style={{width:'40px',height:'3px',background:T.gold,borderRadius:'2px',margin:'0 auto',animation:'pulse 1.2s ease-in-out infinite'}}/></div></div>)
@@ -2275,9 +2440,24 @@ export default function App(){
           ))}
         </div>}
         <div style={{display:'flex',gap:'10px',marginBottom:'24px'}}>
-          <button onClick={()=>setLeaguePage('create')} style={{...S.btn,flex:1,background:leaguePage==='create'?T.gold:T.surfaceUp,color:leaguePage==='create'?'#0D0A08':T.textSub,border:`1px solid ${leaguePage==='create'?T.gold:T.border}`,padding:'10px',fontSize:'13px',textTransform:'none',letterSpacing:0}}>+ Create League</button>
-          <button onClick={()=>setLeaguePage('join')} style={{...S.btn,flex:1,background:leaguePage==='join'?T.blue:T.surfaceUp,color:leaguePage==='join'?'#fff':T.textSub,border:`1px solid ${leaguePage==='join'?T.blue:T.border}`,padding:'10px',fontSize:'13px',textTransform:'none',letterSpacing:0}}>Join League</button>
+          <button onClick={()=>setLeaguePage('create')} style={{...S.btn,flex:1,background:leaguePage==='create'?T.gold:T.surfaceUp,color:leaguePage==='create'?'#0D0A08':T.textSub,border:`1px solid ${leaguePage==='create'?T.gold:T.border}`,padding:'10px',fontSize:'12px',textTransform:'none',letterSpacing:0}}>+ Create</button>
+          <button onClick={()=>setLeaguePage('join')} style={{...S.btn,flex:1,background:leaguePage==='join'?T.blue:T.surfaceUp,color:leaguePage==='join'?'#fff':T.textSub,border:`1px solid ${leaguePage==='join'?T.blue:T.border}`,padding:'10px',fontSize:'12px',textTransform:'none',letterSpacing:0}}>Join Code</button>
+          <button onClick={()=>{setLeaguePage('discover');loadPublicLeagues()}} style={{...S.btn,flex:1,background:leaguePage==='discover'?T.green:T.surfaceUp,color:leaguePage==='discover'?'#0D0A08':T.textSub,border:`1px solid ${leaguePage==='discover'?T.green:T.border}`,padding:'10px',fontSize:'12px',textTransform:'none',letterSpacing:0}}>🌍 Discover</button>
         </div>
+        {leaguePage==='discover'&&<div style={{animation:'fadeUp .2s ease',marginBottom:'24px'}}>
+          <div style={{...S.label,marginBottom:'12px'}}>Public Leagues</div>
+          {publicLeagues.length===0&&<div style={{...S.card,textAlign:'center',padding:'30px',color:T.textSub,fontSize:'13px'}}>No public leagues to show yet.</div>}
+          {publicLeagues.map(lg=>(
+            <div key={lg.id} className="hoverable" style={{...S.card,display:'flex',alignItems:'center',gap:'12px',marginBottom:'8px'}}>
+              <div style={{width:'40px',height:'40px',borderRadius:'10px',background:`${T.green}22`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'18px',flexShrink:0}}>🌍</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:'14px',fontWeight:700,color:T.text}}>{lg.name}</div>
+                <div style={{fontSize:'11px',color:T.textSub}}>{lg.member_count||0} members{lg.description?` · ${lg.description}`:''}</div>
+              </div>
+              <Btn onClick={()=>joinPublicLeague(lg)} color={T.green} size="sm">Join</Btn>
+            </div>
+          ))}
+        </div>}
         {leaguePage==='create'&&<div style={{animation:'fadeUp .2s ease'}}>
           <div style={{...S.label,marginBottom:'8px'}}>League Name</div>
           <input value={newLeagueName} onChange={e=>setNewLeagueName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&createLeague()} placeholder="e.g. The Box Office Boyz" style={{...S.inp,marginBottom:'12px',fontSize:'15px',padding:'14px 16px'}}/>
@@ -3793,6 +3973,48 @@ export default function App(){
 
 
   // ── DISTRIBUTOR INSIGHTS PAGE (with Sentiment Splits) ────────────────────
+  // ── DISTRIBUTOR ACCESS MANAGER (commissioner) ───────────────────────────
+  const DistributorAccessManager=()=>{
+    const[codes,setCodes]=useState([])
+    const[distName,setDistName]=useState('')
+    const[email,setEmail]=useState('')
+    const dists=[...new Set(films.map(f=>f.dist))].sort()
+    useEffect(()=>{supabase.from('distributor_access').select('*').order('created_at',{ascending:false}).then(({data})=>{if(data)setCodes(data)})},[])
+    const gen=async()=>{
+      if(!distName)return notify('Pick a distributor',T.red)
+      const code='BOXD-'+Math.random().toString(36).slice(2,8).toUpperCase()
+      const{error}=await supabase.from('distributor_access').insert({distributor:distName,access_code:code,contact_email:email||null})
+      if(error)return notify(error.message,T.red)
+      setDistName('');setEmail('')
+      const{data}=await supabase.from('distributor_access').select('*').order('created_at',{ascending:false})
+      if(data)setCodes(data)
+      notify(`✓ Access code created: ${code}`,T.green)
+    }
+    return(
+      <div style={{...S.card,marginBottom:'12px'}}>
+        <div style={{...S.label,marginBottom:'8px',color:T.blue}}>🔐 Distributor Access</div>
+        <div style={{fontSize:'11px',color:T.textSub,marginBottom:'10px',lineHeight:1.5}}>Create a code that lets a distributor log into a read-only portal showing only their slate's intent data.</div>
+        <div style={{display:'flex',gap:'6px',marginBottom:'8px'}}>
+          <select value={distName} onChange={e=>setDistName(e.target.value)} style={{...S.inp,flex:1,fontSize:'12px'}}>
+            <option value="">Distributor…</option>
+            {dists.map(d=><option key={d} value={d}>{d}</option>)}
+          </select>
+          <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Contact email (optional)" style={{...S.inp,flex:1,fontSize:'12px'}}/>
+          <Btn onClick={gen} color={T.blue} textColor="#fff" size="sm">Create</Btn>
+        </div>
+        {codes.map(c=>(
+          <div key={c.id} style={{display:'flex',gap:'8px',alignItems:'center',padding:'7px 0',borderBottom:`1px solid ${T.border}`,fontSize:'12px'}}>
+            <span style={{flex:1,fontWeight:600}}>{c.distributor}</span>
+            <code style={{background:T.surfaceUp,padding:'2px 8px',borderRadius:'5px',color:T.gold,fontSize:'11px'}}>{c.access_code}</code>
+            <button onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/?distributor=${c.access_code}`);notify('Portal link copied',T.green)}} style={{background:'none',border:'none',color:T.blue,cursor:'pointer',fontSize:'11px'}}>📋</button>
+            <button onClick={async()=>{await supabase.from('distributor_access').delete().eq('id',c.id);setCodes(codes.filter(x=>x.id!==c.id))}} style={{background:'none',border:'none',color:T.textDim,cursor:'pointer',fontSize:'11px'}}>✕</button>
+          </div>
+        ))}
+        {codes.length===0&&<div style={{fontSize:'11px',color:T.textDim}}>No access codes yet.</div>}
+      </div>
+    )
+  }
+
   const DistributorPage=()=>{
     const dists=[...new Set(films.map(f=>f.dist))]
     const pickCounts={};allPicks.forEach(p=>{pickCounts[p.film_id]=(pickCounts[p.film_id]||0)+1})
@@ -4682,6 +4904,8 @@ export default function App(){
             <div style={{fontSize:'11px',color:T.textDim,marginBottom:'12px'}}>Share: boxd-league-v2.vercel.app/join/{league?.invite_code}</div>
             <Btn onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/join/${league?.invite_code}`);notify('Invite link copied',T.green)}} variant="outline" color={T.green} size="sm">Copy Invite Link</Btn>
           </div>
+          {/* ── DISTRIBUTOR ACCESS CODES ──────────────────────────────────── */}
+          <DistributorAccessManager/>
         </>}
       </div>
     )
