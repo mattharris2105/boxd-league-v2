@@ -1738,6 +1738,52 @@ export default function App(){
   const[pollVotes,setPollVotes]=useState([])
   const[newPollOpen,setNewPollOpen]=useState(false)
   const[resultsDismissedWk,setResultsDismissedWk]=useState(null)
+  const[onboardOpen,setOnboardOpen]=useState(false)
+  const[onboardStep,setOnboardStep]=useState(0)
+  useEffect(()=>{
+    // Show the guided intro once, to players who haven't bought anything yet
+    if(!profile||!league)return
+    if(localStorage.getItem('boxd_onboard_done'))return
+    const hasBought=rosters.some(r=>r.player_id===profile.id)
+    if(!hasBought){
+      const t=setTimeout(()=>setOnboardOpen(true),800)
+      return()=>clearTimeout(t)
+    }
+  },[profile,league])
+  const[notifPerm,setNotifPerm]=useState(typeof Notification!=='undefined'?Notification.permission:'unsupported')
+  const requestNotifs=async()=>{
+    if(typeof Notification==='undefined')return notify('Notifications not supported on this device',T.textSub)
+    const perm=await Notification.requestPermission()
+    setNotifPerm(perm)
+    if(perm==='granted'){
+      notify('🔔 Notifications on — we\'ll ping you on results day',T.green)
+      try{
+        const reg=await navigator.serviceWorker.ready
+        reg.showNotification('BOXD',{body:'You\'re all set. Results-day alerts are on.',icon:'/icon-192.png',badge:'/icon-192.png'})
+      }catch{}
+    }else if(perm==='denied'){
+      notify('Notifications blocked — enable them in your browser settings',T.textSub)
+    }
+  }
+  // Fire a local notification once when fresh results land (if permission granted)
+  const notifiedResultsRef=useRef(null)
+  useEffect(()=>{
+    if(notifPerm!=='granted'||!profile)return
+    const wk=cfg.current_week-1
+    const scored=films.filter(f=>f.week===wk&&results[f.id]!=null)
+    if(scored.length===0)return
+    const seenKey=`boxd_notif_w${wk}`
+    if(notifiedResultsRef.current===wk||localStorage.getItem(seenKey))return
+    notifiedResultsRef.current=wk
+    localStorage.setItem(seenKey,'1')
+    const mine=scored.filter(f=>rosters.find(r=>r.player_id===profile.id&&r.film_id===f.id))
+    navigator.serviceWorker?.ready?.then(reg=>{
+      reg.showNotification('🎬 Results are in!',{
+        body:mine.length>0?`${mine.length} of your films just scored — see how you did.`:`${scored.length} films just scored this week.`,
+        icon:'/icon-192.png',badge:'/icon-192.png',tag:`results-w${wk}`,
+      })
+    }).catch(()=>{})
+  },[cfg.current_week,results,notifPerm,profile])
   // Bulk slate builder state
   const[bulkFilmsCsv,setBulkFilmsCsv]=useState('')
   const[bulkFilmsPreview,setBulkFilmsPreview]=useState(null)
@@ -4265,6 +4311,22 @@ export default function App(){
                     </div>
                   )
                 })()}
+                {/* Recalculate IPO prices from current estimates */}
+                {(()=>{
+                  const calcIPO=(est)=>est==null?null:est>=80?45:est>=50?30:est>=25?20:est>=15?14:est>=8?10:est>=4?7:5
+                  const mismatched=films.filter(f=>f.estM!=null&&calcIPO(f.estM)!==f.basePrice)
+                  if(mismatched.length===0)return null
+                  return(
+                    <div style={{marginTop:'10px',display:'flex',gap:'10px',alignItems:'center',background:`${T.gold}10`,borderRadius:'8px',padding:'8px 10px'}}>
+                      <div style={{flex:1,fontSize:'10px',color:T.gold,lineHeight:1.5}}>{mismatched.length} film{mismatched.length!==1?'s':''} have an IPO price that doesn't match their current estimate. Recalculate to sync them.</div>
+                      <Btn onClick={async()=>{
+                        if(!confirm(`Recalculate IPO prices for ${mismatched.length} film${mismatched.length!==1?'s':''} from their estimates?`))return
+                        for(const f of mismatched)await supabase.from('films').update({base_price:calcIPO(f.estM)}).eq('id',f.id)
+                        notify(`✓ Recalculated ${mismatched.length} IPO price${mismatched.length!==1?'s':''}`,T.green);loadData(league?.id)
+                      }} color={T.gold} size="sm">Recalc IPOs</Btn>
+                    </div>
+                  )
+                })()}
                 {/* Source health + manual sync trigger */}
                 <div style={{marginTop:'10px',display:'flex',gap:'10px',alignItems:'center',background:T.surfaceUp,borderRadius:'8px',padding:'8px 10px'}}>
                   <div style={{flex:1,minWidth:0}}>
@@ -4927,6 +4989,18 @@ export default function App(){
           <div style={{display:'flex',gap:'10px',marginBottom:'20px',flexWrap:'wrap'}}>
             {PLAYER_COLORS.map(c=><div key={c} onClick={()=>setCol(c)} style={{width:'30px',height:'30px',borderRadius:'50%',background:c,cursor:'pointer',border:`3px solid ${col===c?'#fff':'transparent'}`,boxSizing:'border-box'}}/>)}
           </div>
+          <div style={{...S.label,marginBottom:'10px'}}>Notifications</div>
+          <div onClick={notifPerm==='granted'?undefined:requestNotifs} style={{display:'flex',alignItems:'center',gap:'10px',background:T.surfaceUp,borderRadius:'10px',padding:'12px',marginBottom:'20px',cursor:notifPerm==='granted'?'default':'pointer',border:`1px solid ${notifPerm==='granted'?T.green+'44':T.border}`}}>
+            <span style={{fontSize:'18px'}}>{notifPerm==='granted'?'🔔':'🔕'}</span>
+            <div style={{flex:1}}>
+              <div style={{fontSize:'12px',fontWeight:700,color:T.text}}>Results-day alerts</div>
+              <div style={{fontSize:'10px',color:T.textSub,marginTop:'1px'}}>
+                {notifPerm==='granted'?'On — you\'ll be notified when films score':notifPerm==='denied'?'Blocked — enable in browser settings':'Tap to get notified when your films score'}
+              </div>
+            </div>
+            {notifPerm==='granted'&&<span style={{fontSize:'11px',color:T.green,fontWeight:700}}>✓ ON</span>}
+            {notifPerm!=='granted'&&notifPerm!=='denied'&&<span style={{fontSize:'11px',color:T.gold,fontWeight:700}}>Enable</span>}
+          </div>
           <div style={{display:'flex',gap:'10px'}}>
             <Btn onClick={()=>setProfileEditOpen(false)} variant="outline" color={T.textSub} sx={{flex:1}}>Cancel</Btn>
             <Btn onClick={save} color={T.gold} sx={{flex:2}}>Save</Btn>
@@ -5198,6 +5272,33 @@ export default function App(){
       {showtimesFilm&&<ShowtimesModal film={showtimesFilm} onClose={()=>setShowtimesFilm(null)} onBookingClick={trackBookingClick} supabaseUrl={SUPABASE_URL} anonKey={SUPABASE_ANON_KEY}/>}
       {scoreModal&&<ScoreBreakdownModal film={scoreModal.film} holding={scoreModal.holding} results={results} weeklyGrosses={weeklyG} allChips={allChips} isEarlyBird={isEarlyBird} onClose={()=>setScoreModal(null)}/>}
       {profileEditOpen&&<ProfileEditModal/>}
+      {onboardOpen&&(()=>{
+        const STEPS=[
+          {icon:'🎬',title:'Welcome to BOXD',body:'Draft 2026 films like stocks. Their value rises and falls on real box office performance. Beat your league by spotting the films the market gets wrong.'},
+          {icon:'💰',title:'Buy low, win big',body:`Each film has an IPO price based on its expected opening. You've got a budget of ${cur}${PHASE_BUDGETS[curPhase()]||150}M this phase. A film that opens above its estimate jumps in value — and earns you points.`},
+          {icon:'📈',title:'Performance = points',body:'When a film opens, you score on how it did versus its estimate. Strong weekly holds (good "legs") push its value even higher. Underperformers sink.'},
+          {icon:'👁',title:'Scout before you buy',body:'Add films to your watchlist, check forecasts, read the buzz. The Market tab is where you\'ll spend most of your time. Ready to make your first pick?'},
+        ]
+        const step=STEPS[onboardStep]
+        const last=onboardStep===STEPS.length-1
+        const finish=()=>{localStorage.setItem('boxd_onboard_done','1');setOnboardOpen(false);setPage('market')}
+        return(
+          <div style={{position:'fixed',inset:0,background:'#000000E0',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}}>
+            <div style={{background:T.surface,border:`1px solid ${T.gold}33`,borderRadius:'20px',padding:'32px 24px',maxWidth:'380px',width:'100%',textAlign:'center'}}>
+              <div style={{fontSize:'48px',marginBottom:'16px'}}>{step.icon}</div>
+              <div style={{fontSize:'20px',fontWeight:800,color:T.gold,marginBottom:'12px'}}>{step.title}</div>
+              <div style={{fontSize:'14px',color:T.text,lineHeight:1.6,marginBottom:'24px'}}>{step.body}</div>
+              <div style={{display:'flex',gap:'6px',justifyContent:'center',marginBottom:'20px'}}>
+                {STEPS.map((_,i)=><div key={i} style={{width:i===onboardStep?'20px':'6px',height:'6px',borderRadius:'3px',background:i===onboardStep?T.gold:T.border,transition:'all .2s'}}/>)}
+              </div>
+              <div style={{display:'flex',gap:'10px'}}>
+                {!last&&<Btn onClick={finish} variant="outline" color={T.textSub} sx={{flex:1}}>Skip</Btn>}
+                <Btn onClick={()=>last?finish():setOnboardStep(s=>s+1)} color={T.gold} sx={{flex:last?1:2}}>{last?'Start playing →':'Next'}</Btn>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
       {newSignalOpen&&<NewSignalModal/>}
 
       {/* ANALYST CHIP MODAL */}
