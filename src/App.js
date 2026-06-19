@@ -302,12 +302,16 @@ async function fetchTMDBPoster(title,tmdbId){
 
 function FilmPoster({film,width,height,radius=8,imgStyle={},owned=false,scored=false,tilt=false}){
   const key=film?.tmdbId?`id:${film.tmdbId}`:film?.title
-  const [url,setUrl]=useState(posterCache[key]!==undefined?posterCache[key]:undefined)
+  // If no TMDB token is configured, there's nothing to fetch — resolve to the
+  // fallback immediately so cards don't flash a loading shimmer on every render.
+  const initial=!TMDB_TOKEN?null:(posterCache[key]!==undefined?posterCache[key]:undefined)
+  const [url,setUrl]=useState(initial)
   const gc=GENRE_COL[film?.genre]||T.textSub
   const containerRef=useRef(null)
   useEffect(()=>{
+    if(!TMDB_TOKEN){setUrl(null);return}
     if(!film?.title){setUrl(null);return}
-    if(posterCache[key]!==undefined) return
+    if(posterCache[key]!==undefined){setUrl(posterCache[key]);return}
     let cancelled=false
     fetchTMDBPoster(film.title,film.tmdbId).then(u=>{if(!cancelled)setUrl(u)})
     return()=>{cancelled=true}
@@ -343,21 +347,48 @@ function calcMarketValue(film,actualM,weeklyGrosses={}){
   const perf=r>=2?2:r>=1.5?1.6:r>=1.3?1.35:r>=1.1?1.15:r>=0.95?1:r>=0.8?0.85:r>=0.6?0.65:r>=0.4?0.45:0.25
   // Critics multiplier
   const rt=film.rt!=null?(film.rt>=90?1.15:film.rt>=75?1.08:film.rt<50?0.9:1):1
-  // LEGS multiplier — weekly grosses now affect value, not just points.
-  // Strong holds = value goes UP (audiences keep coming = the film is worth more).
-  // Weak drops = value drifts down. Cumulative gross vs opening is the signal.
-  const wg=weeklyGrosses||{}
-  const weekNums=Object.keys(wg).map(Number).filter(n=>n>=2)
-  let legsMult=1
-  if(weekNums.length>0){
-    const cumeWeekly=weekNums.reduce((s,w)=>s+Number(wg[w]),0)
-    const totalGross=actualM+cumeWeekly
-    const legRatio=totalGross/actualM // 1.0 = no legs, 2.0+ = excellent legs
-    // Map: legRatio 1.0→1.0x, 1.5→1.10x, 2.0→1.20x, 2.5+→1.30x (capped)
-    legsMult=legRatio>=2.5?1.30:legRatio>=2.0?1.20:legRatio>=1.5?1.10:legRatio>=1.2?1.05:1.0
+
+  // ── LEGS: week-on-week hold vs an expected drop ──────────────────────────
+  // Each week has a "standard" drop. Beating it lifts value, missing it cuts.
+  // Bands (drop is negative; e.g. -0.55 = a 55% fall from prior week):
+  //   Wk2: standard -55% · better → up to +30% · worse → down to -15%
+  //   Wk3: standard -40% · better → up to +20% · worse → down to -10%
+  //   Wk4: standard -35% · better → up to +15% · worse → down to  -5%
+  //   Wk5/6: standard -40% · better → up to +10% · worse → flat (0%)
+  const BANDS={
+    2:{std:-0.55,up:0.30,down:-0.15},
+    3:{std:-0.40,up:0.20,down:-0.10},
+    4:{std:-0.35,up:0.15,down:-0.05},
+    5:{std:-0.40,up:0.10,down:0},
+    6:{std:-0.40,up:0.10,down:0},
   }
+  const wg=weeklyGrosses||{}
+  let legsMult=1
+  for(let w=2;w<=6;w++){
+    const cur=Number(wg[w]),prev=w===2?actualM:Number(wg[w-1])
+    if(!cur||!prev||isNaN(cur)||isNaN(prev))continue
+    const drop=(cur-prev)/prev          // e.g. -0.5 means it fell 50%
+    const band=BANDS[w]
+    // How much better/worse than the standard drop? Scale into the band.
+    // If drop is exactly std → 0 adjustment. Held flat (drop=0) → full "up".
+    // Dropped twice as hard as std → full "down".
+    let adj
+    if(drop>=band.std){
+      // better than expected (smaller drop or a rise)
+      const range=0-band.std            // distance from std to "held flat"
+      const frac=range>0?Math.min(1,(drop-band.std)/range):0
+      adj=band.up*frac
+    }else{
+      // worse than expected (bigger drop)
+      const range=band.std-(-1)         // distance from std down to -100%
+      const frac=range>0?Math.min(1,(band.std-drop)/range):0
+      adj=band.down*frac
+    }
+    legsMult*=(1+adj)
+  }
+
   const raw=film.basePrice*perf*rt*legsMult
-  return Math.round(Math.max(film.basePrice*0.15,Math.min(film.basePrice*3.5,raw)))
+  return Math.round(Math.max(film.basePrice*0.15,Math.min(film.basePrice*4,raw)))
 }
 function calcOpeningPts(film,actualM,isEB=false,isAnalyst=false){
   if(actualM==null) return 0
@@ -1566,7 +1597,13 @@ export default function App(){
   const[syncBusy,setSyncBusy]=useState(false)
   const[reviews,setReviews]=useState([])
   const[allComments,setAllComments]=useState([])
-  const loadAllComments=async(lid)=>{const id=lid||league?.id;if(!id)return;const{data}=await supabase.from('film_comments').select('*').eq('league_id',id).order('created_at',{ascending:false}).limit(60);if(data)setAllComments(data)}
+  const loadAllComments=async(lid)=>{
+    const id=lid||league?.id;if(!id)return
+    // Load comments for this league OR with no league stamp (older rows),
+    // so the Buzz feed doesn't silently drop them.
+    const{data}=await supabase.from('film_comments').select('*').or(`league_id.eq.${id},league_id.is.null`).order('created_at',{ascending:false}).limit(80)
+    if(data)setAllComments(data)
+  }
   const[screenings,setScreenings]=useState([])
   const[attendees,setAttendees]=useState([])
   const loadScreenings=async(lid)=>{
@@ -1631,6 +1668,14 @@ export default function App(){
   },[])
   const[profile,setProfile]=useState(null)
   const[page,setPage]=useState('market')
+  const[commishTab,setCommishTab]=useState('phase')
+  const[communityTab,setCommunityTab]=useState('buzz')
+  const[distSel,setDistSel]=useState(null)
+  const[distFilmId,setDistFilmId]=useState('')
+  const[warEntries,setWarEntries]=useState({})
+  const[warFilterPhase,setWarFilterPhase]=useState('all')
+  const[warFilterStatus,setWarFilterStatus]=useState('pending')
+  const[warSearch,setWarSearch]=useState('')
   const[players,setPlayers]=useState([])
   const[rosters,setRosters]=useState([])
   const[results,setResults]=useState({})
@@ -3485,7 +3530,7 @@ export default function App(){
   }
 
   const CommunityPage=()=>{
-    const[tab,setTab]=useState('buzz')
+    const tab=communityTab,setTab=setCommunityTab
     const TabBtn=({id,label})=><button onClick={()=>setTab(id)} style={{...S.btn,background:'none',border:'none',padding:'8px 14px',fontSize:'12px',fontWeight:tab===id?700:400,color:tab===id?T.gold:T.textSub,borderBottom:`2px solid ${tab===id?T.gold:'transparent'}`,borderRadius:0,textTransform:'none',letterSpacing:0}}>{label}</button>
     return(
       <div style={{animation:'fadeUp .2s ease'}}>
@@ -3507,14 +3552,15 @@ export default function App(){
           return items.map(item=>{
             const p=players.find(pl=>pl.id===item.user)
             const f=films.find(fl=>fl.id===item.film)
+            const verb=item.type==='review'?'reviewed':'commented on'
             return(
-              <div key={item.id} onClick={()=>f&&setFilmDetail(f)} className="hoverable" style={{...S.card,marginBottom:'8px',cursor:'pointer',display:'flex',gap:'10px'}}>
+              <div key={item.id} onClick={()=>f&&setFilmDetail(f)} className="hoverable" style={{...S.card,marginBottom:'8px',cursor:f?'pointer':'default',display:'flex',gap:'10px'}}>
                 {f&&<FilmPoster film={f} width={38} height={57} radius={5}/>}
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{display:'flex',gap:'6px',alignItems:'baseline',flexWrap:'wrap'}}>
+                  <div style={{display:'flex',gap:'5px',alignItems:'baseline',flexWrap:'wrap'}}>
                     <span style={{fontSize:'12px',fontWeight:700,color:p?.color||T.gold}}>{p?.name||'Player'}</span>
-                    <span style={{fontSize:'10px',color:T.textDim}}>{item.type==='review'?'reviewed':'commented on'}</span>
-                    <span style={{fontSize:'11px',fontWeight:600,color:T.text}}>{f?.title||'a film'}</span>
+                    <span style={{fontSize:'11px',color:T.textSub}}>{verb}</span>
+                    <span style={{fontSize:'12px',fontWeight:700,color:f?T.gold:T.textDim}}>{f?f.title:'a film'}</span>
                     {item.rating&&<span style={{fontSize:'11px',color:T.gold,fontFamily:T.mono}}>{'★'.repeat(item.rating)}</span>}
                   </div>
                   {item.body&&<div style={{fontSize:'12px',color:T.textSub,lineHeight:1.5,marginTop:'4px',overflow:'hidden',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical'}}>{item.body}</div>}
@@ -3704,8 +3750,8 @@ export default function App(){
   const DistributorPage=()=>{
     const dists=[...new Set(films.map(f=>f.dist))]
     const pickCounts={};allPicks.forEach(p=>{pickCounts[p.film_id]=(pickCounts[p.film_id]||0)+1})
-    const[selDist,setSelDist]=useState(null)
-    const[b2bFilmId,setB2bFilmId]=useState('')
+    const selDist=distSel,setSelDist=setDistSel
+    const b2bFilmId=distFilmId,setB2bFilmId=setDistFilmId
     const b2bFilm=films.find(f=>f.id===b2bFilmId)
     const openDist=(d)=>{
       const distFilms=films.filter(f=>f.dist===d).sort((a,b)=>(pickCounts[b.id]||0)-(pickCounts[a.id]||0))
@@ -4040,7 +4086,7 @@ export default function App(){
   }
 
   const CommissionerPage=()=>{
-    const [tab,setTab]=useState('phase')
+    const tab=commishTab,setTab=setCommishTab
     const TabBtn=({id,label})=><button onClick={()=>setTab(id)} style={{...S.btn,background:'none',border:'none',padding:'8px 14px',fontSize:'12px',fontWeight:tab===id?700:400,color:tab===id?T.gold:T.textSub,borderBottom:`2px solid ${tab===id?T.gold:'transparent'}`,borderRadius:0,textTransform:'none',letterSpacing:0}}>{label}</button>
     const runIngest=async()=>{
       if(!confirm('Run box office ingest now?'))return
@@ -4582,10 +4628,10 @@ export default function App(){
 
   // ── WAR ROOM PAGE — batch results entry + manual film amend ─────────────
   const WarRoomPage=()=>{
-    const[entries,setEntries]=useState({})
-    const[filterPhase,setFilterPhase]=useState('all')
-    const[filterStatus,setFilterStatus]=useState('pending')  // 'pending' | 'all'
-    const[search,setSearch]=useState('')
+    const entries=warEntries,setEntries=setWarEntries
+    const filterPhase=warFilterPhase,setFilterPhase=setWarFilterPhase
+    const filterStatus=warFilterStatus,setFilterStatus=setWarFilterStatus
+    const search=warSearch,setSearch=setWarSearch
 
     // "pending" = week has passed but no result yet (old logic)
     // "all" = every film in the DB
