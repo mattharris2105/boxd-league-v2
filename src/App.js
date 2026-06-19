@@ -4903,6 +4903,21 @@ export default function App(){
             <div style={{fontSize:'12px',color:T.textSub,marginBottom:'10px'}}>Invite code: <strong style={{color:T.gold}}>{league?.invite_code}</strong></div>
             <div style={{fontSize:'11px',color:T.textDim,marginBottom:'12px'}}>Share: boxd-league-v2.vercel.app/join/{league?.invite_code}</div>
             <Btn onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/join/${league?.invite_code}`);notify('Invite link copied',T.green)}} variant="outline" color={T.green} size="sm">Copy Invite Link</Btn>
+            <div style={{marginTop:'14px',paddingTop:'14px',borderTop:`1px solid ${T.border}`}}>
+              <div onClick={async()=>{
+                const makePublic=!league?.is_public
+                await supabase.from('leagues').update({is_public:makePublic}).eq('id',league.id)
+                setLeague({...league,is_public:makePublic})
+                notify(makePublic?'🌍 League is now public — anyone can discover and join':'🔒 League is now private',T.green)
+              }} style={{display:'flex',alignItems:'center',gap:'10px',cursor:'pointer',background:T.surfaceUp,borderRadius:'10px',padding:'12px',border:`1px solid ${league?.is_public?T.green+'44':T.border}`}}>
+                <span style={{fontSize:'18px'}}>{league?.is_public?'🌍':'🔒'}</span>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:'12px',fontWeight:700,color:T.text}}>{league?.is_public?'Public league':'Private league'}</div>
+                  <div style={{fontSize:'10px',color:T.textSub,marginTop:'1px'}}>{league?.is_public?'Listed in Discover — anyone can join':'Invite-only · tap to make public'}</div>
+                </div>
+                <span style={{fontSize:'11px',color:league?.is_public?T.green:T.gold,fontWeight:700}}>{league?.is_public?'✓ PUBLIC':'Make public'}</span>
+              </div>
+            </div>
           </div>
           {/* ── DISTRIBUTOR ACCESS CODES ──────────────────────────────────── */}
           <DistributorAccessManager/>
