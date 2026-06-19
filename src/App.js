@@ -1960,9 +1960,16 @@ export default function App(){
     // Future-phase films with no base_price stay locked (🔒 TBC)
     // Current-phase films without an estimate get a floor price so they're buyable
     let bp=film.basePrice
-    if(bp==null&&film.phase===curPhase())bp=5 // $5M floor for unpriced current-phase films
+    if(bp==null&&film.phase===curPhase())bp=5
     if(bp==null)return null
-    return Math.round((filmValues[film.id]??bp)*calcDemandMult(film,rosters,curPhase(),players.length,cfg.current_week,allPicks))
+    // RESULTED FILMS: compute value LIVE from opening + weekly grosses.
+    // This ensures legs (strong weekly holds) actually move the price,
+    // rather than reading a stale number from the film_values table.
+    if(results[film.id]!=null){
+      return calcMarketValue({...film,basePrice:bp},results[film.id],weeklyG[film.id]||{})
+    }
+    // UNRELEASED FILMS: base price × live demand drivers
+    return Math.round(bp*calcDemandMult(film,rosters,curPhase(),players.length,cfg.current_week,allPicks))
   }
   const isEarlyBird=(h)=>{
     const f=films.find(fl=>fl.id===h.film_id)
