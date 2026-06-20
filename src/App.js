@@ -1736,7 +1736,26 @@ function ShowtimesModal({film,onClose,onBookingClick,supabaseUrl,anonKey}){
 }
 
 
-export default function App(){
+class ErrorBoundary extends React.Component{
+  constructor(p){super(p);this.state={err:null}}
+  static getDerivedStateFromError(err){return{err}}
+  componentDidCatch(err,info){try{console.error('BOXD error:',err,info)}catch{}}
+  render(){
+    if(this.state.err){
+      return React.createElement('div',{style:{minHeight:'100vh',background:'#0D0A08',color:'#F2EAE0',fontFamily:'monospace',display:'flex',alignItems:'center',justifyContent:'center',padding:'24px',textAlign:'center'}},
+        React.createElement('div',{style:{maxWidth:'380px'}},
+          React.createElement('div',{style:{fontSize:'42px',fontWeight:900,color:'#E8A020',marginBottom:'12px'}},'BOXD'),
+          React.createElement('div',{style:{fontSize:'16px',marginBottom:'8px'}},'Something went wrong'),
+          React.createElement('div',{style:{fontSize:'13px',color:'#8A7A6E',marginBottom:'24px',lineHeight:1.6}},'The app hit an unexpected error. Reloading usually fixes it — your data is safe.'),
+          React.createElement('button',{onClick:()=>window.location.reload(),style:{background:'#E8A020',color:'#0D0A08',border:'none',borderRadius:'10px',padding:'14px 28px',fontSize:'14px',fontWeight:700,cursor:'pointer',fontFamily:'monospace'}},'Reload BOXD')
+        )
+      )
+    }
+    return this.props.children
+  }
+}
+
+function AppInner(){
   const[session,setSession]=useState(null)
   const[loading,setLoading]=useState(true)
   const[dataLoading,setDataLoading]=useState(false)
@@ -1777,7 +1796,7 @@ export default function App(){
     loadScreenings()
   }
   const cancelScreening=async(id)=>{
-    if(!confirm('Cancel this screening?'))return
+    if(!await confirmModal('Cancel this screening?',{danger:true}))return
     await supabase.from('screenings').delete().eq('id',id)
     loadScreenings();notify('Screening cancelled',T.textSub)
   }
@@ -1888,6 +1907,10 @@ export default function App(){
   const[newPollOpen,setNewPollOpen]=useState(false)
   const[resultsDismissedWk,setResultsDismissedWk]=useState(null)
   const[onboardOpen,setOnboardOpen]=useState(false)
+  const[confirmState,setConfirmState]=useState(null) // {message,resolve,danger}
+  const confirmModal=(message,opts={})=>new Promise(resolve=>{
+    setConfirmState({message,resolve,danger:opts.danger,confirmLabel:opts.confirmLabel||'Confirm',cancelLabel:opts.cancelLabel||'Cancel'})
+  })
   const[onboardStep,setOnboardStep]=useState(0)
   useEffect(()=>{
     // Show the guided intro once, to players who haven't bought anything yet
@@ -2046,7 +2069,8 @@ export default function App(){
     notify(`Joined ${lg.name}!`,T.green);loadLeagues();enterLeague(lg)
   }
   const leaveLeague=async()=>{
-    if(!league||!confirm(`Leave ${league.name}?`)) return
+    if(!league)return;
+    if(!await confirmModal(`Leave ${league.name}?`,{danger:true})) return
     await supabase.from('league_members').delete().eq('league_id',league.id).eq('user_id',session.user.id)
     await supabase.from('profiles').update({active_league_id:null}).eq('id',session.user.id)
     setLeague(null);loadLeagues()
@@ -2178,7 +2202,7 @@ export default function App(){
   }
 
   const advancePhase=async()=>{
-    if(!confirm(`Advance to Phase ${curPhase()+1}? This will bank budgets for all players.`)) return
+    if(!await confirmModal(`Advance to Phase ${curPhase()+1}? This will bank budgets for all players.`)) return
     setPhaseTransitioning(true)
     try{
       const completedPhase=curPhase()
@@ -2374,7 +2398,7 @@ export default function App(){
 
   const activateRecut=async()=>{
     if(chips?.recut_used)return notify('Recut already used',T.red)
-    if(!confirm('Activate THE RECUT? Your roster clears — zero fees.'))return
+    if(!await confirmModal('Activate THE RECUT? Your roster clears — zero fees.',{danger:true,confirmLabel:'Activate RECUT'}))return
     for(const h of rosters.filter(r=>r.player_id===profile.id&&r.active))
       await supabase.from('rosters').update({active:false,sold_price:filmVal(films.find(f=>f.id===h.film_id)||{})??(films.find(f=>f.id===h.film_id)?.basePrice??0),sold_week:cfg.current_week}).eq('id',h.id)
     if(chips)await supabase.from('chips').update({recut_used:true}).eq('player_id',profile.id).eq('league_id',league?.id)
@@ -3557,7 +3581,7 @@ export default function App(){
             <Pill color={myOscar.correct==null?T.gold:myOscar.correct?T.green:T.red}>{myOscar.correct==null?'Locked ✓':myOscar.correct?'✓ Correct':'✗ Wrong'}</Pill>
           </div>
         )})():<>{eligible.map(f=>(
-          <div key={f.id} className="hoverable" onClick={()=>{if(confirm(`Lock in ${f.title} as your Best Picture pick? You can't change it later.`))submitOscarPick(f.id)}} style={{...S.card,marginBottom:'8px',cursor:'pointer',display:'flex',gap:'12px',alignItems:'center'}}>
+          <div key={f.id} className="hoverable" onClick={async()=>{if(await confirmModal(`Lock in ${f.title} as your Best Picture pick? You can't change it later.`))submitOscarPick(f.id)}} style={{...S.card,marginBottom:'8px',cursor:'pointer',display:'flex',gap:'12px',alignItems:'center'}}>
             <FilmPoster film={f} width={42} height={63} radius={6}/>
             <div style={{flex:1}}><div style={{fontSize:'13px',fontWeight:600}}>{f.title}</div><div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>{f.dist} · {f.genre}{f.rt!=null?` · RT ${f.rt}%`:''}</div></div>
             <div style={{color:T.gold,fontSize:'18px'}}>›</div>
@@ -4357,7 +4381,7 @@ export default function App(){
     const tab=commishTab,setTab=setCommishTab
     const TabBtn=({id,label})=><button onClick={()=>setTab(id)} style={{...S.btn,background:'none',border:'none',padding:'8px 14px',fontSize:'12px',fontWeight:tab===id?700:400,color:tab===id?T.gold:T.textSub,borderBottom:`2px solid ${tab===id?T.gold:'transparent'}`,borderRadius:0,textTransform:'none',letterSpacing:0}}>{label}</button>
     const runIngest=async()=>{
-      if(!confirm('Run box office ingest now?'))return
+      if(!await confirmModal('Run box office ingest now?'))return
       try{
         const res=await fetch(`${SUPABASE_URL}/functions/v1/ingest-results`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${SUPABASE_ANON_KEY}`}})
         const data=await res.json()
@@ -4393,7 +4417,7 @@ export default function App(){
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'8px'}}>
               <div><div style={{fontSize:'14px',fontWeight:700,color:T.red}}>📡 Sample Signals</div><div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>One-click seed · launch-day kickstart</div></div>
               <Btn onClick={async()=>{
-                if(!confirm('Add 8 sample news signals to kickstart the league?'))return
+                if(!await confirmModal('Add 8 sample news signals to kickstart the league?'))return
                 const upcoming=films.filter(f=>results[f.id]==null&&f.phase===ph).slice(0,8)
                 if(upcoming.length<3)return notify('Need at least 3 unresulted films',T.red)
                 const samples=[
@@ -4526,7 +4550,7 @@ export default function App(){
                     <div style={{marginTop:'10px',display:'flex',gap:'10px',alignItems:'center',background:`${T.blue}10`,borderRadius:'8px',padding:'8px 10px'}}>
                       <div style={{flex:1,fontSize:'10px',color:T.blue,lineHeight:1.5}}>Suggest estimates for {fillable.length} film{fillable.length!==1?'s':''} from comparable resulted titles. You can fine-tune any of them afterwards.</div>
                       <Btn onClick={async()=>{
-                        if(!confirm(`Auto-fill estimates for ${fillable.length} film${fillable.length!==1?'s':''}? You can edit them individually afterwards.`))return
+                        if(!await confirmModal(`Auto-fill estimates for ${fillable.length} film${fillable.length!==1?'s':''}? You can edit them individually afterwards.`))return
                         for(const{f,sug} of fillable)await supabase.from('films').update({est_m:sug.est}).eq('id',f.id)
                         notify(`✓ Filled ${fillable.length} estimate${fillable.length!==1?'s':''}`,T.green);loadData(league?.id)
                       }} color={T.blue} textColor="#fff" size="sm">Fill all</Btn>
@@ -4542,7 +4566,7 @@ export default function App(){
                     <div style={{marginTop:'10px',display:'flex',gap:'10px',alignItems:'center',background:`${T.gold}10`,borderRadius:'8px',padding:'8px 10px'}}>
                       <div style={{flex:1,fontSize:'10px',color:T.gold,lineHeight:1.5}}>{mismatched.length} film{mismatched.length!==1?'s':''} have an IPO price that doesn't match their current estimate. Recalculate to sync them.</div>
                       <Btn onClick={async()=>{
-                        if(!confirm(`Recalculate IPO prices for ${mismatched.length} film${mismatched.length!==1?'s':''} from their estimates?`))return
+                        if(!await confirmModal(`Recalculate IPO prices for ${mismatched.length} film${mismatched.length!==1?'s':''} from their estimates?`))return
                         for(const f of mismatched)await supabase.from('films').update({base_price:calcIPO(f.estM)}).eq('id',f.id)
                         notify(`✓ Recalculated ${mismatched.length} IPO price${mismatched.length!==1?'s':''}`,T.green);loadData(league?.id)
                       }} color={T.gold} size="sm">Recalc IPOs</Btn>
@@ -4575,7 +4599,7 @@ export default function App(){
                   <div style={{marginTop:'10px',display:'flex',gap:'10px',alignItems:'center',background:`${T.red}10`,borderRadius:'8px',padding:'8px 10px'}}>
                     <div style={{flex:1,fontSize:'10px',color:T.red,lineHeight:1.5}}>Future-phase films have visible prices — players could forward-plan. Lock them back to TBC?</div>
                     <Btn onClick={async()=>{
-                      if(!confirm(`Set base_price to NULL for ${priceLeaks.length} future-phase film${priceLeaks.length!==1?'s':''}?`))return
+                      if(!await confirmModal(`Set base_price to NULL for ${priceLeaks.length} future-phase film${priceLeaks.length!==1?'s':''}?`,{danger:true}))return
                       for(const f of priceLeaks)await supabase.from('films').update({base_price:null}).eq('id',f.id)
                       notify(`🔒 ${priceLeaks.length} prices locked`,T.green);loadData(league?.id)
                     }} color={T.red} textColor="#fff" size="sm">Lock all</Btn>
@@ -4600,7 +4624,7 @@ export default function App(){
                     notify(`✓ ${f.title} updated`,T.green);loadData(league?.id)
                   }}
                   onDelete={async()=>{
-                    if(!confirm(`Delete "${f.title}"? This also removes results and rosters.`))return
+                    if(!await confirmModal(`Delete "${f.title}"? This also removes results and rosters.`,{danger:true,confirmLabel:"Delete"}))return
                     await supabase.from('rosters').delete().eq('film_id',f.id)
                     await supabase.from('results').delete().eq('film_id',f.id)
                     await supabase.from('weekly_grosses').delete().eq('film_id',f.id)
@@ -4878,7 +4902,7 @@ export default function App(){
                       notify(`✓ ${f.title} updated`,T.green);loadData(league?.id)
                     }}
                     onDelete={async()=>{
-                      if(!confirm(`Delete "${f.title}"? This also removes results and rosters.`))return
+                      if(!await confirmModal(`Delete "${f.title}"? This also removes results and rosters.`,{danger:true,confirmLabel:"Delete"}))return
                       await supabase.from('rosters').delete().eq('film_id',f.id)
                       await supabase.from('results').delete().eq('film_id',f.id)
                       await supabase.from('weekly_grosses').delete().eq('film_id',f.id)
@@ -5511,28 +5535,67 @@ export default function App(){
       {showtimesFilm&&<ShowtimesModal film={showtimesFilm} onClose={()=>setShowtimesFilm(null)} onBookingClick={trackBookingClick} supabaseUrl={SUPABASE_URL} anonKey={SUPABASE_ANON_KEY}/>}
       {scoreModal&&<ScoreBreakdownModal film={scoreModal.film} holding={scoreModal.holding} results={results} weeklyGrosses={weeklyG} allChips={allChips} isEarlyBird={isEarlyBird} onClose={()=>setScoreModal(null)}/>}
       {profileEditOpen&&<ProfileEditModal/>}
+      {confirmState&&(
+        <div style={{position:'fixed',inset:0,background:'#000000DD',zIndex:1100,display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}} onClick={()=>{confirmState.resolve(false);setConfirmState(null)}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:T.surface,border:`1px solid ${confirmState.danger?T.red+'44':T.border}`,borderRadius:'18px',padding:'24px',maxWidth:'340px',width:'100%'}}>
+            <div style={{fontSize:'15px',color:T.text,lineHeight:1.6,marginBottom:'20px',textAlign:'center'}}>{confirmState.message}</div>
+            <div style={{display:'flex',gap:'10px'}}>
+              <Btn onClick={()=>{confirmState.resolve(false);setConfirmState(null)}} variant="outline" color={T.textSub} sx={{flex:1}}>{confirmState.cancelLabel}</Btn>
+              <Btn onClick={()=>{confirmState.resolve(true);setConfirmState(null)}} color={confirmState.danger?T.red:T.gold} textColor={confirmState.danger?'#fff':'#0D0A08'} sx={{flex:1}}>{confirmState.confirmLabel}</Btn>
+            </div>
+          </div>
+        </div>
+      )}
       {onboardOpen&&(()=>{
+        const budget=PHASE_BUDGETS[curPhase()]||150
+        const recommend=films
+          .filter(f=>f.phase===curPhase()&&results[f.id]==null&&filmVal(f)!=null&&filmVal(f)<=budget*0.4)
+          .sort((a,b)=>{const ae=a.estM!=null?1:0,be=b.estM!=null?1:0;return be-ae||filmVal(a)-filmVal(b)})[0]
+        const iOwnSomething=rosters.some(r=>r.player_id===profile.id&&r.active)
         const STEPS=[
-          {icon:'🎬',title:'Welcome to BOXD',body:'Draft 2026 films like stocks. Their value rises and falls on real box office performance. Beat your league by spotting the films the market gets wrong.'},
-          {icon:'💰',title:'Buy low, win big',body:`Each film has an IPO price based on its expected opening. You've got a budget of ${cur}${PHASE_BUDGETS[curPhase()]||150}M this phase. A film that opens above its estimate jumps in value — and earns you points.`},
-          {icon:'📈',title:'Performance = points',body:'When a film opens, you score on how it did versus its estimate. Strong weekly holds (good "legs") push its value even higher. Underperformers sink.'},
-          {icon:'👁',title:'Scout before you buy',body:'Add films to your watchlist, check forecasts, read the buzz. The Market tab is where you\'ll spend most of your time. Ready to make your first pick?'},
+          {type:'card',icon:'🎬',title:'Welcome to BOXD',body:'You are about to draft 2026 films like stocks. Their value moves on real box office numbers. The player who reads the market best wins. Takes 60 seconds to learn.'},
+          {type:'card',icon:'💰',title:`You have ${cur}${budget}M to invest`,body:'Every film has an IPO price set by its expected opening weekend. Cheap films are cheap because the market expects little. If they overperform, they soar. That is where you win.'},
+          {type:'card',icon:'📈',title:'How you score',body:'When a film opens, you earn points based on how it did versus its estimate. A film that doubles its estimate scores big. Strong word-of-mouth (small weekly drops) pushes value even higher.'},
+          {type:'card',icon:'🎯',title:'The whole game in one line',body:'Buy films you think the market is underrating. Sell before they disappoint. Watch the box office prove you right. Ready to make your first pick?'},
+          {type:'action',icon:'👇',title:'Make your first pick',body:recommend?`Here is a smart starter: ${recommend.title} at ${cur}${filmVal(recommend)}M. Affordable, with room to grow. Buy it below, or skip and explore.`:'Head to the Market tab, tap any film to see details, and hit Buy when you find one you believe in.'},
         ]
         const step=STEPS[onboardStep]
         const last=onboardStep===STEPS.length-1
         const finish=()=>{localStorage.setItem('boxd_onboard_done','1');setOnboardOpen(false);setPage('market')}
+        const buyRecommended=async()=>{
+          if(recommend){
+            await buyFilm(recommend)
+            localStorage.setItem('boxd_onboard_done','1')
+            setOnboardOpen(false);setPage('roster')
+            setTimeout(()=>notify(`You are in the game! ${recommend.title} is now in your roster.`,T.green),400)
+          }else{finish()}
+        }
         return(
-          <div style={{position:'fixed',inset:0,background:'#000000E0',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}}>
+          <div style={{position:'fixed',inset:0,background:'#000000EE',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}}>
             <div style={{background:T.surface,border:`1px solid ${T.gold}33`,borderRadius:'20px',padding:'32px 24px',maxWidth:'380px',width:'100%',textAlign:'center'}}>
               <div style={{fontSize:'48px',marginBottom:'16px'}}>{step.icon}</div>
               <div style={{fontSize:'20px',fontWeight:800,color:T.gold,marginBottom:'12px'}}>{step.title}</div>
-              <div style={{fontSize:'14px',color:T.text,lineHeight:1.6,marginBottom:'24px'}}>{step.body}</div>
+              <div style={{fontSize:'14px',color:T.text,lineHeight:1.6,marginBottom:'20px'}}>{step.body}</div>
+              {step.type==='action'&&recommend&&(
+                <div onClick={()=>{setFilmDetail(recommend)}} style={{display:'flex',gap:'10px',alignItems:'center',background:T.surfaceUp,borderRadius:'12px',padding:'10px',marginBottom:'20px',cursor:'pointer',textAlign:'left'}}>
+                  <FilmPoster film={recommend} width={36} height={54} radius={5}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:'13px',fontWeight:700,color:T.text}}>{recommend.title}</div>
+                    <div style={{fontSize:'10px',color:T.textSub}}>{recommend.dist} · {recommend.genre}</div>
+                  </div>
+                  <div style={{fontSize:'15px',fontWeight:800,color:T.gold,fontFamily:T.mono}}>{cur}{filmVal(recommend)}M</div>
+                </div>
+              )}
               <div style={{display:'flex',gap:'6px',justifyContent:'center',marginBottom:'20px'}}>
                 {STEPS.map((_,i)=><div key={i} style={{width:i===onboardStep?'20px':'6px',height:'6px',borderRadius:'3px',background:i===onboardStep?T.gold:T.border,transition:'all .2s'}}/>)}
               </div>
               <div style={{display:'flex',gap:'10px'}}>
-                {!last&&<Btn onClick={finish} variant="outline" color={T.textSub} sx={{flex:1}}>Skip</Btn>}
-                <Btn onClick={()=>last?finish():setOnboardStep(s=>s+1)} color={T.gold} sx={{flex:last?1:2}}>{last?'Start playing →':'Next'}</Btn>
+                {!last&&<Btn onClick={finish} variant="outline" color={T.textSub} sx={{flex:1}}>Skip tour</Btn>}
+                {last
+                  ?(recommend&&!iOwnSomething
+                      ?<><Btn onClick={finish} variant="outline" color={T.textSub} sx={{flex:1}}>Explore</Btn><Btn onClick={buyRecommended} color={T.green} textColor="#0D0A08" sx={{flex:2}}>Buy {cur}{filmVal(recommend)}M</Btn></>
+                      :<Btn onClick={finish} color={T.gold} sx={{flex:1}}>Start exploring</Btn>)
+                  :<Btn onClick={()=>setOnboardStep(s=>s+1)} color={T.gold} sx={{flex:2}}>Next</Btn>}
               </div>
             </div>
           </div>
@@ -5597,4 +5660,8 @@ export default function App(){
       )}
     </div>
   )
+}
+
+export default function App(){
+  return <ErrorBoundary><AppInner/></ErrorBoundary>
 }
