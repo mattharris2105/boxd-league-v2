@@ -112,6 +112,7 @@ const GLOBAL_CSS = `
 
   /* Animations */
   @keyframes shimmer{0%{transform:translateX(-100%);}100%{transform:translateX(200%);}}
+  @keyframes posterFade{from{opacity:0;}to{opacity:1;}}
   @keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
   @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
   @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
@@ -331,9 +332,8 @@ function FilmPoster({film,width,height,radius=8,imgStyle={},owned=false,scored=f
   const h=typeof height==='number'?`${height}px`:height
   return(
     <div ref={containerRef} onMouseMove={onMouseMove} onMouseLeave={onMouseLeave} style={{width:w,height:h,borderRadius:radius,flexShrink:0,overflow:'hidden',position:'relative',contain:'strict',transform:'translateZ(0)',isolation:'isolate',transition:tilt?'transform .2s ease':'none',willChange:tilt?'transform':'auto'}}>
-      {url===undefined&&<div style={{position:'absolute',inset:0,background:`linear-gradient(90deg,${T.surfaceUp} 25%,${T.border} 50%,${T.surfaceUp} 75%)`,backgroundSize:'200% 100%',animation:'shimmer 1.6s ease-in-out infinite'}}/>}
-      {url===null&&<div style={{position:'absolute',inset:0,background:`linear-gradient(145deg,${gc}28 0%,${T.surfaceUp} 100%)`,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:5}}><div style={{fontSize:typeof width==='number'?Math.max(16,width*0.28):20,lineHeight:1}}>🎬</div><div style={{fontSize:'9px',color:gc,textAlign:'center',padding:'0 6px',lineHeight:1.2}}>{film?.genre}</div></div>}
-      {url&&<img src={url} alt={film?.title} loading="lazy" decoding="async" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',display:'block',...imgStyle}} onError={()=>setUrl(null)}/>}
+      {(url===undefined||url===null)&&<div style={{position:'absolute',inset:0,background:`linear-gradient(145deg,${gc}28 0%,${T.surfaceUp} 100%)`,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:5}}><div style={{fontSize:typeof width==='number'?Math.max(16,width*0.28):20,lineHeight:1}}>🎬</div><div style={{fontSize:'9px',color:gc,textAlign:'center',padding:'0 6px',lineHeight:1.2}}>{film?.genre}</div></div>}
+      {url&&<img src={url} alt={film?.title} loading="lazy" decoding="async" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',display:'block',animation:'posterFade .3s ease',...imgStyle}} onError={()=>setUrl(null)}/>}
       {owned&&url&&<div className="poster-shine"/>}
       {scored&&url&&<div style={{position:'absolute',inset:0,background:`linear-gradient(to top, ${T.green}44, transparent 60%)`,pointerEvents:'none'}}/>}
     </div>
@@ -1461,10 +1461,24 @@ function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEven
                       const ratio=film.estM?actual/film.estM:1
                       const perf=ratio>=2?2:ratio>=1.5?1.6:ratio>=1.3?1.35:ratio>=1.1?1.15:ratio>=0.95?1:ratio>=0.8?0.85:ratio>=0.6?0.65:ratio>=0.4?0.45:0.25
                       const rtMult=film.rt!=null?(film.rt>=90?1.15:film.rt>=75?1.08:film.rt<50?0.9:1):1
+                      // Re-derive the weekly legs adjustments exactly as calcMarketValue does
+                      const BANDS={2:{std:-0.55,up:0.30,down:-0.15},3:{std:-0.40,up:0.20,down:-0.10},4:{std:-0.35,up:0.15,down:-0.05},5:{std:-0.40,up:0.10,down:0},6:{std:-0.40,up:0.10,down:0}}
+                      const wg=weeklyG[film.id]||{}
+                      const legRows=[]
+                      for(let w=2;w<=6;w++){
+                        const c=Number(wg[w]),prev=w===2?actual:Number(wg[w-1])
+                        if(!c||!prev||isNaN(c)||isNaN(prev))continue
+                        const drop=(c-prev)/prev,band=BANDS[w]
+                        let adj
+                        if(drop>=band.std){const range=0-band.std;const frac=range>0?Math.min(1,(drop-band.std)/range):0;adj=band.up*frac}
+                        else{const range=band.std-(-1);const frac=range>0?Math.min(1,(band.std-drop)/range):0;adj=band.down*frac}
+                        legRows.push({label:`Week ${w} legs`,val:`${adj>=0?'+':''}${Math.round(adj*100)}%`,sub:`dropped ${Math.round(drop*100)}% (std ${Math.round(band.std*100)}%)`,col:adj>0?T.green:adj<0?T.red:T.textSub})
+                      }
                       const driverRows=[
                         {label:'Base price (IPO)',val:ipo!=null?`$${ipo}M`:'—',sub:'What it floated at',col:T.text},
                         {label:'Box office vs estimate',val:`${perf>=1?'+':''}${Math.round((perf-1)*100)}%`,sub:`$${actual}M actual vs $${film.estM||'?'}M est · ${ratio.toFixed(2)}×`,col:perf>=1?T.green:T.red},
                         ...(film.rt!=null?[{label:'Critics (RT)',val:`${rtMult>=1?'+':''}${Math.round((rtMult-1)*100)}%`,sub:`${film.rt}% score`,col:rtMult>1?T.green:rtMult<1?T.red:T.textSub}]:[]),
+                        ...legRows,
                       ]
                       return driverRows.map(d=>(
                         <div key={d.label} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',borderBottom:`1px solid ${T.border}`,fontSize:'12px'}}>
