@@ -2952,7 +2952,7 @@ function AppInner(){
             <Btn onClick={()=>{setMarketSearch('');setMarketGenre('All')}} variant="outline" color={T.gold} size="sm">Clear filters</Btn>
           </div>
         )}
-        <div className="film-grid" style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:'10px'}}>
+        <div className="film-grid" style={{display:'grid',gridTemplateColumns:isMobile?'repeat(auto-fill,minmax(160px,1fr))':'repeat(auto-fill,minmax(185px,1fr))',gap:isMobile?'10px':'16px'}}>
           {visible.map(film=>{
             const actual=results[film.id]
             const val=filmVal(film)
@@ -5487,7 +5487,7 @@ function AppInner(){
         )}
 
         {/* MAIN CONTENT */}
-        <div style={{padding:'20px',maxWidth:'1100px',margin:'0 auto'}}>
+        <div style={{padding:isMobile?'20px':'24px 32px',maxWidth:isMobile?'100%':'1280px',margin:'0 auto',width:'100%'}}>
           {!isStandalone&&!installHidden&&(installEvt||isIOS)&&profile&&(
             <div style={{background:`linear-gradient(135deg,${T.gold}14,${T.surface})`,border:`1px solid ${T.gold}44`,borderRadius:'12px',padding:'12px 14px',marginBottom:'14px',display:'flex',gap:'12px',alignItems:'center'}}>
               <span style={{fontSize:'20px'}}>📲</span>
