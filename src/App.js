@@ -1926,6 +1926,11 @@ function AppInner(){
     setConfirmState({message,resolve,danger:opts.danger,confirmLabel:opts.confirmLabel||'Confirm',cancelLabel:opts.cancelLabel||'Cancel'})
   })
   const[onboardStep,setOnboardStep]=useState(0)
+  const[tourStep,setTourStep]=useState(-1) // -1 = not touring
+  const TOUR_PAGES=['market','roster','league','intent','community','forecaster','market']
+  useEffect(()=>{
+    if(tourStep>=0&&tourStep<TOUR_PAGES.length)setPage(TOUR_PAGES[tourStep])
+  },[tourStep])
   useEffect(()=>{
     // Show the guided intro once, to players who haven't bought anything yet
     if(!profile||!league)return
@@ -2206,8 +2211,14 @@ function AppInner(){
   const isWindow=()=>cfg.phase_window_active||false
   const phaseBanked=(pid,ph)=>ph<=1?0:phaseBudgets.find(pb=>pb.player_id===pid&&pb.phase===ph-1)?.budget_banked||0
   const phaseAlloc=(pid,ph)=>{const s=phaseBudgets.find(pb=>pb.player_id===pid&&pb.phase===ph);return s?s.budget_allocated:(PHASE_BUDGETS[ph]||100)+phaseBanked(pid,ph)}
+  // Money tied up in films currently held this phase
   const phaseSpent=(pid,ph)=>rosters.filter(r=>r.player_id===pid&&r.phase===ph&&r.active&&films.find(f=>f.id===r.film_id)).reduce((s,r)=>s+r.bought_price,0)
-  const budgetLeft=(pid)=>Math.max(0,phaseAlloc(pid,curPhase())-phaseSpent(pid,curPhase()))
+  // Net realised from sells this phase: when you sell, you got back its bought
+  // price out of "spent" (it's no longer active), but you only actually receive
+  // the proceeds — so the difference (bought − proceeds) is a real loss that
+  // must come out of your budget. Gains above purchase add to it.
+  const phaseRealised=(pid,ph)=>rosters.filter(r=>r.player_id===pid&&r.phase===ph&&!r.active&&r.sold_price!=null).reduce((s,r)=>s+((r.sold_price||0)-(r.bought_price||0)),0)
+  const budgetLeft=(pid)=>Math.max(0,phaseAlloc(pid,curPhase())-phaseSpent(pid,curPhase())+phaseRealised(pid,curPhase()))
   const bankBudget=async(pid,ph)=>{
     const alloc=phaseAlloc(pid,ph),spent=phaseSpent(pid,ph),banked=Math.max(0,alloc-spent)
     const ex=phaseBudgets.find(pb=>pb.player_id===pid&&pb.phase===ph)
@@ -5571,45 +5582,59 @@ function AppInner(){
           {type:'card',icon:'💰',title:`You have ${cur}${budget}M to invest`,body:'Every film has an IPO price set by its expected opening weekend. Cheap films are cheap because the market expects little. If they overperform, they soar. That is where you win.'},
           {type:'card',icon:'📈',title:'How you score',body:'When a film opens, you earn points based on how it did versus its estimate. A film that doubles its estimate scores big. Strong word-of-mouth (small weekly drops) pushes value even higher.'},
           {type:'card',icon:'🎯',title:'The whole game in one line',body:'Buy films you think the market is underrating. Sell before they disappoint. Watch the box office prove you right. Ready to make your first pick?'},
-          {type:'action',icon:'👇',title:'Make your first pick',body:recommend?`Here is a smart starter: ${recommend.title} at ${cur}${filmVal(recommend)}M. Affordable, with room to grow. Buy it below, or skip and explore.`:'Head to the Market tab, tap any film to see details, and hit Buy when you find one you believe in.'},
+          {type:'action',icon:'🗺️',title:'Take the tour',body:'Let me show you around — a quick walk through each screen so you know where everything is. Takes 30 seconds.'},
         ]
         const step=STEPS[onboardStep]
         const last=onboardStep===STEPS.length-1
         const finish=()=>{localStorage.setItem('boxd_onboard_done','1');setOnboardOpen(false);setPage('market')}
-        const buyRecommended=async()=>{
-          if(recommend){
-            await buyFilm(recommend)
-            localStorage.setItem('boxd_onboard_done','1')
-            setOnboardOpen(false);setPage('roster')
-            setTimeout(()=>notify(`You are in the game! ${recommend.title} is now in your roster.`,T.green),400)
-          }else{finish()}
-        }
+        const startTour=()=>{setOnboardOpen(false);setTourStep(0)}
         return(
           <div style={{position:'fixed',inset:0,background:'#000000EE',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}}>
             <div style={{background:T.surface,border:`1px solid ${T.gold}33`,borderRadius:'20px',padding:'32px 24px',maxWidth:'380px',width:'100%',textAlign:'center'}}>
               <div style={{fontSize:'48px',marginBottom:'16px'}}>{step.icon}</div>
               <div style={{fontSize:'20px',fontWeight:800,color:T.gold,marginBottom:'12px'}}>{step.title}</div>
               <div style={{fontSize:'14px',color:T.text,lineHeight:1.6,marginBottom:'20px'}}>{step.body}</div>
-              {step.type==='action'&&recommend&&(
-                <div onClick={()=>{setFilmDetail(recommend)}} style={{display:'flex',gap:'10px',alignItems:'center',background:T.surfaceUp,borderRadius:'12px',padding:'10px',marginBottom:'20px',cursor:'pointer',textAlign:'left'}}>
-                  <FilmPoster film={recommend} width={36} height={54} radius={5}/>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:'13px',fontWeight:700,color:T.text}}>{recommend.title}</div>
-                    <div style={{fontSize:'10px',color:T.textSub}}>{recommend.dist} · {recommend.genre}</div>
-                  </div>
-                  <div style={{fontSize:'15px',fontWeight:800,color:T.gold,fontFamily:T.mono}}>{cur}{filmVal(recommend)}M</div>
-                </div>
-              )}
               <div style={{display:'flex',gap:'6px',justifyContent:'center',marginBottom:'20px'}}>
                 {STEPS.map((_,i)=><div key={i} style={{width:i===onboardStep?'20px':'6px',height:'6px',borderRadius:'3px',background:i===onboardStep?T.gold:T.border,transition:'all .2s'}}/>)}
               </div>
               <div style={{display:'flex',gap:'10px'}}>
                 {!last&&<Btn onClick={finish} variant="outline" color={T.textSub} sx={{flex:1}}>Skip tour</Btn>}
                 {last
-                  ?(recommend&&!iOwnSomething
-                      ?<><Btn onClick={finish} variant="outline" color={T.textSub} sx={{flex:1}}>Explore</Btn><Btn onClick={buyRecommended} color={T.green} textColor="#0D0A08" sx={{flex:2}}>Buy {cur}{filmVal(recommend)}M</Btn></>
-                      :<Btn onClick={finish} color={T.gold} sx={{flex:1}}>Start exploring</Btn>)
+                  ?<><Btn onClick={finish} variant="outline" color={T.textSub} sx={{flex:1}}>Skip</Btn><Btn onClick={startTour} color={T.gold} sx={{flex:2}}>Take the tour →</Btn></>
                   :<Btn onClick={()=>setOnboardStep(s=>s+1)} color={T.gold} sx={{flex:2}}>Next</Btn>}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+      {tourStep>=0&&(()=>{
+        const TOUR=[
+          {page:'market',icon:'🎬',title:'The Market',body:'This is your trading floor. Every film has a live price. Tap any film to see its details, watchlist it, or buy. Prices rise as release nears and as more players buy in.'},
+          {page:'roster',icon:'🎞️',title:'Your Roster',body:'Films you own live here. You\'ll see what you paid, what they\'re worth now, and your points. Sell anytime — but watch the transaction fee outside trading windows.'},
+          {page:'league',icon:'🏆',title:'Standings',body:'Where you rank against your league. Points come from how your films perform versus their estimates. The gap to the player above you is shown so you always know the chase.'},
+          {page:'intent',icon:'👁️',title:'Watchlist',body:'Films you\'re tracking but haven\'t bought. Great for keeping an eye on prices before you commit. Your watchlist also feeds the buzz data.'},
+          {page:'community',icon:'👥',title:'Community',body:'The social hub — reviews, comments, screenings you can join, and the league buzz feed. React, discuss, and organise cinema trips with your league.'},
+          {page:'forecaster',icon:'📊',title:'Forecaster',body:'Predict opening weekends and track your accuracy against the league. Pure bragging rights — sharpen your instincts here before you bet your budget.'},
+          {page:'market',icon:'✅',title:'You\'re all set!',body:'That\'s the tour. Head to the Market, find a film you believe in, and make your first pick. Good luck — may the box office be in your favour.'},
+        ]
+        const t=TOUR[tourStep]
+        const last=tourStep===TOUR.length-1
+        const end=()=>{localStorage.setItem('boxd_onboard_done','1');setTourStep(-1);setPage('market')}
+        return(
+          <div style={{position:'fixed',inset:0,background:'#000000CC',zIndex:1000,display:'flex',alignItems:'flex-end',justifyContent:'center',padding:'0 0 100px',pointerEvents:'none'}}>
+            <div style={{background:T.surface,border:`1px solid ${T.gold}44`,borderRadius:'18px',padding:'20px',maxWidth:'360px',width:'calc(100% - 32px)',boxShadow:'0 12px 48px #000000',pointerEvents:'auto'}}>
+              <div style={{display:'flex',gap:'10px',alignItems:'center',marginBottom:'10px'}}>
+                <span style={{fontSize:'24px'}}>{t.icon}</span>
+                <div style={{fontSize:'16px',fontWeight:800,color:T.gold}}>{t.title}</div>
+              </div>
+              <div style={{fontSize:'13px',color:T.text,lineHeight:1.6,marginBottom:'16px'}}>{t.body}</div>
+              <div style={{display:'flex',gap:'5px',justifyContent:'center',marginBottom:'14px'}}>
+                {TOUR.map((_,i)=><div key={i} style={{width:i===tourStep?'18px':'5px',height:'5px',borderRadius:'3px',background:i===tourStep?T.gold:T.border}}/>)}
+              </div>
+              <div style={{display:'flex',gap:'10px'}}>
+                <Btn onClick={end} variant="outline" color={T.textSub} sx={{flex:1}}>{last?'Done':'Skip'}</Btn>
+                {!last&&<Btn onClick={()=>setTourStep(s=>s+1)} color={T.gold} sx={{flex:2}}>Next ({tourStep+1}/{TOUR.length})</Btn>}
+                {last&&<Btn onClick={end} color={T.green} textColor="#0D0A08" sx={{flex:2}}>Start playing →</Btn>}
               </div>
             </div>
           </div>
