@@ -790,6 +790,17 @@ function InviteLanding({code,onLogin}){
   )
 }
 
+function AccessDenied({onBack}){
+  return(
+    <div style={{textAlign:'center',padding:'60px 24px',animation:'fadeUp .2s ease'}}>
+      <div style={{fontSize:'48px',marginBottom:'16px'}}>🔒</div>
+      <div style={{fontSize:'18px',fontWeight:800,color:T.text,marginBottom:'8px'}}>Commissioner only</div>
+      <div style={{fontSize:'13px',color:T.textSub,marginBottom:'24px',maxWidth:'320px',marginLeft:'auto',marginRight:'auto',lineHeight:1.6}}>This area is for the league commissioner — managing films, results, and league settings. If you think you should have access, ask your commissioner.</div>
+      <Btn onClick={onBack} color={T.gold}>Back to Market</Btn>
+    </div>
+  )
+}
+
 function Login(){
   const[email,setEmail]=useState('')
   const[password,setPassword]=useState('')
@@ -1191,7 +1202,7 @@ function ReviewEditor({existing,onSave,onDelete}){
 }
 
 // ── COMMENT NODE — recursive threaded comment with likes + reply ──────────
-function CommentNode({comment,comments,players,profile,commentLikes,onLike,onReply,onDelete,depth}){
+function CommentNode({comment,comments,players,profile,commentLikes,onLike,onReply,onDelete,depth,isAdmin}){
   const[replyOpen,setReplyOpen]=useState(false)
   const[replyText,setReplyText]=useState('')
   const[replyGif,setReplyGif]=useState('')
@@ -1217,7 +1228,7 @@ function CommentNode({comment,comments,players,profile,commentLikes,onLike,onRep
         <div style={{display:'flex',gap:'14px',alignItems:'center',marginTop:'4px'}}>
           <button onClick={()=>onLike(comment.id)} style={{background:'none',border:'none',cursor:'pointer',fontSize:'11px',color:iLiked?T.gold:T.textDim,padding:0,fontWeight:iLiked?700:400}}>♥ {likes.length>0?likes.length:''}</button>
           {depth<3&&<button onClick={()=>setReplyOpen(!replyOpen)} style={{background:'none',border:'none',cursor:'pointer',fontSize:'11px',color:T.textDim,padding:0}}>↩ Reply</button>}
-          {comment.user_id===profile?.id&&<button onClick={()=>onDelete(comment.id)} style={{background:'none',border:'none',cursor:'pointer',fontSize:'11px',color:T.textDim,padding:0}}>✕</button>}
+          {(comment.user_id===profile?.id||isAdmin)&&<button onClick={()=>onDelete(comment.id)} title={isAdmin&&comment.user_id!==profile?.id?'Delete (moderator)':'Delete'} style={{background:'none',border:'none',cursor:'pointer',fontSize:'11px',color:isAdmin&&comment.user_id!==profile?.id?T.red:T.textDim,padding:0}}>✕</button>}
         </div>
         {replyOpen&&(
           <div style={{marginTop:'8px'}}>
@@ -1232,7 +1243,7 @@ function CommentNode({comment,comments,players,profile,commentLikes,onLike,onRep
         )}
         {replies.map(r=>(
           <div key={r.id} style={{marginTop:'12px'}}>
-            <CommentNode comment={r} comments={comments} players={players} profile={profile} commentLikes={commentLikes} onLike={onLike} onReply={onReply} onDelete={onDelete} depth={depth+1}/>
+            <CommentNode comment={r} comments={comments} players={players} profile={profile} commentLikes={commentLikes} onLike={onLike} onReply={onReply} onDelete={onDelete} depth={depth+1} isAdmin={isAdmin}/>
           </div>
         ))}
       </div>
@@ -1285,7 +1296,7 @@ function GifPicker({onPick,onClose}){
 }
 
 
-function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEvents=[],news=[],rosters=[],filmValues={},weeklyG={},reviews=[],reviewComments=[],onAddReviewComment,bookingClicks=[],onSaveReview,onDeleteReview,currentWeek=null,phase=1,onTogglePick,onBookingClick,onShowtimes,onClose,league}){
+function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEvents=[],news=[],rosters=[],filmValues={},weeklyG={},reviews=[],reviewComments=[],onAddReviewComment,bookingClicks=[],onSaveReview,onDeleteReview,currentWeek=null,phase=1,onTogglePick,onBookingClick,onShowtimes,onClose,league,isAdmin=false}){
   const[comments,setComments]=useState([])
   const[commentLikes,setCommentLikes]=useState([])
   const[gifUrl,setGifUrl]=useState('')
@@ -1307,6 +1318,7 @@ function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEven
   const loadComments=async()=>{const{data}=await supabase.from('film_comments').select('*').eq('film_id',film.id).order('created_at',{ascending:true});if(data)setComments(data)}
   const loadCommentLikes=async()=>{const{data}=await supabase.from('comment_likes').select('*');if(data)setCommentLikes(data)}
   const postWithGif=async()=>{
+    if(profile?.is_banned)return notify('You are unable to post in this league',T.red)
     if(!text.trim()&&!gifUrl)return
     await supabase.from('film_comments').insert({user_id:profile.id,film_id:film.id,comment:text.trim(),gif_url:gifUrl||null,league_id:league?.id})
     setText('');setGifUrl('');loadComments()
@@ -1573,7 +1585,7 @@ function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEven
               {comments.filter(c=>!c.parent_id).map(c=>(
                 <CommentNode key={c.id} comment={c} comments={comments} players={players} profile={profile}
                   commentLikes={commentLikes} onLike={toggleCommentLike} onReply={postReply}
-                  onDelete={cid=>supabase.from('film_comments').delete().eq('id',cid).then(loadComments)} depth={0}/>
+                  onDelete={cid=>supabase.from('film_comments').delete().eq('id',cid).then(loadComments)} depth={0} isAdmin={isAdmin}/>
               ))}
             </div>
             <div style={{padding:'14px 24px 24px',borderTop:`1px solid ${T.border}`,flexShrink:0}}>
@@ -1795,6 +1807,7 @@ function AppInner(){
     if(a)setAttendees(a)
   }
   const hostScreening=async({filmId,cinema,city,at,note,bookingUrl})=>{
+    if(profile?.is_banned)return notify('You are unable to post in this league',T.red)
     if(!profile)return notify('Create a profile first',T.red)
     const{data,error}=await supabase.from('screenings').insert({league_id:league?.id,host_id:profile.id,film_id:filmId,cinema,city,screening_at:at||null,note:note||null,booking_url:bookingUrl||null}).select().maybeSingle()
     if(error)return notify(`Couldn't post: ${error.message}`,T.red)
@@ -1824,6 +1837,7 @@ function AppInner(){
   const[searchOpen,setSearchOpen]=useState(false)
   const saveReview=async(filmId,rating,body)=>{
     if(!profile)return notify('Create a profile first',T.red)
+    if(profile.is_banned)return notify('You are unable to post in this league',T.red)
     const existing=reviews.find(r=>r.user_id===profile.id&&r.film_id===filmId)
     if(existing)await supabase.from('film_reviews').update({rating,body:body||null,updated_at:new Date().toISOString()}).eq('id',existing.id)
     else await supabase.from('film_reviews').insert({league_id:league?.id,user_id:profile.id,film_id:filmId,rating,body:body||null})
@@ -2054,6 +2068,7 @@ function AppInner(){
   }
   const goToProfile=(player)=>{setPrevPage(page);setProfilePlayer(player);setPage('profile')}
   const isCommissioner=session?.user?.email===COMMISSIONER_EMAIL||league?.commissioner_id===session?.user?.id
+  const isAdmin=session?.user?.email===COMMISSIONER_EMAIL // central moderator (you)
 
   const loadProfile=async()=>{const{data}=await supabase.from('profiles').select('*').eq('id',session.user.id).maybeSingle();if(data){setProfile(data);if(data.active_league_id)loadLeagueById(data.active_league_id)}}
   const loadLeagues=async()=>{const{data}=await supabase.from('league_members').select('league_id,role,leagues(*)').eq('user_id',session.user.id);if(data)setMyLeagues(data.map(m=>({...m.leagues,myRole:m.role})))}
@@ -2564,7 +2579,7 @@ function AppInner(){
     {id:'forecaster',icon:'📊',label:'Forecaster'},
     {id:'oscar',icon:'🏆',label:'Oscars'},
     {id:'results',icon:'📋',label:'Results'},
-    {id:'howto',icon:'❓',label:'How to Play'},
+    {id:'howto',icon:'❓',label:'How to Play'},{id:'legal',icon:'📜',label:'Legal'},
     ...(hasPicks&&films.length>0?[{id:'slate',icon:'🗺',label:'Slate Map'}]:[]),
     ...(hasResults?[{id:'report',icon:'📰',label:'Match Report'}]:[]),
     ...(hasPicks?[{id:'intelligence',icon:'📡',label:'Intelligence'}]:[]),
@@ -2703,8 +2718,8 @@ function AppInner(){
       {id:'oscar',icon:'🏅',label:'Oscars'},{id:'results',icon:'📋',label:'Results'},
       {id:'community',icon:'👥',label:'Community'},{id:'feed',icon:'📰',label:'League Feed'},
       {id:'slate',icon:'🗺',label:'Slate Map'},{id:'intelligence',icon:'📡',label:'Intelligence'},
-      {id:'distributor',icon:'📈',label:'Distributor Insights'},{id:'howto',icon:'❓',label:'How to Play'},
-      ...(isCommissioner?[{id:'commissioner',icon:'⚙️',label:'Commissioner'},{id:'warroom',icon:'⚡',label:'War Room'}]:[]),
+      {id:'howto',icon:'❓',label:'How to Play'},{id:'legal',icon:'📜',label:'Legal'},
+      ...(isCommissioner?[{id:'distributor',icon:'📈',label:'Distributor Insights'},{id:'commissioner',icon:'⚙️',label:'Commissioner'},{id:'warroom',icon:'⚡',label:'War Room'}]:[]),
     ]
     const rank=(text)=>{const t=text.toLowerCase();return t.startsWith(nq)?0:t.includes(nq)?1:2}
     const filmHits=nq?films.filter(f=>`${f.title} ${f.dist} ${f.starActor||''}`.toLowerCase().includes(nq)).sort((a,b)=>rank(a.title)-rank(b.title)).slice(0,6):[]
@@ -3067,6 +3082,48 @@ function AppInner(){
   )
 
   // ── HOW TO PLAY PAGE — Comprehensive handguide ───────────────────────────
+  const LegalPage=()=>{
+    const[tab,setTab]=useState('privacy')
+    const updated='June 2026'
+    return(
+      <div>
+        <div style={S.pageTitle}>Legal</div>
+        <div style={{display:'flex',gap:'8px',marginBottom:'16px'}}>
+          <button onClick={()=>setTab('privacy')} style={{...S.btn,flex:1,background:tab==='privacy'?T.gold:T.surfaceUp,color:tab==='privacy'?'#0D0A08':T.textSub,border:`1px solid ${tab==='privacy'?T.gold:T.border}`,padding:'10px',fontSize:'12px',textTransform:'none',letterSpacing:0}}>Privacy</button>
+          <button onClick={()=>setTab('terms')} style={{...S.btn,flex:1,background:tab==='terms'?T.gold:T.surfaceUp,color:tab==='terms'?'#0D0A08':T.textSub,border:`1px solid ${tab==='terms'?T.gold:T.border}`,padding:'10px',fontSize:'12px',textTransform:'none',letterSpacing:0}}>Terms</button>
+        </div>
+        <div style={{...S.card,fontSize:'12px',color:T.textSub,lineHeight:1.7}}>
+          {tab==='privacy'?(
+            <div>
+              <div style={{fontSize:'15px',fontWeight:700,color:T.text,marginBottom:'4px'}}>Privacy Policy</div>
+              <div style={{fontSize:'10px',color:T.textDim,marginBottom:'14px'}}>Last updated {updated}</div>
+              <div style={{marginBottom:'10px'}}><span style={{color:T.text,fontWeight:700}}>Who we are.</span> BOXD is a fantasy film game. This policy explains what data we hold and why. We are the data controller for the purposes of UK GDPR.</div>
+              <div style={{marginBottom:'10px'}}><span style={{color:T.text,fontWeight:700}}>What we collect.</span> Your email address (for login), the display name and profile details you choose, and the in-game activity you generate — film picks, trades, reviews, comments, forecasts, and reactions.</div>
+              <div style={{marginBottom:'10px'}}><span style={{color:T.text,fontWeight:700}}>How we use it.</span> To run the game, show you and your league standings and activity, and operate features you use. We do not sell your personal contact details.</div>
+              <div style={{marginBottom:'10px'}}><span style={{color:T.text,fontWeight:700}}>Aggregated game data.</span> BOXD shows film distributors anonymised, aggregated audience-interest data (for example, how many players are tracking a film). This is aggregate only and is not linked to your name or contact details.</div>
+              <div style={{marginBottom:'10px'}}><span style={{color:T.text,fontWeight:700}}>Storage & security.</span> Data is held on Supabase (our database and authentication provider). Access is restricted and protected by database security rules.</div>
+              <div style={{marginBottom:'10px'}}><span style={{color:T.text,fontWeight:700}}>Your rights.</span> Under UK GDPR you can request access to, correction of, or deletion of your data. To do so, contact us at the email below. Deleting your account removes your profile and associated personal data.</div>
+              <div style={{marginBottom:'10px'}}><span style={{color:T.text,fontWeight:700}}>Cookies & local storage.</span> We use minimal local storage on your device to keep you logged in and remember preferences (like dismissed prompts). We do not use third-party advertising trackers.</div>
+              <div style={{marginBottom:'10px'}}><span style={{color:T.text,fontWeight:700}}>Contact.</span> For any privacy request or question, email <span style={{color:T.gold}}>mattharris2105@gmail.com</span>.</div>
+            </div>
+          ):(
+            <div>
+              <div style={{fontSize:'15px',fontWeight:700,color:T.text,marginBottom:'4px'}}>Terms of Service</div>
+              <div style={{fontSize:'10px',color:T.textDim,marginBottom:'14px'}}>Last updated {updated}</div>
+              <div style={{marginBottom:'10px'}}><span style={{color:T.text,fontWeight:700}}>The game.</span> BOXD is a free fantasy game for entertainment. You draft films and score on real box-office performance. There is no real-money wagering and no prizes of monetary value unless a specific league states otherwise.</div>
+              <div style={{marginBottom:'10px'}}><span style={{color:T.text,fontWeight:700}}>Your account.</span> You're responsible for activity under your account. Provide accurate information and keep your login secure. You must be 13 or older to use BOXD.</div>
+              <div style={{marginBottom:'10px'}}><span style={{color:T.text,fontWeight:700}}>Acceptable use.</span> Be civil. Don't post unlawful, hateful, harassing, or spam content in reviews, comments, screenings, or names. Don't attempt to exploit, disrupt, or gain unauthorised access to the game. We may remove content or suspend accounts that break these rules.</div>
+              <div style={{marginBottom:'10px'}}><span style={{color:T.text,fontWeight:700}}>User content.</span> You keep ownership of what you post, but grant us a licence to display it within the game. You're responsible for what you post and confirm you have the right to post it.</div>
+              <div style={{marginBottom:'10px'}}><span style={{color:T.text,fontWeight:700}}>Game data & fairness.</span> Film estimates, prices, and results are set by the game operator and may be adjusted to keep the game fair or correct errors. Decisions of the game operator are final.</div>
+              <div style={{marginBottom:'10px'}}><span style={{color:T.text,fontWeight:700}}>Availability.</span> BOXD is provided "as is". We don't guarantee uninterrupted availability and may change or discontinue features.</div>
+              <div style={{marginBottom:'10px'}}><span style={{color:T.text,fontWeight:700}}>Liability.</span> To the extent permitted by law, we're not liable for indirect or incidental losses arising from use of the game.</div>
+              <div style={{marginBottom:'10px'}}><span style={{color:T.text,fontWeight:700}}>Contact.</span> Questions about these terms: <span style={{color:T.gold}}>mattharris2105@gmail.com</span>.</div>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
   const HowToPlayPage=()=>{
     const[openSection,setOpenSection]=useState('basics')
     const[guideSearch,setGuideSearch]=useState('')
@@ -4023,6 +4080,36 @@ function AppInner(){
 
   // ── DISTRIBUTOR INSIGHTS PAGE (with Sentiment Splits) ────────────────────
   // ── DISTRIBUTOR ACCESS MANAGER (commissioner) ───────────────────────────
+  const ModerationPanel=()=>{
+    const[busy,setBusy]=useState(false)
+    const toggleBan=async(p)=>{
+      if(!await confirmModal(`${p.is_banned?'Unban':'Ban'} ${p.name}? ${p.is_banned?'They can post again.':'They will no longer be able to post reviews, comments, or screenings.'}`,{danger:!p.is_banned}))return
+      setBusy(true)
+      await supabase.from('profiles').update({is_banned:!p.is_banned}).eq('id',p.id)
+      setBusy(false)
+      notify(p.is_banned?`${p.name} unbanned`:`${p.name} banned`,p.is_banned?T.green:T.red)
+      loadData(league?.id)
+    }
+    return(
+      <div style={{...S.card,marginBottom:'12px',border:`1px solid ${T.red}33`}}>
+        <div style={{...S.label,marginBottom:'8px',color:T.red}}>🛡️ Moderation</div>
+        <div style={{fontSize:'11px',color:T.textSub,marginBottom:'12px',lineHeight:1.5}}>
+          Ban a user to stop them posting. You can also delete any review or comment directly (look for the red ✕ on their posts). For a full account block, disable them in Supabase → Authentication.
+        </div>
+        {players.filter(p=>p.id!==profile.id).length===0?<div style={{fontSize:'12px',color:T.textDim}}>No other players yet.</div>:
+          players.filter(p=>p.id!==profile.id).map(p=>(
+            <div key={p.id} style={{display:'flex',alignItems:'center',gap:'10px',padding:'8px 0',borderBottom:`1px solid ${T.border}`}}>
+              <div style={{width:'28px',height:'28px',borderRadius:'50%',background:p.color||T.gold,color:'#000',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:'12px'}}>{p.name?.[0]||'?'}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:'12px',fontWeight:600,color:T.text}}>{p.name}{p.is_banned&&<span style={{color:T.red,fontSize:'10px',marginLeft:'6px'}}>BANNED</span>}</div>
+              </div>
+              <Btn onClick={()=>toggleBan(p)} variant="outline" color={p.is_banned?T.green:T.red} size="sm" disabled={busy}>{p.is_banned?'Unban':'Ban'}</Btn>
+            </div>
+          ))
+        }
+      </div>
+    )
+  }
   const DistributorAccessManager=()=>{
     const[codes,setCodes]=useState([])
     const[distName,setDistName]=useState('')
@@ -4970,6 +5057,7 @@ function AppInner(){
           </div>
           {/* ── DISTRIBUTOR ACCESS CODES ──────────────────────────────────── */}
           <DistributorAccessManager/>
+          {isAdmin&&<ModerationPanel/>}
         </>}
       </div>
     )
@@ -5355,12 +5443,13 @@ function AppInner(){
       case 'oscar':return <OscarPage/>
       case 'results':return <ResultsPage/>
       case 'howto':return <HowToPlayPage/>
+      case 'legal':return <LegalPage/>
       case 'slate':return <SlatePage/>
       case 'report':return <MatchReportPage/>
       case 'intelligence':return <IntelligencePage/>
-      case 'warroom':return <WarRoomPage/>
-      case 'commissioner':return <CommissionerPage/>
-      case 'distributor':return <DistributorPage/>
+      case 'warroom':return isCommissioner?<WarRoomPage/>:<AccessDenied onBack={()=>setPage('market')}/>
+      case 'commissioner':return isCommissioner?<CommissionerPage/>:<AccessDenied onBack={()=>setPage('market')}/>
+      case 'distributor':return isCommissioner?<DistributorPage/>:<AccessDenied onBack={()=>setPage('market')}/>
       case 'profile':return profilePlayer?<PlayerProfilePage player={profilePlayer} badges={calcBadges(profilePlayer.id)} reviews={reviews} onOpenFilm={f=>setFilmDetail(f)} films={films} rosters={rosters} results={results} weeklyG={weeklyG} allChips={allChips} oscarPreds={oscarPreds} allPicks={allPicks} calcPoints={calcPoints} calcPhasePoints={calcPhasePoints} budgetLeft={budgetLeft} cur={cur} isEarlyBird={isEarlyBird} analystActive={analystOn} curPhase_ref={curPhase()} onBack={()=>setPage(prevPage)}/>:null
       default:return <MarketPage/>
     }
@@ -5422,6 +5511,7 @@ function AppInner(){
               {id:'oscar',icon:'🏆',label:'Oscars'},
               {id:'results',icon:'📋',label:'Results'},
               {id:'howto',icon:'❓',label:'How to Play'},
+              {id:'legal',icon:'📜',label:'Legal'},
               ...(hasPicks&&films.length>0?[{id:'slate',icon:'🗺',label:'Slate Map'}]:[]),
               ...(hasResults?[{id:'report',icon:'📰',label:'Match Report'}]:[]),
               ...(hasPicks?[{id:'intelligence',icon:'📡',label:'Intelligence'}]:[]),
@@ -5556,7 +5646,7 @@ function AppInner(){
       )}
       {searchOpen&&<GlobalSearchOverlay/>}
 
-      {filmDetail&&<FilmDetailModal film={filmDetail} profile={profile} players={players} results={results} allPicks={allPicks} marketingEvents={marketingEvents} news={news} rosters={rosters} filmValues={filmValues} weeklyG={weeklyG} reviews={reviews} reviewComments={reviewComments} onAddReviewComment={addReviewComment} bookingClicks={bookingClicks} onSaveReview={saveReview} onDeleteReview={deleteReview} currentWeek={cfg.current_week} phase={ph} onTogglePick={togglePick} onBookingClick={trackBookingClick} onShowtimes={(f)=>{setShowtimesFilm(f);setFilmDetail(null)}} onClose={()=>setFilmDetail(null)} league={league}/>}
+      {filmDetail&&<FilmDetailModal film={filmDetail} profile={profile} players={players} results={results} allPicks={allPicks} marketingEvents={marketingEvents} news={news} rosters={rosters} filmValues={filmValues} weeklyG={weeklyG} reviews={reviews} reviewComments={reviewComments} onAddReviewComment={addReviewComment} bookingClicks={bookingClicks} onSaveReview={saveReview} onDeleteReview={deleteReview} currentWeek={cfg.current_week} phase={ph} onTogglePick={togglePick} onBookingClick={trackBookingClick} onShowtimes={(f)=>{setShowtimesFilm(f);setFilmDetail(null)}} onClose={()=>setFilmDetail(null)} league={league} isAdmin={isAdmin}/>}
       {showtimesFilm&&<ShowtimesModal film={showtimesFilm} onClose={()=>setShowtimesFilm(null)} onBookingClick={trackBookingClick} supabaseUrl={SUPABASE_URL} anonKey={SUPABASE_ANON_KEY}/>}
       {scoreModal&&<ScoreBreakdownModal film={scoreModal.film} holding={scoreModal.holding} results={results} weeklyGrosses={weeklyG} allChips={allChips} isEarlyBird={isEarlyBird} onClose={()=>setScoreModal(null)}/>}
       {profileEditOpen&&<ProfileEditModal/>}
