@@ -5494,7 +5494,7 @@ function AppInner(){
       return{label,col,icon}
     }
     return(
-      <div style={{width:'300px',flexShrink:0,position:'sticky',top:'76px',height:'fit-content',maxHeight:'calc(100vh - 100px)',display:'flex',flexDirection:'column'}}>
+      <div style={{width:'340px',flexShrink:0,position:'sticky',top:'76px',height:'fit-content',maxHeight:'calc(100vh - 100px)',display:'flex',flexDirection:'column'}}>
         <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'12px'}}>
           <span style={{width:'7px',height:'7px',borderRadius:'50%',background:T.green,boxShadow:`0 0 8px ${T.green}`,animation:'pulse 2s infinite'}}/>
           <div style={{...S.label,color:T.textSub}}>Live Activity</div>
@@ -5675,7 +5675,7 @@ function AppInner(){
         )}
 
         {/* MAIN CONTENT */}
-        <div style={{padding:isMobile?'20px':'24px 40px',maxWidth:isMobile?'100%':'1600px',margin:'0',width:'100%',display:'flex',gap:isMobile?0:'28px',alignItems:'flex-start'}}>
+        <div style={{padding:isMobile?'20px':'24px 40px',width:'100%',display:'flex',gap:isMobile?0:'28px',alignItems:'flex-start'}}>
           <div style={{flex:1,minWidth:0}}>
           {!isStandalone&&!installHidden&&(installEvt||isIOS)&&profile&&(
             <div style={{background:`linear-gradient(135deg,${T.gold}14,${T.surface})`,border:`1px solid ${T.gold}44`,borderRadius:'12px',padding:'12px 14px',marginBottom:'14px',display:'flex',gap:'12px',alignItems:'center'}}>
