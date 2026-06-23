@@ -31,12 +31,21 @@ const EARLY_BIRD_WEEKS   = 4
 const MAX_ROSTER         = 6
 const DRAFT_MIN          = 4
 const DRAFT_PENALTY      = 5
-const PHASE_BUDGETS      = {1:150,2:180,3:120,4:110}
-const PHASE_NAMES        = {1:'Summer (May–Jun)',2:'Blockbuster Summer (Jul–Aug)',3:'Autumn Slate',4:'Awards & Holiday'}
-const ALL_PHASES         = [1,2,3,4]
-// Season anchor: Week 1 = 1 May 2026
-const SEASON_ANCHOR      = new Date('2026-05-01')
+const PHASE_BUDGETS      = {1:150,2:180,3:150}
+const PHASE_NAMES        = {0:'Historical (Season opener)',1:'Summer (Jun–Aug)',2:'Autumn (Sep–Nov)',3:'Awards & Holiday (Dec–Jan)'}
+const ALL_PHASES         = [1,2,3]
+const HISTORICAL_PHASE   = 0
+// Season anchor: Week 1 = 25 Jun 2026 (live game start)
+const SEASON_ANCHOR      = new Date('2026-06-25')
 function weekToDate(wk){return new Date(SEASON_ANCHOR.getTime()+(wk-1)*7*86400000)}
+// IPO price scales smoothly with the estimated opening — wider spread than
+// flat tiers, so every film gets a distinct, estimate-driven price.
+// ~$3M at est $2M, ~$7 at $5, ~$15 at $15, ~$30 at $50, ~$59 at $175.
+function calcIPOprice(est){
+  if(est==null||isNaN(est))return null
+  if(est<=0)return 3
+  return Math.max(3,Math.min(75,Math.round(1.05*Math.pow(est,0.78))))
+}
 function dateLabel(wk){const d=weekToDate(wk);return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})}
 // TMDB read token lives in an env var, never committed to the repo (GitHub's
 // secret scanner flags hardcoded keys). Set REACT_APP_TMDB_TOKEN in Vercel.
@@ -2579,7 +2588,7 @@ function AppInner(){
     {id:'forecaster',icon:'📊',label:'Forecaster'},
     {id:'oscar',icon:'🏆',label:'Oscars'},
     {id:'results',icon:'📋',label:'Results'},
-    {id:'howto',icon:'❓',label:'How to Play'},{id:'legal',icon:'📜',label:'Legal'},
+    {id:'archive',icon:'🏛️',label:'Archive'},{id:'howto',icon:'❓',label:'How to Play'},{id:'legal',icon:'📜',label:'Legal'},
     ...(hasPicks&&films.length>0?[{id:'slate',icon:'🗺',label:'Slate Map'}]:[]),
     ...(hasResults?[{id:'report',icon:'📰',label:'Match Report'}]:[]),
     ...(hasPicks?[{id:'intelligence',icon:'📡',label:'Intelligence'}]:[]),
@@ -2718,7 +2727,7 @@ function AppInner(){
       {id:'oscar',icon:'🏅',label:'Oscars'},{id:'results',icon:'📋',label:'Results'},
       {id:'community',icon:'👥',label:'Community'},{id:'feed',icon:'📰',label:'League Feed'},
       {id:'slate',icon:'🗺',label:'Slate Map'},{id:'intelligence',icon:'📡',label:'Intelligence'},
-      {id:'howto',icon:'❓',label:'How to Play'},{id:'legal',icon:'📜',label:'Legal'},
+      {id:'archive',icon:'🏛️',label:'Archive'},{id:'howto',icon:'❓',label:'How to Play'},{id:'legal',icon:'📜',label:'Legal'},
       ...(isCommissioner?[{id:'distributor',icon:'📈',label:'Distributor Insights'},{id:'commissioner',icon:'⚙️',label:'Commissioner'},{id:'warroom',icon:'⚡',label:'War Room'}]:[]),
     ]
     const rank=(text)=>{const t=text.toLowerCase();return t.startsWith(nq)?0:t.includes(nq)?1:2}
@@ -3674,6 +3683,40 @@ function AppInner(){
   }
 
   // ── RESULTS PAGE ─────────────────────────────────────────────────────────
+  const ArchivePage=()=>{
+    const histFilms=films.filter(f=>f.phase===HISTORICAL_PHASE).sort((a,b)=>(results[b.id]||0)-(results[a.id]||0))
+    if(histFilms.length===0)return(
+      <div><div style={S.pageTitle}>📜 Archive</div><div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub,fontSize:'13px'}}>No historical films yet. Films that released before the season started will appear here.</div></div>
+    )
+    return(
+      <div>
+        <div style={S.pageTitle}>📜 Archive</div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px',lineHeight:1.6}}>How the season began — films that released before the live game started. These aren't tradeable, but you can see how they performed and how the market would have valued them.</div>
+        <div className="film-grid" style={{display:'grid',gridTemplateColumns:isMobile?'repeat(auto-fill,minmax(150px,1fr))':'repeat(auto-fill,minmax(175px,1fr))',gap:isMobile?'10px':'14px'}}>
+          {histFilms.map(f=>{
+            const actual=results[f.id]
+            const settled=actual!=null?calcMarketValue({...f,basePrice:f.basePrice||5},actual,weeklyG[f.id]||{}):null
+            const beat=actual!=null&&f.estM?actual/f.estM:null
+            return(
+              <div key={f.id} onClick={()=>setFilmDetail(f)} className="hoverable" style={{...S.card,cursor:'pointer',padding:'0',overflow:'hidden'}}>
+                <FilmPoster film={f} width="100%" height={isMobile?180:210} radius={0}/>
+                <div style={{padding:'10px'}}>
+                  <div style={{fontSize:'12px',fontWeight:700,color:T.text,marginBottom:'2px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{f.title}</div>
+                  <div style={{fontSize:'10px',color:T.textSub,marginBottom:'6px'}}>{f.dist}</div>
+                  {actual!=null?(
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                      <div><div style={{fontSize:'9px',color:T.textDim}}>OPENED</div><div style={{fontSize:'13px',fontWeight:700,color:T.green,fontFamily:T.mono}}>${actual}M</div></div>
+                      {beat!=null&&<div style={{fontSize:'10px',fontWeight:700,color:beat>=1?T.green:T.red}}>{beat>=1?'▲':'▼'}{Math.round(Math.abs(beat-1)*100)}%</div>}
+                    </div>
+                  ):<div style={{fontSize:'10px',color:T.textDim}}>No result recorded</div>}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
   const ResultsPage=()=>{
     const resulted=films.filter(f=>results[f.id]!=null).sort((a,b)=>b.week-a.week||b.phase-a.phase)
     return(
@@ -4671,7 +4714,7 @@ function AppInner(){
                 })()}
                 {/* Recalculate IPO prices from current estimates */}
                 {(()=>{
-                  const calcIPO=(est)=>est==null?null:est>=80?45:est>=50?30:est>=25?20:est>=15?14:est>=8?10:est>=4?7:5
+                  const calcIPO=calcIPOprice
                   const mismatched=films.filter(f=>f.estM!=null&&calcIPO(f.estM)!==f.basePrice)
                   if(mismatched.length===0)return null
                   return(
@@ -4762,6 +4805,9 @@ function AppInner(){
               <div style={{fontSize:'10px',color:T.textSub,fontFamily:T.mono,lineHeight:1.6}}>
                 Title, Launch Date, Phase, Distributor, Genre, Production Budget, Est, RT, Star, Trailer, Wk1, Wk2, Wk3, Wk4, Wk5, Wk6
               </div>
+              <div style={{fontSize:'10px',color:T.gold,marginTop:'6px',lineHeight:1.5,fontWeight:600}}>
+                ⚠️ Wk1–Wk6 must be WEEKEND grosses (Fri–Sun), not full-week totals. Estimates and legs scoring are all weekend-based.
+              </div>
               <div style={{fontSize:'10px',color:T.textDim,marginTop:'6px',lineHeight:1.5}}>
                 <strong style={{color:T.text}}>Required:</strong> Title + Launch Date (DD/MM/YYYY or YYYY-MM-DD)<br/>
                 <strong style={{color:T.text}}>Formats:</strong> CSV (comma or tab separated) · header row auto-detected
@@ -4816,11 +4862,13 @@ function AppInner(){
                       return null
                     }
                     const dateToWeek=(d)=>Math.max(1,Math.floor((d-SEASON_ANCHOR)/(7*86400000))+1)
-                    const dateToPhase=(d)=>{const w=dateToWeek(d);return w<=9?1:w<=20?2:w<=26?3:4}
-                    const calcIPO=(est)=>{
-                      if(est==null)return null
-                      return est>=80?45:est>=50?30:est>=25?20:est>=15?14:est>=8?10:est>=4?7:5
+                    const dateToPhase=(d)=>{
+                      if(d<new Date('2026-06-25'))return 0       // historical archive
+                      if(d<=new Date('2026-08-28'))return 1      // Summer
+                      if(d<=new Date('2026-11-30'))return 2      // Autumn
+                      return 3                                    // Awards & Holiday
                     }
+                    const calcIPO=calcIPOprice
                     const GENRE_MAP={action:'Action',horror:'Horror',drama:'Drama',family:'Family','sci-fi':'Sci-Fi',scifi:'Sci-Fi',animation:'Animation',comedy:'Comedy',thriller:'Thriller',adventure:'Adventure',concert:'Concert',documentary:'Drama',biography:'Drama',music:'Comedy',mystery:'Thriller',crime:'Thriller',romance:'Drama',fantasy:'Adventure',history:'Drama',war:'Action'}
                     const slug=(t)=>{const s=t.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40);return s+'-'+Math.abs([...t].reduce((h,c)=>(h*31+c.charCodeAt(0))|0,0)%9999)}
 
@@ -5154,13 +5202,13 @@ function AppInner(){
                       placeholder={actual!=null?`Was $${actual}M`:"Opening W/E $M"} style={{...S.inp,fontSize:'11px',padding:'5px 8px',color:actual!=null?T.green:T.text}}/>
                     {[2,3].map(w=>(
                       <input key={w} value={e[`week${w}`]??weeklyG[f.id]?.[w]??''} onChange={ev=>setEntry(f.id,`week${w}`,ev.target.value)}
-                        placeholder={weeklyG[f.id]?.[w]?`Was $${weeklyG[f.id][w]}M`:`Week ${w} $M`} style={{...S.inp,fontSize:'11px',padding:'5px 8px'}}/>
+                        placeholder={weeklyG[f.id]?.[w]?`Was $${weeklyG[f.id][w]}M`:`Wk ${w} weekend $M`} style={{...S.inp,fontSize:'11px',padding:'5px 8px'}}/>
                     ))}
                   </div>
                   <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px',marginBottom:'10px'}}>
                     {[4,5,6].map(w=>(
                       <input key={w} value={e[`week${w}`]??weeklyG[f.id]?.[w]??''} onChange={ev=>setEntry(f.id,`week${w}`,ev.target.value)}
-                        placeholder={weeklyG[f.id]?.[w]?`Was $${weeklyG[f.id][w]}M`:`Week ${w} $M`} style={{...S.inp,fontSize:'11px',padding:'5px 8px'}}/>
+                        placeholder={weeklyG[f.id]?.[w]?`Was $${weeklyG[f.id][w]}M`:`Wk ${w} weekend $M`} style={{...S.inp,fontSize:'11px',padding:'5px 8px'}}/>
                     ))}
                   </div>
 
@@ -5444,6 +5492,7 @@ function AppInner(){
       case 'results':return <ResultsPage/>
       case 'howto':return <HowToPlayPage/>
       case 'legal':return <LegalPage/>
+      case 'archive':return <ArchivePage/>
       case 'slate':return <SlatePage/>
       case 'report':return <MatchReportPage/>
       case 'intelligence':return <IntelligencePage/>
@@ -5510,6 +5559,7 @@ function AppInner(){
               {id:'forecaster',icon:'📊',label:'Forecaster'},
               {id:'oscar',icon:'🏆',label:'Oscars'},
               {id:'results',icon:'📋',label:'Results'},
+              {id:'archive',icon:'🏛️',label:'Archive'},
               {id:'howto',icon:'❓',label:'How to Play'},
               {id:'legal',icon:'📜',label:'Legal'},
               ...(hasPicks&&films.length>0?[{id:'slate',icon:'🗺',label:'Slate Map'}]:[]),
