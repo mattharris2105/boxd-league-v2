@@ -2858,7 +2858,7 @@ function AppInner(){
           const day=now.getDay();const hr=now.getHours()
           const isWeekendLive=(day===5&&hr>=17)||day===6||(day===0&&hr<=23)
           if(!isWeekendLive)return null
-          const opening=films.filter(f=>f.week===cfg.current_week&&results[f.id]==null).slice(0,4)
+          const opening=films.filter(f=>f.week===cfg.current_week&&f.phase===curPhase()&&results[f.id]==null).slice(0,4)
           if(opening.length===0)return null
           return(
             <div style={{background:`linear-gradient(135deg,${T.red}18,${T.surface})`,border:`1px solid ${T.red}55`,borderRadius:'14px',padding:'14px',marginBottom:'14px'}}>
@@ -2919,7 +2919,7 @@ function AppInner(){
 
         {/* THE PULSE — daily check-in · hidden until player has bought first film */}
         {hasEverBought&&(()=>{
-          const openingWeek=films.filter(f=>f.week===cfg.current_week&&results[f.id]==null).slice(0,3)
+          const openingWeek=films.filter(f=>f.week===cfg.current_week&&f.phase===curPhase()&&results[f.id]==null).slice(0,3)
           const heating=films.filter(f=>results[f.id]==null).map(f=>({f,buzz:calcBuzzIndex({...f,hasResult:false},allPicks,news,rosters,players.length,cfg.current_week)||0})).sort((a,b)=>b.buzz-a.buzz).slice(0,3)
           if(openingWeek.length===0&&heating.length===0)return null
           return(
