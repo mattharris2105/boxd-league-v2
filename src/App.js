@@ -2667,7 +2667,7 @@ function AppInner(){
                   <div key={wk} data-now={isNow?'1':'0'} style={{
                     background:isNow?`${T.gold}10`:T.surfaceUp,
                     border:`1px solid ${isNow?T.gold+'55':T.border}`,
-                    borderRadius:'10px',padding:'8px',width:'126px',flexShrink:0,
+                    borderRadius:'10px',padding:'8px',width:isMobile?'126px':'150px',flexShrink:0,
                     opacity:isPast?0.6:1,
                   }}>
                     <div style={{marginBottom:'6px',paddingBottom:'6px',borderBottom:`1px solid ${T.border}`}}>
@@ -5627,7 +5627,7 @@ function AppInner(){
         )}
 
         {/* MAIN CONTENT */}
-        <div style={{padding:isMobile?'20px':'24px 32px',maxWidth:isMobile?'100%':'1280px',margin:'0 auto',width:'100%'}}>
+        <div style={{padding:isMobile?'20px':'24px 40px',maxWidth:isMobile?'100%':'1600px',margin:'0',width:'100%'}}>
           {!isStandalone&&!installHidden&&(installEvt||isIOS)&&profile&&(
             <div style={{background:`linear-gradient(135deg,${T.gold}14,${T.surface})`,border:`1px solid ${T.gold}44`,borderRadius:'12px',padding:'12px 14px',marginBottom:'14px',display:'flex',gap:'12px',alignItems:'center'}}>
               <span style={{fontSize:'20px'}}>📲</span>
