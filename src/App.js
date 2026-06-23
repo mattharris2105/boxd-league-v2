@@ -5474,6 +5474,54 @@ function AppInner(){
 
 
   // ── PAGE RENDERER ─────────────────────────────────────────────────────────
+  const ActivityRail=()=>{
+    const railItems=feedItems.slice(0,30)
+    const fmt=(item)=>{
+      const pay=item.payload||{}
+      let label='',col=T.textSub,icon='•'
+      if(item.type==='buy'){label=`bought ${pay.film_title}`;col=T.gold;icon='🟢'}
+      else if(item.type==='sell'){label=`dropped ${pay.film_title}`;col=T.red;icon='🔴'}
+      else if(item.type==='trade_proposed'){label=`proposed a trade`;col=T.blue;icon='🔄'}
+      else if(item.type==='trade_accepted'){label=`traded ${pay.film_given} → ${pay.film_received}`;col=T.green;icon='🤝'}
+      else if(item.type==='chip_recut'){label='used THE RECUT';col=T.purple;icon='🎬'}
+      else if(item.type==='chip_short'){label=`shorted ${pay.film_title}`;col=T.red;icon='📉'}
+      else if(item.type==='chip_analyst'){label=`Analyst: ${pay.film_title}`;col=T.blue;icon='🎯'}
+      else if(item.type==='oscar'){label=`Oscar pick: ${pay.film_title}`;col=T.gold;icon='🏆'}
+      else if(item.type==='forecast'){label=`forecast ${pay.film_title}`;col=T.blue;icon='📊'}
+      else if(item.type==='screening'){label=`hosting ${pay.film_title||'a screening'}`;col=T.orange;icon='🎟️'}
+      else if(item.type==='phase_advance'){label=`Phase ${pay.to_phase} opened`;col=T.gold;icon='⚡'}
+      else{label=item.type.replace(/_/g,' ');icon='•'}
+      return{label,col,icon}
+    }
+    return(
+      <div style={{width:'300px',flexShrink:0,position:'sticky',top:'76px',height:'fit-content',maxHeight:'calc(100vh - 100px)',display:'flex',flexDirection:'column'}}>
+        <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'12px'}}>
+          <span style={{width:'7px',height:'7px',borderRadius:'50%',background:T.green,boxShadow:`0 0 8px ${T.green}`,animation:'pulse 2s infinite'}}/>
+          <div style={{...S.label,color:T.textSub}}>Live Activity</div>
+        </div>
+        <div style={{overflowY:'auto',display:'flex',flexDirection:'column',gap:'2px',paddingRight:'4px',scrollbarWidth:'thin',scrollbarColor:`${T.border} transparent`}}>
+          {railItems.length===0?(
+            <div style={{...S.card,textAlign:'center',padding:'24px 16px',color:T.textDim,fontSize:'12px'}}>No activity yet. Buys, sells and trades will appear here live.</div>
+          ):railItems.map(item=>{
+            const p=players.find(pl=>pl.id===item.user_id)
+            const{label,col,icon}=fmt(item)
+            return(
+              <div key={item.id} style={{display:'flex',gap:'9px',alignItems:'flex-start',padding:'9px 10px',borderRadius:'9px',background:T.surface,border:`1px solid ${T.border}`,marginBottom:'4px'}}>
+                <span style={{fontSize:'13px',flexShrink:0,marginTop:'1px'}}>{icon}</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:'12px',lineHeight:1.4}}>
+                    <span onClick={()=>p&&goToProfile(p)} style={{color:p?.color||T.gold,fontWeight:700,cursor:'pointer'}}>{p?.name||'Someone'}</span>
+                    <span style={{color:col,marginLeft:'4px'}}>{label}</span>
+                  </div>
+                  <div style={{fontSize:'9px',color:T.textDim,marginTop:'2px'}}>{timeAgo(item.created_at)}</div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
   const renderPage=()=>{
     switch(page){
       case 'market':return <MarketPage/>
@@ -5627,7 +5675,8 @@ function AppInner(){
         )}
 
         {/* MAIN CONTENT */}
-        <div style={{padding:isMobile?'20px':'24px 40px',maxWidth:isMobile?'100%':'1600px',margin:'0',width:'100%'}}>
+        <div style={{padding:isMobile?'20px':'24px 40px',maxWidth:isMobile?'100%':'1600px',margin:'0',width:'100%',display:'flex',gap:isMobile?0:'28px',alignItems:'flex-start'}}>
+          <div style={{flex:1,minWidth:0}}>
           {!isStandalone&&!installHidden&&(installEvt||isIOS)&&profile&&(
             <div style={{background:`linear-gradient(135deg,${T.gold}14,${T.surface})`,border:`1px solid ${T.gold}44`,borderRadius:'12px',padding:'12px 14px',marginBottom:'14px',display:'flex',gap:'12px',alignItems:'center'}}>
               <span style={{fontSize:'20px'}}>📲</span>
@@ -5650,6 +5699,8 @@ function AppInner(){
             </div>
           )}
           {dataLoading?<PageSkeleton/>:renderPage()}
+          </div>
+          {!isMobile&&<ActivityRail/>}
         </div>
       </div>
 
