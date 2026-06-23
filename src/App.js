@@ -2667,15 +2667,15 @@ function AppInner(){
                   <div key={wk} data-now={isNow?'1':'0'} style={{
                     background:isNow?`${T.gold}10`:T.surfaceUp,
                     border:`1px solid ${isNow?T.gold+'55':T.border}`,
-                    borderRadius:'10px',padding:'8px',width:isMobile?'126px':'150px',flexShrink:0,
+                    borderRadius:'10px',padding:isMobile?'8px':'12px',width:isMobile?'126px':'210px',flexShrink:0,
                     opacity:isPast?0.6:1,
                   }}>
                     <div style={{marginBottom:'6px',paddingBottom:'6px',borderBottom:`1px solid ${T.border}`}}>
-                      <div style={{fontSize:'10px',fontWeight:700,color:isNow?T.gold:isPast?T.textDim:T.text}}>{isNow?'🎬 This Week':dateLabel(wk)}</div>
-                      <div style={{fontSize:'8px',color:T.textDim,marginTop:'1px'}}>{isNow?dateLabel(wk)+' · ':''}{weekFilms.length} film{weekFilms.length!==1?'s':''}</div>
+                      <div style={{fontSize:isMobile?'10px':'13px',fontWeight:700,color:isNow?T.gold:isPast?T.textDim:T.text}}>{isNow?'🎬 This Week':dateLabel(wk)}</div>
+                      <div style={{fontSize:isMobile?'8px':'10px',color:T.textDim,marginTop:'1px'}}>{isNow?dateLabel(wk)+' · ':''}{weekFilms.length} film{weekFilms.length!==1?'s':''}</div>
                     </div>
                     {/* Capped-height inner scroll so busy weeks stay compact */}
-                    <div style={{display:'flex',flexDirection:'column',gap:'5px',maxHeight:'168px',overflowY:'auto',scrollbarWidth:'thin'}}>
+                    <div style={{display:'flex',flexDirection:'column',gap:isMobile?'5px':'7px',maxHeight:isMobile?'168px':'280px',overflowY:'auto',scrollbarWidth:'thin'}}>
                       {weekFilms.map(film=>{
                         const isPicked=allPicks.some(p=>p.film_id===film.id&&p.user_id===profile?.id)
                         const owned=rosters.find(r=>r.player_id===profile?.id&&r.film_id===film.id&&r.active)
@@ -2687,12 +2687,12 @@ function AppInner(){
                             display:'flex',gap:'6px',alignItems:'center',cursor:'pointer',
                             background:owned?`${T.gold}14`:T.surface,
                             border:`1px solid ${owned?T.gold+'44':gc+'22'}`,
-                            borderRadius:'7px',padding:'5px 6px',
+                            borderRadius:'7px',padding:isMobile?'5px 6px':'7px 8px',
                           }}>
-                            <FilmPoster film={film} width={24} height={36} radius={3}/>
+                            <FilmPoster film={film} width={isMobile?24:38} height={isMobile?36:57} radius={3}/>
                             <div style={{flex:1,minWidth:0}}>
-                              <div style={{fontSize:'9px',fontWeight:600,color:owned?T.gold:T.text,lineHeight:1.25,overflow:'hidden',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical'}}>{film.title}</div>
-                              <div style={{fontSize:'8px',color:T.textDim,marginTop:'1px'}}>
+                              <div style={{fontSize:isMobile?'9px':'12px',fontWeight:600,color:owned?T.gold:T.text,lineHeight:1.25,overflow:'hidden',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical'}}>{film.title}</div>
+                              <div style={{fontSize:isMobile?'8px':'11px',color:T.textDim,marginTop:'2px'}}>
                                 {actual!=null?<span style={{color:T.green}}>${actual}M</span>:val!=null?`$${val}M`:'🔒'}
                                 {film.rt!=null&&<span style={{color:film.rt>=75?T.green:T.red,marginLeft:'3px'}}>{film.rt}%</span>}
                               </div>
@@ -2920,7 +2920,7 @@ function AppInner(){
         {/* THE PULSE — daily check-in · hidden until player has bought first film */}
         {hasEverBought&&(()=>{
           const openingWeek=films.filter(f=>f.week===cfg.current_week&&f.phase===curPhase()&&results[f.id]==null).slice(0,3)
-          const heating=films.filter(f=>results[f.id]==null).map(f=>({f,buzz:calcBuzzIndex({...f,hasResult:false},allPicks,news,rosters,players.length,cfg.current_week)||0})).sort((a,b)=>b.buzz-a.buzz).slice(0,3)
+          const heating=films.filter(f=>results[f.id]==null&&f.phase===curPhase()).map(f=>({f,buzz:calcBuzzIndex({...f,hasResult:false},allPicks,news,rosters,players.length,cfg.current_week)||0})).sort((a,b)=>b.buzz-a.buzz).slice(0,3)
           if(openingWeek.length===0&&heating.length===0)return null
           return(
             <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:'10px',marginBottom:'14px'}}>
