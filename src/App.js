@@ -2636,7 +2636,8 @@ function AppInner(){
     // own internal scroll, so a busy week never stretches the whole strip.
     const[collapsed,setCollapsed]=useState(false)
     const railRef=useRef(null)
-    const allWeeks=[...new Set(films.map(f=>f.week))].sort((a,b)=>a-b)
+    const liveFilms=films.filter(f=>f.phase!==HISTORICAL_PHASE)
+    const allWeeks=[...new Set(liveFilms.map(f=>f.week))].sort((a,b)=>a-b)
     if(allWeeks.length===0)return null
 
     // Auto-scroll so the current week sits near the left on first paint
@@ -2660,7 +2661,7 @@ function AppInner(){
           <div ref={railRef} style={{overflowX:'auto',paddingBottom:'4px',scrollbarWidth:'thin',scrollbarColor:`${T.border} transparent`,WebkitOverflowScrolling:'touch'}}>
             <div style={{display:'flex',gap:'8px',minWidth:'max-content',paddingRight:'12px'}}>
               {allWeeks.map(wk=>{
-                const weekFilms=films.filter(f=>f.week===wk)
+                const weekFilms=liveFilms.filter(f=>f.week===wk)
                 const isNow=wk===cfg.current_week
                 const isPast=wk<cfg.current_week
                 return(
