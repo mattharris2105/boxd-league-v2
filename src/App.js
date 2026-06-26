@@ -5384,6 +5384,16 @@ function AppInner(){
     const[favFilm,setFavFilm]=useState(profile?.favourite_film_id||'')
     const[letterboxd,setLetterboxd]=useState(profile?.letterboxd_url||'')
     const[uploading,setUploading]=useState(false)
+    const[newPw,setNewPw]=useState('')
+    const[pwBusy,setPwBusy]=useState(false)
+    const setPassword=async()=>{
+      if(newPw.length<6)return notify('Password must be at least 6 characters',T.red)
+      setPwBusy(true)
+      const{error}=await supabase.auth.updateUser({password:newPw})
+      setPwBusy(false)
+      if(error)return notify(error.message,T.red)
+      setNewPw('');notify('✓ Password set — you can now log in with email + password',T.green)
+    }
     const save=async()=>{
       await supabase.from('profiles').update({name:name.trim(),bio:bio.trim(),color:col,avatar_url:avatarUrl.trim()||null,favourite_film_id:favFilm||null,letterboxd_url:letterboxd.trim()||null}).eq('id',profile.id)
       loadProfile();notify('Profile updated',T.green);setProfileEditOpen(false)
@@ -5427,6 +5437,14 @@ function AppInner(){
           <div style={{...S.label,marginBottom:'10px'}}>Colour</div>
           <div style={{display:'flex',gap:'10px',marginBottom:'20px',flexWrap:'wrap'}}>
             {PLAYER_COLORS.map(c=><div key={c} onClick={()=>setCol(c)} style={{width:'30px',height:'30px',borderRadius:'50%',background:c,cursor:'pointer',border:`3px solid ${col===c?'#fff':'transparent'}`,boxSizing:'border-box'}}/>)}
+          </div>
+          <div style={{...S.label,marginBottom:'10px'}}>Password</div>
+          <div style={{background:T.surfaceUp,borderRadius:'10px',padding:'12px',marginBottom:'20px'}}>
+            <div style={{fontSize:'10px',color:T.textSub,marginBottom:'8px',lineHeight:1.5}}>Set or change your password to log in without a magic link.</div>
+            <div style={{display:'flex',gap:'8px'}}>
+              <input type="password" value={newPw} onChange={e=>setNewPw(e.target.value)} placeholder="New password (min 6 chars)" style={{...S.inp,flex:1,fontSize:'12px'}}/>
+              <Btn onClick={setPassword} color={T.gold} size="sm" disabled={pwBusy||newPw.length<6}>{pwBusy?'…':'Set'}</Btn>
+            </div>
           </div>
           <div style={{...S.label,marginBottom:'10px'}}>Notifications</div>
           <div onClick={notifPerm==='granted'?undefined:requestNotifs} style={{display:'flex',alignItems:'center',gap:'10px',background:T.surfaceUp,borderRadius:'10px',padding:'12px',marginBottom:'20px',cursor:notifPerm==='granted'?'default':'pointer',border:`1px solid ${notifPerm==='granted'?T.green+'44':T.border}`}}>
