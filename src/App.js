@@ -5676,7 +5676,7 @@ function AppInner(){
 
       <div style={{flex:1,minWidth:0,position:'relative',zIndex:1,paddingBottom:isMobile?'80px':'20px'}}>
         {/* TOP BAR */}
-        <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:'12px 20px',display:'flex',alignItems:'center',gap:'14px',position:'sticky',top:0,zIndex:50,backdropFilter:'blur(10px)'}}>
+        <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:'12px 20px',paddingTop:'calc(12px + env(safe-area-inset-top))',display:'flex',alignItems:'center',gap:'14px',position:'sticky',top:0,zIndex:50,backdropFilter:'blur(10px)'}}>
           {isMobile&&<div style={{fontSize:'20px',fontWeight:900,color:T.gold,letterSpacing:'-1px'}}>BOXD</div>}
           <div style={{flex:1,fontSize:'12px',color:T.textSub}}>
             <span style={{color:T.gold,fontWeight:700}}>W{cfg.current_week}</span> · P{ph} {PHASE_NAMES[ph]} {win&&<span style={{color:T.green,marginLeft:'4px'}}>· WINDOW OPEN</span>}
