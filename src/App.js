@@ -464,7 +464,10 @@ function calcPriceDrivers(film,rosters,phase,totalPlayers,currentWeek,filmNews=[
   let timeMult=1
   if(currentWeek!=null&&film.week!=null){
     const weeksOut=film.week-currentWeek
-    timeMult=weeksOut>=6?0.85:weeksOut===5?0.90:weeksOut===4?0.95:weeksOut===3?1.00:weeksOut===2?1.03:weeksOut===1?1.07:weeksOut===0?1.10:0.95
+    // Note: released films never use this multiplier — their price comes from
+    // box office + legs (calcMarketValue). The final branch is the release week
+    // peak (+10%); there is no post-release discount.
+    timeMult=weeksOut>=6?0.85:weeksOut===5?0.90:weeksOut===4?0.95:weeksOut===3?1.00:weeksOut===2?1.03:weeksOut===1?1.07:1.10
   }
   const rtMult=film.rt!=null
     ?(film.rt>=90?1.15:film.rt>=80?1.08:film.rt>=70?1.03:film.rt>=55?1.00:film.rt>=40?0.93:0.85)
