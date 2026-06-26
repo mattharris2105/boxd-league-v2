@@ -444,10 +444,13 @@ function calcPriceDrivers(film,rosters,phase,totalPlayers,currentWeek,filmNews=[
   if(totalPlayers>0){
     const owners=rosters.filter(r=>r.film_id===film.id&&r.phase===phase&&r.active).length
     const pct=owners/totalPlayers
-    // Ownership is a DEMAND signal only — popular films cost more, but a film
-    // few people own is never discounted for it (neutral 1.0). This keeps
-    // small leagues from pricing most of the slate below IPO.
-    ownershipMult=pct>=0.7?1.30:pct>=0.55?1.22:pct>=0.40?1.15:pct>=0.25?1.08:1.00
+    // Ownership is a DEMAND signal only (never discounts). BUT in small leagues
+    // a single owner is a huge % and would wildly inflate price — so the effect
+    // scales with league size ("confidence"): near-zero for tiny leagues,
+    // full strength at 12+ players. This stops 2-3 person leagues spiking.
+    const confidence=Math.min(1,totalPlayers/12)
+    const rawLift=pct>=0.7?0.30:pct>=0.55?0.22:pct>=0.40?0.15:pct>=0.25?0.08:0
+    ownershipMult=1+rawLift*confidence
   }
   // Time-to-release multiplier:
   // 6+ weeks out: -15% (early discovery discount)
@@ -1305,7 +1308,7 @@ function GifPicker({onPick,onClose}){
 }
 
 
-function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEvents=[],news=[],rosters=[],filmValues={},weeklyG={},reviews=[],reviewComments=[],onAddReviewComment,bookingClicks=[],onSaveReview,onDeleteReview,currentWeek=null,phase=1,onTogglePick,onBookingClick,onShowtimes,onClose,league,isAdmin=false}){
+function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEvents=[],news=[],rosters=[],filmValues={},weeklyG={},reviews=[],reviewComments=[],onAddReviewComment,bookingClicks=[],onSaveReview,onDeleteReview,currentWeek=null,phase=1,onTogglePick,onBookingClick,onShowtimes,onClose,league,isAdmin=false,onBuy,onSell,onLiveVal}){
   const[comments,setComments]=useState([])
   const[commentLikes,setCommentLikes]=useState([])
   const[gifUrl,setGifUrl]=useState('')
@@ -1367,6 +1370,14 @@ function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEven
               </div>
               <div style={{display:'flex',gap:'8px',marginTop:'10px',alignItems:'center',flexWrap:'wrap'}}>
                 {onTogglePick&&<PickButton filmId={film.id} userId={profile.id} allPicks={allPicks} onToggle={onTogglePick} size="sm"/>}
+                {(()=>{
+                  const owned=rosters.some(r=>r.player_id===profile.id&&r.film_id===film.id&&r.active)
+                  const liveVal=onLiveVal?onLiveVal(film):null
+                  if(actual!=null)return null // released — no buy/sell
+                  if(owned&&onSell)return <button onClick={()=>{onSell(film);onClose&&onClose()}} style={{background:T.red,color:'#fff',border:'none',borderRadius:'9px',padding:'10px 22px',fontSize:'14px',fontWeight:800,cursor:'pointer',fontFamily:T.mono,letterSpacing:'0.5px'}}>SELL{liveVal!=null?` $${liveVal}M`:''}</button>
+                  if(!owned&&onBuy&&liveVal!=null)return <button onClick={()=>{onBuy(film);onClose&&onClose()}} style={{background:T.gold,color:'#0D0A08',border:'none',borderRadius:'9px',padding:'10px 22px',fontSize:'14px',fontWeight:800,cursor:'pointer',fontFamily:T.mono,letterSpacing:'0.5px'}}>BUY ${liveVal}M</button>
+                  return null
+                })()}
                 {vel7>0&&<Badge color={vel7>=5?T.red:vel7>=2?T.orange:T.textSub}>+{vel7} this week</Badge>}
                 {vel1>0&&<Badge color={T.green}>🔥 +{vel1} today</Badge>}
               </div>
@@ -3034,9 +3045,9 @@ function AppInner(){
                         :<div style={{fontSize:'13px',fontWeight:700,color:T.textDim}}>🔒 TBC</div>
                       }
                     </div>
-                    {!owned&&actual==null&&val!=null&&<Btn onClick={e=>{e.stopPropagation();buyFilm(film)}} color={T.gold} size="sm">Buy</Btn>}
+                    {!owned&&actual==null&&val!=null&&<button onClick={e=>{e.stopPropagation();buyFilm(film)}} style={{background:T.gold,color:'#0D0A08',border:'none',borderRadius:'8px',padding:'8px 16px',fontSize:'12px',fontWeight:800,cursor:'pointer',fontFamily:T.mono,letterSpacing:'0.5px',whiteSpace:'nowrap'}}>BUY ${val}M</button>}
                     {!owned&&actual==null&&val==null&&<div style={{fontSize:'10px',color:T.textDim,textAlign:'right',lineHeight:1.4}}>Slate<br/>locked</div>}
-                    {owned&&actual==null&&<Btn onClick={e=>{e.stopPropagation();sellFilm(film)}} color={T.red} textColor="#fff" size="sm">Sell</Btn>}
+                    {owned&&actual==null&&<button onClick={e=>{e.stopPropagation();sellFilm(film)}} style={{background:T.red,color:'#fff',border:'none',borderRadius:'8px',padding:'8px 16px',fontSize:'12px',fontWeight:800,cursor:'pointer',fontFamily:T.mono,letterSpacing:'0.5px',whiteSpace:'nowrap'}}>SELL</button>}
                   </div>
                 </div>
               </div>
@@ -5748,7 +5759,7 @@ function AppInner(){
       )}
       {searchOpen&&<GlobalSearchOverlay/>}
 
-      {filmDetail&&<FilmDetailModal film={filmDetail} profile={profile} players={players} results={results} allPicks={allPicks} marketingEvents={marketingEvents} news={news} rosters={rosters} filmValues={filmValues} weeklyG={weeklyG} reviews={reviews} reviewComments={reviewComments} onAddReviewComment={addReviewComment} bookingClicks={bookingClicks} onSaveReview={saveReview} onDeleteReview={deleteReview} currentWeek={cfg.current_week} phase={ph} onTogglePick={togglePick} onBookingClick={trackBookingClick} onShowtimes={(f)=>{setShowtimesFilm(f);setFilmDetail(null)}} onClose={()=>setFilmDetail(null)} league={league} isAdmin={isAdmin}/>}
+      {filmDetail&&<FilmDetailModal film={filmDetail} profile={profile} players={players} results={results} allPicks={allPicks} marketingEvents={marketingEvents} news={news} rosters={rosters} filmValues={filmValues} weeklyG={weeklyG} reviews={reviews} reviewComments={reviewComments} onAddReviewComment={addReviewComment} bookingClicks={bookingClicks} onSaveReview={saveReview} onDeleteReview={deleteReview} currentWeek={cfg.current_week} phase={ph} onTogglePick={togglePick} onBookingClick={trackBookingClick} onShowtimes={(f)=>{setShowtimesFilm(f);setFilmDetail(null)}} onClose={()=>setFilmDetail(null)} league={league} isAdmin={isAdmin} onBuy={buyFilm} onSell={sellFilm} onLiveVal={filmVal}/>}
       {showtimesFilm&&<ShowtimesModal film={showtimesFilm} onClose={()=>setShowtimesFilm(null)} onBookingClick={trackBookingClick} supabaseUrl={SUPABASE_URL} anonKey={SUPABASE_ANON_KEY}/>}
       {scoreModal&&<ScoreBreakdownModal film={scoreModal.film} holding={scoreModal.holding} results={results} weeklyGrosses={weeklyG} allChips={allChips} isEarlyBird={isEarlyBird} onClose={()=>setScoreModal(null)}/>}
       {profileEditOpen&&<ProfileEditModal/>}
