@@ -4865,7 +4865,6 @@ function AppInner(){
                     const starI=col('star'),trailI=col('trailer'),phI=col('phase')
                     const wkIs=[1,2,3,4,5,6].map(w=>[w,col(`wk${w}`)]).filter(([_,i])=>i!==-1)
 
-                    const SEASON_ANCHOR=new Date('2026-05-01')
                     const parseDate=(s)=>{
                       if(!s)return null
                       // DD/MM/YYYY
@@ -5004,7 +5003,7 @@ function AppInner(){
                   const wkCount=Math.min(Math.max(maxWk,6),10)
                   const wkHdr=Array.from({length:wkCount},(_,i)=>`Wk${i+1}`).join(',')
                   const header=`Title,Launch Date,Phase,Distributor,Genre,Base,Est,RT,Star,Trailer,${wkHdr}`
-                  const seasonAnchor=new Date('2026-01-05')
+                  const seasonAnchor=SEASON_ANCHOR
                   const rows=allFilms.map(f=>{
                     const launchDate=new Date(seasonAnchor.getTime()+(f.week-1)*7*86400000).toISOString().split('T')[0]
                     const wks=Array.from({length:wkCount},(_,i)=>{
@@ -5044,7 +5043,7 @@ function AppInner(){
                   const wkCount=Math.min(Math.max(maxWk,6),10)
                   const wkHdr=Array.from({length:wkCount},(_,i)=>`Wk${i+1}`).join(',')
                   const header=`Title,Launch Date,Phase,Distributor,Genre,Base,Est,RT,Star,Trailer,${wkHdr}`
-                  const seasonAnchor=new Date('2026-01-05')
+                  const seasonAnchor=SEASON_ANCHOR
                   const rows=allFilms.map(f=>{
                     const launchDate=new Date(seasonAnchor.getTime()+(f.week-1)*7*86400000).toISOString().split('T')[0]
                     const wks=Array.from({length:wkCount},(_,i)=>{const wk=i+1;return wk===1?(resMap[f.id]??''):(wgMap[f.id]?.[wk]??'')})
