@@ -1325,7 +1325,10 @@ const WarRoomRow=React.memo(function WarRoomRow({f,actual,savedWeekly,onCommit,S
     est_m:'',rt:'',base_price:''
   }
   const[local,setLocal]=React.useState(init)
-  const upd=(key,val)=>{setLocal(prev=>{const next={...prev,[key]:val};onCommit(f.id,next);return next})}
+  const localRef=React.useRef(local)
+  localRef.current=local
+  const upd=(key,val)=>setLocal(prev=>({...prev,[key]:val}))  // local only — no parent re-render
+  const commit=()=>onCommit(f.id,localRef.current)             // push up on blur
   const inp={...S.inp,fontSize:'11px',padding:'5px 8px'}
   return(
     <div style={{...S.card,marginBottom:'8px',border:`1px solid ${actual!=null?T.green+'33':T.border}`}}>
@@ -1344,21 +1347,21 @@ const WarRoomRow=React.memo(function WarRoomRow({f,actual,savedWeekly,onCommit,S
       </div>
       <div style={{...S.label,marginBottom:'6px',color:T.green}}>Results</div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px',marginBottom:'10px'}}>
-        <input value={local.actual} onChange={ev=>upd('actual',ev.target.value)} placeholder={actual!=null?`Was $${actual}M`:"Opening W/E $M"} style={{...inp,color:actual!=null?T.green:T.text}} inputMode="decimal"/>
+        <input value={local.actual} onChange={ev=>upd('actual',ev.target.value)} onBlur={commit} placeholder={actual!=null?`Was $${actual}M`:"Opening W/E $M"} style={{...inp,color:actual!=null?T.green:T.text}} inputMode="decimal"/>
         {[2,3].map(w=>(
-          <input key={w} value={local[`week${w}`]} onChange={ev=>upd(`week${w}`,ev.target.value)} placeholder={savedWeekly?.[w]?`Was $${savedWeekly[w]}M`:`Wk ${w} weekend $M`} style={inp} inputMode="decimal"/>
+          <input key={w} value={local[`week${w}`]} onChange={ev=>upd(`week${w}`,ev.target.value)} onBlur={commit} placeholder={savedWeekly?.[w]?`Was $${savedWeekly[w]}M`:`Wk ${w} weekend $M`} style={inp} inputMode="decimal"/>
         ))}
       </div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px',marginBottom:'10px'}}>
         {[4,5,6].map(w=>(
-          <input key={w} value={local[`week${w}`]} onChange={ev=>upd(`week${w}`,ev.target.value)} placeholder={savedWeekly?.[w]?`Was $${savedWeekly[w]}M`:`Wk ${w} weekend $M`} style={inp} inputMode="decimal"/>
+          <input key={w} value={local[`week${w}`]} onChange={ev=>upd(`week${w}`,ev.target.value)} onBlur={commit} placeholder={savedWeekly?.[w]?`Was $${savedWeekly[w]}M`:`Wk ${w} weekend $M`} style={inp} inputMode="decimal"/>
         ))}
       </div>
       <div style={{...S.label,marginBottom:'6px',color:T.gold}}>Film Details</div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px'}}>
-        <input value={local.est_m} onChange={ev=>upd('est_m',ev.target.value)} placeholder={f.estM?`Est: $${f.estM}M`:"Est $M"} style={inp} inputMode="decimal"/>
-        <input value={local.rt} onChange={ev=>upd('rt',ev.target.value)} placeholder={f.rt!=null?`RT: ${f.rt}%`:"RT score"} style={inp} inputMode="numeric"/>
-        <input value={local.base_price} onChange={ev=>upd('base_price',ev.target.value)} placeholder={f.basePrice!=null?`IPO: $${f.basePrice}M`:"IPO price"} style={inp} inputMode="decimal"/>
+        <input value={local.est_m} onChange={ev=>upd('est_m',ev.target.value)} onBlur={commit} placeholder={f.estM?`Est: $${f.estM}M`:"Est $M"} style={inp} inputMode="decimal"/>
+        <input value={local.rt} onChange={ev=>upd('rt',ev.target.value)} onBlur={commit} placeholder={f.rt!=null?`RT: ${f.rt}%`:"RT score"} style={inp} inputMode="numeric"/>
+        <input value={local.base_price} onChange={ev=>upd('base_price',ev.target.value)} onBlur={commit} placeholder={f.basePrice!=null?`IPO: $${f.basePrice}M`:"IPO price"} style={inp} inputMode="decimal"/>
       </div>
     </div>
   )
@@ -5210,7 +5213,7 @@ function AppInner(){
     const setEntry=(filmId,key,val)=>setEntries(prev=>({...prev,[filmId]:{...prev[filmId],[key]:val}}))
 
     return(
-      <div style={{animation:'fadeUp .2s ease'}}>
+      <div>
         <div style={S.pageTitle}>⚡ War Room</div>
         <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px'}}>Enter results + manually amend any film in the slate</div>
 
