@@ -1325,10 +1325,7 @@ const WarRoomRow=React.memo(function WarRoomRow({f,actual,savedWeekly,onCommit,S
     est_m:'',rt:'',base_price:''
   }
   const[local,setLocal]=React.useState(init)
-  const localRef=React.useRef(local)
-  localRef.current=local
-  const upd=(key,val)=>setLocal(prev=>({...prev,[key]:val}))  // local only — no parent re-render
-  const commit=()=>onCommit(f.id,localRef.current)             // push up on blur
+  const upd=(key,val)=>{setLocal(prev=>({...prev,[key]:val}));onCommit(f.id,key,val)}  // local + ref (no parent re-render)
   const inp={...S.inp,fontSize:'11px',padding:'5px 8px'}
   return(
     <div style={{...S.card,marginBottom:'8px',border:`1px solid ${actual!=null?T.green+'33':T.border}`}}>
@@ -1347,21 +1344,21 @@ const WarRoomRow=React.memo(function WarRoomRow({f,actual,savedWeekly,onCommit,S
       </div>
       <div style={{...S.label,marginBottom:'6px',color:T.green}}>Results</div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px',marginBottom:'10px'}}>
-        <input value={local.actual} onChange={ev=>upd('actual',ev.target.value)} onBlur={commit} placeholder={actual!=null?`Was $${actual}M`:"Opening W/E $M"} style={{...inp,color:actual!=null?T.green:T.text}} inputMode="decimal"/>
+        <input value={local.actual} onChange={ev=>upd('actual',ev.target.value)} placeholder={actual!=null?`Was $${actual}M`:"Opening W/E $M"} style={{...inp,color:actual!=null?T.green:T.text}} inputMode="decimal"/>
         {[2,3].map(w=>(
-          <input key={w} value={local[`week${w}`]} onChange={ev=>upd(`week${w}`,ev.target.value)} onBlur={commit} placeholder={savedWeekly?.[w]?`Was $${savedWeekly[w]}M`:`Wk ${w} weekend $M`} style={inp} inputMode="decimal"/>
+          <input key={w} value={local[`week${w}`]} onChange={ev=>upd(`week${w}`,ev.target.value)} placeholder={savedWeekly?.[w]?`Was $${savedWeekly[w]}M`:`Wk ${w} weekend $M`} style={inp} inputMode="decimal"/>
         ))}
       </div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px',marginBottom:'10px'}}>
         {[4,5,6].map(w=>(
-          <input key={w} value={local[`week${w}`]} onChange={ev=>upd(`week${w}`,ev.target.value)} onBlur={commit} placeholder={savedWeekly?.[w]?`Was $${savedWeekly[w]}M`:`Wk ${w} weekend $M`} style={inp} inputMode="decimal"/>
+          <input key={w} value={local[`week${w}`]} onChange={ev=>upd(`week${w}`,ev.target.value)} placeholder={savedWeekly?.[w]?`Was $${savedWeekly[w]}M`:`Wk ${w} weekend $M`} style={inp} inputMode="decimal"/>
         ))}
       </div>
       <div style={{...S.label,marginBottom:'6px',color:T.gold}}>Film Details</div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px'}}>
-        <input value={local.est_m} onChange={ev=>upd('est_m',ev.target.value)} onBlur={commit} placeholder={f.estM?`Est: $${f.estM}M`:"Est $M"} style={inp} inputMode="decimal"/>
-        <input value={local.rt} onChange={ev=>upd('rt',ev.target.value)} onBlur={commit} placeholder={f.rt!=null?`RT: ${f.rt}%`:"RT score"} style={inp} inputMode="numeric"/>
-        <input value={local.base_price} onChange={ev=>upd('base_price',ev.target.value)} onBlur={commit} placeholder={f.basePrice!=null?`IPO: $${f.basePrice}M`:"IPO price"} style={inp} inputMode="decimal"/>
+        <input value={local.est_m} onChange={ev=>upd('est_m',ev.target.value)} placeholder={f.estM?`Est: $${f.estM}M`:"Est $M"} style={inp} inputMode="decimal"/>
+        <input value={local.rt} onChange={ev=>upd('rt',ev.target.value)} placeholder={f.rt!=null?`RT: ${f.rt}%`:"RT score"} style={inp} inputMode="numeric"/>
+        <input value={local.base_price} onChange={ev=>upd('base_price',ev.target.value)} placeholder={f.basePrice!=null?`IPO: $${f.basePrice}M`:"IPO price"} style={inp} inputMode="decimal"/>
       </div>
     </div>
   )
@@ -1947,6 +1944,7 @@ function AppInner(){
   const[distSel,setDistSel]=useState(null)
   const[distFilmId,setDistFilmId]=useState('')
   const[warEntries,setWarEntries]=useState({})
+  const warEntriesRef=useRef({})  // typing writes here (no re-render); saveAll reads it
   const[warFilterPhase,setWarFilterPhase]=useState('all')
   const[warFilterStatus,setWarFilterStatus]=useState('pending')
   const[warSearch,setWarSearch]=useState('')
@@ -5192,22 +5190,26 @@ function AppInner(){
     })
 
     const saveAll=async()=>{
-      const toSave=Object.entries(entries).filter(([_,v])=>v.actual&&!isNaN(Number(v.actual)))
+      const ref=warEntriesRef.current
+      const toSave=Object.entries(ref).filter(([_,v])=>v&&Object.values(v).some(x=>x!==''&&x!=null))
       if(toSave.length===0)return notify('Nothing to save',T.red)
+      let savedCount=0
       for(const[filmId,v] of toSave){
-        await dbUpsert('results','film_id',filmId,{actual_m:Number(v.actual)})
-        const film=films.find(f=>f.id===filmId)
-        if(film){await dbUpsert('film_values','film_id',filmId,{current_value:calcMarketValue(film,Number(v.actual),weeklyG[filmId]||{})});resolveChips(filmId,Number(v.actual))}
+        if(v.actual&&!isNaN(Number(v.actual))){
+          await dbUpsert('results','film_id',filmId,{actual_m:Number(v.actual)})
+          const film=films.find(f=>f.id===filmId)
+          if(film){await dbUpsert('film_values','film_id',filmId,{current_value:calcMarketValue(film,Number(v.actual),weeklyG[filmId]||{})});resolveChips(filmId,Number(v.actual))}
+          savedCount++
+        }
         for(const w of [2,3,4,5,6]){const wv=v[`week${w}`];if(wv&&!isNaN(Number(wv)))await dbUpsertWeekly(filmId,w,Number(wv))}
-        // Also save any film field edits
         const filmEdits={}
         if(v.est_m!==undefined&&v.est_m!==''&&!isNaN(Number(v.est_m)))filmEdits.est_m=Number(v.est_m)
         if(v.rt!==undefined&&v.rt!==''&&!isNaN(Number(v.rt)))filmEdits.rt=Number(v.rt)
         if(v.base_price!==undefined&&v.base_price!=='')filmEdits.base_price=Number(v.base_price)||null
         if(Object.keys(filmEdits).length)await supabase.from('films').update(filmEdits).eq('id',filmId)
       }
-      notify(`✓ Saved ${toSave.length} result${toSave.length!==1?'s':''}`,T.green)
-      setEntries({});loadData(league?.id)
+      notify(`✓ Saved ${toSave.length} film${toSave.length!==1?'s':''}`,T.green)
+      warEntriesRef.current={};loadData(league?.id)
     }
 
     const setEntry=(filmId,key,val)=>setEntries(prev=>({...prev,[filmId]:{...prev[filmId],[key]:val}}))
@@ -5238,11 +5240,11 @@ function AppInner(){
           :<>
             {allFilms.map(f=>(
               <WarRoomRow key={f.id} f={f} actual={results[f.id]} savedWeekly={weeklyG[f.id]}
-                onCommit={(fid,vals)=>setEntries(prev=>({...prev,[fid]:vals}))}
+                onCommit={(fid,key,val)=>{warEntriesRef.current[fid]={...(warEntriesRef.current[fid]||{}),[key]:val}}}
                 S={S} T={T} FilmPoster={FilmPoster} dateLabel={dateLabel}/>
             ))}
             <Btn onClick={saveAll} color={T.green} textColor="#0D0A08" full size="lg" sx={{marginTop:'12px',marginBottom:'60px'}}>
-              Save All Changes ({Object.keys(entries).filter(id=>Object.values(entries[id]).some(v=>v!=='')).length} films edited)
+              Save All Changes
             </Btn>
           </>
         }
