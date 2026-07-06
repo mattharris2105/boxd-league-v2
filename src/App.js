@@ -1311,6 +1311,59 @@ function GifPicker({onPick,onClose}){
 }
 
 
+// ── WAR ROOM ROW — module-level so it never remounts on parent re-render.
+// Holds its own local input state; commits up to parent on change. This is
+// what stops the "input reloads/jumps off every keystroke" bug.
+const WarRoomRow=React.memo(function WarRoomRow({f,actual,savedWeekly,onCommit,S,T,FilmPoster,dateLabel}){
+  const init={
+    actual: actual!=null?String(actual):'',
+    week2: savedWeekly?.[2]!=null?String(savedWeekly[2]):'',
+    week3: savedWeekly?.[3]!=null?String(savedWeekly[3]):'',
+    week4: savedWeekly?.[4]!=null?String(savedWeekly[4]):'',
+    week5: savedWeekly?.[5]!=null?String(savedWeekly[5]):'',
+    week6: savedWeekly?.[6]!=null?String(savedWeekly[6]):'',
+    est_m:'',rt:'',base_price:''
+  }
+  const[local,setLocal]=React.useState(init)
+  const upd=(key,val)=>{setLocal(prev=>{const next={...prev,[key]:val};onCommit(f.id,next);return next})}
+  const inp={...S.inp,fontSize:'11px',padding:'5px 8px'}
+  return(
+    <div style={{...S.card,marginBottom:'8px',border:`1px solid ${actual!=null?T.green+'33':T.border}`}}>
+      <div style={{display:'flex',gap:'10px',alignItems:'center',marginBottom:'10px'}}>
+        <FilmPoster film={f} width={42} height={63} radius={6}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:'13px',fontWeight:600,color:T.text}}>{f.title}</div>
+          <div style={{fontSize:'10px',color:T.textSub,marginTop:'2px'}}>{f.dist} · {dateLabel(f.week)} · P{f.phase}</div>
+          <div style={{display:'flex',gap:'8px',marginTop:'4px',flexWrap:'wrap'}}>
+            {f.estM&&<span style={{fontSize:'10px',color:T.textSub}}>Est ${f.estM}M</span>}
+            {f.basePrice!=null&&<span style={{fontSize:'10px',color:T.gold}}>IPO ${f.basePrice}M</span>}
+            {f.rt!=null&&<span style={{fontSize:'10px',color:f.rt>=75?T.green:T.red}}>RT {f.rt}%</span>}
+            {actual!=null&&<span style={{fontSize:'10px',color:T.green,fontWeight:700}}>✓ Actual ${actual}M</span>}
+          </div>
+        </div>
+      </div>
+      <div style={{...S.label,marginBottom:'6px',color:T.green}}>Results</div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px',marginBottom:'10px'}}>
+        <input value={local.actual} onChange={ev=>upd('actual',ev.target.value)} placeholder={actual!=null?`Was $${actual}M`:"Opening W/E $M"} style={{...inp,color:actual!=null?T.green:T.text}} inputMode="decimal"/>
+        {[2,3].map(w=>(
+          <input key={w} value={local[`week${w}`]} onChange={ev=>upd(`week${w}`,ev.target.value)} placeholder={savedWeekly?.[w]?`Was $${savedWeekly[w]}M`:`Wk ${w} weekend $M`} style={inp} inputMode="decimal"/>
+        ))}
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px',marginBottom:'10px'}}>
+        {[4,5,6].map(w=>(
+          <input key={w} value={local[`week${w}`]} onChange={ev=>upd(`week${w}`,ev.target.value)} placeholder={savedWeekly?.[w]?`Was $${savedWeekly[w]}M`:`Wk ${w} weekend $M`} style={inp} inputMode="decimal"/>
+        ))}
+      </div>
+      <div style={{...S.label,marginBottom:'6px',color:T.gold}}>Film Details</div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px'}}>
+        <input value={local.est_m} onChange={ev=>upd('est_m',ev.target.value)} placeholder={f.estM?`Est: $${f.estM}M`:"Est $M"} style={inp} inputMode="decimal"/>
+        <input value={local.rt} onChange={ev=>upd('rt',ev.target.value)} placeholder={f.rt!=null?`RT: ${f.rt}%`:"RT score"} style={inp} inputMode="numeric"/>
+        <input value={local.base_price} onChange={ev=>upd('base_price',ev.target.value)} placeholder={f.basePrice!=null?`IPO: $${f.basePrice}M`:"IPO price"} style={inp} inputMode="decimal"/>
+      </div>
+    </div>
+  )
+},(a,b)=>a.f.id===b.f.id&&a.actual===b.actual&&a.savedWeekly===b.savedWeekly)
+
 function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEvents=[],news=[],rosters=[],filmValues={},weeklyG={},reviews=[],reviewComments=[],onAddReviewComment,bookingClicks=[],onSaveReview,onDeleteReview,currentWeek=null,phase=1,onTogglePick,onBookingClick,onShowtimes,onClose,league,isAdmin=false,onBuy,onSell,onLiveVal}){
   const[comments,setComments]=useState([])
   const[commentLikes,setCommentLikes]=useState([])
@@ -5180,57 +5233,11 @@ function AppInner(){
             <div style={{fontSize:'11px',color:T.textDim,marginTop:'8px'}}>Switch to "All films" to browse the full slate.</div>
           </div>
           :<>
-            {allFilms.map(f=>{
-              const actual=results[f.id]
-              const e=entries[f.id]||{}
-              const hasEdits=Object.values(e).some(v=>v!=='')
-              return(
-                <div key={f.id} style={{...S.card,marginBottom:'8px',border:`1px solid ${actual!=null?T.green+'33':hasEdits?T.gold+'44':T.border}`}}>
-                  {/* Film header */}
-                  <div style={{display:'flex',gap:'10px',alignItems:'center',marginBottom:'10px'}}>
-                    <FilmPoster film={f} width={42} height={63} radius={6}/>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:'13px',fontWeight:600,color:T.text}}>{f.title}</div>
-                      <div style={{fontSize:'10px',color:T.textSub,marginTop:'2px'}}>{f.dist} · {dateLabel(f.week)} · P{f.phase}</div>
-                      <div style={{display:'flex',gap:'8px',marginTop:'4px',flexWrap:'wrap'}}>
-                        {f.estM&&<span style={{fontSize:'10px',color:T.textSub}}>Est ${f.estM}M</span>}
-                        {f.basePrice!=null&&<span style={{fontSize:'10px',color:T.gold}}>IPO ${f.basePrice}M</span>}
-                        {f.rt!=null&&<span style={{fontSize:'10px',color:f.rt>=75?T.green:T.red}}>RT {f.rt}%</span>}
-                        {actual!=null&&<span style={{fontSize:'10px',color:T.green,fontWeight:700}}>✓ Actual ${actual}M</span>}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Results row */}
-                  <div style={{...S.label,marginBottom:'6px',color:T.green}}>Results</div>
-                  <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px',marginBottom:'10px'}}>
-                    <input defaultValue={e.actual??(actual!=null?String(actual):'')} onChange={ev=>setEntry(f.id,'actual',ev.target.value)}
-                      placeholder={actual!=null?`Was $${actual}M`:"Opening W/E $M"} style={{...S.inp,fontSize:'11px',padding:'5px 8px',color:actual!=null?T.green:T.text}}/>
-                    {[2,3].map(w=>(
-                      <input key={w} defaultValue={e[`week${w}`]??(weeklyG[f.id]?.[w]!=null?String(weeklyG[f.id][w]):'')} onChange={ev=>setEntry(f.id,`week${w}`,ev.target.value)}
-                        placeholder={weeklyG[f.id]?.[w]?`Was $${weeklyG[f.id][w]}M`:`Wk ${w} weekend $M`} style={{...S.inp,fontSize:'11px',padding:'5px 8px'}}/>
-                    ))}
-                  </div>
-                  <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px',marginBottom:'10px'}}>
-                    {[4,5,6].map(w=>(
-                      <input key={w} defaultValue={e[`week${w}`]??(weeklyG[f.id]?.[w]!=null?String(weeklyG[f.id][w]):'')} onChange={ev=>setEntry(f.id,`week${w}`,ev.target.value)}
-                        placeholder={weeklyG[f.id]?.[w]?`Was $${weeklyG[f.id][w]}M`:`Wk ${w} weekend $M`} style={{...S.inp,fontSize:'11px',padding:'5px 8px'}}/>
-                    ))}
-                  </div>
-
-                  {/* Film details row */}
-                  <div style={{...S.label,marginBottom:'6px',color:T.gold}}>Film Details</div>
-                  <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px'}}>
-                    <input defaultValue={e.est_m??''} onChange={ev=>setEntry(f.id,'est_m',ev.target.value)}
-                      placeholder={f.estM?`Est: $${f.estM}M`:"Est $M"} style={{...S.inp,fontSize:'11px',padding:'5px 8px'}}/>
-                    <input defaultValue={e.rt??''} onChange={ev=>setEntry(f.id,'rt',ev.target.value)}
-                      placeholder={f.rt!=null?`RT: ${f.rt}%`:"RT score"} style={{...S.inp,fontSize:'11px',padding:'5px 8px'}}/>
-                    <input defaultValue={e.base_price??''} onChange={ev=>setEntry(f.id,'base_price',ev.target.value)}
-                      placeholder={f.basePrice!=null?`IPO: $${f.basePrice}M`:"IPO price"} style={{...S.inp,fontSize:'11px',padding:'5px 8px'}}/>
-                  </div>
-                </div>
-              )
-            })}
+            {allFilms.map(f=>(
+              <WarRoomRow key={f.id} f={f} actual={results[f.id]} savedWeekly={weeklyG[f.id]}
+                onCommit={(fid,vals)=>setEntries(prev=>({...prev,[fid]:vals}))}
+                S={S} T={T} FilmPoster={FilmPoster} dateLabel={dateLabel}/>
+            ))}
             <Btn onClick={saveAll} color={T.green} textColor="#0D0A08" full size="lg" sx={{marginTop:'12px',marginBottom:'60px'}}>
               Save All Changes ({Object.keys(entries).filter(id=>Object.values(entries[id]).some(v=>v!=='')).length} films edited)
             </Btn>
