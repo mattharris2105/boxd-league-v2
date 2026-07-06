@@ -4887,6 +4887,9 @@ function AppInner(){
                     const slug=(t)=>{const s=t.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40);return s+'-'+Math.abs([...t].reduce((h,c)=>(h*31+c.charCodeAt(0))|0,0)%9999)}
 
                     let added=0,updated=0,skipped=0,grossRows=0
+                    const filmsToUpsert=[]      // batch all film rows
+                    const resultsToUpsert=[]    // batch Wk1 results
+                    const grossesToUpsert=[]    // batch Wk2-6 grosses
                     for(let i=1;i<rawLines.length;i++){
                       const cells=parseRow(rawLines[i])
                       const title=cells[ti]?.trim()
@@ -4903,61 +4906,50 @@ function AppInner(){
                       const genre=GENRE_MAP[(genreRaw.split(/\s/)[0]||'').toLowerCase()]||'Drama'
                       const star=starI!==-1?cells[starI]||null:null
                       const trailer=trailI!==-1&&(cells[trailI]||'').includes('youtube')?cells[trailI]:null
-                      const basePrice=calcIPO(est!=null&&!isNaN(est)?est:null)
-                      const fid=slug(title)
-
-                      // Upsert the film
-                      const filmData={
-                        id:fid,title,dist:dist.trim(),genre,star_actor:star,
-                        phase:ph,week:wk,
-                        base_price:basePrice,
-                        est_m:est!=null&&!isNaN(est)?est:null,
-                        rt:rt!=null&&!isNaN(rt)?Math.round(rt):null,
-                        trailer,active:true
-                      }
+                      // AUTO-IPO: if the CSV has no usable estimate, still give the film a
+                      // sensible IPO from a small default rather than leaving it blank/locked.
+                      const estNum=est!=null&&!isNaN(est)?est:null
+                      const basePrice=estNum!=null?calcIPO(estNum):(calcIPO(3)) // floor IPO when no est
                       const existing=films.find(f=>f.title.toLowerCase().trim()===title.toLowerCase().trim())
+                      const fid=existing?existing.id:slug(title)
+                      // Build the film row (upsert handles both new + existing by id)
+                      const row={id:fid,title,dist:dist.trim(),genre,phase:ph,week:wk,base_price:basePrice,active:true}
+                      if(star)row.star_actor=star
+                      if(trailer)row.trailer=trailer
+                      if(estNum!=null)row.est_m=estNum
+                      if(rt!=null&&!isNaN(rt))row.rt=Math.round(rt)
+                      // Preserve existing star/trailer/est/rt if CSV cell blank
                       if(existing){
-                        // Update existing film — preserve fields not in CSV
-                        const patch={}
-                        if(filmData.dist)patch.dist=filmData.dist
-                        if(filmData.genre)patch.genre=filmData.genre
-                        if(filmData.star_actor)patch.star_actor=filmData.star_actor
-                        patch.phase=ph;patch.week=wk
-                        if(filmData.est_m!=null)patch.est_m=filmData.est_m
-                        if(filmData.base_price!=null)patch.base_price=filmData.base_price
-                        if(filmData.rt!=null)patch.rt=filmData.rt
-                        if(filmData.trailer)patch.trailer=filmData.trailer
-                        await supabase.from('films').update(patch).eq('id',existing.id)
-                        // Weekly grosses
-                        for(const[w,ci] of wkIs){
-                          const g=cells[ci]?Number(cells[ci]):null
-                          if(g!=null&&!isNaN(g)&&g>0){
-                            if(w===1){
-                              await supabase.from('results').upsert({film_id:existing.id,actual_m:g},{onConflict:'film_id'})
-                              await supabase.from('film_values').upsert({film_id:existing.id,current_value:calcMarketValue({...existing,...patch,basePrice:patch.base_price||existing.basePrice},g,weeklyG[existing.id]||{})},{onConflict:'film_id'})
-                            }else{
-                              await supabase.from('weekly_grosses').upsert({film_id:existing.id,week_num:w,gross_m:g},{onConflict:'film_id,week_num'})
-                            }
-                            grossRows++
-                          }
-                        }
+                        if(!star&&existing.star_actor)row.star_actor=existing.star_actor
+                        if(!trailer&&existing.trailer)row.trailer=existing.trailer
+                        if(estNum==null&&existing.est_m!=null){row.est_m=existing.est_m;row.base_price=calcIPO(existing.est_m)}
+                        if((rt==null||isNaN(rt))&&existing.rt!=null)row.rt=existing.rt
                         updated++
-                      }else{
-                        // New film
-                        await supabase.from('films').upsert(filmData,{onConflict:'id'})
-                        for(const[w,ci] of wkIs){
-                          const g=cells[ci]?Number(cells[ci]):null
-                          if(g!=null&&!isNaN(g)&&g>0){
-                            if(w===1){
-                              await supabase.from('results').upsert({film_id:fid,actual_m:g},{onConflict:'film_id'})
-                            }else{
-                              await supabase.from('weekly_grosses').upsert({film_id:fid,week_num:w,gross_m:g},{onConflict:'film_id,week_num'})
-                            }
-                            grossRows++
-                          }
+                      }else{added++}
+                      filmsToUpsert.push(row)
+                      // Weekly grosses
+                      for(const[w,ci] of wkIs){
+                        const g=cells[ci]?Number(cells[ci]):null
+                        if(g!=null&&!isNaN(g)&&g>0){
+                          if(w===1)resultsToUpsert.push({film_id:fid,actual_m:g})
+                          else grossesToUpsert.push({film_id:fid,week_num:w,gross_m:g})
+                          grossRows++
                         }
-                        added++
                       }
+                    }
+                    // Batch write — a handful of calls instead of hundreds
+                    const chunk=(arr,n)=>{const out=[];for(let i=0;i<arr.length;i+=n)out.push(arr.slice(i,i+n));return out}
+                    for(const c of chunk(filmsToUpsert,200)){
+                      const{error}=await supabase.from('films').upsert(c,{onConflict:'id'})
+                      if(error)throw new Error(`films: ${error.message}`)
+                    }
+                    for(const c of chunk(resultsToUpsert,200)){
+                      const{error}=await supabase.from('results').upsert(c,{onConflict:'film_id'})
+                      if(error)throw new Error(`results: ${error.message}`)
+                    }
+                    for(const c of chunk(grossesToUpsert,200)){
+                      const{error}=await supabase.from('weekly_grosses').upsert(c,{onConflict:'film_id,week_num'})
+                      if(error)throw new Error(`grosses: ${error.message}`)
                     }
                     notify(`✅ Import complete: ${added} added, ${updated} updated, ${grossRows} gross rows, ${skipped} skipped`,T.green)
                     loadData(league?.id)
@@ -5212,16 +5204,16 @@ function AppInner(){
                   {/* Results row */}
                   <div style={{...S.label,marginBottom:'6px',color:T.green}}>Results</div>
                   <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px',marginBottom:'10px'}}>
-                    <input value={e.actual??actual??''} onChange={ev=>setEntry(f.id,'actual',ev.target.value)}
+                    <input defaultValue={e.actual??(actual!=null?String(actual):'')} onChange={ev=>setEntry(f.id,'actual',ev.target.value)}
                       placeholder={actual!=null?`Was $${actual}M`:"Opening W/E $M"} style={{...S.inp,fontSize:'11px',padding:'5px 8px',color:actual!=null?T.green:T.text}}/>
                     {[2,3].map(w=>(
-                      <input key={w} value={e[`week${w}`]??weeklyG[f.id]?.[w]??''} onChange={ev=>setEntry(f.id,`week${w}`,ev.target.value)}
+                      <input key={w} defaultValue={e[`week${w}`]??(weeklyG[f.id]?.[w]!=null?String(weeklyG[f.id][w]):'')} onChange={ev=>setEntry(f.id,`week${w}`,ev.target.value)}
                         placeholder={weeklyG[f.id]?.[w]?`Was $${weeklyG[f.id][w]}M`:`Wk ${w} weekend $M`} style={{...S.inp,fontSize:'11px',padding:'5px 8px'}}/>
                     ))}
                   </div>
                   <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px',marginBottom:'10px'}}>
                     {[4,5,6].map(w=>(
-                      <input key={w} value={e[`week${w}`]??weeklyG[f.id]?.[w]??''} onChange={ev=>setEntry(f.id,`week${w}`,ev.target.value)}
+                      <input key={w} defaultValue={e[`week${w}`]??(weeklyG[f.id]?.[w]!=null?String(weeklyG[f.id][w]):'')} onChange={ev=>setEntry(f.id,`week${w}`,ev.target.value)}
                         placeholder={weeklyG[f.id]?.[w]?`Was $${weeklyG[f.id][w]}M`:`Wk ${w} weekend $M`} style={{...S.inp,fontSize:'11px',padding:'5px 8px'}}/>
                     ))}
                   </div>
@@ -5229,11 +5221,11 @@ function AppInner(){
                   {/* Film details row */}
                   <div style={{...S.label,marginBottom:'6px',color:T.gold}}>Film Details</div>
                   <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px'}}>
-                    <input value={e.est_m??''} onChange={ev=>setEntry(f.id,'est_m',ev.target.value)}
+                    <input defaultValue={e.est_m??''} onChange={ev=>setEntry(f.id,'est_m',ev.target.value)}
                       placeholder={f.estM?`Est: $${f.estM}M`:"Est $M"} style={{...S.inp,fontSize:'11px',padding:'5px 8px'}}/>
-                    <input value={e.rt??''} onChange={ev=>setEntry(f.id,'rt',ev.target.value)}
+                    <input defaultValue={e.rt??''} onChange={ev=>setEntry(f.id,'rt',ev.target.value)}
                       placeholder={f.rt!=null?`RT: ${f.rt}%`:"RT score"} style={{...S.inp,fontSize:'11px',padding:'5px 8px'}}/>
-                    <input value={e.base_price??''} onChange={ev=>setEntry(f.id,'base_price',ev.target.value)}
+                    <input defaultValue={e.base_price??''} onChange={ev=>setEntry(f.id,'base_price',ev.target.value)}
                       placeholder={f.basePrice!=null?`IPO: $${f.basePrice}M`:"IPO price"} style={{...S.inp,fontSize:'11px',padding:'5px 8px'}}/>
                   </div>
                 </div>
