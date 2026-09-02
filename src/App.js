@@ -32,11 +32,11 @@ const MAX_ROSTER         = 6
 const DRAFT_MIN          = 4
 const DRAFT_PENALTY      = 5
 const PHASE_BUDGETS      = {1:150,2:180,3:150}
-const PHASE_NAMES        = {0:'Historical (Season opener)',1:'Summer (Jun–Aug)',2:'Autumn (Sep–Nov)',3:'Awards & Holiday (Dec–Jan)'}
+const PHASE_NAMES        = {0:'Historical (Season opener)',1:'Autumn (Sep–Nov)',2:'Awards & Holiday (Dec–Jan)',3:'Spring (Feb+)'}
 const ALL_PHASES         = [1,2,3]
 const HISTORICAL_PHASE   = 0
-// Season anchor: Week 1 = 25 Jun 2026 (live game start)
-const SEASON_ANCHOR      = new Date('2026-06-25')
+// Season anchor: Week 1 = 7 Sep 2026 (season reset — live game restart)
+const SEASON_ANCHOR      = new Date('2026-09-07')
 function weekToDate(wk){return new Date(SEASON_ANCHOR.getTime()+(wk-1)*7*86400000)}
 // IPO price scales smoothly with the estimated opening — wider spread than
 // flat tiers, so every film gets a distinct, estimate-driven price.
@@ -4931,10 +4931,10 @@ function AppInner(){
                     }
                     const dateToWeek=(d)=>Math.max(1,Math.floor((d-SEASON_ANCHOR)/(7*86400000))+1)
                     const dateToPhase=(d)=>{
-                      if(d<new Date('2026-06-25'))return 0       // historical archive
-                      if(d<=new Date('2026-08-28'))return 1      // Summer
-                      if(d<=new Date('2026-11-30'))return 2      // Autumn
-                      return 3                                    // Awards & Holiday
+                      if(d<new Date('2026-09-07'))return 0       // historical archive (pre-reset)
+                      if(d<=new Date('2026-11-29'))return 1      // Autumn (Sep–Nov)
+                      if(d<=new Date('2027-01-31'))return 2      // Awards & Holiday (Dec–Jan)
+                      return 3                                    // Spring (Feb+)
                     }
                     const calcIPO=calcIPOprice
                     const GENRE_MAP={action:'Action',horror:'Horror',drama:'Drama',family:'Family','sci-fi':'Sci-Fi',scifi:'Sci-Fi',animation:'Animation',comedy:'Comedy',thriller:'Thriller',adventure:'Adventure',concert:'Concert',documentary:'Drama',biography:'Drama',music:'Comedy',mystery:'Thriller',crime:'Thriller',romance:'Drama',fantasy:'Adventure',history:'Drama',war:'Action'}
