@@ -4,7 +4,7 @@
    - Navigations: network-first, falling back to cached shell when offline
    - Static assets + TMDB posters: cache-first (hashed bundles are immutable)
 */
-const CACHE = 'boxd-v1';
+const CACHE = 'boxd-v2';
 
 self.addEventListener('install', () => self.skipWaiting());
 
