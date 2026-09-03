@@ -39,11 +39,17 @@ async function sb (path, init) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const year = (d) => (d && /^\d{4}/.test(d) ? d.slice(0, 4) : null)
 
+// TMDB accepts either a v4 read token (JWT, "eyJ…", used as a Bearer header)
+// or a v3 API key (32-hex, used as ?api_key=). Detect which one was supplied.
+const TMDB_IS_V4 = /^eyJ/.test(TMDB) || TMDB.split('.').length === 3
 async function tmdbId (title, yr) {
   if (!TMDB) return null
-  const q = `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(title)}&language=en-US&include_adult=false${yr ? `&year=${yr}` : ''}`
-  const res = await fetch(q, { headers: { Authorization: `Bearer ${TMDB}` } })
-  if (!res.ok) throw new Error(`TMDB ${res.status}`)
+  let q = `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(title)}&language=en-US&include_adult=false${yr ? `&year=${yr}` : ''}`
+  const opts = {}
+  if (TMDB_IS_V4) opts.headers = { Authorization: `Bearer ${TMDB}` }
+  else q += `&api_key=${TMDB}`
+  const res = await fetch(q, opts)
+  if (!res.ok) throw new Error(`TMDB ${res.status}${res.status === 401 ? ` (token looks like ${TMDB_IS_V4 ? 'a v4 read token' : 'a v3 API key'} — check it's the right one)` : ''}`)
   const j = await res.json()
   const hit = (j.results || [])[0]
   return hit ? hit.id : null
@@ -74,15 +80,22 @@ for (const f of films) {
   checked++
   const yr = year(f.release_date)
   const patch = {}
-  try {
-    if (needId) { const id = await tmdbId(f.title, yr); if (id && id !== f.tmdb_id) patch.tmdb_id = id }
-    if (needRt) { await sleep(120); const rt = await omdbRt(f.title, yr); if (rt != null && rt !== f.rt) patch.rt = rt }
-  } catch (e) {
-    log.errors.push({ film: f.id, error: e.message })
-    rows.push([f.title, yr ?? '', '', '', `ERROR ${e.message}`])
+  const errs = []
+  if (needId) {
+    try { const id = await tmdbId(f.title, yr); if (id && id !== f.tmdb_id) patch.tmdb_id = id }
+    catch (e) { errs.push(`tmdb: ${e.message}`) }
+  }
+  if (needRt) {
+    try { await sleep(120); const rt = await omdbRt(f.title, yr); if (rt != null && rt !== f.rt) patch.rt = rt }
+    catch (e) { errs.push(`omdb: ${e.message}`) }
+  }
+  if (errs.length) { log.errors.push({ film: f.id, error: errs.join(' | ') }) }
+  if (!Object.keys(patch).length) {
+    const note = errs.length ? `ERROR ${errs.join(' | ')}` : 'no match'
+    if (!errs.length) log.conflicts.push({ title: f.title, reason: 'no match' })
+    rows.push([f.title, yr ?? '', '', '', note])
     continue
   }
-  if (!Object.keys(patch).length) { log.conflicts.push({ title: f.title, reason: 'no match' }); rows.push([f.title, yr ?? '', '', '', 'no match']); continue }
   rows.push([f.title, yr ?? '', patch.tmdb_id ?? f.tmdb_id ?? '', patch.rt ?? f.rt ?? '', COMMIT ? 'written' : 'would write'])
   if (COMMIT) {
     const r = await fetch(`${U}/rest/v1/films?id=eq.${encodeURIComponent(f.id)}`, { method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify(patch) })
