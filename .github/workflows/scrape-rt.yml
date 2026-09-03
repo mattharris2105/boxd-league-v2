@@ -1,29 +1,28 @@
-name: Sync film metadata (TMDB ids)
+name: Scrape Rotten Tomatoes scores
 
 on:
   schedule:
-    - cron: '0 8 * * 1,4'   # Mon & Thu 08:00 UTC
+    - cron: '0 19 * * 1'   # Mon 19:00 UTC, after the box-office ingest
   workflow_dispatch:
     inputs:
       refresh:
-        description: 'Re-fetch even for films that already have tmdb_id / rt'
+        description: 'Re-scrape films that already have an rt score'
         type: boolean
         default: false
 
 jobs:
-  sync:
+  rt:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
-      - name: Sync metadata
+      - name: Scrape RT
         env:
           SUPABASE_URL: https://yxluqkfanhzktinayvex.supabase.co
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          TMDB_TOKEN: ${{ secrets.TMDB_TOKEN }}
         run: |
           ARGS="--commit"
           if [ "${{ github.event.inputs.refresh }}" = "true" ]; then ARGS="$ARGS --refresh"; fi
-          node scripts/sync-metadata.mjs $ARGS
+          node scripts/scrape-rt.mjs $ARGS
