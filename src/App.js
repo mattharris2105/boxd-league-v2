@@ -1828,7 +1828,6 @@ function AppInner(){
   const[dataLoading,setDataLoading]=useState(false)
   const[loadError,setLoadError]=useState(null)
   const[syncLog,setSyncLog]=useState(null)
-  const[syncBusy,setSyncBusy]=useState(false)
   const[reviews,setReviews]=useState([])
   const[allComments,setAllComments]=useState([])
   const loadAllComments=async(lid)=>{
@@ -4763,27 +4762,18 @@ function AppInner(){
                     </div>
                   )
                 })()}
-                {/* Source health + manual sync trigger */}
+                {/* Sync health — the box-office + metadata syncs run as GitHub Actions
+                    (scripts/ingest-box-office.mjs Mon, scripts/sync-metadata.mjs Mon+Thu),
+                    logging to sync_log. This panel just reflects the latest run. */}
                 <div style={{marginTop:'10px',display:'flex',gap:'10px',alignItems:'center',background:T.surfaceUp,borderRadius:'8px',padding:'8px 10px'}}>
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:'11px',fontWeight:700,color:T.text}}>🔄 Auto-sync · TMDB + OMDb</div>
-                    <div style={{fontSize:'10px',color:syncLog?.status==='partial'?T.orange:T.textSub,marginTop:'2px'}}>
+                    <div style={{fontSize:'11px',fontWeight:700,color:T.text}}>🔄 Auto-sync · box office + TMDB/RT</div>
+                    <div style={{fontSize:'10px',color:syncLog?.status==='failed'?T.red:syncLog?.status==='partial'?T.orange:T.textSub,marginTop:'2px'}}>
                       {syncLog
-                        ?`Last run ${new Date(syncLog.run_at).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})} · ${syncLog.films_updated}/${syncLog.films_checked} updated${(syncLog.conflicts?.length||0)>0?` · ${syncLog.conflicts.length} title conflict${syncLog.conflicts.length!==1?'s':''}`:''}${(syncLog.errors?.length||0)>0?` · ${syncLog.errors.length} errors`:''}`
-                        :'Never run — deploy the sync-metadata Edge Function to enable'}
+                        ?`${syncLog.source||'sync'} · ${new Date(syncLog.run_at).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})} · ${syncLog.films_updated}/${syncLog.films_checked} updated${(syncLog.conflicts?.length||0)>0?` · ${syncLog.conflicts.length} unmatched`:''}${(syncLog.errors?.length||0)>0?` · ${syncLog.errors.length} error${syncLog.errors.length!==1?'s':''}`:''} · ${syncLog.status||''}`
+                        :'No runs logged yet — trigger the workflows from the repo Actions tab.'}
                     </div>
                   </div>
-                  <Btn onClick={async()=>{
-                    setSyncBusy(true)
-                    try{
-                      const res=await fetch(`${SUPABASE_URL}/functions/v1/sync-metadata`,{method:'POST',headers:{Authorization:`Bearer ${SUPABASE_ANON_KEY}`}})
-                      const j=await res.json().catch(()=>null)
-                      if(!res.ok||!j?.ok)throw new Error(j?.error||`HTTP ${res.status} — is sync-metadata deployed?`)
-                      notify(`🔄 Sync done: ${j.updated} of ${j.checked} films updated`,T.green)
-                      loadData(league?.id)
-                    }catch(e){notify(`Sync failed: ${e.message}`,T.red)}
-                    setSyncBusy(false)
-                  }} color={T.blue} textColor="#fff" size="sm" disabled={syncBusy}>{syncBusy?'Syncing…':'Sync now'}</Btn>
                 </div>
                 {priceLeaks.length>0&&(
                   <div style={{marginTop:'10px',display:'flex',gap:'10px',alignItems:'center',background:`${T.red}10`,borderRadius:'8px',padding:'8px 10px'}}>
