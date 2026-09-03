@@ -24,6 +24,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Formula regression test
+        run: node scripts/marketValue.test.mjs
       - name: Run ingest
         env:
           SUPABASE_URL: https://yxluqkfanhzktinayvex.supabase.co
