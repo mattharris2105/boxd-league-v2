@@ -36,9 +36,26 @@ const PHASE_BUDGETS      = {1:150,2:180,3:150}
 const PHASE_NAMES        = {0:'Historical (Season opener)',1:'Autumn (Sep–Nov)',2:'Awards & Holiday (Dec–Jan)',3:'Spring (Feb+)'}
 const ALL_PHASES         = [1,2,3]
 const HISTORICAL_PHASE   = 0
-// Season anchor: Week 1 = 7 Sep 2026 (season reset — live game restart)
-const SEASON_ANCHOR      = new Date('2026-09-07')
+// Season anchor + phase boundaries. Defaults match the 2026-09-07 reset, but the
+// live values come from league_config (season_anchor / phase1_end / phase2_end),
+// applied by applySeasonConfig() when config loads — so a future reset is a data
+// change, not a code deploy.
+let SEASON_ANCHOR        = new Date('2026-09-07')
+let PHASE1_END           = new Date('2026-11-29')
+let PHASE2_END           = new Date('2027-01-31')
+function applySeasonConfig(cfg){
+  if(cfg?.season_anchor) SEASON_ANCHOR = new Date(cfg.season_anchor)
+  if(cfg?.phase1_end)    PHASE1_END    = new Date(cfg.phase1_end)
+  if(cfg?.phase2_end)    PHASE2_END    = new Date(cfg.phase2_end)
+}
 function weekToDate(wk){return new Date(SEASON_ANCHOR.getTime()+(wk-1)*7*86400000)}
+function dateToPhase(d){
+  const t=d instanceof Date?d:new Date(d)
+  if(t<SEASON_ANCHOR)return 0
+  if(t<=PHASE1_END)return 1
+  if(t<=PHASE2_END)return 2
+  return 3
+}
 // IPO price scales smoothly with the estimated opening — wider spread than
 // flat tiers, so every film gets a distinct, estimate-driven price.
 // ~$3M at est $2M, ~$7 at $5, ~$15 at $15, ~$30 at $50, ~$59 at $175.
@@ -2197,6 +2214,7 @@ function AppInner(){
       trailer:f.trailer||'',affiliateUrl:f.affiliate_url||'',
       tmdbId:f.tmdb_id||null,
     })))
+    applySeasonConfig(cf)
     setCfg(cf||{current_week:1,current_phase:1,currency:'$',tx_fee:5,phase_window_active:false,phase_window_opened_at:null,draft_window_open:false,draft_deadline:null,sealed_bid_window_open:false,sealed_bid_deadline:null})
     setStandingsSnapshot(cf?.standings_snapshot||{})
     // PERF: drop loading state once films are ready, then fetch remainder non-blocking
@@ -4877,13 +4895,9 @@ function AppInner(){
                       if(m)return new Date(m[1],m[2]-1,m[3])
                       return null
                     }
+                    // dateToWeek / dateToPhase are the shared module helpers,
+                    // driven by league_config via applySeasonConfig().
                     const dateToWeek=(d)=>Math.max(1,Math.floor((d-SEASON_ANCHOR)/(7*86400000))+1)
-                    const dateToPhase=(d)=>{
-                      if(d<new Date('2026-09-07'))return 0       // historical archive (pre-reset)
-                      if(d<=new Date('2026-11-29'))return 1      // Autumn (Sep–Nov)
-                      if(d<=new Date('2027-01-31'))return 2      // Awards & Holiday (Dec–Jan)
-                      return 3                                    // Spring (Feb+)
-                    }
                     const calcIPO=calcIPOprice
                     const GENRE_MAP={action:'Action',horror:'Horror',drama:'Drama',family:'Family','sci-fi':'Sci-Fi',scifi:'Sci-Fi',animation:'Animation',comedy:'Comedy',thriller:'Thriller',adventure:'Adventure',concert:'Concert',documentary:'Drama',biography:'Drama',music:'Comedy',mystery:'Thriller',crime:'Thriller',romance:'Drama',fantasy:'Adventure',history:'Drama',war:'Action'}
                     const slug=(t)=>{const s=t.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40);return s+'-'+Math.abs([...t].reduce((h,c)=>(h*31+c.charCodeAt(0))|0,0)%9999)}
