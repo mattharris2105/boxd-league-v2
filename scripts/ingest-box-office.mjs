@@ -29,10 +29,19 @@ try {
     const m = l.match(/^([A-Z_]+)=(.*)$/); if (m) env[m[1]] = m[2].trim()
   }
 } catch { /* CI: rely on process.env */ }
-const U = env.SUPABASE_URL || 'https://yxluqkfanhzktinayvex.supabase.co'
-const KEY = env.SUPABASE_SERVICE_KEY || env.SUPABASE_SERVICE_ROLE_KEY
+const U = (env.SUPABASE_URL || 'https://yxluqkfanhzktinayvex.supabase.co').trim().replace(/\/+$/, '')
+const KEY = (env.SUPABASE_SERVICE_KEY || env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
 if (!KEY) { console.error('Missing SUPABASE_SERVICE_KEY'); process.exit(1) }
 const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' }
+
+async function sb (path, init) {
+  const res = await fetch(`${U}/rest/v1/${path}`, { ...init, headers: { ...H, ...(init?.headers || {}) } })
+  const text = await res.text()
+  let body
+  try { body = text ? JSON.parse(text) : null } catch { body = text }
+  if (!res.ok) throw new Error(`Supabase ${res.status} on ${path}: ${typeof body === 'string' ? body : JSON.stringify(body)}`)
+  return body
+}
 const BROWSER = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -114,7 +123,16 @@ function matchFilm (scraped, films) {
 }
 
 // ── run ─────────────────────────────────────────────────────────────────────
-const films = await fetch(`${U}/rest/v1/films?select=id,title,alt_titles,phase,week,est_m,base_price,rt`, { headers: H }).then((r) => r.json())
+let films
+try {
+  films = await sb('films?select=id,title,alt_titles,phase,week,est_m,base_price,rt')
+} catch (e) {
+  // retry without alt_titles in case the column isn't present
+  console.log(`films fetch failed (${e.message}) — retrying without alt_titles`)
+  films = await sb('films?select=id,title,phase,week,est_m,base_price,rt')
+}
+if (!Array.isArray(films)) { console.error('films query did not return a list:', JSON.stringify(films)); process.exit(1) }
+console.log(`loaded ${films.length} films`)
 
 for (const wkFriday of weekends) {
   const [y, mo, da] = wkFriday.split('-')
@@ -166,8 +184,8 @@ for (const wkFriday of weekends) {
   // recompute film_values for every touched film
   for (const [fid, f] of touched) {
     if (!COMMIT) continue
-    const res = await fetch(`${U}/rest/v1/results?film_id=eq.${encodeURIComponent(fid)}&select=actual_m`, { headers: H }).then((r) => r.json())
-    const wg = await fetch(`${U}/rest/v1/weekly_grosses?film_id=eq.${encodeURIComponent(fid)}&select=week_num,gross_m`, { headers: H }).then((r) => r.json())
+    const res = await sb(`results?film_id=eq.${encodeURIComponent(fid)}&select=actual_m`)
+    const wg = await sb(`weekly_grosses?film_id=eq.${encodeURIComponent(fid)}&select=week_num,gross_m`)
     const opening = res[0]?.actual_m
     if (opening == null) continue
     const wgMap = {}; wg.forEach((w) => { wgMap[w.week_num] = w.gross_m })
