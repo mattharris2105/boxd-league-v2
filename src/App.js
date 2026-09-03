@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabase'
+import { calcMarketValue, calcIPOprice } from './lib/marketValue'
 
 const SUPABASE_URL = 'https://yxluqkfanhzktinayvex.supabase.co'
 // The client in ./supabase already holds a valid anon key. Reuse it so
@@ -41,11 +42,8 @@ function weekToDate(wk){return new Date(SEASON_ANCHOR.getTime()+(wk-1)*7*8640000
 // IPO price scales smoothly with the estimated opening — wider spread than
 // flat tiers, so every film gets a distinct, estimate-driven price.
 // ~$3M at est $2M, ~$7 at $5, ~$15 at $15, ~$30 at $50, ~$59 at $175.
-function calcIPOprice(est){
-  if(est==null||isNaN(est))return null
-  if(est<=0)return 3
-  return Math.max(3,Math.min(75,Math.round(1.05*Math.pow(est,0.78))))
-}
+// calcIPOprice + calcMarketValue now live in ./lib/marketValue (shared with the
+// box-office ingest script so the two can't drift).
 function dateLabel(wk){const d=weekToDate(wk);return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})}
 // TMDB read token lives in an env var, never committed to the repo (GitHub's
 // secret scanner flags hardcoded keys). Set REACT_APP_TMDB_TOKEN in Vercel.
@@ -349,56 +347,6 @@ function FilmPoster({film,width,height,radius=8,imgStyle={},owned=false,scored=f
   )
 }
 
-function calcMarketValue(film,actualM,weeklyGrosses={}){
-  if(actualM==null) return film.basePrice
-  const r=film.estM?actualM/film.estM:1
-  // Opening performance multiplier
-  const perf=r>=2?2:r>=1.5?1.6:r>=1.3?1.35:r>=1.1?1.15:r>=0.95?1:r>=0.8?0.85:r>=0.6?0.65:r>=0.4?0.45:0.25
-  // Critics multiplier
-  const rt=film.rt!=null?(film.rt>=90?1.15:film.rt>=75?1.08:film.rt<50?0.9:1):1
-
-  // ── LEGS: week-on-week hold vs an expected drop ──────────────────────────
-  // Each week has a "standard" drop. Beating it lifts value, missing it cuts.
-  // Bands (drop is negative; e.g. -0.55 = a 55% fall from prior week):
-  //   Wk2: standard -55% · better → up to +30% · worse → down to -15%
-  //   Wk3: standard -40% · better → up to +20% · worse → down to -10%
-  //   Wk4: standard -35% · better → up to +15% · worse → down to  -5%
-  //   Wk5/6: standard -40% · better → up to +10% · worse → flat (0%)
-  const BANDS={
-    2:{std:-0.55,up:0.30,down:-0.15},
-    3:{std:-0.40,up:0.20,down:-0.10},
-    4:{std:-0.35,up:0.15,down:-0.05},
-    5:{std:-0.40,up:0.10,down:0},
-    6:{std:-0.40,up:0.10,down:0},
-  }
-  const wg=weeklyGrosses||{}
-  let legsMult=1
-  for(let w=2;w<=6;w++){
-    const cur=Number(wg[w]),prev=w===2?actualM:Number(wg[w-1])
-    if(!cur||!prev||isNaN(cur)||isNaN(prev))continue
-    const drop=(cur-prev)/prev          // e.g. -0.5 means it fell 50%
-    const band=BANDS[w]
-    // How much better/worse than the standard drop? Scale into the band.
-    // If drop is exactly std → 0 adjustment. Held flat (drop=0) → full "up".
-    // Dropped twice as hard as std → full "down".
-    let adj
-    if(drop>=band.std){
-      // better than expected (smaller drop or a rise)
-      const range=0-band.std            // distance from std to "held flat"
-      const frac=range>0?Math.min(1,(drop-band.std)/range):0
-      adj=band.up*frac
-    }else{
-      // worse than expected (bigger drop)
-      const range=band.std-(-1)         // distance from std down to -100%
-      const frac=range>0?Math.min(1,(band.std-drop)/range):0
-      adj=band.down*frac
-    }
-    legsMult*=(1+adj)
-  }
-
-  const raw=film.basePrice*perf*rt*legsMult
-  return Math.round(Math.max(film.basePrice*0.15,Math.min(film.basePrice*4,raw)))
-}
 function calcOpeningPts(film,actualM,isEB=false,isAnalyst=false){
   if(actualM==null) return 0
   const r=actualM/film.estM

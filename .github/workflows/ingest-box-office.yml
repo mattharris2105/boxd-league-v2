@@ -1,0 +1,35 @@
+name: Weekend box-office ingest
+
+on:
+  schedule:
+    # Mondays 18:00 UTC — after The Numbers posts final weekend actuals
+    - cron: '0 18 * * 1'
+  workflow_dispatch:
+    inputs:
+      weekend:
+        description: 'Weekend Friday date YYYY-MM-DD (blank = last completed weekend)'
+        required: false
+      from:
+        description: 'Backfill range start YYYY-MM-DD (use with "to")'
+        required: false
+      to:
+        description: 'Backfill range end YYYY-MM-DD'
+        required: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run ingest
+        env:
+          SUPABASE_URL: https://yxluqkfanhzktinayvex.supabase.co
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          ARGS="--commit"
+          if [ -n "${{ github.event.inputs.weekend }}" ]; then ARGS="$ARGS --weekend ${{ github.event.inputs.weekend }}"; fi
+          if [ -n "${{ github.event.inputs.from }}" ]; then ARGS="$ARGS --from ${{ github.event.inputs.from }} --to ${{ github.event.inputs.to }}"; fi
+          node scripts/ingest-box-office.mjs $ARGS

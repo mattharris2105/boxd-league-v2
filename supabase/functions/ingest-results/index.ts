@@ -1,4 +1,21 @@
 // supabase/functions/ingest-results/index.ts
+//
+// ⚠️ DEPRECATED / DO NOT RELY ON.
+// This function has been failing every run since ~13 Jul 2026: it fetches
+// https://www.the-numbers.com/weekend-box-office-chart, which now 404s for
+// non-browser clients. It was also drifting from the app's value formula and
+// had no notion of which weekend a film was in (it would overwrite an opening
+// number with a later, smaller weekend gross).
+//
+// Replacement: scripts/ingest-box-office.mjs, run by
+// .github/workflows/ingest-box-office.yml (Mondays 18:00 UTC). That path uses
+// the dated chart URL, a browser UA, the shared src/lib/marketValue formula,
+// week-aware writes (results vs weekly_grosses), and skips Phase 0.
+//
+// Once the GitHub Action is live, remove the pg_cron job that calls
+// scheduled-ingest so it stops writing failure rows to sync_log.
+//
+// --- original notes ---
 // Monday night auto-ingest: weekend box office only
 // RT scores entered manually via Commissioner Panel
 
