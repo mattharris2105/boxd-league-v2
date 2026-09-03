@@ -42,25 +42,33 @@ const year = (d) => (d && /^\d{4}/.test(d) ? d.slice(0, 4) : null)
 // TMDB accepts either a v4 read token (JWT, "eyJ…", used as a Bearer header)
 // or a v3 API key (32-hex, used as ?api_key=). Detect which one was supplied.
 const TMDB_IS_V4 = /^eyJ/.test(TMDB) || TMDB.split('.').length === 3
-async function tmdbId (title, yr) {
-  if (!TMDB) return null
-  let q = `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(title)}&language=en-US&include_adult=false${yr ? `&year=${yr}` : ''}`
-  const opts = {}
-  if (TMDB_IS_V4) opts.headers = { Authorization: `Bearer ${TMDB}` }
-  else q += `&api_key=${TMDB}`
-  const res = await fetch(q, opts)
-  if (!res.ok) throw new Error(`TMDB ${res.status}${res.status === 401 ? ` (token looks like ${TMDB_IS_V4 ? 'a v4 read token' : 'a v3 API key'} — check it's the right one)` : ''}`)
-  const j = await res.json()
-  const hit = (j.results || [])[0]
-  return hit ? hit.id : null
+const tmdbFetch = (path) => {
+  const sep = path.includes('?') ? '&' : '?'
+  const url = TMDB_IS_V4 ? `https://api.themoviedb.org/3${path}` : `https://api.themoviedb.org/3${path}${sep}api_key=${TMDB}`
+  return fetch(url, TMDB_IS_V4 ? { headers: { Authorization: `Bearer ${TMDB}` } } : {})
 }
-async function omdbRt (title, yr) {
-  if (!OMDB) return null
-  const q = `https://www.omdbapi.com/?apikey=${OMDB}&t=${encodeURIComponent(title)}${yr ? `&y=${yr}` : ''}`
-  const res = await fetch(q)
+async function tmdbSearch (title, yr) {
+  if (!TMDB) return null
+  const res = await tmdbFetch(`/search/movie?query=${encodeURIComponent(title)}&language=en-US&include_adult=false${yr ? `&year=${yr}` : ''}`)
+  if (!res.ok) throw new Error(`TMDB ${res.status}${res.status === 401 ? ` (token looks like ${TMDB_IS_V4 ? 'a v4 read token' : 'a v3 API key'})` : ''}`)
+  const j = await res.json()
+  return (j.results || [])[0] || null
+}
+async function tmdbImdbId (id) {
+  const res = await tmdbFetch(`/movie/${id}/external_ids`)
+  if (!res.ok) throw new Error(`TMDB external_ids ${res.status}`)
+  const j = await res.json()
+  return j.imdb_id || null
+}
+// RT via IMDb id (exact — no title collisions). Rejects a hit whose year is
+// more than 1 off the film's real release year.
+async function omdbRtByImdb (imdbId, expectYear) {
+  if (!OMDB || !imdbId) return null
+  const res = await fetch(`https://www.omdbapi.com/?apikey=${OMDB}&i=${imdbId}`)
   if (!res.ok) throw new Error(`OMDb ${res.status}`)
   const j = await res.json()
   if (j.Response === 'False') return null
+  if (expectYear && j.Year && Math.abs(Number(String(j.Year).slice(0, 4)) - Number(expectYear)) > 1) return null
   const r = (j.Ratings || []).find((x) => x.Source === 'Rotten Tomatoes')
   const m = r && /(\d+)%/.exec(r.Value)
   return m ? Number(m[1]) : null
@@ -73,21 +81,29 @@ const log = { id: randomUUID(), run_at: new Date().toISOString(), source: 'tmdb+
 const rows = [['title', 'year', 'tmdb_id', 'rt', 'note']]
 let checked = 0, updated = 0
 
+const TODAY = new Date().toISOString().slice(0, 10)
 for (const f of films) {
+  const released = f.release_date && f.release_date <= TODAY
   const needId = TMDB && (REFRESH || f.tmdb_id == null)
-  const needRt = OMDB && (REFRESH || f.rt == null)
+  // only chase RT for films that have actually released — unreleased ones have no reviews
+  const needRt = OMDB && released && (REFRESH || f.rt == null)
   if (!needId && !needRt) continue
   checked++
   const yr = year(f.release_date)
   const patch = {}
   const errs = []
+  let tid = f.tmdb_id
   if (needId) {
-    try { const id = await tmdbId(f.title, yr); if (id && id !== f.tmdb_id) patch.tmdb_id = id }
+    try { const hit = await tmdbSearch(f.title, yr); if (hit) { tid = hit.id; if (hit.id !== f.tmdb_id) patch.tmdb_id = hit.id } }
     catch (e) { errs.push(`tmdb: ${e.message}`) }
   }
-  if (needRt) {
-    try { await sleep(120); const rt = await omdbRt(f.title, yr); if (rt != null && rt !== f.rt) patch.rt = rt }
-    catch (e) { errs.push(`omdb: ${e.message}`) }
+  if (needRt && tid) {
+    try {
+      await sleep(120)
+      const imdb = await tmdbImdbId(tid)
+      const rt = await omdbRtByImdb(imdb, yr)
+      if (rt != null && rt !== f.rt) patch.rt = rt
+    } catch (e) { errs.push(`omdb: ${e.message}`) }
   }
   if (errs.length) { log.errors.push({ film: f.id, error: errs.join(' | ') }) }
   if (!Object.keys(patch).length) {
