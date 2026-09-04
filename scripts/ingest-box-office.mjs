@@ -42,6 +42,10 @@ async function sb (path, init) {
   if (!res.ok) throw new Error(`Supabase ${res.status} on ${path}: ${typeof body === 'string' ? body : JSON.stringify(body)}`)
   return body
 }
+async function logSyncRun (log) {
+  try { await sb('sync_log', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(log) }) }
+  catch (e) { console.log(`  WARNING: failed to write sync_log: ${e.message}`) }
+}
 const BROWSER = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -137,7 +141,11 @@ console.log(`loaded ${films.length} films`)
 for (const wkFriday of weekends) {
   const [y, mo, da] = wkFriday.split('-')
   const url = `https://www.the-numbers.com/box-office-chart/weekend/${y}/${mo}/${da}`
-  const log = { id: randomUUID(), run_at: new Date().toISOString(), source: 'the-numbers', weekend: wkFriday, films_checked: 0, films_updated: 0, conflicts: [], errors: [], status: 'success' }
+  // NB: keep this shape in sync with the actual sync_log columns — an extra
+  // key here (there used to be a stray `weekend` field) makes PostgREST
+  // reject the whole insert, and since we don't check the response it fails
+  // silently. logSyncRun() below at least surfaces that now.
+  const log = { id: randomUUID(), run_at: new Date().toISOString(), source: 'the-numbers', films_checked: 0, films_updated: 0, conflicts: [], errors: [], status: 'success' }
   console.log(`\n=== weekend ${wkFriday}  ${url} ===`)
 
   let rows
@@ -149,7 +157,7 @@ for (const wkFriday of weekends) {
   } catch (e) {
     log.status = 'failed'; log.errors.push({ error: e.message })
     console.log(`  FAILED: ${e.message}`)
-    if (COMMIT) await fetch(`${U}/rest/v1/sync_log`, { method: 'POST', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify(log) })
+    if (COMMIT) await logSyncRun(log)
     process.exitCode = 1
     continue
   }
@@ -197,7 +205,7 @@ for (const wkFriday of weekends) {
   if (log.errors.length) log.status = touched.size ? 'partial' : 'failed'
   console.log(`  ${touched.size} films updated · ${log.conflicts.length} unmatched · ${log.errors.length} errors · ${log.status}`)
   if (log.conflicts.length) console.log('  unmatched: ' + log.conflicts.map((c) => c.scraped).join(', '))
-  if (COMMIT) await fetch(`${U}/rest/v1/sync_log`, { method: 'POST', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify(log) })
+  if (COMMIT) await logSyncRun(log)
 }
 
 console.log(COMMIT ? '\nDone.' : '\nDry run — pass --commit to write.')
