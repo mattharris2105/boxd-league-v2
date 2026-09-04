@@ -21,10 +21,15 @@ const T = {
   mono:'"DM Mono","Fira Mono","Courier New",monospace',
 }
 
+// Muted so genre tags read as metadata, not competing UI signals — each hue
+// blended 38% toward a warm-neutral tone that sits on the T.bg/T.surface
+// scale, keeping distinct hues but a consistent, calmer visual weight.
+// Semantic colors (T.gold=money/primary, T.green=up, T.red=down, T.blue=info)
+// are unchanged — those still fully saturated and reserved for meaning.
 const GENRE_COL = {
-  Action:'#F4845F',Horror:'#B06EF0',Drama:'#74C0FC',Family:'#80ED99',
-  'Sci-Fi':'#4DA8FF',Animation:'#FFB040',Comedy:'#F5C842',
-  Thriller:'#FF5C8A',Concert:'#FF8C3D',Adventure:'#3DD68C',
+  Action:'#B36A50',Horror:'#895DAA',Drama:'#648FB2',Family:'#6BAB74',
+  'Sci-Fi':'#4C80B3',Animation:'#BA853D',Comedy:'#B4943E',
+  Thriller:'#BA516B',Concert:'#BA6F3B',Adventure:'#429D6C',
 }
 
 const COMMISSIONER_EMAIL = 'mattharris2105@gmail.com'
@@ -159,6 +164,8 @@ const GLOBAL_CSS = `
   @keyframes slideInRight{from{opacity:0;transform:translateX(30px);}to{opacity:1;transform:translateX(0);}}
   @keyframes priceUp{0%{color:inherit;text-shadow:none;}30%{color:#3DD68C;text-shadow:0 0 14px #3DD68C88;}100%{color:inherit;text-shadow:none;}}
   @keyframes priceDown{0%{color:inherit;text-shadow:none;}30%{color:#F04F5A;text-shadow:0 0 14px #F04F5A88;}100%{color:inherit;text-shadow:none;}}
+  .flash-up{animation:priceUp 1.1s ease;}
+  .flash-down{animation:priceDown 1.1s ease;}
 
   .hoverable{transition:border-color .2s,transform .15s,background .2s,box-shadow .2s;}
   .hoverable:hover{border-color:#382E28 !important;box-shadow:0 8px 28px #00000066;transform:translateY(-2px);}
@@ -884,7 +891,7 @@ function CreateProfile({session,onCreated,notify}){
   )
 }
 
-function PlayerProfilePage({player,badges=[],reviews=[],onOpenFilm,films,rosters,results,weeklyG,allChips,oscarPreds,allPicks,calcPoints,calcPhasePoints,budgetLeft,cur,isEarlyBird,analystActive,curPhase_ref,onBack}){
+function PlayerProfilePage({player,reviews=[],onOpenFilm,films,rosters,results,weeklyG,allChips,oscarPreds,allPicks,calcPoints,calcPhasePoints,budgetLeft,cur,isEarlyBird,analystActive,curPhase_ref,onBack}){
   const[activePhase,setActivePhase]=useState(null)
   const totalPts=calcPoints(player.id)
   const chip=allChips.find(c=>c.player_id===player.id)
@@ -1005,15 +1012,6 @@ function PlayerProfilePage({player,badges=[],reviews=[],onOpenFilm,films,rosters
             </div>
           )
         })()}
-        {badges.length>0&&(
-          <div style={{display:'flex',gap:'6px',flexWrap:'wrap',marginBottom:'12px'}}>
-            {badges.map(b=>(
-              <span key={b.name} title={b.desc} style={{background:T.surfaceUp,border:`1px solid ${T.gold}33`,borderRadius:'20px',padding:'5px 11px',fontSize:'11px',fontWeight:600,color:T.gold,display:'inline-flex',gap:'5px',alignItems:'center',cursor:'help'}}>
-                {b.icon} {b.name}
-              </span>
-            ))}
-          </div>
-        )}
         <div style={{display:'flex',gap:'8px',marginBottom:'12px'}}>
           <StatBox label="Films ever" value={allHoldings.length}/>
           <StatBox label="Total spend" value={`${cur}${totalSpend}M`} color={T.textSub}/>
@@ -1990,7 +1988,7 @@ function AppInner(){
   })
   const[onboardStep,setOnboardStep]=useState(0)
   const[tourStep,setTourStep]=useState(-1) // -1 = not touring
-  const TOUR_PAGES=['market','roster','league','intent','community','forecaster','market']
+  const TOUR_PAGES=['market','roster','league','intent','community','market']
   useEffect(()=>{
     if(tourStep>=0&&tourStep<TOUR_PAGES.length)setPage(TOUR_PAGES[tourStep])
   },[tourStep])
@@ -2050,7 +2048,15 @@ function AppInner(){
     haptic.success()
   }
   const nowRef=useRef(Date.now())
-  const isMobile=/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
+  // Real viewport-width check (was UA-sniffing, which never reacted to resize
+  // or orientation change) — 640px matches the film-grid breakpoint below.
+  const[isMobile,setIsMobile]=useState(()=>typeof window!=='undefined'&&window.matchMedia('(max-width:640px)').matches)
+  useEffect(()=>{
+    const mq=window.matchMedia('(max-width:640px)')
+    const onChange=()=>setIsMobile(mq.matches)
+    mq.addEventListener?mq.addEventListener('change',onChange):mq.addListener(onChange)
+    return()=>{mq.removeEventListener?mq.removeEventListener('change',onChange):mq.removeListener(onChange)}
+  },[])
 
   useEffect(()=>{
     const el=document.createElement('style');el.textContent=GLOBAL_CSS;document.head.appendChild(el)
@@ -2353,11 +2359,6 @@ function AppInner(){
     return earliest.id===h.id
   }
   const analystOn=(pid,fid)=>{const c=allChips.find(c=>c.player_id===pid);return c?.analyst_film_id===fid&&c?.analyst_result==='win'}
-  const forecasterPhaseScore=(pid,ph)=>{
-    const phFilms=films.filter(f=>f.phase===ph&&results[f.id]!=null);if(!phFilms.length)return null
-    const pfc=allForecasts.filter(f=>f.player_id===pid&&phFilms.find(pf=>pf.id===f.film_id));if(!pfc.length)return null
-    return pfc.reduce((s,fc)=>s+Math.abs(fc.predicted_m-results[fc.film_id])/results[fc.film_id],0)/pfc.length
-  }
   const calcPhasePoints=(pid,ph)=>{
     let t=0
     rosters.filter(r=>r.player_id===pid&&r.phase===ph&&films.find(f=>f.id===r.film_id)).forEach(h=>{
@@ -2397,25 +2398,6 @@ function AppInner(){
     return{est,basis,n:(sameDG.length>=2?sameDG:sameG.length>=2?sameG:sameD.length>=2?sameD:resulted).length}
   }
   // ── ACHIEVEMENTS — derived live from existing data, no storage needed ────
-  const calcBadges=(pid)=>{
-    const out=[]
-    const mine=rosters.filter(r=>r.player_id===pid)
-    const scored=mine.map(h=>{const f=films.find(fl=>fl.id===h.film_id);return f&&results[f.id]!=null?{h,f,actual:results[f.id]}:null}).filter(Boolean)
-    const chip=allChips.find(c=>c.player_id===pid)
-    if(chip?.analyst_result==='win')out.push({icon:'🎯',name:'Oracle',desc:'Analyst prediction landed within 10%'})
-    if(scored.some(({h,f,actual})=>isEarlyBird(h)&&f.estM&&actual/f.estM>=1.1))out.push({icon:'🐦',name:'Early Riser',desc:'Scored an Early Bird bonus'})
-    if(scored.some(({h,actual})=>h.bought_price>0&&actual/h.bought_price>=3))out.push({icon:'💰',name:'Moneyball',desc:'A pick opened at 3× what you paid'})
-    if(scored.some(({f,actual})=>calcOpeningPts(f,actual,false,false)>=100))out.push({icon:'🏆',name:'Century',desc:'100 opening points on a single film'})
-    if(scored.some(({f,actual})=>calcLegsBonus(actual,weeklyG[f.id]?.[2])>0))out.push({icon:'🦵',name:'Legs',desc:'Earned a word-of-mouth legs bonus'})
-    if(ALL_PHASES.some(p=>mine.filter(r=>r.phase===p).length>=MAX_ROSTER))out.push({icon:'📈',name:'Full House',desc:`Held a full roster of ${MAX_ROSTER} in one phase`})
-    if(allForecasts.filter(f=>f.player_id===pid).length>=5)out.push({icon:'🔮',name:'Forecaster',desc:'Logged 5+ opening predictions'})
-    // Hot streak — 3+ consecutive resulted picks (by release order) that beat estimate
-    const chrono=scored.filter(({f})=>f.estM).sort((a,b)=>a.f.week-b.f.week)
-    let run=0,best=0
-    chrono.forEach(({f,actual})=>{if(actual/f.estM>=1.0){run++;best=Math.max(best,run)}else run=0})
-    if(best>=3)out.push({icon:'🔥',name:`${best}-Streak`,desc:`${best} straight picks beat their estimate`})
-    return out
-  }
   // ── SEASON SUPERLATIVES — auto-awarded titles across the league ──────────
   const calcSuperlatives=()=>{
     if(players.length<2)return []
@@ -2518,14 +2500,6 @@ function AppInner(){
     await logActivity(profile.id,'oscar',{film_title:films.find(f=>f.id===filmId)?.title,player_name:profile.name},league?.id)
     notify(`🏆 Locked — ${films.find(f=>f.id===filmId)?.title}`,T.gold);loadData(league?.id)
   }
-  const saveForecast=async(filmId,predicted)=>{
-    const ex=allForecasts.find(f=>f.player_id===profile.id&&f.film_id===filmId)
-    if(ex)await supabase.from('forecasts').update({predicted_m:predicted}).eq('id',ex.id)
-    else await supabase.from('forecasts').insert({player_id:profile.id,film_id:filmId,phase:curPhase(),predicted_m:predicted,league_id:league?.id})
-    await logActivity(profile.id,'forecast',{film_title:films.find(f=>f.id===filmId)?.title,predicted_m:predicted,player_name:profile.name},league?.id)
-    notify(`Forecast saved — $${predicted}M`,T.blue);loadData(league?.id)
-  }
-
   const embedFilmId=(()=>{const q=new URLSearchParams(window.location.search);return q.get('embed')||null})()
   if(embedFilmId)return <EmbedWidget filmId={embedFilmId}/>
 
@@ -2626,7 +2600,6 @@ function AppInner(){
     ...(polls.length>0?[{id:'polls',icon:'🗳',label:'Polls'}]:[]),
     {id:'intent',icon:'👁️',label:'Watchlist'},
     {id:'reviews',icon:'⭐',label:'Reviews'},
-    {id:'forecaster',icon:'📊',label:'Forecaster'},
     {id:'oscar',icon:'🏆',label:'Oscars'},
     {id:'results',icon:'📋',label:'Results'},
     {id:'archive',icon:'🏛️',label:'Archive'},{id:'howto',icon:'❓',label:'How to Play'},{id:'legal',icon:'📜',label:'Legal'},
@@ -2706,7 +2679,7 @@ function AppInner(){
                 const isNow=wk===cfg.current_week
                 const isPast=wk<cfg.current_week
                 return(
-                  <div key={wk} data-now={isNow?'1':'0'} style={{
+                  <div key={wk} data-now={isNow?'1':'0'} className={isNow?'breathe':undefined} style={{
                     background:isNow?`${T.gold}10`:T.surfaceUp,
                     border:`1px solid ${isNow?T.gold+'55':T.border}`,
                     borderRadius:'10px',padding:isMobile?'8px':'12px',width:isMobile?'126px':'210px',flexShrink:0,
@@ -2765,7 +2738,7 @@ function AppInner(){
     const PAGES=[
       {id:'market',icon:'🎬',label:'Market'},{id:'roster',icon:'🎞',label:'My Roster'},
       {id:'league',icon:'🏆',label:'Standings'},{id:'chips',icon:'⚡',label:'Chips'},
-      {id:'intent',icon:'👁️',label:'Watchlist'},{id:'reviews',icon:'⭐',label:'Reviews'},{id:'forecaster',icon:'📊',label:'Forecaster'},
+      {id:'intent',icon:'👁️',label:'Watchlist'},{id:'reviews',icon:'⭐',label:'Reviews'},
       {id:'oscar',icon:'🏅',label:'Oscars'},{id:'results',icon:'📋',label:'Results'},
       {id:'community',icon:'👥',label:'Community'},{id:'feed',icon:'📰',label:'League Feed'},
       {id:'slate',icon:'🗺',label:'Slate Map'},{id:'intelligence',icon:'📡',label:'Intelligence'},
@@ -3118,7 +3091,7 @@ function AppInner(){
                 </div>:<div style={{display:'flex',gap:'10px',alignItems:'baseline'}}>
                   <span style={{fontSize:'10px',color:T.textDim,letterSpacing:'1.5px'}}>VALUE</span>
                   {filmVal(film)!=null
-                    ?<><span style={{fontSize:'18px',fontWeight:800,color:T.gold,fontFamily:T.mono}}>${filmVal(film)}M</span>
+                    ?<><span key={`v-${film.id}-${filmVal(film)}`} className={filmVal(film)>h.bought_price?'flash-up':filmVal(film)<h.bought_price?'flash-down':undefined} style={{fontSize:'18px',fontWeight:800,color:T.gold,fontFamily:T.mono}}>${filmVal(film)}M</span>
                     <span style={{fontSize:'11px',color:filmVal(film)>h.bought_price?T.green:filmVal(film)<h.bought_price?T.red:T.textSub,fontFamily:T.mono}}>{filmVal(film)>h.bought_price?'+':''}{filmVal(film)-h.bought_price}M</span></>
                     :<span style={{fontSize:'15px',color:T.textDim}}>—</span>
                   }
@@ -3319,7 +3292,6 @@ function AppInner(){
             On top of opening + weekly + legs, you can earn these:
             <br/>• 🐦 <Highlight color={T.green}>Early Bird +10%</Highlight> on opening pts if you bought {EARLY_BIRD_WEEKS}+ weeks before release AND the film beats estimate by 10%+. One Early Bird per phase — earliest qualifying pick gets it.
             <br/>• 🎯 <Highlight color={T.blue}>Analyst +60pts</Highlight> flat if you used your Analyst chip and your opening prediction was within 10%
-            <br/>• 📊 <Highlight color={T.blue}>Forecaster bonus</Highlight> for most accurate predictions (see Forecaster)
           </Section>
           <Section id="reading" icon="🔍" color={T.gold} title="Reading the score breakdown" summary="Tap any of your scored films for the full math.">
             Open <Highlight>Roster</Highlight>, tap any scored film. The <Highlight>Score Breakdown</Highlight> modal shows every line: base opening, EB bonus, RT effect, weekly grosses, legs, all chip bonuses, total.
@@ -3346,11 +3318,6 @@ function AppInner(){
         </Group>
 
         <Group title="🎮 Side Games & Tools">
-          <Section id="forecaster" icon="📊" color={T.blue} title="The Forecaster" summary="Predict opening numbers for every film. Track your accuracy.">
-            Open <Highlight>Forecaster</Highlight>. For every upcoming film, type your predicted opening ($M). The system tracks your accuracy across all predictions and shows you how you compare to the rest of the league.
-            <br/><br/>
-            Purely for fun and bragging rights — no points impact. But getting good at forecasting makes you a better buyer.
-          </Section>
           <Section id="oscar" icon="🏆" color={T.gold} title="Oscar Best Picture pick" summary="One pick all season. Purely for fun.">
             From the Oscars page, pick one film as your Best Picture prediction. Lock it in once and see how it plays out at season end.
             <br/><br/>
@@ -3640,63 +3607,6 @@ function AppInner(){
           )
         })}</>}
         {pendingForMe.length===0&&myProposed.length===0&&<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No active trades.</div>}
-      </div>
-    )
-  }
-
-  // ── FORECASTER PAGE ──────────────────────────────────────────────────────
-  const ForecasterPage=()=>{
-    // ── ACCURACY LEADERBOARD — avg % error across all resulted forecasts ──
-    const board=players.map(p=>{
-      const mine=allForecasts.filter(f=>f.player_id===p.id&&results[f.film_id]!=null&&results[f.film_id]>0)
-      if(mine.length===0)return null
-      const err=mine.reduce((s,f)=>s+Math.abs(Number(f.predicted_m)-results[f.film_id])/results[f.film_id],0)/mine.length
-      return{p,err,n:mine.length,acc:Math.max(0,Math.round((1-err)*100))}
-    }).filter(Boolean).sort((a,b)=>a.err-b.err)
-    const [edit,setEdit]=useState({})
-    const fcFilms=films.filter(f=>f.phase===ph&&results[f.id]==null)
-    return(
-      <div style={{animation:'fadeUp .2s ease'}}>
-        <div style={S.pageTitle}>The Forecaster</div>
-        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Predict opening weekends for every film. Track your accuracy vs the league — purely for bragging rights.</div>
-        <div style={{...S.card,marginBottom:'16px',border:`1px solid ${T.blue}33`}}>
-            <div style={{...S.label,color:T.blue,marginBottom:'10px'}}>🏅 Accuracy Leaderboard</div>
-            {board.length===0&&(()=>{
-              const resulted=films.filter(f=>results[f.id]!=null).length
-              const totalCalls=allForecasts.length
-              return <div style={{fontSize:'12px',color:T.textSub,lineHeight:1.7,padding:'4px 0'}}>
-                The table appears once predictions can be scored against actual openings.
-                So far: {totalCalls} prediction{totalCalls!==1?'s':''} logged · {resulted} film{resulted!==1?'s':''} opened — {totalCalls===0?'make your first calls below.':'none of the logged predictions were on films that have opened yet. Predict upcoming films below and the table fills in as they release.'}
-              </div>
-            })()}
-            {board.map((b,i)=>(
-              <div key={b.p.id} style={{display:'flex',gap:'10px',alignItems:'center',padding:'7px 0',borderBottom:i<board.length-1?`1px solid ${T.border}`:'none'}}>
-                <span style={{fontSize:'13px',width:'24px',color:i===0?T.gold:T.textSub,fontWeight:800,fontFamily:T.mono}}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`}</span>
-                <div style={{width:'24px',height:'24px',borderRadius:'50%',background:b.p.color||T.gold,color:'#000',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',fontWeight:800}}>{b.p.name?.[0]||'?'}</div>
-                <span style={{flex:1,fontSize:'12px',fontWeight:600}}>{b.p.name}</span>
-                <span style={{fontSize:'10px',color:T.textDim,fontFamily:T.mono}}>{b.n} call{b.n!==1?'s':''}</span>
-                <span style={{fontSize:'14px',fontWeight:800,color:b.acc>=80?T.green:b.acc>=60?T.gold:T.red,fontFamily:T.mono}}>{b.acc}%</span>
-              </div>
-            ))}
-            {board.length>0&&<div style={{fontSize:'9px',color:T.textDim,marginTop:'8px'}}>Accuracy = 100% minus average error vs actual openings · only resulted films count</div>}
-          </div>
-        {fcFilms.length===0?<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No upcoming films to forecast.</div>:fcFilms.map(f=>{
-          const cur=forecasts[f.id],val=edit[f.id]??cur??''
-          return(
-            <div key={f.id} style={{...S.card,marginBottom:'10px'}}>
-              <div style={{display:'flex',gap:'12px',alignItems:'center'}}>
-                <FilmPoster film={f} width={42} height={63} radius={6}/>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:'13px',fontWeight:600}}>{f.title}</div>
-                  <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>Est ${f.estM}M · W{f.week}</div>
-                </div>
-                <input type="number" value={val} onChange={e=>setEdit({...edit,[f.id]:e.target.value})} placeholder="$M" style={{...S.inp,width:'80px',fontSize:'13px',textAlign:'center'}}/>
-                <Btn onClick={()=>saveForecast(f.id,Number(val))} color={T.blue} textColor="#fff" size="sm" disabled={!val||isNaN(Number(val))}>{cur!=null?'Update':'Save'}</Btn>
-              </div>
-              {cur!=null&&<div style={{fontSize:'11px',color:T.green,marginTop:'8px'}}>✓ Forecast: ${cur}M</div>}
-            </div>
-          )
-        })}
       </div>
     )
   }
@@ -5531,7 +5441,6 @@ function AppInner(){
       case 'polls':return <PollsPage/>
       case 'intent':return <IntentPage/>
       case 'reviews':return <ReviewsPage/>
-      case 'forecaster':return <ForecasterPage/>
       case 'oscar':return <OscarPage/>
       case 'results':return <ResultsPage/>
       case 'howto':return <HowToPlayPage/>
@@ -5543,7 +5452,7 @@ function AppInner(){
       case 'warroom':return isCommissioner?<WarRoomPage/>:<AccessDenied onBack={()=>setPage('market')}/>
       case 'commissioner':return isCommissioner?<CommissionerPage/>:<AccessDenied onBack={()=>setPage('market')}/>
       case 'distributor':return isCommissioner?<DistributorPage/>:<AccessDenied onBack={()=>setPage('market')}/>
-      case 'profile':return profilePlayer?<PlayerProfilePage player={profilePlayer} badges={calcBadges(profilePlayer.id)} reviews={reviews} onOpenFilm={f=>setFilmDetail(f)} films={films} rosters={rosters} results={results} weeklyG={weeklyG} allChips={allChips} oscarPreds={oscarPreds} allPicks={allPicks} calcPoints={calcPoints} calcPhasePoints={calcPhasePoints} budgetLeft={budgetLeft} cur={cur} isEarlyBird={isEarlyBird} analystActive={analystOn} curPhase_ref={curPhase()} onBack={()=>setPage(prevPage)}/>:null
+      case 'profile':return profilePlayer?<PlayerProfilePage player={profilePlayer} reviews={reviews} onOpenFilm={f=>setFilmDetail(f)} films={films} rosters={rosters} results={results} weeklyG={weeklyG} allChips={allChips} oscarPreds={oscarPreds} allPicks={allPicks} calcPoints={calcPoints} calcPhasePoints={calcPhasePoints} budgetLeft={budgetLeft} cur={cur} isEarlyBird={isEarlyBird} analystActive={analystOn} curPhase_ref={curPhase()} onBack={()=>setPage(prevPage)}/>:null
       default:return <MarketPage/>
     }
   }
@@ -5580,11 +5489,9 @@ function AppInner(){
             {[
               {id:'market',icon:'🎬',label:'Market'},
               {id:'roster',icon:'📁',label:'Roster'},
-              {id:'chips',icon:'⚡',label:'Chips'},
               {id:'league',icon:'🥇',label:'League'},
               {id:'community',icon:'👥',label:'Community'},
               ...(hasNews?[{id:'signals',icon:'⚡',label:'Signals'}]:[]),
-              ...(movieOfWeek?[{id:'motw',icon:'🎬',label:'Movie of Week'}]:[]),
               ...(polls.length>0?[{id:'polls',icon:'🗳',label:'Polls'}]:[]),
               {id:'feed',icon:'📡',label:'Feed'},
             ].map(nav=>(
@@ -5598,9 +5505,9 @@ function AppInner(){
           </div>
           <div style={{padding:'0 12px'}}>
             {[
+              {id:'chips',icon:'⚡',label:'Chips'},
               {id:'intent',icon:'👁️',label:'Watchlist'},
               {id:'reviews',icon:'⭐',label:'Reviews'},
-              {id:'forecaster',icon:'📊',label:'Forecaster'},
               {id:'oscar',icon:'🏆',label:'Oscars'},
               {id:'results',icon:'📋',label:'Results'},
               {id:'archive',icon:'🏛️',label:'Archive'},
@@ -5801,7 +5708,6 @@ function AppInner(){
           {page:'league',icon:'🏆',title:'Standings',body:'Where you rank against your league. Points come from how your films perform versus their estimates. The gap to the player above you is shown so you always know the chase.'},
           {page:'intent',icon:'👁️',title:'Watchlist',body:'Films you\'re tracking but haven\'t bought. Great for keeping an eye on prices before you commit. Your watchlist also feeds the buzz data.'},
           {page:'community',icon:'👥',title:'Community',body:'The social hub — reviews, comments, screenings you can join, and the league buzz feed. React, discuss, and organise cinema trips with your league.'},
-          {page:'forecaster',icon:'📊',title:'Forecaster',body:'Predict opening weekends and track your accuracy against the league. Pure bragging rights — sharpen your instincts here before you bet your budget.'},
           {page:'market',icon:'✅',title:'You\'re all set!',body:'That\'s the tour. Head to the Market, find a film you believe in, and make your first pick. Good luck — may the box office be in your favour.'},
         ]
         const t=TOUR[tourStep]
