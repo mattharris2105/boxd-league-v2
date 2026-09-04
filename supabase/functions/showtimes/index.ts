@@ -27,14 +27,15 @@ serve(async (req) => {
       })
     }
 
-    const token = Deno.env.get('DATATHISTLE_TOKEN')
-    if (!token) throw new Error('DATATHISTLE_TOKEN not set')
-
-    // Check cache first (Supabase DB)
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
+
+    // Data Thistle access token lives in api_tokens (it rotates every 30 days).
+    // A weekly job keeps it fresh; refresh inline here too if it's expired.
+    const token = await getDataThistleToken(supabase)
+    if (!token) throw new Error('No Data Thistle token available')
 
     const cacheKey = `${lat.substring(0,6)}_${lon.substring(0,6)}_${title.toLowerCase().replace(/\s+/g,'_')}_${date}`
     const { data: cached } = await supabase
@@ -167,6 +168,48 @@ function formatTime(dt: string): string {
     // Maybe it's already HH:MM
     return dt.substring(0, 5)
   }
+}
+
+// Read the Data Thistle access token from api_tokens; if it's expired (or
+// within 24h of expiry), POST /v1/refresh and persist the new pair.
+async function getDataThistleToken(supabase: any): Promise<string | null> {
+  const { data: row } = await supabase
+    .from('api_tokens').select('*').eq('provider', 'datathistle').maybeSingle()
+  if (!row) return Deno.env.get('DATATHISTLE_TOKEN') ?? null   // legacy fallback
+
+  const msLeft = row.access_expires_at
+    ? new Date(row.access_expires_at).getTime() - Date.now()
+    : -1
+  if (msLeft > 24 * 3600 * 1000) return row.access_token
+
+  const jwtExp = (t: string): string | null => {
+    try {
+      const p = JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+      return new Date(p.exp * 1000).toISOString()
+    } catch { return null }
+  }
+  try {
+    const r = await fetch('https://auth.datathistle.com/v1/refresh', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${row.refresh_token}` },
+    })
+    const j = await r.json()
+    if (r.ok && j?.accessToken && j?.refreshToken) {
+      await supabase.from('api_tokens').upsert({
+        provider: 'datathistle',
+        access_token: j.accessToken,
+        refresh_token: j.refreshToken,
+        access_expires_at: jwtExp(j.accessToken),
+        refresh_expires_at: jwtExp(j.refreshToken),
+        updated_at: new Date().toISOString(),
+      })
+      return j.accessToken
+    }
+    console.log('Data Thistle refresh failed:', r.status, JSON.stringify(j))
+  } catch (e) {
+    console.log('Data Thistle refresh error:', e)
+  }
+  return row.access_token   // last resort — use the (possibly stale) token
 }
 
 function detectChain(name: string): string {
