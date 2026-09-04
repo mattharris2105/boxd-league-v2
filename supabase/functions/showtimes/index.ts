@@ -64,7 +64,11 @@ serve(async (req) => {
       `https://api.datathistle.com/v1/events?lat=${lat}&lon=${lon}&distance=${radiusKm}&category=film&date=${date}&limit=100`
 
     let pages = 0
-    while (nextUrl && pages < 5) { // max 5 pages to stay within free tier
+    // category=film mixes in comedy nights/gigs/tours/theatre, so real cinema
+    // listings can sit well past page 5 (confirmed: a real screening turned up
+    // on page 8+ for one title). Raised the cap — if this trips your Data
+    // Thistle plan's rate limit, dial it back down.
+    while (nextUrl && pages < 15) {
       const resp = await fetch(nextUrl, {
         headers: { Authorization: `Bearer ${token}` }
       })
