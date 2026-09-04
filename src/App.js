@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabase'
 import { calcMarketValue, calcIPOprice } from './lib/marketValue'
+import { calcOpeningPts, calcLegsBonus, calcWeeklyPts } from './lib/scoring'
 
 const SUPABASE_URL = 'https://yxluqkfanhzktinayvex.supabase.co'
 // The client in ./supabase already holds a valid anon key. Reuse it so
@@ -379,18 +380,9 @@ function FilmPoster({film,width,height,radius=8,imgStyle={},owned=false,scored=f
   )
 }
 
-function calcOpeningPts(film,actualM,isEB=false,isAnalyst=false){
-  if(actualM==null) return 0
-  const r=actualM/film.estM
-  const perf=r>=2?2:r>=1.5?1.6:r>=1.3?1.35:r>=1.1?1.15:r>=0.95?1:r>=0.8?0.85:r>=0.6?0.65:0.45
-  const rt=film.rt!=null?(film.rt>=90?1.25:film.rt>=75?1.1:film.rt<50?0.85:1):1
-  let pts=Math.round(actualM*perf*rt)
-  if(isEB&&r>=1.1) pts=Math.round(pts*1.1)
-  if(isAnalyst) pts+=60
-  return pts
-}
-function calcLegsBonus(actualM,week2Gross){return(actualM!=null&&week2Gross!=null&&(actualM-week2Gross)/actualM<0.3)?25:0}
-function calcWeeklyPts(weekMap){return Object.entries(weekMap).reduce((s,[wk,g])=>s+Number(g)*(Number(wk)>=4?1.1:1),0)}
+// calcOpeningPts / calcLegsBonus / calcWeeklyPts now live in ./lib/scoring
+// (shared with scripts/simulate-season.mjs so a simulation scores identically
+// to the live app).
 
 // PERF: memo wrapper for calcBuzzIndex — caches by film.id+allPicks.length+rosters.length
 const _buzzCache=new Map()
