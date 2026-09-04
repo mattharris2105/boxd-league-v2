@@ -66,8 +66,9 @@ const now = Date.now()
 const accessMsLeft = cur.access_expires_at ? Date.parse(cur.access_expires_at) - now : -1
 console.log(`current access token expires ${cur.access_expires_at} (${Math.round(accessMsLeft / 3600000)}h left)`)
 
-// refresh when < 5 days of access-token life remain (weekly job -> always true in practice)
-if (accessMsLeft > 5 * 86400000 && !args.includes('--force')) {
+// refresh when < 25 days of access-token life remain, i.e. roughly weekly
+// once inside the 30-day window — keeps the pair well clear of expiry.
+if (accessMsLeft > 25 * 86400000 && !args.includes('--force')) {
   console.log('still fresh — nothing to do (use --force to refresh anyway)')
   process.exit(0)
 }
