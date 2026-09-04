@@ -1,0 +1,26 @@
+name: Daily database backup
+
+on:
+  schedule:
+    - cron: '0 5 * * *'   # 05:00 UTC daily
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Dump every table
+        env:
+          SUPABASE_URL: https://yxluqkfanhzktinayvex.supabase.co
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: node scripts/backup-db.mjs
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: boxd-backup-${{ github.run_id }}
+          path: backups/
+          retention-days: 90

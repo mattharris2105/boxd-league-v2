@@ -99,7 +99,9 @@ serve(async (req) => {
 
       case 'phase_advance': {
         // payload: { league_id, from_phase, to_phase, phase_name, players: [{id}] }
-        const phaseNames: Record<number, string> = { 1:'Dead Zone', 2:'Summer Slate', 3:'Horror Window', 4:'Awards Season', 5:'Oscar Sprint' }
+        // Keep in sync with PHASE_NAMES in src/App.js — these drifted after
+        // the 2026-09-07 season reset (was Dead Zone/Summer Slate/...).
+        const phaseNames: Record<number, string> = { 0:'Historical (Season opener)', 1:'Autumn (Sep–Nov)', 2:'Awards & Holiday (Dec–Jan)', 3:'Spring (Feb+)' }
         for (const player of (payload.players || [])) {
           const email = await getUserEmail(player.id)
           if (!email) continue

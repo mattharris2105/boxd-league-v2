@@ -62,6 +62,14 @@ function dateToPhase(d){
 // calcIPOprice + calcMarketValue now live in ./lib/marketValue (shared with the
 // box-office ingest script so the two can't drift).
 function dateLabel(wk){const d=weekToDate(wk);return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})}
+// Prefer the film's real release_date (set for most films — see the
+// 20260904 migration) over the week-derived date, which is only ever an
+// approximation and is meaningless for Phase 0 archive films dated before
+// the current season anchor.
+function filmDateLabel(f){
+  if(f?.releaseDate){const d=new Date(f.releaseDate+'T00:00:00');if(!isNaN(d))return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}
+  return f?.phase===HISTORICAL_PHASE?'Released':dateLabel(f?.week)
+}
 // TMDB read token lives in an env var, never committed to the repo (GitHub's
 // secret scanner flags hardcoded keys). Set REACT_APP_TMDB_TOKEN in Vercel.
 // The Edge Functions use their own TMDB_TOKEN secret server-side.
@@ -1091,7 +1099,7 @@ function ScoreBreakdownModal({film,holding,results,weeklyGrosses,allChips,isEarl
             <FilmPoster film={film} width={72} height={108} radius={10}/>
             <div style={{flex:1}}>
               <div style={{fontSize:'18px',fontWeight:700,lineHeight:1.3,color:T.text}}>{film.title}</div>
-              <div style={{fontSize:'12px',color:T.textSub,marginTop:'4px'}}>{film.dist} · {dateLabel(film.week)} · Phase {film.phase}</div>
+              <div style={{fontSize:'12px',color:T.textSub,marginTop:'4px'}}>{film.dist} · {filmDateLabel(film)} · Phase {film.phase}</div>
               {actual!=null&&<div style={{display:'flex',gap:'14px',marginTop:'12px',flexWrap:'wrap'}}>
                 {[['ACTUAL',`$${actual}M`,T.green],['EST',film.estM?`$${film.estM}M`:'—',T.text],['RATIO',film.estM?`${(actual/film.estM).toFixed(2)}×`:'—',actual/film.estM>=1?T.green:T.red],...(film.rt!=null?[['RT',`${film.rt}%`,film.rt>=90?T.green:film.rt>=75?T.gold:T.red]]:[])].map(([l,v,c])=>(
                   <div key={l}><div style={S.label}>{l}</div><div style={{fontSize:'15px',fontWeight:700,color:c,marginTop:'3px'}}>{v}</div></div>
@@ -1298,7 +1306,7 @@ const WarRoomRow=React.memo(function WarRoomRow({f,actual,savedWeekly,onCommit,S
         <FilmPoster film={f} width={42} height={63} radius={6}/>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:'13px',fontWeight:600,color:T.text}}>{f.title}</div>
-          <div style={{fontSize:'10px',color:T.textSub,marginTop:'2px'}}>{f.dist} · {dateLabel(f.week)} · P{f.phase}</div>
+          <div style={{fontSize:'10px',color:T.textSub,marginTop:'2px'}}>{f.dist} · {filmDateLabel(f)} · P{f.phase}</div>
           <div style={{display:'flex',gap:'8px',marginTop:'4px',flexWrap:'wrap'}}>
             {f.estM&&<span style={{fontSize:'10px',color:T.textSub}}>Est ${f.estM}M</span>}
             {f.basePrice!=null&&<span style={{fontSize:'10px',color:T.gold}}>IPO ${f.basePrice}M</span>}
@@ -1387,7 +1395,7 @@ function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEven
                 <div><div style={S.label}>IPO</div><div style={{fontSize:'15px',fontWeight:700,marginTop:'2px',color:film.basePrice!=null?T.gold:T.textDim}}>{film.basePrice!=null?`$${film.basePrice}M`:'🔒 TBC'}</div></div>
                 {actual!=null&&<div><div style={S.label}>Actual</div><div style={{fontSize:'15px',fontWeight:700,color:T.green,marginTop:'2px'}}>${actual}M</div></div>}
                 {film.rt!=null&&<div><div style={S.label}>RT</div><div style={{fontSize:'15px',fontWeight:700,color:film.rt>=75?T.green:T.red,marginTop:'2px'}}>{film.rt}%</div></div>}
-                <div><div style={S.label}>Opens</div><div style={{fontSize:'13px',fontWeight:600,marginTop:'2px',color:T.textSub}}>{dateLabel(film.week)}</div></div>
+                <div><div style={S.label}>Opens</div><div style={{fontSize:'13px',fontWeight:600,marginTop:'2px',color:T.textSub}}>{filmDateLabel(film)}</div></div>
               </div>
               <div style={{display:'flex',gap:'8px',marginTop:'10px',alignItems:'center',flexWrap:'wrap'}}>
                 {onTogglePick&&<PickButton filmId={film.id} userId={profile.id} allPicks={allPicks} onToggle={onTogglePick} size="sm"/>}
@@ -2211,7 +2219,7 @@ function AppInner(){
       phase:f.phase,week:f.week,basePrice:f.base_price,
       estM:f.est_m,rt:f.rt,sleeper:f.sleeper,
       trailer:f.trailer||'',affiliateUrl:f.affiliate_url||'',
-      tmdbId:f.tmdb_id||null,
+      tmdbId:f.tmdb_id||null,releaseDate:f.release_date||null,
     })))
     applySeasonConfig(cf)
     setCfg(cf||{current_week:1,current_phase:1,currency:'$',tx_fee:5,phase_window_active:false,phase_window_opened_at:null,draft_window_open:false,draft_deadline:null,sealed_bid_window_open:false,sealed_bid_deadline:null})
@@ -2786,7 +2794,7 @@ function AppInner(){
                 <FilmPoster film={f} width={30} height={45} radius={4}/>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:'13px',fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{f.title}</div>
-                  <div style={{fontSize:'10px',color:T.textSub}}>{f.dist} · {dateLabel(f.week)} · P{f.phase}</div>
+                  <div style={{fontSize:'10px',color:T.textSub}}>{f.dist} · {filmDateLabel(f)} · P{f.phase}</div>
                 </div>
                 <span style={{fontSize:'11px',color:T.gold,fontFamily:T.mono}}>{results[f.id]!=null?`$${results[f.id]}M`:f.basePrice!=null?`$${filmVal(f)}M`:'🔒'}</span>
               </div>
@@ -3033,7 +3041,7 @@ function AppInner(){
                       <span>{film.dist}</span>
                       {film.rt!=null&&<><span style={{color:T.textDim}}>·</span><span style={{color:film.rt>=75?T.green:film.rt>=55?T.gold:T.red}}>RT {film.rt}%</span></>}
                       {(()=>{const fr=reviews.filter(r=>r.film_id===film.id);if(!fr.length)return null;const avg=fr.reduce((s,r)=>s+r.rating,0)/fr.length;return<><span style={{color:T.textDim}}>·</span><span style={{color:T.gold}}>★{avg.toFixed(1)}</span></>})()}
-                      <span style={{color:T.textDim}}>·</span><span style={{color:T.textDim}}>{dateLabel(film.week)}</span>
+                      <span style={{color:T.textDim}}>·</span><span style={{color:T.textDim}}>{filmDateLabel(film)}</span>
                     </div>
                   </div>
                   {/* Buzz Index · limited to first 30 cards for perf */}
@@ -3103,7 +3111,7 @@ function AppInner(){
               <FilmPoster film={film} width={50} height={75} radius={7}/>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:'14px',fontWeight:700,marginBottom:'4px'}}>{film.title}</div>
-                <div style={{fontSize:'11px',color:T.textSub,marginBottom:'8px'}}>{film.dist} · {dateLabel(film.week)} · Bought ${h.bought_price}M{eb&&' · 🐦 EB'}</div>
+                <div style={{fontSize:'11px',color:T.textSub,marginBottom:'8px'}}>{film.dist} · {filmDateLabel(film)} · Bought ${h.bought_price}M{eb&&' · 🐦 EB'}</div>
                 {actual!=null?<div style={{display:'flex',gap:'10px',alignItems:'baseline'}}>
                   <span style={{fontSize:'10px',color:T.textDim,letterSpacing:'1.5px'}}>SCORED</span>
                   <span style={{fontSize:'20px',fontWeight:900,color:T.gold,fontFamily:T.mono}}>{total}pts</span>
@@ -4292,7 +4300,7 @@ function AppInner(){
                 <FilmPoster film={f} width={30} height={45} radius={4}/>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:'12px',fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{f.title}</div>
-                  <div style={{fontSize:'10px',color:T.textSub}}>{dateLabel(f.week)} · P{f.phase}{results[f.id]!=null?` · ✓ $${results[f.id]}M`:''}</div>
+                  <div style={{fontSize:'10px',color:T.textSub}}>{filmDateLabel(f)} · P{f.phase}{results[f.id]!=null?` · ✓ $${results[f.id]}M`:''}</div>
                 </div>
                 <span style={{fontSize:'10px',color:T.textSub,fontFamily:T.mono}}>👁 {w}</span>
                 <span style={{color:sel?T.gold:T.textDim}}>{sel?'▾':'›'}</span>
@@ -5385,7 +5393,7 @@ function AppInner(){
           <div style={{...S.label,marginBottom:'6px'}}>Most excited for</div>
           <select value={favFilm} onChange={e=>setFavFilm(e.target.value)} style={{...S.inp,marginBottom:'14px'}}>
             <option value="">None selected</option>
-            {films.filter(f=>results[f.id]==null).sort((a,b)=>a.week-b.week).map(f=><option key={f.id} value={f.id}>{f.title} ({dateLabel(f.week)})</option>)}
+            {films.filter(f=>results[f.id]==null).sort((a,b)=>a.week-b.week).map(f=><option key={f.id} value={f.id}>{f.title} ({filmDateLabel(f)})</option>)}
           </select>
           <div style={{...S.label,marginBottom:'6px'}}>Letterboxd profile</div>
           <input value={letterboxd} onChange={e=>setLetterboxd(e.target.value)} placeholder="https://letterboxd.com/you" style={{...S.inp,marginBottom:'14px'}}/>
