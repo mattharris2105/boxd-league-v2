@@ -3058,6 +3058,35 @@ function AppInner(){
           })}
         </div>
         {visible.length===0&&<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No films match your filters.</div>}
+
+        {/* HISTORIC REFERENCE — faded strip of settled archive films, so the
+            pricing logic (what beat its estimate, what flopped) stays visible
+            while browsing instead of being buried on a separate page. */}
+        {(()=>{
+          const settled=films
+            .filter(f=>f.phase===HISTORICAL_PHASE&&results[f.id]!=null&&f.estM)
+            .map(f=>({f,actual:results[f.id],ratio:results[f.id]/f.estM,val:calcMarketValue({...f,basePrice:f.basePrice||5},results[f.id],weeklyG[f.id]||{})}))
+            .sort((a,b)=>b.ratio-a.ratio)
+          if(!settled.length)return null
+          return(
+            <div style={{marginTop:'22px',opacity:0.72}}>
+              <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'10px'}}>
+                <div style={{...S.label,color:T.textSub}}>📜 How films have priced historically</div>
+                <span onClick={()=>navigate('archive')} style={{marginLeft:'auto',fontSize:'10px',color:T.textDim,cursor:'pointer',textDecoration:'underline'}}>Full archive →</span>
+              </div>
+              <div style={{display:'flex',gap:'10px',overflowX:'auto',paddingBottom:'6px',scrollbarWidth:'thin'}}>
+                {settled.map(({f,actual,ratio,val})=>(
+                  <div key={f.id} onClick={()=>setFilmDetail(f)} style={{...S.card,cursor:'pointer',padding:'8px',width:'128px',flexShrink:0,filter:'grayscale(35%)'}}>
+                    <FilmPoster film={f} width="100%" height={96} radius={6}/>
+                    <div style={{fontSize:'10px',fontWeight:600,marginTop:'6px',overflow:'hidden',display:'-webkit-box',WebkitLineClamp:1,WebkitBoxOrient:'vertical'}}>{f.title}</div>
+                    <div style={{fontSize:'9px',color:T.textDim,marginTop:'2px'}}>IPO ${f.basePrice}M → <span style={{color:ratio>=1?T.green:T.red}}>${val}M</span></div>
+                    <div style={{fontSize:'9px',color:T.textDim,marginTop:'1px'}}>Opened ${actual}M · {ratio>=1?'beat':'missed'} est {Math.round(ratio*100)}%</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        })()}
       </div>
     )
   }
