@@ -77,11 +77,27 @@ for (const f of films) {
   for (const a of f.alt_titles || []) known.add(norm(a))
 }
 
-// rows already proposed (any status) — never re-surface a dismissed one
+// What to skip on this run:
+//  - approved rows: never propose again (the film is in the slate)
+//  - pending rows: already waiting — don't duplicate
+//  - dismissed rows: skip for a cool-down, then let them come back once, so a
+//    film dismissed early ("too unconfirmed") gets another look as its release
+//    nears and tracking firms up. reviveKeys are dismissed rows past the
+//    cool-down that we flip back to pending instead of inserting a duplicate.
+const DISMISS_COOLDOWN_DAYS = 28
 let seenKeys = new Set()
+let reviveKeys = new Set()
 try {
-  const existing = await sb('film_suggestions?select=dedupe_key,status')
-  seenKeys = new Set((Array.isArray(existing) ? existing : []).map((r) => r.dedupe_key))
+  const existing = await sb('film_suggestions?select=dedupe_key,status,reviewed_at')
+  const cutoff = Date.now() - DISMISS_COOLDOWN_DAYS * 86400000
+  for (const r of Array.isArray(existing) ? existing : []) {
+    if (r.status === 'dismissed') {
+      if (r.reviewed_at && Date.parse(r.reviewed_at) < cutoff) reviveKeys.add(r.dedupe_key)
+      else seenKeys.add(r.dedupe_key)
+    } else {
+      seenKeys.add(r.dedupe_key)
+    }
+  }
 } catch (e) {
   if (/relation .*film_suggestions.* does not exist|Could not find the table/i.test(e.message)) {
     console.error('film_suggestions table not found — run supabase/migrations/20260905_film_suggestions.sql first.')
@@ -153,9 +169,11 @@ const estRows = films
 const gsearch = (t) => `https://www.google.com/search?q=${encodeURIComponent(`"${t}" opening weekend box office projection tracking`)}`
 const tnLink = (slug) => `https://www.the-numbers.com/movie/${slug}`
 
-const pending = []
+const pending = []   // brand-new rows to insert
+const revive = []    // previously-dismissed rows to flip back to pending
 for (const r of addRows) {
   const key = `${norm(r.title)}|${r.date}`
+  if (reviveKeys.has(key)) { revive.push({ dedupe_key: key, title: r.title }); continue }
   if (seenKeys.has(key)) continue
   const tmdb = await tmdbLookup(r.title, r.date.slice(0, 4))
   pending.push({
@@ -169,6 +187,7 @@ for (const r of addRows) {
 }
 for (const f of estRows) {
   const key = `est|${f.id}`
+  if (reviveKeys.has(key)) { revive.push({ dedupe_key: key, title: f.title }); continue }
   if (seenKeys.has(key)) continue
   pending.push({
     kind: 'estimate', status: 'pending', film_id: f.id,
@@ -180,8 +199,9 @@ for (const f of estRows) {
 }
 
 console.log(`scanned ${rows.length} calendar rows · ${inWindow.length} in the next ${WEEKS} weeks`)
-console.log(`→ ${addRows.length} new-film candidates · ${estRows.length} missing a projection · ${pending.length} not yet proposed`)
+console.log(`→ ${addRows.length} new-film candidates · ${estRows.length} missing a projection · ${pending.length} new to queue · ${revive.length} dismissed >${DISMISS_COOLDOWN_DAYS}d ago to re-surface`)
 for (const p of pending) console.log(`   [${p.kind}] ${p.release_date || '—'}  ${p.title}${p.tmdb_id ? `  (tmdb ${p.tmdb_id} → ${p.tmdb_title} ${p.tmdb_year || ''})` : p.kind === 'new' ? '  (no TMDB match)' : ''}`)
+for (const r of revive) console.log(`   [revive] ${r.title}`)
 
 if (WRITE_FILE) {
   const stamp = iso(today)
@@ -196,11 +216,22 @@ if (WRITE_FILE) {
 }
 
 if (DRY) { console.log('\n--dry: nothing written'); process.exit(0) }
-if (!pending.length) { console.log('\nnothing new to queue'); process.exit(0) }
+if (!pending.length && !revive.length) { console.log('\nnothing new to queue'); process.exit(0) }
 
-const res = await sb('film_suggestions?on_conflict=dedupe_key', {
-  method: 'POST',
-  headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
-  body: JSON.stringify(pending),
-})
-console.log(`\nqueued ${pending.length} suggestion${pending.length === 1 ? '' : 's'} (pending) — approve them in the app`)
+if (pending.length) {
+  await sb('film_suggestions?on_conflict=dedupe_key', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
+    body: JSON.stringify(pending),
+  })
+}
+// Re-surface films dismissed more than the cool-down ago: back to pending,
+// clear the review stamp, note that it's a second look.
+for (const r of revive) {
+  await sb(`film_suggestions?dedupe_key=eq.${encodeURIComponent(r.dedupe_key)}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ status: 'pending', reviewed_at: null, reviewed_by: null, est_m: null, notes: `Re-surfaced ${iso(today)} after being dismissed — check whether tracking has firmed up.` }),
+  })
+}
+console.log(`\nqueued ${pending.length} new · re-surfaced ${revive.length} — review them in the app`)

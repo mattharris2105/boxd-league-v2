@@ -4600,7 +4600,7 @@ function AppInner(){
       setBusy(false)
     }
     const dismiss=async()=>{
-      if(!await confirmModal(`Dismiss "${s.title}"? It won't be suggested again.`))return
+      if(!await confirmModal(`Dismiss "${s.title}"? It'll drop off the list now and come back once in ~4 weeks if it's still upcoming — in case tracking firms up.`))return
       setBusy(true)
       await supabase.from('film_suggestions').update({status:'dismissed',reviewed_at:new Date().toISOString(),reviewed_by:profile?.name||profile?.id||null}).eq('id',s.id)
       notify(`Dismissed ${s.title}`,T.textSub);onDone()
