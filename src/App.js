@@ -2963,7 +2963,7 @@ function AppInner(){
               <span style={{fontSize:'20px'}}>👋</span>
               <div style={{fontSize:'15px',fontWeight:700,color:T.gold}}>Welcome to BOXD</div>
             </div>
-            <div style={{fontSize:'13px',color:T.text,lineHeight:1.6}}>Fill all <strong>{MAX_ROSTER} roster slots</strong> this phase (empty slots cost you points). You have <strong style={{color:T.gold}}>${myBudget}M</strong> to spend. Films pay out when results land Monday — opening points + legs + bonuses. <span style={{color:T.textSub}}>Tap any card to start.</span></div>
+            <div style={{fontSize:'13px',color:T.text,lineHeight:1.6}}>Fill all <strong>{MAX_ROSTER} roster slots</strong> this phase — each one left empty at lock costs you <strong style={{color:T.red}}>{DRAFT_PENALTY}pts</strong>. You have <strong style={{color:T.gold}}>${myBudget}M</strong> to spend. Films pay out when results land Monday — opening points + legs + bonuses. <span style={{color:T.textSub}}>Tap any card to start.</span></div>
           </div>
         )}
 
@@ -3221,12 +3221,12 @@ function AppInner(){
           <Section id="basics" icon="🎬" color={T.gold} title="What is BOXD?" summary="The core game in 30 seconds.">
             BOXD is fantasy box office. You build a roster of films you think will outperform their estimates, and you score points when real-world weekend grosses come in.
             <br/><br/>
-            The season runs in <Highlight>4 phases</Highlight>. Each phase covers a stretch of weeks ({PHASE_NAMES[1]}, {PHASE_NAMES[2]}, {PHASE_NAMES[3]}, {PHASE_NAMES[4]}). You get a fresh budget per phase and pick up to <Highlight>{MAX_ROSTER} films</Highlight> per phase.
+            The season runs in <Highlight>3 phases</Highlight> ({PHASE_NAMES[1]}, {PHASE_NAMES[2]}, {PHASE_NAMES[3]}), plus a <Highlight>Historical</Highlight> archive of films that already released. You get a fresh budget per phase and must fill all <Highlight>{MAX_ROSTER} roster slots</Highlight> — every slot you leave empty at lock costs you <Highlight color={T.red}>{DRAFT_PENALTY}pts</Highlight>.
             <br/><br/>
             Results land <Highlight color={T.green}>every Monday</Highlight>. Films that beat their estimate score big. Films that flop cost you. Highest total points at the end wins.
           </Section>
           <Section id="phases" icon="📅" color={T.gold} title="Phases & the season clock" summary="How time moves and when budgets reset.">
-            The season has 4 phases. The commissioner advances phases manually. When a phase ends:
+            The season has 3 playable phases. The commissioner advances phases manually. When a phase ends:
             <br/>• Any unspent budget gets <Highlight color={T.green}>banked</Highlight> and added to next phase's budget
             <br/>• Your roster from that phase stays locked in (films keep scoring as their weeks land)
             <br/>• You get a new roster slot allowance for the new phase
@@ -3255,9 +3255,10 @@ function AppInner(){
             Tap any film and open the <Highlight>Info</Highlight> tab to see exactly which driver is pushing the price up or down right now.
           </Section>
           <Section id="buying" icon="🛒" color={T.blue} title="Buying a film" summary="Spend wisely. Conviction shows in price.">
-            Cost comes out of your phase budget. Two rules:
-            <br/>• <Highlight color={T.red}>Max {MAX_ROSTER} films per phase</Highlight>
+            Cost comes out of your phase budget. Three rules:
+            <br/>• <Highlight color={T.red}>Exactly {MAX_ROSTER} films per phase</Highlight> — it's a full roster or nothing. Each slot still empty when the draft window closes costs you <Highlight color={T.red}>{DRAFT_PENALTY}pts</Highlight>, so a half-filled roster is −{(DRAFT_MIN-3)*DRAFT_PENALTY}pts before a single result lands.
             <br/>• You can only buy films from <Highlight>your current phase</Highlight>
+            <br/>• No cap on how cheap you go — but the fill requirement means "buy the one tentpole you can afford and stop" isn't a strategy; you have to find six films worth owning
             <br/><br/>
             Buying <Highlight color={T.green}>early</Highlight> ({EARLY_BIRD_WEEKS}+ weeks before release) earns you the 🐦 <Highlight color={T.green}>Early Bird</Highlight> tag — +10% on opening points if the film beats estimate by 10%+.
             <br/><br/>
