@@ -5,14 +5,14 @@
 // If you change the formula here, that's the only place it needs to change.
 
 // IPO / base price from a pre-release opening-weekend estimate ($M).
-// Steepened (was exponent 0.78, ceiling 75) so blockbusters eat a real share
-// of the budget instead of ~40% of it — simulation showed the old curve let
-// a single roster hold 3 tentpoles at once with room to spare. Now:
-// ~$3 at est $2M, ~$4 at $5, ~$16 at $15, ~$36 at $50, ~$110 at $175.
+// Floor lifted ($3 -> $7) and top compressed ($130 -> $105 ceiling) so the
+// whole 6-film roster costs real budget regardless of which films you pick,
+// and the cheap end has actual spread instead of a $3M blob:
+// ~$7 at est $1M, ~$11 at $5, ~$18 at $15, ~$39 at $50, ~$77 at $120, ~$104 at $175.
 function calcIPOprice (est) {
   if (est == null || isNaN(est)) return null
-  if (est <= 0) return 3
-  return Math.max(3, Math.min(130, Math.round(1.05 * Math.pow(est, 0.94))))
+  if (est <= 0) return 7
+  return Math.max(7, Math.min(105, Math.round(6 + 1.15 * Math.pow(est, 0.86))))
 }
 
 // Market value after results land.

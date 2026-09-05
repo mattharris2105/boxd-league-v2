@@ -10,15 +10,15 @@ const eq = (name, got, exp) => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}  got ${got}  expected ${exp}`)
 }
 
-// calcIPOprice — steepened in the economy rebalance (exponent 0.78->0.94,
-// ceiling $75M->$130M) so blockbusters cost a real share of the budget
-eq('IPO est 2', calcIPOprice(2), 3)
-eq('IPO est 5', calcIPOprice(5), 5)
-eq('IPO est 15', calcIPOprice(15), 13)
-eq('IPO est 50', calcIPOprice(50), 42)
-eq('IPO est 175', calcIPOprice(175), 130)
+// calcIPOprice — floor lifted to $7, top compressed to $105 ceiling, more
+// spread through the low/mid range
+eq('IPO est 2', calcIPOprice(2), 8)
+eq('IPO est 5', calcIPOprice(5), 11)
+eq('IPO est 15', calcIPOprice(15), 18)
+eq('IPO est 50', calcIPOprice(50), 39)
+eq('IPO est 175', calcIPOprice(175), 104)
 eq('IPO est null', calcIPOprice(null), null)
-eq('IPO est 0', calcIPOprice(0), 3)
+eq('IPO est 0', calcIPOprice(0), 7)
 
 // calcOpeningPts — 70% forecast-beat + 30% sqrt-damped scale. Design intent:
 // a great cheap call scores roughly the same as a huge on-target film.
