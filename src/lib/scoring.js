@@ -2,10 +2,16 @@
 // (scripts/simulate-season.mjs) can score exactly like the live app does.
 // CommonJS so both webpack (browser) and Node can load it without a build step.
 //
-// Design (rebalanced after simulation showed raw-dollar scoring let "buy the
-// biggest films you can afford" beat "spot the sleepers" by ~42x):
-//   - opening points are 70% "how much you beat the forecast" + 30% "how big
-//     the hit was" — box office is the driver, forecast skill the main lever
+// Design (rebalanced twice: first after raw-dollar scoring let "buy the biggest
+// films you can afford" beat "spot the sleepers" by ~42x; then again after an
+// archive backtest showed a 70/30 ratio/scale blend made six cheap films the
+// dominant build — beating a small estimate 3x is common, beating a $150M one
+// 3x never happens):
+//   - opening points are a 50/50 blend of "how much you beat the forecast" and
+//     "how big the hit was" — forecast skill still matters, but a genuine
+//     blockbuster is no longer a trap
+//   - a FLOP (opens below 60% of its estimate) is a flat -40: cheap lottery
+//     tickets now carry real downside, not just upside-or-zero
 //   - weekly points reward LEGS (post-opening multiplier), not raw weekly $
 //   - Rotten Tomatoes is a light ±15% / -10% modifier, a bonus not a driver
 
@@ -23,15 +29,21 @@ function perfMult (r) {
 //   film: { estM, rt }
 //   actualM: opening weekend gross ($M), or null -> 0
 //   isEB / isAnalyst: Early Bird (+10% if the film also beat estimate) / Analyst chip (+60 flat)
+const FLOP_RATIO = 0.6
+const FLOP_PENALTY = -40
+
 function calcOpeningPts (film, actualM, isEB = false, isAnalyst = false) {
   if (actualM == null || !film.estM) return 0
   const r = actualM / film.estM
+  // Flop: opened below 60% of estimate — a straight loss, no legs credit, no
+  // chip bonuses. Backing six cheap films now means six ways to lose points.
+  if (r < FLOP_RATIO) return FLOP_PENALTY
   const rt = rtMult(film.rt)
-  // 70% forecast-beat (ratio, capped at 3x so a micro-film can't run away),
-  // 30% raw scale (sqrt-damped so a 180x gross gap is only a ~13x points gap)
+  // 50% forecast-beat (ratio, capped at 3x so a micro-film can't run away),
+  // 50% raw scale (sqrt-damped so a 180x gross gap is only a ~13x points gap)
   const ratioPart = 130 * Math.min(3, r) * rt
   const scalePart = Math.sqrt(actualM) * 10 * perfMult(r) * rt
-  let pts = Math.round(0.7 * ratioPart + 0.3 * scalePart)
+  let pts = Math.round(0.5 * ratioPart + 0.5 * scalePart)
   if (isEB && r >= 1.1) pts = Math.round(pts * 1.1)
   if (isAnalyst) pts += 60
   return pts
@@ -56,4 +68,10 @@ function calcLegsBonus (actualM, week2Gross) {
   return (actualM != null && week2Gross != null && (actualM - week2Gross) / actualM < 0.3) ? 25 : 0
 }
 
-module.exports = { calcOpeningPts, calcLegsBonus, calcWeeklyPts, rtMult, perfMult }
+// True when a film opened below 60% of its estimate. A flop scores a flat -40
+// for the whole film — callers should skip legs / hold-bonus when this is true.
+function isFlop (film, actualM) {
+  return actualM != null && !!film.estM && actualM / film.estM < FLOP_RATIO
+}
+
+module.exports = { calcOpeningPts, calcLegsBonus, calcWeeklyPts, rtMult, perfMult, isFlop, FLOP_PENALTY }

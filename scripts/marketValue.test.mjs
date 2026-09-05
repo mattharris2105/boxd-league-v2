@@ -20,11 +20,13 @@ eq('IPO est 175', calcIPOprice(175), 104)
 eq('IPO est null', calcIPOprice(null), null)
 eq('IPO est 0', calcIPOprice(0), 7)
 
-// calcOpeningPts — 70% forecast-beat + 30% sqrt-damped scale. Design intent:
-// a great cheap call scores roughly the same as a huge on-target film.
-eq('PTS Spider-Man (2.1x est, $360M)', calcOpeningPts({ estM: 175, rt: null }, 360.09), 301)
-eq('PTS The Invite (3x est, $6M) ~= Spider-Man', calcOpeningPts({ estM: 2, rt: null }, 5.93), 284)
+// calcOpeningPts — 50/50 forecast-beat + sqrt-damped scale, with a flat -40
+// flop penalty when a film opens below 60% of its estimate.
+eq('PTS Spider-Man (2.1x est, $360M)', calcOpeningPts({ estM: 175, rt: null }, 360.09), 324)
+eq('PTS The Invite (3x est, $6M)', calcOpeningPts({ estM: 2, rt: null }, 5.93), 217)
 eq('PTS no result', calcOpeningPts({ estM: 10, rt: null }, null), 0)
+eq('PTS flop (<60% of est) = -40 flat', calcOpeningPts({ estM: 100, rt: null }, 50), -40)
+eq('PTS soft miss (65% of est) is NOT a flop', calcOpeningPts({ estM: 100, rt: null }, 65), 68)
 eq('PTS Analyst chip +60 flat', calcOpeningPts({ estM: 10, rt: null }, 10, false, true),
   calcOpeningPts({ estM: 10, rt: null }, 10) + 60)
 eq('PTS RT<50 penalty is small', // ~10% down, not 15%

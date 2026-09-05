@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabase'
 import { calcMarketValue, calcIPOprice } from './lib/marketValue'
-import { calcOpeningPts, calcLegsBonus, calcWeeklyPts } from './lib/scoring'
+import { calcOpeningPts, calcLegsBonus, calcWeeklyPts, isFlop } from './lib/scoring'
 
 const SUPABASE_URL = 'https://yxluqkfanhzktinayvex.supabase.co'
 // The client in ./supabase already holds a valid anon key. Reuse it so
@@ -42,6 +42,17 @@ const MAX_ROSTER         = 6
 // every empty slot up to the full cap, not just down to a soft floor.
 const DRAFT_MIN          = MAX_ROSTER
 const DRAFT_PENALTY      = 5
+// You must also put your money to work: deploy at least 80% of your phase
+// budget by the draft deadline, or lose 1pt per $2M short (capped). Anything
+// unspent above 20% of the phase budget is forfeited at phase end, not banked —
+// hoarding cash to buy six cheap films and sit on the rest is not a strategy.
+const MIN_SPEND_PCT      = 0.80
+const BANK_CAP_PCT       = 0.20
+const UNDERSPEND_PEN_CAP = 30
+// The marquee pick: one roster film per phase, nominated as your best bet.
+// Its total points are multiplied by this. Locks when your first phase film
+// scores.
+const MARQUEE_MULT       = 1.5
 const PHASE_BUDGETS      = {1:150,2:180,3:150}
 const PHASE_NAMES        = {0:'Historical (Season opener)',1:'Autumn (Sep–Nov)',2:'Awards & Holiday (Dec–Jan)',3:'Spring (Feb+)'}
 const ALL_PHASES         = [1,2,3]
@@ -1081,19 +1092,22 @@ function PlayerProfilePage({player,reviews=[],onOpenFilm,films,rosters,results,w
 }
 
 // ── SCORE BREAKDOWN MODAL ──────────────────────────────────────────────────────
-function ScoreBreakdownModal({film,holding,results,weeklyGrosses,allChips,isEarlyBird,onClose}){
+function ScoreBreakdownModal({film,holding,results,weeklyGrosses,allChips,isEarlyBird,isMarquee,onClose}){
   const actual=results[film.id],weeks=weeklyGrosses[film.id]||{},pid=holding.player_id
   const chip=allChips.find(c=>c.player_id===pid)
   const analystWin=chip?.analyst_film_id===film.id&&chip?.analyst_result==='win'
   const eb=isEarlyBird(holding)
   const gc=GENRE_COL[film.genre]||T.textSub
-  const baseOpen=actual!=null?calcOpeningPts(film,actual,false,false):0
-  const ebBonus=(eb&&actual!=null&&actual/film.estM>=1.1)?Math.round(baseOpen*0.1):0
-  const analystBon=analystWin?60:0
+  const flopped=actual!=null&&isFlop(film,actual)
+  const baseOpen=actual!=null&&!flopped?calcOpeningPts(film,actual,false,false):0
+  const ebBonus=(!flopped&&eb&&actual!=null&&actual/film.estM>=1.1)?Math.round(baseOpen*0.1):0
+  const analystBon=(!flopped&&analystWin)?60:0
   const openPts=baseOpen+ebBonus+analystBon
-  const wkPts=Math.round(calcWeeklyPts(weeks,actual))
-  const lb=calcLegsBonus(actual,weeks[2])
-  const total=openPts+wkPts+lb
+  const wkPts=flopped?0:Math.round(calcWeeklyPts(weeks,actual))
+  const lb=flopped?0:calcLegsBonus(actual,weeks[2])
+  const preMarquee=flopped?-40:openPts+wkPts+lb
+  const marqueeBonus=isMarquee?Math.round(preMarquee*1.5)-preMarquee:0
+  const total=preMarquee+marqueeBonus
   const Row=({label,value,color,sub})=>(
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',padding:'12px 0',borderBottom:`1px solid ${T.border}`}}>
       <div><div style={{fontSize:'13px',color:T.text,lineHeight:1.4}}>{label}</div>{sub&&<div style={{fontSize:'11px',color:T.textSub,marginTop:'3px'}}>{sub}</div>}</div>
@@ -1123,11 +1137,16 @@ function ScoreBreakdownModal({film,holding,results,weeklyGrosses,allChips,isEarl
           {actual==null?<div style={{textAlign:'center',color:T.textSub,padding:'32px',fontSize:'13px'}}>No results yet — check back after opening weekend.</div>:<>
             <div style={S.label}>Points Breakdown</div>
             <div style={{marginTop:'8px'}}>
-              <Row label="Base opening pts" value={`+${baseOpen}`} sub={`$${actual}M actual · ${film.estM?(actual/film.estM).toFixed(2)+'×':''} performance`}/>
-              {eb&&ebBonus>0&&<Row label="🐦 Early Bird +10%" value={`+${ebBonus}`} color={T.green} sub="Bought 4+ weeks early and film beat estimate"/>}
-              {analystWin&&<Row label="🎯 Analyst bonus" value="+60" color={T.blue} sub="Predicted opening within 10%"/>}
-              {wkPts>0&&<Row label="📅 Legs" value={`+${wkPts}`} color={T.blue} sub={`Earned ${(actual?((Object.entries(weeks).filter(([w])=>+w>=2).reduce((s,[,g])=>s+Number(g),0))/actual):0).toFixed(1)}x its opening after debut — 60pts per 1x, capped at 2.5x`}/>}
-              {lb>0&&<Row label="🦵 Strong hold bonus" value="+25" color={T.green} sub="Week-2 drop under 30% — word of mouth is working"/>}
+              {flopped
+                ?<Row label="💥 Flop" value="−40" color={T.red} sub={`Opened at ${(actual/film.estM*100).toFixed(0)}% of its $${film.estM}M estimate — below the 60% line, so a flat loss. No legs or chip bonuses.`}/>
+                :<>
+                  <Row label="Base opening pts" value={`+${baseOpen}`} sub={`$${actual}M actual · ${film.estM?(actual/film.estM).toFixed(2)+'×':''} performance · 50% beat-the-forecast + 50% scale`}/>
+                  {eb&&ebBonus>0&&<Row label="🐦 Early Bird +10%" value={`+${ebBonus}`} color={T.green} sub="Bought 4+ weeks early and film beat estimate"/>}
+                  {analystWin&&<Row label="🎯 Analyst bonus" value="+60" color={T.blue} sub="Predicted opening within 10%"/>}
+                  {wkPts>0&&<Row label="📅 Legs" value={`+${wkPts}`} color={T.blue} sub={`Earned ${(actual?((Object.entries(weeks).filter(([w])=>+w>=2).reduce((s,[,g])=>s+Number(g),0))/actual):0).toFixed(1)}x its opening after debut — 60pts per 1x, capped at 2.5x`}/>}
+                  {lb>0&&<Row label="🦵 Strong hold bonus" value="+25" color={T.green} sub="Week-2 drop under 30% — word of mouth is working"/>}
+                </>}
+              {isMarquee&&<Row label="⭐ Marquee ×1.5" value={`${marqueeBonus>=0?'+':''}${marqueeBonus}`} color={T.gold} sub="Your nominated best bet for this phase"/>}
             </div>
             <div style={{marginTop:'20px',background:T.surfaceUp,borderRadius:'14px',padding:'20px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
               <div style={S.label}>Total Points</div>
@@ -1960,6 +1979,7 @@ function AppInner(){
   const[addFilm,setAddFilm]=useState(false)
   const[newFilm,setNewFilm]=useState({title:'',dist:'',genre:'Action',franchise:'',basePrice:20,estM:30,rt:'',week:1,phase:1,sleeper:false,starActor:'',trailer:'',affiliateUrl:'',tmdbId:''})
   const[suggestions,setSuggestions]=useState([])
+  const[marquees,setMarquees]=useState([])
   const[auteurActor,setAuteurActor]=useState('')
   const[auteurFilms,setAuteurFilms]=useState([])
   const[moreOpen,setMoreOpen]=useState(false)
@@ -2259,7 +2279,8 @@ function AppInner(){
       supabase.from('auteur_declarations').select('*').eq('league_id',lid),
       supabase.from('weekend_winners').select('*').eq('league_id',lid),
       supabase.from('phase_budgets').select('*').eq('league_id',lid),
-    ]).then(([{data:ps},{data:rs},{data:res},{data:fv},{data:wg},{data:ch},{data:fc},{data:op},{data:ad},{data:ww},{data:pb}])=>{
+      supabase.from('marquee_picks').select('*').eq('league_id',lid),
+    ]).then(([{data:ps},{data:rs},{data:res},{data:fv},{data:wg},{data:ch},{data:fc},{data:op},{data:ad},{data:ww},{data:pb},{data:mq}])=>{
       if(ps)setPlayers(ps)
       if(rs)setRosters(rs)
       if(res){const m={};res.forEach(r=>m[r.film_id]=r.actual_m);setResults(m)}
@@ -2271,6 +2292,7 @@ function AppInner(){
       if(ad)setAuteurDecl(ad)
       if(ww){const m={};ww.forEach(w=>m[w.week]=w.film_id);setWwWinners(m)}
       if(pb)setPhaseBudgets(pb)
+      if(mq)setMarquees(mq)
     })
     // Even later — news, forecasts, polls
     setTimeout(()=>{
@@ -2310,7 +2332,11 @@ function AppInner(){
   const phaseRealised=(pid,ph)=>rosters.filter(r=>r.player_id===pid&&r.phase===ph&&!r.active&&r.sold_price!=null).reduce((s,r)=>s+((r.sold_price||0)-(r.bought_price||0)),0)
   const budgetLeft=(pid)=>Math.max(0,phaseAlloc(pid,curPhase())-phaseSpent(pid,curPhase())+phaseRealised(pid,curPhase()))
   const bankBudget=async(pid,ph)=>{
-    const alloc=phaseAlloc(pid,ph),spent=phaseSpent(pid,ph),banked=Math.max(0,alloc-spent)
+    const alloc=phaseAlloc(pid,ph),spent=phaseSpent(pid,ph)
+    // Carry forward at most 20% of this phase's base budget; the rest of any
+    // unspent allocation is forfeited (no sitting on a war chest).
+    const bankCap=BANK_CAP_PCT*(PHASE_BUDGETS[ph]||0)
+    const banked=Math.max(0,Math.min(alloc-spent,bankCap))
     const ex=phaseBudgets.find(pb=>pb.player_id===pid&&pb.phase===ph)
     if(ex)await supabase.from('phase_budgets').update({budget_allocated:alloc,budget_spent:spent,budget_banked:banked}).eq('id',ex.id)
     else await supabase.from('phase_budgets').insert({player_id:pid,phase:ph,budget_allocated:alloc,budget_spent:spent,budget_banked:banked,league_id:league?.id})
@@ -2378,15 +2404,34 @@ function AppInner(){
     return earliest.id===h.id
   }
   const analystOn=(pid,fid)=>{const c=allChips.find(c=>c.player_id===pid);return c?.analyst_film_id===fid&&c?.analyst_result==='win'}
+  const marqueeFor=(pid,ph)=>marquees.find(m=>m.player_id===pid&&m.phase===ph)?.film_id||null
+  // Points a single roster holding scored, flop + marquee applied.
+  const holdingPoints=(pid,ph,h)=>{
+    const film=films.find(f=>f.id===h.film_id);if(!film)return 0
+    const actual=results[film.id];if(actual==null)return 0
+    let sub
+    if(isFlop(film,actual)) sub=-40
+    else sub=calcOpeningPts(film,actual,isEarlyBird(h),analystOn(pid,film.id))
+      +Math.round(calcWeeklyPts(weeklyG[film.id]||{},actual))
+      +calcLegsBonus(actual,weeklyG[film.id]?.[2])
+    if(marqueeFor(pid,ph)===film.id) sub=Math.round(sub*MARQUEE_MULT)
+    return sub
+  }
+  // $ short of the 80% deploy line -> 1pt per $2M, capped. Only bites once the
+  // phase is complete (the live phase shows this as a banner warning instead).
+  const phaseUnderspendPenalty=(pid,ph)=>{
+    if(ph>=(cfg.current_phase||1))return 0
+    const floor=MIN_SPEND_PCT*(PHASE_BUDGETS[ph]||0)
+    const spent=phaseSpent(pid,ph)+Math.max(0,-phaseRealised(pid,ph))
+    return spent>=floor?0:Math.min(UNDERSPEND_PEN_CAP,Math.round((floor-spent)/2))
+  }
+  const phaseDeployShortfall=(pid,ph)=>Math.max(0,MIN_SPEND_PCT*(PHASE_BUDGETS[ph]||0)-phaseSpent(pid,ph))
   const calcPhasePoints=(pid,ph)=>{
     let t=0
     rosters.filter(r=>r.player_id===pid&&r.phase===ph&&films.find(f=>f.id===r.film_id)).forEach(h=>{
-      const film=films.find(f=>f.id===h.film_id);if(!film)return
-      const actual=results[film.id];if(actual==null)return
-      let op=calcOpeningPts(film,actual,isEarlyBird(h),analystOn(pid,film.id))
-      t+=op+Math.round(calcWeeklyPts(weeklyG[film.id]||{},actual))+calcLegsBonus(actual,weeklyG[film.id]?.[2])
+      t+=holdingPoints(pid,ph,h)
     })
-    return t
+    return t-phaseUnderspendPenalty(pid,ph)
   }
   const calcPoints=(pid)=>ALL_PHASES.reduce((s,ph)=>s+calcPhasePoints(pid,ph),0)
   // ── OPENING ESTIMATOR — suggests an Est from comparable resulted films ───
@@ -2470,6 +2515,25 @@ function AppInner(){
     await logActivity(profile.id,'sell',{film_id:film.id,film_title:film.title,proceeds,player_name:profile.name},league?.id)
     haptic.tap()
     notify(`Dropped ${film.title} · $${proceeds}M${win?' (free)':''}`,T.gold);loadData(league?.id)
+  }
+
+  // Marquee lock: once any of your films for this phase has a result, it's set.
+  const marqueeLocked=(ph)=>rosters.some(r=>r.player_id===profile.id&&r.phase===ph&&results[r.film_id]!=null)
+  const setMarquee=async(film)=>{
+    const ph=curPhase()
+    if(marqueeLocked(ph))return notify('Marquee is locked — a film already scored this phase',T.red)
+    const ex=marquees.find(m=>m.player_id===profile.id&&m.phase===ph)
+    if(ex?.film_id===film.id){
+      await supabase.from('marquee_picks').delete().eq('id',ex.id)
+      notify(`${film.title} is no longer your marquee`,T.textSub)
+    }else if(ex){
+      await supabase.from('marquee_picks').update({film_id:film.id,updated_at:new Date().toISOString()}).eq('id',ex.id)
+      notify(`⭐ Marquee → ${film.title} (×${MARQUEE_MULT} points)`,T.gold)
+    }else{
+      await supabase.from('marquee_picks').insert({league_id:league?.id,player_id:profile.id,phase:ph,film_id:film.id})
+      notify(`⭐ Marquee → ${film.title} (×${MARQUEE_MULT} points)`,T.gold)
+    }
+    loadData(league?.id)
   }
 
   const acceptTrade=async(trade)=>{
@@ -2599,7 +2663,8 @@ function AppInner(){
   const draftDeadline=cfg.draft_deadline||null
   const myDraftPicks=myRoster.length
   const draftShortfall=draftWindowOpen?Math.max(0,DRAFT_MIN-myDraftPicks):0
-  const draftPenalty=draftShortfall*DRAFT_PENALTY
+  const myDeployShort=draftWindowOpen?phaseDeployShortfall(profile?.id,curPhase()):0
+  const draftPenalty=draftShortfall*DRAFT_PENALTY+(myDeployShort>0?Math.min(UNDERSPEND_PEN_CAP,Math.round(myDeployShort/2)):0)
   const wMs=cfg.phase_window_opened_at?Math.max(0,72*3600000-(nowRef.current-new Date(cfg.phase_window_opened_at).getTime())):0
 
   // PAGE VISIBILITY — hide empty pages so first-time view isn't broken
@@ -2986,7 +3051,7 @@ function AppInner(){
               <span style={{fontSize:'20px'}}>👋</span>
               <div style={{fontSize:'15px',fontWeight:700,color:T.gold}}>Welcome to BOXD</div>
             </div>
-            <div style={{fontSize:'13px',color:T.text,lineHeight:1.6}}>Fill all <strong>{MAX_ROSTER} roster slots</strong> this phase — each one left empty at lock costs you <strong style={{color:T.red}}>{DRAFT_PENALTY}pts</strong>. You have <strong style={{color:T.gold}}>${myBudget}M</strong> to spend. Films pay out when results land Monday — opening points + legs + bonuses. <span style={{color:T.textSub}}>Tap any card to start.</span></div>
+            <div style={{fontSize:'13px',color:T.text,lineHeight:1.6}}>Fill all <strong>{MAX_ROSTER} roster slots</strong> and deploy <strong>{MIN_SPEND_PCT*100}%+</strong> of your <strong style={{color:T.gold}}>${myBudget}M</strong> — empty slots and idle cash both cost points. Name one <strong style={{color:T.gold}}>⭐ marquee</strong> film (×{MARQUEE_MULT} points) on the Roster page. Films pay out Monday: opening + legs + bonuses, or −40 if they open below 60% of estimate. <span style={{color:T.textSub}}>Tap any card to start.</span></div>
           </div>
         )}
 
@@ -3118,24 +3183,37 @@ function AppInner(){
         <div style={S.pageTitle}>Your Roster</div>
         <div style={{fontSize:'12px',color:T.textSub}}>{myRoster.length}/{MAX_ROSTER} · {cur}{myBudget}M left</div>
       </div>
+      {myRoster.length>0&&(()=>{
+        const ph=curPhase(),mqId=marqueeFor(profile.id,ph),locked=marqueeLocked(ph)
+        return(
+          <div style={{...S.card,marginBottom:'12px',border:`1px solid ${mqId?T.gold+'55':T.border}`}}>
+            <div style={{fontSize:'12px',fontWeight:700,color:T.gold,marginBottom:'2px'}}>⭐ Marquee pick · ×{MARQUEE_MULT} points</div>
+            <div style={{fontSize:'11px',color:T.textSub,lineHeight:1.5}}>
+              {mqId
+                ?<>Backing <strong style={{color:T.text}}>{films.find(f=>f.id===mqId)?.title||'—'}</strong>. {locked?'Locked — a film has scored.':'Tap the star on another film to switch.'}</>
+                :locked?'No marquee set this phase — locked now.':'Tap the ☆ on the film you think will perform best for you. One per phase.'}
+            </div>
+          </div>
+        )
+      })()}
       {myRoster.length===0?<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No films yet. Head to the Market.</div>:myRoster.map(h=>{
         const film=films.find(f=>f.id===h.film_id);if(!film)return null
         const actual=results[film.id]
         const eb=isEarlyBird(h)
-        let op=actual!=null?calcOpeningPts(film,actual,eb,analystOn(profile.id,film.id)):0
-        const wp=Math.round(calcWeeklyPts(weeklyG[film.id]||{},actual))
-        const lb=calcLegsBonus(actual,weeklyG[film.id]?.[2])
-        const total=op+wp+lb
+        const ph=curPhase()
+        const isMq=marqueeFor(profile.id,ph)===film.id
+        const flopped=actual!=null&&isFlop(film,actual)
+        const total=actual!=null?holdingPoints(profile.id,ph,h):0
         return(
-          <div key={h.id} className="hoverable" onClick={()=>setScoreModal({film,holding:h})} style={{...S.card,marginBottom:'10px',cursor:'pointer'}}>
+          <div key={h.id} className="hoverable" onClick={()=>setScoreModal({film,holding:h})} style={{...S.card,marginBottom:'10px',cursor:'pointer',border:isMq?`1px solid ${T.gold}66`:undefined}}>
             <div style={{display:'flex',gap:'12px'}}>
               <FilmPoster film={film} width={50} height={75} radius={7}/>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:'14px',fontWeight:700,marginBottom:'4px'}}>{film.title}</div>
-                <div style={{fontSize:'11px',color:T.textSub,marginBottom:'8px'}}>{film.dist} · {filmDateLabel(film)} · Bought ${h.bought_price}M{eb&&' · 🐦 EB'}</div>
+                <div style={{fontSize:'14px',fontWeight:700,marginBottom:'4px'}}>{isMq&&'⭐ '}{film.title}</div>
+                <div style={{fontSize:'11px',color:T.textSub,marginBottom:'8px'}}>{film.dist} · {filmDateLabel(film)} · Bought ${h.bought_price}M{eb&&' · 🐦 EB'}{isMq&&' · ⭐ Marquee'}</div>
                 {actual!=null?<div style={{display:'flex',gap:'10px',alignItems:'baseline'}}>
-                  <span style={{fontSize:'10px',color:T.textDim,letterSpacing:'1.5px'}}>SCORED</span>
-                  <span style={{fontSize:'20px',fontWeight:900,color:T.gold,fontFamily:T.mono}}>{total}pts</span>
+                  <span style={{fontSize:'10px',color:T.textDim,letterSpacing:'1.5px'}}>{flopped?'FLOP':'SCORED'}</span>
+                  <span style={{fontSize:'20px',fontWeight:900,color:flopped?T.red:T.gold,fontFamily:T.mono}}>{total}pts</span>
                 </div>:<div style={{display:'flex',gap:'10px',alignItems:'baseline'}}>
                   <span style={{fontSize:'10px',color:T.textDim,letterSpacing:'1.5px'}}>VALUE</span>
                   {filmVal(film)!=null
@@ -3145,7 +3223,12 @@ function AppInner(){
                   }
                 </div>}
               </div>
-              {actual==null&&<Btn onClick={e=>{e.stopPropagation();sellFilm(film)}} color={T.red} textColor="#fff" size="sm" sx={{alignSelf:'center'}}>Sell</Btn>}
+              <div style={{display:'flex',flexDirection:'column',gap:'6px',alignItems:'center',alignSelf:'center'}}>
+                {h.phase===ph&&!marqueeLocked(ph)&&(
+                  <button onClick={e=>{e.stopPropagation();setMarquee(film)}} title={isMq?'Remove marquee':'Set as marquee (×1.5 points)'} style={{background:'none',border:'none',cursor:'pointer',fontSize:'20px',lineHeight:1,padding:0,color:isMq?T.gold:T.textDim}}>{isMq?'⭐':'☆'}</button>
+                )}
+                {actual==null&&<Btn onClick={e=>{e.stopPropagation();sellFilm(film)}} color={T.red} textColor="#fff" size="sm">Sell</Btn>}
+              </div>
             </div>
           </div>
         )
@@ -3244,13 +3327,13 @@ function AppInner(){
           <Section id="basics" icon="🎬" color={T.gold} title="What is BOXD?" summary="The core game in 30 seconds.">
             BOXD is fantasy box office. You build a roster of films you think will outperform their estimates, and you score points when real-world weekend grosses come in.
             <br/><br/>
-            The season runs in <Highlight>3 phases</Highlight> ({PHASE_NAMES[1]}, {PHASE_NAMES[2]}, {PHASE_NAMES[3]}), plus a <Highlight>Historical</Highlight> archive of films that already released. You get a fresh budget per phase and must fill all <Highlight>{MAX_ROSTER} roster slots</Highlight> — every slot you leave empty at lock costs you <Highlight color={T.red}>{DRAFT_PENALTY}pts</Highlight>.
+            The season runs in <Highlight>3 phases</Highlight> ({PHASE_NAMES[1]}, {PHASE_NAMES[2]}, {PHASE_NAMES[3]}), plus a <Highlight>Historical</Highlight> archive of films that already released. Each phase you get a fresh budget, must fill all <Highlight>{MAX_ROSTER} roster slots</Highlight>, and must deploy at least <Highlight>{MIN_SPEND_PCT*100}%</Highlight> of that budget — falling short of either costs points. You also name one <Highlight color={T.gold}>⭐ marquee</Highlight> film per phase that scores ×{MARQUEE_MULT}.
             <br/><br/>
-            Results land <Highlight color={T.green}>every Monday</Highlight>. Films that beat their estimate score big. Films that flop cost you. Highest total points at the end wins.
+            Results land <Highlight color={T.green}>every Monday</Highlight>. Beat the estimate and score big; open below 60% of it and take a flat −40. Highest total points at season end wins.
           </Section>
           <Section id="phases" icon="📅" color={T.gold} title="Phases & the season clock" summary="How time moves and when budgets reset.">
             The season has 3 playable phases. The commissioner advances phases manually. When a phase ends:
-            <br/>• Any unspent budget gets <Highlight color={T.green}>banked</Highlight> and added to next phase's budget
+            <br/>• Unspent budget is <Highlight color={T.green}>banked</Highlight> into next phase — but only up to <Highlight>{BANK_CAP_PCT*100}% of the phase budget</Highlight>. Anything above that is forfeited, so sitting on a war chest doesn't work.
             <br/>• Your roster from that phase stays locked in (films keep scoring as their weeks land)
             <br/>• You get a new roster slot allowance for the new phase
             <br/><br/>
@@ -3280,8 +3363,8 @@ function AppInner(){
           <Section id="buying" icon="🛒" color={T.blue} title="Buying a film" summary="Spend wisely. Conviction shows in price.">
             Cost comes out of your phase budget. Three rules:
             <br/>• <Highlight color={T.red}>Exactly {MAX_ROSTER} films per phase</Highlight> — it's a full roster or nothing. Each slot still empty when the draft window closes costs you <Highlight color={T.red}>{DRAFT_PENALTY}pts</Highlight>, so a half-filled roster is −{(DRAFT_MIN-3)*DRAFT_PENALTY}pts before a single result lands.
+            <br/>• <Highlight color={T.red}>Deploy at least {MIN_SPEND_PCT*100}% of your budget</Highlight> — being short of that line at draft close costs <Highlight color={T.red}>1pt per {cur}2M</Highlight> you're under (capped at {UNDERSPEND_PEN_CAP}). Six bargains that leave half your budget idle isn't a free ride.
             <br/>• You can only buy films from <Highlight>your current phase</Highlight>
-            <br/>• No cap on how cheap you go — but the fill requirement means "buy the one tentpole you can afford and stop" isn't a strategy; you have to find six films worth owning
             <br/><br/>
             Buying <Highlight color={T.green}>early</Highlight> ({EARLY_BIRD_WEEKS}+ weeks before release) earns you the 🐦 <Highlight color={T.green}>Early Bird</Highlight> tag — +10% on opening points if the film beats estimate by 10%+.
             <br/><br/>
@@ -3312,13 +3395,15 @@ function AppInner(){
           <Section id="opening" icon="🎯" color={T.green} title="Opening weekend points" summary="The biggest scoring event for each film.">
             When real opening weekend numbers come in Monday, opening points are:
             <br/><br/>
-            <Highlight>70% × how much you beat the forecast  +  30% × how big the hit was</Highlight>
+            <Highlight>50% × how much you beat the forecast  +  50% × how big the hit was</Highlight>
             <br/><br/>
-            The forecast part is the driver: it rewards spotting a film that outperforms its estimate, whether it's a $3M indie or a $300M tentpole. The size part is a smaller kicker so landing a genuine blockbuster still counts for something — but a $300M film that merely met expectations won't beat a $6M film that tripled its forecast.
+            Both halves matter equally. Beating the forecast still rewards spotting an underrated film — but a genuine blockbuster is no longer a trap, because raw scale now carries the same weight. A $6M film that triples its forecast and a $200M film that opens on target land in the same ballpark.
+            <br/><br/>
+            <Highlight color={T.red}>💥 Flop penalty:</Highlight> a film that opens <Highlight color={T.red}>below 60% of its estimate</Highlight> scores a flat <Highlight color={T.red}>−40</Highlight> — no legs, no bonuses. Six cheap films means six ways to lose points, not six free lottery tickets.
             <br/><br/>
             <Highlight>Performance multiplier (actual ÷ estimate, capped at 3×):</Highlight>
             <br/>• 2.0× at ≥200% of estimate · 1.6× at 150%+ · 1.35× at 130%+ · 1.15× at 110%+
-            <br/>• 1.00× at 95-110% (on target) · 0.85× at 80-95% · 0.65× at 60-80% · 0.45× at &lt;60%
+            <br/>• 1.00× at 95-110% (on target) · 0.85× at 80-95% · 0.65× at 60-80% · then the flop penalty below 60%
             <br/><br/>
             <Highlight>RT modifier (a bonus, not a driver):</Highlight> ≥90% +15% · 80-89% +10% · 70-79% +5% · 60-69% none · 50-59% −5% · &lt;50% −10%.
           </Section>
@@ -3331,8 +3416,16 @@ function AppInner(){
             <br/><br/>
             This is why a small film with real word of mouth can outscore a blockbuster that dropped 60% in week two.
           </Section>
+          <Section id="marquee" icon="⭐" color={T.gold} title="Your marquee pick" summary="Nominate your best bet — it scores ×1.5.">
+            Once per phase you pick <Highlight>one film on your roster</Highlight> as your marquee — the one you're most confident in. Its <Highlight color={T.gold}>total points are multiplied by {MARQUEE_MULT}×</Highlight> (opening + legs + bonuses, or the −40 if it flops — so back it with conviction).
+            <br/><br/>
+            Set it from the <Highlight>Roster</Highlight> page: tap the ☆ on a film. You can switch it any time <Highlight>until your first film of that phase scores</Highlight>, then it locks. No marquee set by then = no ×1.5 that phase.
+            <br/><br/>
+            It rewards reading one film really well, and it's a reason to own a film big enough to be worth 1.5×-ing.
+          </Section>
           <Section id="bonuses" icon="🏆" color={T.gold} title="All the bonuses" summary="Every modifier in the scoring engine.">
             On top of opening points + legs, you can earn these:
+            <br/>• ⭐ <Highlight color={T.gold}>Marquee ×{MARQUEE_MULT}</Highlight> on one roster film's total per phase (see above)
             <br/>• 🐦 <Highlight color={T.green}>Early Bird +10%</Highlight> on opening pts if you bought {EARLY_BIRD_WEEKS}+ weeks before release AND the film beats estimate by 10%+. One Early Bird per phase — earliest qualifying pick gets it.
             <br/>• 🎯 <Highlight color={T.blue}>Analyst +60pts</Highlight> flat if you used your Analyst chip and your opening prediction was within 10%
           </Section>
@@ -5640,7 +5733,7 @@ function AppInner(){
   }
 
   const navigate=(p)=>{setPage(p);setMoreOpen(false)}
-  const draftBannerVisible=draftWindowOpen&&draftShortfall>0
+  const draftBannerVisible=draftWindowOpen&&(draftShortfall>0||myDeployShort>0)
 
   // Fresh-results banner state (hooks declared at top of App)
   const dismissKey=`boxd_results_seen_w${cfg.current_week-1}`
@@ -5743,7 +5836,11 @@ function AppInner(){
         {draftBannerVisible&&(
           <div style={{background:`${T.orange}18`,borderBottom:`1px solid ${T.orange}44`,padding:'10px 20px',display:'flex',alignItems:'center',gap:'12px',flexWrap:'wrap'}}>
             <span style={{fontSize:'14px',color:T.orange,fontWeight:600}}>⚠️ Draft window open</span>
-            <span style={{fontSize:'13px',color:T.textSub}}>Pick {draftShortfall} more film{draftShortfall!==1?'s':''} or face {cur}{draftPenalty}M penalty</span>
+            <span style={{fontSize:'13px',color:T.textSub}}>
+              {draftShortfall>0&&<>Pick {draftShortfall} more film{draftShortfall!==1?'s':''}. </>}
+              {myDeployShort>0&&<>Deploy {cur}{Math.round(myDeployShort)}M more to hit the 80% floor. </>}
+              Est. penalty if you lock now: <strong style={{color:T.orange}}>{draftPenalty}pts</strong>.
+            </span>
             <Btn onClick={()=>navigate('market')} color={T.orange} textColor="#0D0A08" size="sm">Go to Market →</Btn>
           </div>
         )}
@@ -5834,7 +5931,7 @@ function AppInner(){
 
       {filmDetail&&<FilmDetailModal film={filmDetail} profile={profile} players={players} results={results} allPicks={allPicks} marketingEvents={marketingEvents} news={news} rosters={rosters} filmValues={filmValues} weeklyG={weeklyG} reviews={reviews} reviewComments={reviewComments} onAddReviewComment={addReviewComment} bookingClicks={bookingClicks} onSaveReview={saveReview} onDeleteReview={deleteReview} currentWeek={cfg.current_week} phase={ph} onTogglePick={togglePick} onBookingClick={trackBookingClick} onShowtimes={(f)=>{setShowtimesFilm(f);setFilmDetail(null)}} onClose={()=>setFilmDetail(null)} league={league} isAdmin={isAdmin} onBuy={buyFilm} onSell={sellFilm} onLiveVal={filmVal}/>}
       {showtimesFilm&&<ShowtimesModal film={showtimesFilm} onClose={()=>setShowtimesFilm(null)} onBookingClick={trackBookingClick} supabaseUrl={SUPABASE_URL} anonKey={SUPABASE_ANON_KEY}/>}
-      {scoreModal&&<ScoreBreakdownModal film={scoreModal.film} holding={scoreModal.holding} results={results} weeklyGrosses={weeklyG} allChips={allChips} isEarlyBird={isEarlyBird} onClose={()=>setScoreModal(null)}/>}
+      {scoreModal&&<ScoreBreakdownModal film={scoreModal.film} holding={scoreModal.holding} results={results} weeklyGrosses={weeklyG} allChips={allChips} isEarlyBird={isEarlyBird} isMarquee={marqueeFor(scoreModal.holding.player_id,scoreModal.holding.phase)===scoreModal.film.id} onClose={()=>setScoreModal(null)}/>}
       {profileEditOpen&&<ProfileEditModal/>}
       {confirmState&&(
         <div style={{position:'fixed',inset:0,background:'#000000DD',zIndex:1100,display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}} onClick={()=>{confirmState.resolve(false);setConfirmState(null)}}>
@@ -5855,9 +5952,10 @@ function AppInner(){
         const iOwnSomething=rosters.some(r=>r.player_id===profile.id&&r.active)
         const STEPS=[
           {type:'card',icon:'🎬',title:'Welcome to BOXD',body:'You are about to draft 2026 films like stocks. Their value moves on real box office numbers. The player who reads the market best wins. Takes 60 seconds to learn.'},
-          {type:'card',icon:'💰',title:`You have ${cur}${budget}M to invest`,body:'Every film has an IPO price set by its expected opening weekend. Cheap films are cheap because the market expects little. If they overperform, they soar. That is where you win.'},
-          {type:'card',icon:'📈',title:'How you score',body:'When a film opens, you earn points based on how it did versus its estimate. A film that doubles its estimate scores big. Strong word-of-mouth (small weekly drops) pushes value even higher.'},
-          {type:'card',icon:'🎯',title:'The whole game in one line',body:'Buy films you think the market is underrating. Sell before they disappoint. Watch the box office prove you right. Ready to make your first pick?'},
+          {type:'card',icon:'💰',title:`You have ${cur}${budget}M to invest`,body:`Every film has an IPO price set by its expected opening weekend. You must fill all ${MAX_ROSTER} roster slots and deploy at least ${MIN_SPEND_PCT*100}% of your budget — leaving cash idle or slots empty costs points. Only ${BANK_CAP_PCT*100}% of anything unspent carries to the next phase.`},
+          {type:'card',icon:'📈',title:'How you score',body:'When a film opens you earn points — half from how much it beat its estimate, half from how big the opening was. Strong word-of-mouth (small weekly drops) adds more. But a film that opens below 60% of its estimate is a flat −40: cheap picks carry real downside.'},
+          {type:'card',icon:'⭐',title:'Your marquee pick',body:`Each phase you nominate one roster film as your marquee — your best bet. It scores ×${MARQUEE_MULT}. Set it on the Roster page; it locks once your first film of the phase scores.`},
+          {type:'card',icon:'🎯',title:'The whole game in one line',body:'Buy films you think the market is underrating, back one hard as your marquee, deploy your budget, and watch the box office prove you right. Ready to make your first pick?'},
           {type:'action',icon:'🗺️',title:'Take the tour',body:'Let me show you around — a quick walk through each screen so you know where everything is. Takes 30 seconds.'},
         ]
         const step=STEPS[onboardStep]
@@ -5886,7 +5984,7 @@ function AppInner(){
       {tourStep>=0&&(()=>{
         const TOUR=[
           {page:'market',icon:'🎬',title:'The Market',body:'This is your trading floor. Every film has a live price. Tap any film to see its details, watchlist it, or buy. Prices rise as release nears and as more players buy in.'},
-          {page:'roster',icon:'🎞️',title:'Your Roster',body:'Films you own live here. You\'ll see what you paid, what they\'re worth now, and your points. Sell anytime — but watch the transaction fee outside trading windows.'},
+          {page:'roster',icon:'🎞️',title:'Your Roster',body:'Films you own live here — what you paid, what they\'re worth, and your points. Tap the ☆ on your best bet to make it your ⭐ marquee (×1.5 points for the phase). Sell anytime, minus the fee outside trading windows.'},
           {page:'league',icon:'🏆',title:'Standings',body:'Where you rank against your league. Points come from how your films perform versus their estimates. The gap to the player above you is shown so you always know the chase.'},
           {page:'intent',icon:'👁️',title:'Watchlist',body:'Films you\'re tracking but haven\'t bought. Great for keeping an eye on prices before you commit. Your watchlist also feeds the buzz data.'},
           {page:'community',icon:'👥',title:'Community',body:'The social hub — reviews, comments, screenings you can join, and the league buzz feed. React, discuss, and organise cinema trips with your league.'},
