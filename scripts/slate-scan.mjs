@@ -1,18 +1,20 @@
 // Weekly slate scan for BOXD — the read-only half of slate maintenance.
 //
 // Diffs the forward theatrical calendar (The Numbers release schedule) against
-// the films table and writes a proposal file:
-//   1. NEW FILMS — wide releases, plus limited releases from a buzzy distributor,
-//      that are in the calendar within the window but not yet in the slate.
-//   2. NEEDS A PROJECTION — films already in the slate whose release is inside
-//      the window but that still have no est_m (so no real IPO price).
+// the films table and writes rows to `film_suggestions` (status = 'pending'):
+//   1. kind 'new'      — wide releases, plus limited releases from a buzzy
+//      distributor, that are in the calendar within the window but not yet in
+//      the slate. TMDB id looked up so the poster is right from the start.
+//   2. kind 'estimate' — films already in the slate whose release is inside the
+//      window but that still have no est_m (so no real IPO price).
 //
-// It NEVER writes to Supabase. It only reads films + emits a markdown table for
-// a human (or the weekly agent) to review, fill in est_m, and apply.
+// The commissioner approves or dismisses each one from the in-app
+// Commissioner -> Suggestions tab. This script NEVER writes to `films`.
 //
-//   node scripts/slate-scan.mjs                 # 16-week window, writes proposals/slate-<today>.md
+//   node scripts/slate-scan.mjs                 # 16-week window, upsert pending suggestions
 //   node scripts/slate-scan.mjs --weeks 20
-//   node scripts/slate-scan.mjs --print         # also dump the tables to stdout
+//   node scripts/slate-scan.mjs --dry           # print what it would add, write nothing
+//   node scripts/slate-scan.mjs --file          # also write a proposals/slate-<date>.md paper trail
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -21,7 +23,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const args = process.argv.slice(2)
 const flag = (n, d) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d }
 const WEEKS = Number(flag('--weeks', 16))
-const PRINT = args.includes('--print')
+const DRY = args.includes('--dry')
+const WRITE_FILE = args.includes('--file')
 
 let env = { ...process.env }
 try {
@@ -32,18 +35,33 @@ try {
 const U = (env.SUPABASE_URL || 'https://yxluqkfanhzktinayvex.supabase.co').trim().replace(/\/+$/, '')
 const KEY = (env.SUPABASE_SERVICE_KEY || env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
 if (!KEY) { console.error('Missing SUPABASE_SERVICE_KEY'); process.exit(1) }
-const H = { apikey: KEY, Authorization: `Bearer ${KEY}` }
+const TMDB = (env.TMDB_TOKEN || env.REACT_APP_TMDB_TOKEN || '').trim()
+const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' }
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
 
-// Distributors whose *limited* releases are worth surfacing (awards / arthouse
-// buzz). Wide releases from anyone are surfaced regardless.
-const BUZZY = [
-  'a24', 'neon', 'focus features', 'searchlight', 'sony pictures classics',
-  'mubi', 'apple', 'netflix', 'amazon mgm', 'amazon mgm studios', 'bleecker street',
-  'angel studios', 'gkids', 'magnolia', 'ifc films', 'roadside attractions',
-  'utopia', 'briarcliff entertainment', 'lionsgate', 'metrograph pictures',
-  'oscilloscope', 'kino lorber', 'janus films', 'sideshow',
-]
+async function sb (path, init) {
+  const res = await fetch(`${U}/rest/v1/${path}`, { ...init, headers: { ...H, ...(init?.headers || {}) } })
+  const text = await res.text()
+  let body; try { body = text ? JSON.parse(text) : null } catch { body = text }
+  if (!res.ok) throw new Error(`Supabase ${res.status} on ${path}: ${typeof body === 'string' ? body : JSON.stringify(body)}`)
+  return body
+}
+
+// TMDB accepts a v4 read token (JWT, Bearer) or a v3 API key (?api_key=)
+const TMDB_IS_V4 = /^eyJ/.test(TMDB) || TMDB.split('.').length === 3
+async function tmdbLookup (title, yr) {
+  if (!TMDB) return null
+  try {
+    const base = `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(title)}&language=en-US&include_adult=false${yr ? `&year=${yr}` : ''}`
+    const url = TMDB_IS_V4 ? base : `${base}&api_key=${TMDB}`
+    const res = await fetch(url, TMDB_IS_V4 ? { headers: { Authorization: `Bearer ${TMDB}` } } : {})
+    if (!res.ok) return null
+    const j = await res.json()
+    const hit = (j.results || [])[0]
+    if (!hit) return null
+    return { tmdb_id: hit.id, tmdb_title: hit.title, tmdb_year: (hit.release_date || '').slice(0, 4) || null }
+  } catch { return null }
+}
 
 const norm = (s) => (s || '')
   .toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '')
@@ -51,16 +69,24 @@ const norm = (s) => (s || '')
   .replace(/^the\s+/, '').replace(/[^a-z0-9]+/g, ' ').trim()
 
 // ── current slate ────────────────────────────────────────────────────────────
-const films = await (await fetch(
-  `${U}/rest/v1/films?select=id,title,alt_titles,dist,est_m,phase,release_date&active=eq.true`,
-  { headers: H },
-)).json()
+const films = await sb('films?select=id,title,alt_titles,dist,est_m,phase,release_date&active=eq.true')
 if (!Array.isArray(films)) { console.error('films query failed:', films); process.exit(1) }
-
 const known = new Set()
 for (const f of films) {
   known.add(norm(f.title))
   for (const a of f.alt_titles || []) known.add(norm(a))
+}
+
+// rows already proposed (any status) — never re-surface a dismissed one
+let seenKeys = new Set()
+try {
+  const existing = await sb('film_suggestions?select=dedupe_key,status')
+  seenKeys = new Set((Array.isArray(existing) ? existing : []).map((r) => r.dedupe_key))
+} catch (e) {
+  if (/relation .*film_suggestions.* does not exist|Could not find the table/i.test(e.message)) {
+    console.error('film_suggestions table not found — run supabase/migrations/20260905_film_suggestions.sql first.')
+    if (!DRY) process.exit(1)
+  } else throw e
 }
 
 // ── forward calendar ─────────────────────────────────────────────────────────
@@ -90,21 +116,26 @@ for (const tr of html.split(/<tr[ >]/).slice(1)) {
     dist,
   })
 }
-
 const inWindow = rows.filter((r) => r.date >= iso(today) && r.date <= iso(horizon))
 
+// Distributors whose *limited* releases are worth surfacing (awards / arthouse
+// buzz). Wide releases from anyone are surfaced regardless.
+const BUZZY = [
+  'a24', 'neon', 'focus features', 'searchlight', 'sony pictures classics',
+  'mubi', 'apple', 'netflix', 'amazon mgm', 'amazon mgm studios', 'bleecker street',
+  'angel studios', 'gkids', 'magnolia', 'ifc films', 'roadside attractions',
+  'utopia', 'briarcliff entertainment', 'lionsgate', 'metrograph pictures',
+  'oscilloscope', 'kino lorber', 'janus films', 'sideshow',
+]
 const isWide = (t) => /wide|imax/i.test(t) && !/re-release/i.test(t)
 const isBuzzyLimited = (r) => /limited|special engagement/i.test(r.type) &&
   BUZZY.some((b) => norm(r.dist).includes(norm(b)))
-// The Numbers marks a film "Wide" for its home-territory release too; a
-// country-suffixed slug (…-(2026-India)) is almost never a US/UK slate film.
 const isForeign = (slug) => /-\(20\d\d-[A-Za-z][^)]+\)$/.test(slug)
-// Event cinema / concert films — not box-office-league material.
 const isEvent = (r) => /trafalgar|fathom/i.test(r.dist) ||
-  /\b(live|tour|concert|in concert|the movie experience|presents)\b|:\s|world tour/i.test(r.title) && /trafalgar|fathom|abramorama|iconic events|cinedigm/i.test(r.dist)
+  (/\b(live|tour|concert|world tour)\b|:\s.*\btour\b/i.test(r.title) && /abramorama|iconic events|cinedigm/i.test(r.dist))
 
 const seen = new Set()
-const adds = inWindow
+const addRows = inWindow
   .filter((r) => !/re-release/i.test(r.type))
   .filter((r) => !isForeign(r.slug))
   .filter((r) => !isEvent(r))
@@ -113,59 +144,63 @@ const adds = inWindow
   .filter((r) => { const k = norm(r.title) + r.date; if (seen.has(k)) return false; seen.add(k); return true })
   .sort((a, b) => a.date.localeCompare(b.date))
 
-// ── slate films still missing a projection ───────────────────────────────────
-const needEst = films
-  .filter((f) => f.est_m == null && f.phase !== 0 && f.release_date)
-  .filter((f) => f.release_date <= iso(horizon))
+// slate films still missing a projection
+const estRows = films
+  .filter((f) => f.est_m == null && f.phase !== 0 && f.release_date && f.release_date <= iso(horizon))
   .sort((a, b) => (a.release_date || '').localeCompare(b.release_date || ''))
 
-// ── write proposal ──────────────────────────────────────────────────────────
+// ── build suggestion payloads ───────────────────────────────────────────────
 const gsearch = (t) => `https://www.google.com/search?q=${encodeURIComponent(`"${t}" opening weekend box office projection tracking`)}`
 const tnLink = (slug) => `https://www.the-numbers.com/movie/${slug}`
 
-const stamp = iso(today)
-let md = `# BOXD slate proposal — ${stamp}
-
-Auto-generated by \`scripts/slate-scan.mjs\` (${WEEKS}-week window, to ${iso(horizon)}).
-**Nothing here is written to the database.** Review each row, fill in \`est_m\`
-($M opening weekend), then apply with a one-off script or by hand. \`base_price\`
-comes from \`calcIPOprice(est_m)\` — no need to fill it in.
-
-Web tracking numbers are estimates: sanity-check against the listed comps and
-your own read before trusting them, per the project's data rules.
-
-## 1. New films to add (${adds.length})
-
-| Release | Title | Distributor | Type | est_m | Research |
-|---|---|---|---|---|---|
-`
-for (const r of adds) {
-  md += `| ${r.date} | ${r.title} | ${r.dist} | ${r.type} | _?_ | [tracking](${gsearch(r.title)}) · [TN](${tnLink(r.slug)}) |\n`
+const pending = []
+for (const r of addRows) {
+  const key = `${norm(r.title)}|${r.date}`
+  if (seenKeys.has(key)) continue
+  const tmdb = await tmdbLookup(r.title, r.date.slice(0, 4))
+  pending.push({
+    kind: 'new', status: 'pending',
+    title: r.title, dist: r.dist, release_date: r.date, release_type: r.type,
+    est_m: null, est_src: null,
+    tmdb_id: tmdb?.tmdb_id ?? null, tmdb_title: tmdb?.tmdb_title ?? null, tmdb_year: tmdb?.tmdb_year ?? null,
+    notes: `Tracking: ${gsearch(r.title)}\nThe Numbers: ${tnLink(r.slug)}`,
+    dedupe_key: key,
+  })
 }
-
-md += `\n## 2. Slate films still missing a projection (${needEst.length})\n\n`
-md += '| Release | Title | Distributor | est_m | Research |\n|---|---|---|---|---|\n'
-for (const f of needEst) {
-  md += `| ${f.release_date} | ${f.title} | ${f.dist || ''} | _?_ | [tracking](${gsearch(f.title)}) |\n`
+for (const f of estRows) {
+  const key = `est|${f.id}`
+  if (seenKeys.has(key)) continue
+  pending.push({
+    kind: 'estimate', status: 'pending', film_id: f.id,
+    title: f.title, dist: f.dist || null, release_date: f.release_date,
+    est_m: null, est_src: null,
+    notes: `Existing slate film with no projection.\nTracking: ${gsearch(f.title)}`,
+    dedupe_key: key,
+  })
 }
-
-md += `\n---\n\n### How to apply the approved rows
-
-1. Edit this file: replace each \`_?_\` with a number.
-2. For **new films**, also confirm distributor / release-type / date.
-3. Run an apply step that, for each filled row:
-   - new film → \`INSERT\` into \`films\` (title, dist, genre, est_m, release_date,
-     base_price = \`calcIPOprice(est_m)\`, active = true), then
-     \`scripts/recompute-week-phase.mjs --commit\`;
-   - existing film → \`PATCH films\` set \`est_m\`, \`base_price\`.
-4. \`node scripts/marketValue.test.mjs\` and \`npm run build\` before pushing.
-`
-
-mkdirSync(resolve(root, 'proposals'), { recursive: true })
-const out = resolve(root, 'proposals', `slate-${stamp}.md`)
-writeFileSync(out, md)
 
 console.log(`scanned ${rows.length} calendar rows · ${inWindow.length} in the next ${WEEKS} weeks`)
-console.log(`→ ${adds.length} new films to add · ${needEst.length} slate films missing a projection`)
-console.log(`written: ${out.replace(root + '/', '').replace(root + '\\', '')}`)
-if (PRINT) console.log('\n' + md)
+console.log(`→ ${addRows.length} new-film candidates · ${estRows.length} missing a projection · ${pending.length} not yet proposed`)
+for (const p of pending) console.log(`   [${p.kind}] ${p.release_date || '—'}  ${p.title}${p.tmdb_id ? `  (tmdb ${p.tmdb_id} → ${p.tmdb_title} ${p.tmdb_year || ''})` : p.kind === 'new' ? '  (no TMDB match)' : ''}`)
+
+if (WRITE_FILE) {
+  const stamp = iso(today)
+  let md = `# BOXD slate proposal — ${stamp}\n\nGenerated by \`scripts/slate-scan.mjs\`. These are also queued in the app under\nCommissioner → Suggestions. Nothing is written to \`films\` until you approve.\n\n`
+  md += `## New films (${addRows.length})\n\n| Release | Title | Distributor | Type | TMDB |\n|---|---|---|---|---|\n`
+  for (const p of pending.filter((x) => x.kind === 'new')) md += `| ${p.release_date} | ${p.title} | ${p.dist} | ${p.release_type} | ${p.tmdb_id ? `${p.tmdb_id} (${p.tmdb_title} ${p.tmdb_year || ''})` : '—'} |\n`
+  md += `\n## Missing a projection (${estRows.length})\n\n| Release | Title | Distributor |\n|---|---|---|\n`
+  for (const p of pending.filter((x) => x.kind === 'estimate')) md += `| ${p.release_date} | ${p.title} | ${p.dist || ''} |\n`
+  mkdirSync(resolve(root, 'proposals'), { recursive: true })
+  writeFileSync(resolve(root, 'proposals', `slate-${stamp}.md`), md)
+  console.log(`paper trail: proposals/slate-${stamp}.md`)
+}
+
+if (DRY) { console.log('\n--dry: nothing written'); process.exit(0) }
+if (!pending.length) { console.log('\nnothing new to queue'); process.exit(0) }
+
+const res = await sb('film_suggestions?on_conflict=dedupe_key', {
+  method: 'POST',
+  headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
+  body: JSON.stringify(pending),
+})
+console.log(`\nqueued ${pending.length} suggestion${pending.length === 1 ? '' : 's'} (pending) — approve them in the app`)

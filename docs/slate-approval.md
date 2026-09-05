@@ -6,19 +6,18 @@ How new films get into BOXD each week, and how you sign off on their prices.
 
 ## One-time setup
 
-1. **Let the Action open PRs.** GitHub repo → **Settings → Actions → General →
-   Workflow permissions**:
-   - select **Read and write permissions**
-   - tick **Allow GitHub Actions to create and approve pull requests**
-   - Save.
-   (Without this the weekly scan runs but can't open the PR.)
+1. **Run the migration.** Apply `supabase/migrations/20260905_film_suggestions.sql`
+   (Supabase dashboard → SQL editor, paste, run). This creates the
+   `film_suggestions` table the scan writes to and the app reads from.
 
-2. **Nothing else.** It reuses the `SUPABASE_SERVICE_KEY` secret that's already
-   set. No new keys.
+2. **Add the `TMDB_TOKEN` secret** if it isn't already set (GitHub repo →
+   Settings → Secrets and variables → Actions). The scan uses it to attach the
+   right poster to each new film. Without it films come in with no poster and
+   you set it later in the Films tab. `SUPABASE_SERVICE_KEY` is already there.
 
-3. *(Optional)* If you want the opening-weekend projections researched for you
-   instead of doing it by hand: in Claude Code run `/schedule`, weekly, with the
-   prompt `Follow agents/weekly-slate.md for the boxd-league-v2 repo`.
+3. *(Optional)* To have the opening-weekend projections researched for you
+   instead of doing it by hand: in Claude Code run `/schedule`, weekly, prompt
+   `Follow agents/weekly-slate.md for the boxd-league-v2 repo`.
 
 ---
 
@@ -26,40 +25,43 @@ How new films get into BOXD each week, and how you sign off on their prices.
 
 - **Every Sunday ~07:17 UTC** the *Weekly slate scan* Action runs.
 - It compares the theatrical release calendar against the films already in the
-  database and opens (or updates) a pull request titled **"Weekly slate
-  proposal"**.
-- The PR contains one file: `proposals/slate-<date>.md` with two tables —
-  1. **New films to add** (wide releases + buzzy limited releases in the next 16
-     weeks that aren't in the slate)
-  2. **Slate films still missing a projection**
-- **No database writes happen.** Nothing is live until you act.
+  database and inserts rows into `film_suggestions` with `status = 'pending'`:
+  - **new films** — wide releases + buzzy limited releases in the next 16 weeks
+    that aren't in the slate (with a looked-up TMDB id for the poster)
+  - **missing projections** — films already in the slate with no `est_m`
+- A row that's already been proposed once (approved *or* dismissed) is never
+  re-queued.
+- **No writes to `films`.** Nothing is visible to players.
 
 ---
 
-## Your job each week (~10 min)
+## Your job each week (~10 min, all in the app)
 
-### Step 1 — open the PR and read the file
+Open **Commissioner → Suggestions** (the tab shows a count when there's
+anything pending).
 
-Each candidate row looks like:
+Each card shows the title, release date, distributor, the poster it will use
+(with a ⚠ if the matched TMDB film's year looks off), and the tracking links.
 
-| Release | Title | Distributor | Type | est_m | Research |
-|---|---|---|---|---|---|
-| 2026-11-06 | Dr. Seuss' The Cat in the Hat | Warner Bros. | Wide | _?_ | [tracking] · [TN] |
+Per card:
 
-### Step 2 — decide, per row
+- **Don't want it** (event cinema, single-city awards run, wrong film) → tap
+  **Dismiss**. It won't come back.
+- **Want it** → type an **opening-weekend estimate ($M)** in the *Est opening*
+  box, pick a **Genre** (new films only), then tap **Approve**. The card shows
+  the IPO price your estimate produces before you commit.
 
-- **Don't want it** (event cinema, single-city awards run, wrong film) → delete
-  the row.
-- **Want it** → replace `_?_` with an **opening-weekend estimate in $M**. Click
-  the *tracking* link for a real number; if there's none yet, pick one from
-  comparable films and move on. This is the number the whole economy keys off,
-  so it's the thing you're really approving.
+**Approve does everything:** for a new film it inserts it into `films` with the
+right phase/week/poster and the derived price, and it's live for players
+immediately. For a missing projection it just sets `est_m` and re-prices that
+film. The suggestion is marked approved and drops off the list.
 
-### Step 3 — approve the price
+---
 
-You don't type a price. `base_price` is derived from your `est_m` by the shared
-`calcIPOprice` formula, clamped to **$7M–$105M**. Use this table to sanity-check
-what your estimate will produce:
+## How prices are set — you approve the estimate, not the price
+
+`base_price` is derived from the estimate you approve, via `calcIPOprice`,
+clamped **$7M–$105M**:
 
 | est_m (opening $M) | IPO price |
 |---|---|
@@ -79,30 +81,35 @@ what your estimate will produce:
 | 175 | $104M |
 | 200+ | $105M (ceiling) |
 
-If a resulting price looks wrong, the fix is to adjust `est_m`, not to override
-the price. If you genuinely want a manual price for one film, say so in the PR
-and it'll be set directly.
+If a price looks wrong, change the estimate. To set a price by hand for one
+film, approve it then edit `base_price` directly in the **Films** tab.
 
-### Step 4 — apply
-
-Two ways:
-
-- **Hand it to Claude** — comment on the PR or start a session: *"apply the
-  slate proposal in this PR."* It inserts the new films, sets `est_m` +
-  `base_price`, recomputes each film's week/phase, runs the tests and the build,
-  and pushes. You just merge.
-- **Do it yourself** — follow the "How to apply the approved rows" checklist at
-  the bottom of the proposal file.
-
-### Step 5 — if there's nothing to add
-
-Close the PR without merging. Next Sunday's run opens a fresh one.
+The estimate itself is your judgement. The tracking links on each card
+(Boxoffice Pro / Deadline / The Numbers searches) are a starting point — box
+office numbers for unreleased films are soft, which is the whole reason this is
+an approval step and not an automatic import.
 
 ---
 
-## Where money never moves without you
+## Fixing a wrong poster
 
-- The scan is **read-only** on the database.
-- New films and prices reach players **only after you merge**.
+A film's poster comes from its **TMDB id**. A film with no id falls back to a
+title search and can grab the wrong (usually older) movie — that's where wrong
+posters come from.
+
+**Commissioner → Films → tap the film → "Poster (TMDB id)"**:
+- tap **🔍 Find** to search TMDB by the film's title + release year, then click
+  the correct poster thumbnail, or
+- paste the id straight from `themoviedb.org/movie/<id>` and **Save Changes**.
+
+The poster corrects immediately. New films from the weekly scan already come
+with an id attached, so this is mostly for the existing back-catalogue.
+
+---
+
+## Where nothing moves without you
+
+- The scan is **read-only** on `films`; it only writes to `film_suggestions`.
+- New films and prices reach players **only when you tap Approve**.
 - Weekend box-office results are a **separate** automated job (the Monday
-  *Weekly box-office ingest* Action) and don't touch film pricing setup.
+  *Weekly box-office ingest* Action) and don't touch pricing setup.

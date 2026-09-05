@@ -345,6 +345,23 @@ async function fetchTMDBPoster(title,tmdbId){
   return null
 }
 
+// Commissioner poster-fix helper: return up to 6 candidates for a title so the
+// right TMDB id can be picked by eye. Distinct from fetchTMDBPoster (which just
+// wants one poster URL for display).
+async function tmdbSearchCandidates(query,year){
+  if(!TMDB_TOKEN||!query?.trim()) return []
+  try{
+    const q=encodeURIComponent(query.trim())
+    const res=await fetch(`https://api.themoviedb.org/3/search/movie?query=${q}&language=en-US&include_adult=false${year?`&year=${year}`:''}`,{headers:{Authorization:`Bearer ${TMDB_TOKEN}`}})
+    if(!res.ok) return []
+    const data=await res.json()
+    return (data.results||[]).slice(0,6).map(r=>({
+      id:r.id,title:r.title,year:(r.release_date||'').slice(0,4),
+      poster:r.poster_path?`https://image.tmdb.org/t/p/w185${r.poster_path}`:null,
+    }))
+  }catch{return[]}
+}
+
 function FilmPoster({film,width,height,radius=8,imgStyle={},owned=false,scored=false,tilt=false}){
   const key=film?.tmdbId?`id:${film.tmdbId}`:film?.title
   // If no TMDB token is configured, there's nothing to fetch — resolve to the
@@ -1942,6 +1959,7 @@ function AppInner(){
   const[tradeModal,setTradeModal]=useState(false)
   const[addFilm,setAddFilm]=useState(false)
   const[newFilm,setNewFilm]=useState({title:'',dist:'',genre:'Action',franchise:'',basePrice:20,estM:30,rt:'',week:1,phase:1,sleeper:false,starActor:'',trailer:'',affiliateUrl:'',tmdbId:''})
+  const[suggestions,setSuggestions]=useState([])
   const[auteurActor,setAuteurActor]=useState('')
   const[auteurFilms,setAuteurFilms]=useState([])
   const[moreOpen,setMoreOpen]=useState(false)
@@ -2265,6 +2283,7 @@ function AppInner(){
       loadScreenings(lid)
       loadAllComments(lid)
       supabase.from('sync_log').select('*').order('run_at',{ascending:false}).limit(1).maybeSingle().then(({data})=>{if(data)setSyncLog(data)}).catch?.(()=>{})
+      supabase.from('film_suggestions').select('*').eq('status','pending').order('release_date',{nullsFirst:false}).then(({data})=>{if(data)setSuggestions(data)}).catch?.(()=>{})
       loadPolls(lid)
     },100)
     }catch(e){
@@ -4420,6 +4439,7 @@ function AppInner(){
       base_price:film.basePrice??'',est_m:film.estM??'',
       rt:film.rt??'',star_actor:film.starActor??'',
       trailer:film.trailer??'',week:film.week,phase:film.phase,
+      tmdb_id:film.tmdbId??'',
       actual_m:results[film.id]??'',
       week2:weeklyG[film.id]?.[2]??'',week3:weeklyG[film.id]?.[3]??'',
       week4:weeklyG[film.id]?.[4]??'',week5:weeklyG[film.id]?.[5]??'',week6:weeklyG[film.id]?.[6]??'',
@@ -4427,6 +4447,14 @@ function AppInner(){
     const set=(k,v)=>setVals(prev=>({...prev,[k]:v}))
     const inp={...S.inp,fontSize:'11px',padding:'5px 8px',marginBottom:'6px'}
     const actual=results[film.id]
+    const[tmdbCands,setTmdbCands]=useState(null)
+    const[tmdbBusy,setTmdbBusy]=useState(false)
+    const findPoster=async()=>{
+      setTmdbBusy(true)
+      const yr=(film.releaseDate||'').slice(0,4)
+      setTmdbCands(await tmdbSearchCandidates(vals.title||film.title,yr))
+      setTmdbBusy(false)
+    }
     return(
       <div style={{borderBottom:`1px solid ${T.border}`,padding:'8px 0'}}>
         {/* Collapsed row */}
@@ -4468,6 +4496,33 @@ function AppInner(){
               <div><div style={{...S.label,marginBottom:'4px'}}>Star Actor</div><input value={vals.star_actor} onChange={e=>set('star_actor',e.target.value)} style={inp}/></div>
             </div>
             <div><div style={{...S.label,marginBottom:'4px'}}>Trailer URL (youtube embed)</div><input value={vals.trailer} onChange={e=>set('trailer',e.target.value)} placeholder="https://www.youtube.com/embed/..." style={{...inp,width:'100%',boxSizing:'border-box'}}/></div>
+            {/* Poster / TMDB id — the poster is looked up from this id; a wrong or
+                missing id is why a film shows the wrong poster. */}
+            <div style={{...S.label,marginBottom:'4px',marginTop:'6px'}}>Poster (TMDB id)</div>
+            <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
+              <input value={vals.tmdb_id} onChange={e=>set('tmdb_id',e.target.value.replace(/[^0-9]/g,''))} placeholder="e.g. 12345 — blank = search by title" style={{...inp,flex:1,marginBottom:0}}/>
+              <button onClick={findPoster} disabled={tmdbBusy||!TMDB_TOKEN} style={{background:`${T.blue}18`,border:`1px solid ${T.blue}44`,borderRadius:'6px',color:T.blue,fontSize:'10px',fontWeight:700,padding:'6px 10px',cursor:'pointer',whiteSpace:'nowrap',opacity:tmdbBusy||!TMDB_TOKEN?0.5:1}}>{tmdbBusy?'…':'🔍 Find'}</button>
+            </div>
+            {vals.tmdb_id&&TMDB_TOKEN&&(
+              <div style={{marginTop:'6px',fontSize:'10px',color:T.textSub}}>
+                Current: <a href={`https://www.themoviedb.org/movie/${vals.tmdb_id}`} target="_blank" rel="noreferrer" style={{color:T.blue}}>themoviedb.org/movie/{vals.tmdb_id}</a>
+              </div>
+            )}
+            {!TMDB_TOKEN&&<div style={{marginTop:'6px',fontSize:'10px',color:T.textDim}}>Set REACT_APP_TMDB_TOKEN to enable in-app poster lookup — otherwise paste the id from themoviedb.org manually.</div>}
+            {tmdbCands&&(
+              <div style={{marginTop:'8px',display:'flex',gap:'6px',overflowX:'auto',paddingBottom:'4px'}}>
+                {tmdbCands.length===0&&<div style={{fontSize:'10px',color:T.textDim}}>No matches — try editing the title above and searching again.</div>}
+                {tmdbCands.map(c=>(
+                  <button key={c.id} onClick={()=>{set('tmdb_id',String(c.id));setTmdbCands(null)}} style={{flexShrink:0,width:'72px',background:String(c.id)===String(vals.tmdb_id)?`${T.gold}22`:T.surfaceUp,border:`1px solid ${String(c.id)===String(vals.tmdb_id)?T.gold:T.border}`,borderRadius:'8px',padding:'4px',cursor:'pointer',color:T.text}}>
+                    {c.poster
+                      ?<img src={c.poster} alt={c.title} style={{width:'100%',borderRadius:'4px',display:'block'}}/>
+                      :<div style={{width:'100%',aspectRatio:'2/3',borderRadius:'4px',background:T.border,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'8px',color:T.textDim}}>no poster</div>}
+                    <div style={{fontSize:'8px',marginTop:'3px',lineHeight:1.2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.title}</div>
+                    <div style={{fontSize:'8px',color:T.textDim}}>{c.year||'—'} · {c.id}</div>
+                  </button>
+                ))}
+              </div>
+            )}
             <div style={{...S.label,marginBottom:'8px',marginTop:'10px',color:T.green}}>Results</div>
             <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'8px'}}>
               <div><div style={{...S.label,marginBottom:'4px'}}>Opening W/E ($M)</div><input type="number" value={vals.actual_m} onChange={e=>set('actual_m',e.target.value)} style={inp}/></div>
@@ -4491,6 +4546,7 @@ function AppInner(){
                   rt:vals.rt!==''?Number(vals.rt):null,
                   star_actor:vals.star_actor.trim()||null,
                   trailer:vals.trailer.trim()||null,
+                  tmdb_id:vals.tmdb_id!==''&&vals.tmdb_id!=null?Number(vals.tmdb_id):null,
                   actual_m:vals.actual_m!==''?vals.actual_m:null,
                   week2:vals.week2!==''?vals.week2:null,week3:vals.week3!==''?vals.week3:null,
                   week4:vals.week4!==''?vals.week4:null,week5:vals.week5!==''?vals.week5:null,week6:vals.week6!==''?vals.week6:null,
@@ -4500,6 +4556,91 @@ function AppInner(){
             </div>
           </div>
         )}
+      </div>
+    )
+  }
+
+  // One weekly slate-scan candidate. Approving a 'new' row copies it into
+  // `films`; approving an 'estimate' row fills est_m on the film it points to.
+  // Nothing is shown to players until approved.
+  const SuggestionCard=({s,onDone})=>{
+    const[est,setEst]=useState(s.est_m??'')
+    const[genre,setGenre]=useState(s.genre||'Drama')
+    const[busy,setBusy]=useState(false)
+    const estN=est!==''&&!isNaN(Number(est))?Number(est):null
+    const price=estN!=null?calcIPOprice(estN):null
+    const yearOff=s.tmdb_year&&s.release_date&&s.tmdb_year!==String(s.release_date).slice(0,4)
+    const approve=async()=>{
+      if(estN==null||estN<=0)return notify('Enter an opening estimate ($M) first',T.red)
+      setBusy(true)
+      try{
+        if(s.kind==='estimate'&&s.film_id){
+          const{error}=await supabase.from('films').update({est_m:estN,base_price:calcIPOprice(estN)}).eq('id',s.film_id)
+          if(error)throw error
+        }else{
+          const rd=s.release_date
+          const id=s.title.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40)+'-'+Date.now().toString(36)
+          const phase=rd?dateToPhase(rd):curPhase()
+          const week=rd?Math.max(1,Math.floor((Date.parse(rd)-SEASON_ANCHOR.getTime())/(7*86400000))+1):cfg.current_week
+          const{error}=await supabase.from('films').insert({
+            id,title:s.title.trim(),dist:(s.dist||'').trim()||null,genre,
+            est_m:estN,base_price:calcIPOprice(estN),release_date:rd||null,
+            phase,week,tmdb_id:s.tmdb_id||null,active:true,
+          })
+          if(error)throw error
+        }
+        await supabase.from('film_suggestions').update({status:'approved',est_m:estN,reviewed_at:new Date().toISOString(),reviewed_by:profile?.name||profile?.id||null}).eq('id',s.id)
+        notify(`✓ ${s.kind==='estimate'?'Estimate set for':'Added'} ${s.title}`,T.green)
+        onDone()
+      }catch(e){notify(e.message||'Failed',T.red)}
+      setBusy(false)
+    }
+    const dismiss=async()=>{
+      if(!await confirmModal(`Dismiss "${s.title}"? It won't be suggested again.`))return
+      setBusy(true)
+      await supabase.from('film_suggestions').update({status:'dismissed',reviewed_at:new Date().toISOString(),reviewed_by:profile?.name||profile?.id||null}).eq('id',s.id)
+      notify(`Dismissed ${s.title}`,T.textSub);onDone()
+    }
+    return(
+      <div style={{...S.card,marginBottom:'10px',border:`1px solid ${T.border}`,opacity:busy?0.5:1}}>
+        <div style={{display:'flex',gap:'10px'}}>
+          {s.tmdb_id&&TMDB_TOKEN
+            ?<FilmPoster film={{title:s.title,tmdbId:s.tmdb_id}} width={48} height={72} radius={6}/>
+            :<div style={{width:'48px',height:'72px',borderRadius:'6px',background:T.surfaceUp,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',color:T.textDim,textAlign:'center'}}>no id</div>}
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:'13px',fontWeight:700,color:T.text}}>{s.title}</div>
+            <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>
+              {s.kind==='estimate'?'📊 needs a projection':'🆕 new film'}
+              {s.release_date?` · ${new Date(s.release_date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`:''}
+              {s.dist?` · ${s.dist}`:''}{s.release_type?` · ${s.release_type}`:''}
+            </div>
+            {s.tmdb_id&&<div style={{fontSize:'10px',color:yearOff?T.orange:T.textDim,marginTop:'3px'}}>
+              TMDB {s.tmdb_id}: {s.tmdb_title} {s.tmdb_year||''}{yearOff?' ⚠ year differs — check it\'s the right film':''}
+            </div>}
+            {!s.tmdb_id&&s.kind!=='estimate'&&<div style={{fontSize:'10px',color:T.textDim,marginTop:'3px'}}>No TMDB match — set the poster id later in Films.</div>}
+          </div>
+        </div>
+        {s.notes&&<div style={{fontSize:'10px',color:T.textSub,marginTop:'8px',whiteSpace:'pre-wrap',lineHeight:1.5}}>{
+          s.notes.split(/\s+/).map((w,i)=>/^https?:\/\//.test(w)?<a key={i} href={w} target="_blank" rel="noreferrer" style={{color:T.blue}}>{w} </a>:w+' ')
+        }</div>}
+        <div style={{display:'flex',gap:'8px',alignItems:'flex-end',marginTop:'10px',flexWrap:'wrap'}}>
+          <div>
+            <div style={{...S.label,marginBottom:'3px'}}>Est opening ($M)</div>
+            <input type="number" value={est} onChange={e=>setEst(e.target.value)} placeholder="?" style={{...S.inp,fontSize:'12px',padding:'6px 8px',width:'90px'}}/>
+          </div>
+          {s.kind!=='estimate'&&(
+            <div>
+              <div style={{...S.label,marginBottom:'3px'}}>Genre</div>
+              <select value={genre} onChange={e=>setGenre(e.target.value)} style={{...S.inp,fontSize:'12px',padding:'6px 8px'}}>
+                {Object.keys(GENRE_COL).map(g=><option key={g}>{g}</option>)}
+              </select>
+            </div>
+          )}
+          <div style={{fontSize:'11px',color:T.textSub,paddingBottom:'8px'}}>→ IPO <strong style={{color:price!=null?T.gold:T.textDim}}>{price!=null?`$${price}M`:'—'}</strong></div>
+          <div style={{flex:1}}/>
+          <Btn onClick={dismiss} variant="outline" color={T.textSub} size="sm" disabled={busy}>Dismiss</Btn>
+          <Btn onClick={approve} color={T.green} textColor="#0D0A08" size="sm" disabled={busy||estN==null}>Approve</Btn>
+        </div>
       </div>
     )
   }
@@ -4521,7 +4662,7 @@ function AppInner(){
       <div style={{animation:'fadeUp .2s ease'}}>
         <div style={S.pageTitle}>⚙️ Commissioner Panel</div>
         <div style={{display:'flex',gap:'2px',borderBottom:`1px solid ${T.border}`,marginBottom:'14px',overflowX:'auto'}}>
-          <TabBtn id="phase" label="Phase"/><TabBtn id="windows" label="Windows"/><TabBtn id="films" label="Films"/><TabBtn id="bulk" label="Bulk Import"/><TabBtn id="advanced" label="Advanced"/>
+          <TabBtn id="phase" label="Phase"/><TabBtn id="windows" label="Windows"/><TabBtn id="films" label="Films"/><TabBtn id="suggestions" label={`Suggestions${suggestions.length?` · ${suggestions.length}`:''}`}/><TabBtn id="bulk" label="Bulk Import"/><TabBtn id="advanced" label="Advanced"/>
         </div>
 
         {tab==='phase'&&<>
@@ -4754,6 +4895,23 @@ function AppInner(){
               ))}
             </div>
           </div>
+        </>}
+
+        {tab==='suggestions'&&<>
+          <div style={{...S.card,marginBottom:'12px'}}>
+            <div style={{fontSize:'14px',fontWeight:700,marginBottom:'4px'}}>Slate suggestions · {suggestions.length} pending</div>
+            <div style={{fontSize:'11px',color:T.textSub,lineHeight:1.6}}>
+              The weekly scan (<code style={{fontSize:'10px'}}>slate-scan</code>, Sundays) queues new films from the release calendar and flags slate films with no projection. Set an opening estimate, then <strong style={{color:T.green}}>Approve</strong> to publish it to players, or <strong>Dismiss</strong>. Estimates are your call — the tracking links are a starting point, not a source of truth.
+            </div>
+          </div>
+          {suggestions.length===0
+            ?<div style={{...S.card,textAlign:'center',color:T.textSub,fontSize:'12px',padding:'28px'}}>Nothing pending. The next scan runs Sunday — or trigger <em>Weekly slate scan</em> from the repo Actions tab.</div>
+            :<>
+              {suggestions.filter(s=>s.kind!=='estimate').length>0&&<div style={{...S.label,margin:'4px 0 8px'}}>🆕 New films ({suggestions.filter(s=>s.kind!=='estimate').length})</div>}
+              {suggestions.filter(s=>s.kind!=='estimate').map(s=><SuggestionCard key={s.id} s={s} onDone={()=>{setSuggestions(prev=>prev.filter(x=>x.id!==s.id));loadData(league?.id)}}/>)}
+              {suggestions.filter(s=>s.kind==='estimate').length>0&&<div style={{...S.label,margin:'14px 0 8px'}}>📊 Missing a projection ({suggestions.filter(s=>s.kind==='estimate').length})</div>}
+              {suggestions.filter(s=>s.kind==='estimate').map(s=><SuggestionCard key={s.id} s={s} onDone={()=>{setSuggestions(prev=>prev.filter(x=>x.id!==s.id));loadData(league?.id)}}/>)}
+            </>}
         </>}
 
         {tab==='bulk'&&<>
