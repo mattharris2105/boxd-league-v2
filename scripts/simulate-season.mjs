@@ -41,14 +41,24 @@ const OLD_PTS = (est, actual, rt, r) => {
 }
 const OLD_WEEKLY = (weekly) => Object.entries(weekly).reduce((s, [wk, gr]) => s + Number(gr) * (Number(wk) >= 4 ? 1.1 : 1), 0)
 
+// V3 opening points: same 70/30 blend, but a real flop is a NEGATIVE hit
+// (not a small positive), so 6 cheap lottery tickets carry real downside.
+function V3_OPEN (est, actual, rt) {
+  const r = actual / est
+  if (r < 0.6) return -40 // hard miss — you lose points
+  return calcOpeningPts({ estM: est, rt }, actual)
+}
+
 function buildPool (ipoFn, mode) {
   return settled.map((f) => {
     const price = ipoFn(f.est_m)
     const actual = resMap[f.id]
     const weekly = wgMap[f.id] || {}
     const r = actual / f.est_m
-    const openPts = mode === 'live' ? calcOpeningPts({ estM: f.est_m, rt: f.rt }, actual) : OLD_PTS(f.est_m, actual, f.rt, r)
-    const wkPts = mode === 'live' ? calcWeeklyPts(weekly, actual) : Math.round(OLD_WEEKLY(weekly))
+    const openPts = mode === 'old' ? OLD_PTS(f.est_m, actual, f.rt, r)
+      : mode === 'v3' ? V3_OPEN(f.est_m, actual, f.rt)
+      : calcOpeningPts({ estM: f.est_m, rt: f.rt }, actual)
+    const wkPts = mode === 'old' ? Math.round(OLD_WEEKLY(weekly)) : calcWeeklyPts(weekly, actual)
     const legs = calcLegsBonus(actual, weekly[2])
     return { ...f, price, actual, roi: r, score: openPts + wkPts + legs }
   })
@@ -57,16 +67,35 @@ function buildPool (ipoFn, mode) {
 // real app mechanic: greedy under budget, THEN a flat shortfall penalty if
 // the roster ends up under DRAFT_MIN — a soft cost, not a hard block, exactly
 // as draftShortfall/DRAFT_PENALTY work live.
-function draft (sorted) {
+// draft to a full 6-film roster within budget by this strategy's priority
+// order. If minSpendPct is set it's a HARD floor: after the greedy fill, if
+// still under-deployed, swap the lowest-price roster film for the priciest
+// affordable film left, until the floor is met (mirrors "you must put your
+// capital to work — you can't sit on cash").
+function draft (sorted, minSpendPct) {
   const roster = []; let spend = 0
   for (const f of sorted) {
     if (roster.length >= MAX_ROSTER) break
     if (spend + f.price > BUDGET) continue
     roster.push(f); spend += f.price
   }
-  const penalty = Math.max(0, DRAFT_MIN - roster.length) * DRAFT_PENALTY
-  const total = roster.reduce((s, f) => s + f.score, 0) - penalty
-  return { roster, spend, total, penalty }
+  if (minSpendPct) {
+    const floor = BUDGET * minSpendPct
+    let guard = 40
+    while (spend < floor && guard-- > 0) {
+      const out = roster.reduce((a, b) => (a.price <= b.price ? a : b))
+      const budgetAfterDrop = spend - out.price
+      const swapIn = sorted
+        .filter((f) => !roster.includes(f) && budgetAfterDrop + f.price <= BUDGET && f.price > out.price)
+        .sort((a, b) => b.price - a.price)[0]
+      if (!swapIn) break
+      roster.splice(roster.indexOf(out), 1); roster.push(swapIn)
+      spend = roster.reduce((s, f) => s + f.price, 0)
+    }
+  }
+  const shortfall = Math.max(0, DRAFT_MIN - roster.length) * DRAFT_PENALTY
+  const total = roster.reduce((s, f) => s + f.score, 0) - shortfall
+  return { roster, spend, total, penalty: shortfall }
 }
 
 function strategySorts (pool) {
@@ -79,12 +108,12 @@ function strategySorts (pool) {
   }
 }
 
-function runRuleset (label, ipoFn, mode) {
+function runRuleset (label, ipoFn, mode, minSpendPct) {
   const pool = buildPool(ipoFn, mode)
-  console.log(`\n███ ${label} ███  prices $${Math.min(...pool.map((f) => f.price))}-$${Math.max(...pool.map((f) => f.price))}M · budget $${BUDGET}M · ${MAX_ROSTER} films required (shortfall costs ${DRAFT_PENALTY}pt/missing film)`)
+  console.log(`\n███ ${label} ███  prices $${Math.min(...pool.map((f) => f.price))}-$${Math.max(...pool.map((f) => f.price))}M · budget $${BUDGET}M${minSpendPct ? ` · must deploy ${minSpendPct * 100}%+` : ''}`)
   const rows = []
   for (const [name, sorted] of Object.entries(strategySorts(pool))) {
-    const { roster, spend, total, penalty } = draft(sorted)
+    const { roster, spend, total, penalty } = draft(sorted, minSpendPct)
     rows.push({ name, total })
     console.log(`  ${name.padEnd(34)} $${String(spend).padStart(3)}M spent · ${roster.length}/${MAX_ROSTER} films${penalty ? ` (-${penalty} shortfall)` : ''} · ${total}pts   [top: ${roster[0]?.title} $${roster[0]?.price}M -> ${roster[0]?.score}pts]`)
   }
@@ -103,4 +132,5 @@ function runRuleset (label, ipoFn, mode) {
 }
 
 if (process.argv.includes('--old')) runRuleset('OLD RULES (original, pre-rebalance)', OLD_IPO, 'old')
-runRuleset('LIVE (current production: 70% forecast-beat / 30% scale, legs on ratios)', calcIPOprice, 'live')
+runRuleset('LIVE (current production)', calcIPOprice, 'live')
+runRuleset('V3 (+ flop = -40pts, + must deploy 75% of budget)', calcIPOprice, 'v3', 0.75)
