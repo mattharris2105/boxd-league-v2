@@ -2283,7 +2283,11 @@ function AppInner(){
       loadScreenings(lid)
       loadAllComments(lid)
       supabase.from('sync_log').select('*').order('run_at',{ascending:false}).limit(1).maybeSingle().then(({data})=>{if(data)setSyncLog(data)}).catch?.(()=>{})
-      supabase.from('film_suggestions').select('*').eq('status','pending').order('release_date',{nullsFirst:false}).then(({data})=>{if(data)setSuggestions(data)}).catch?.(()=>{})
+      supabase.from('film_suggestions').select('*').eq('status','pending').then(({data,error})=>{
+        if(error){console.warn('film_suggestions load failed:',error.message);return}
+        const order=['new','estimate']
+        setSuggestions((data||[]).slice().sort((a,b)=>(order.indexOf(a.kind)-order.indexOf(b.kind))||String(a.release_date||'').localeCompare(String(b.release_date||''))))
+      }).catch?.(e=>console.warn('film_suggestions load error:',e?.message))
       loadPolls(lid)
     },100)
     }catch(e){
