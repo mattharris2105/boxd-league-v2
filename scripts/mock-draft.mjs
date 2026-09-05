@@ -5,12 +5,17 @@
 //   node scripts/mock-draft.mjs --phase 2
 //   node scripts/mock-draft.mjs --phase 0        # ARCHIVE backtest — pick on the
 //                                                #   pre-release IPO + estimate, then
-//                                                #   SCORE against real box office.
+//                                                #   SCORE against real box office, and
+//                                                #   compare CURRENT rules vs a PROPOSED set:
+//                                                #     - must spend >= 80% of budget (rest forfeit)
+//                                                #     - opening points 50/50 ratio/scale (was 70/30)
+//                                                #     - flop penalty: actual < 60% of est => -40 pts
+//                                                #     - marquee pick: your best film scores x1.5
 //   node scripts/mock-draft.mjs --agents 30 --runs 500
 import { readFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { calcOpeningPts, calcLegsBonus, calcWeeklyPts } from '../src/lib/scoring.js'
+import { calcLegsBonus, calcWeeklyPts, rtMult, perfMult } from '../src/lib/scoring.js'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const args = process.argv.slice(2)
@@ -18,6 +23,13 @@ const flag = (n, d) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] 
 const N = Number(flag('--agents', 50))
 const RUNS = Number(flag('--runs', 300))
 const PHASE = flag('--phase', null)
+
+// PROPOSED ruleset knobs
+const MIN_SPEND_PCT = 0.80
+const RATIO_W_NEW = 0.50
+const FLOP_R = 0.60
+const FLOP_PTS = -40
+const MARQUEE_MULT = 1.5
 
 let env = { ...process.env }
 try {
@@ -44,7 +56,6 @@ const curWeek = cfg.current_week || 1
 let films = (await g(`films?select=id,title,dist,genre,franchise,base_price,est_m,rt,week,phase&phase=eq.${phase}&active=eq.true`))
   .filter((f) => f.base_price != null && f.est_m != null)
 
-// Archive: attach real box office so rosters can be scored on outcomes.
 let resMap = {}, wgMap = {}
 if (ARCHIVE) {
   const [results, wg] = await Promise.all([
@@ -67,22 +78,29 @@ function priceOf (f, ownersPct, totalPlayers) {
     const w = f.week - curWeek
     timeMult = w >= 6 ? 0.85 : w === 5 ? 0.90 : w === 4 ? 0.95 : w === 3 ? 1.00 : w === 2 ? 1.03 : w === 1 ? 1.07 : 1.10
   }
-  const rtMult = f.rt == null ? 1 : f.rt >= 90 ? 1.15 : f.rt >= 80 ? 1.08 : f.rt >= 70 ? 1.03 : f.rt >= 55 ? 1.00 : f.rt >= 40 ? 0.93 : 0.85
-  return Math.round(f.base_price * ownershipMult * timeMult * rtMult)
+  const rt = f.rt == null ? 1 : f.rt >= 90 ? 1.15 : f.rt >= 80 ? 1.08 : f.rt >= 70 ? 1.03 : f.rt >= 55 ? 1.00 : f.rt >= 40 ? 0.93 : 0.85
+  return Math.round(f.base_price * ownershipMult * timeMult * rt)
 }
 
-// actual points a film scored (archive only) — same formulas as the live app
-function filmPoints (f) {
+// ── scoring (archive only) ────────────────────────────────────────────────
+function openPts (f, actual, ratioW) {
+  const r = actual / f.est_m
+  const rt = rtMult(f.rt)
+  const ratioPart = 130 * Math.min(3, r) * rt
+  const scalePart = Math.sqrt(actual) * 10 * perfMult(r) * rt
+  return Math.round(ratioW * ratioPart + (1 - ratioW) * scalePart)
+}
+function filmPoints (f, { ratioW, flop }) {
   const actual = resMap[f.id]
   if (actual == null) return 0
+  if (flop && actual / f.est_m < FLOP_R) return FLOP_PTS
   const wk = wgMap[f.id] || {}
-  return calcOpeningPts({ estM: f.est_m, rt: f.rt }, actual)
-    + calcWeeklyPts(wk, actual)
-    + calcLegsBonus(actual, wk[2])
+  return openPts(f, actual, ratioW) + calcWeeklyPts(wk, actual) + calcLegsBonus(actual, wk[2])
 }
-const PTS = ARCHIVE ? Object.fromEntries(films.map((f) => [f.id, filmPoints(f)])) : {}
+const PTS_CUR = ARCHIVE ? Object.fromEntries(films.map((f) => [f.id, filmPoints(f, { ratioW: 0.70, flop: false })])) : {}
+const PTS_NEW = ARCHIVE ? Object.fromEntries(films.map((f) => [f.id, filmPoints(f, { ratioW: RATIO_W_NEW, flop: true })])) : {}
 
-// ── agent archetypes: a scoring function over films, higher = wants it more ──
+// ── agent archetypes ─────────────────────────────────────────────────────
 const rand = (a) => a[Math.floor(Math.random() * a.length)]
 const ARCHETYPES = {
   'Blockbuster chaser': () => (f) => f.base_price,
@@ -102,15 +120,13 @@ const MIX = [
 ]
 function buildAgents () {
   const out = []
-  for (const [name, count] of MIX) {
-    const scaled = Math.max(1, Math.round(count * N / 50))
-    for (let i = 0; i < scaled; i++) out.push(name)
-  }
+  for (const [name, count] of MIX) { const s = Math.max(1, Math.round(count * N / 50)); for (let i = 0; i < s; i++) out.push(name) }
   return out.slice(0, N)
 }
 
-// ── one draft: agents pick in random order; price rises as ownership grows ──
-function runOnce () {
+// ── one draft under a ruleset ────────────────────────────────────────────
+//   opts: { minSpend:bool, ptsMap, marquee:bool }
+function runOnce (opts) {
   const agents = buildAgents().sort(() => Math.random() - 0.5)
   const owners = {}; films.forEach((f) => { owners[f.id] = 0 })
   const ownPct = () => Object.fromEntries(films.map((f) => [f.id, owners[f.id] / N]))
@@ -119,94 +135,124 @@ function runOnce () {
     const scoreFn = ARCHETYPES[arch](ownPct())
     const ranked = [...films].sort((a, b) => scoreFn(b) - scoreFn(a))
     const picks = []; let spend = 0
+    const priceNow = (f) => priceOf(f, owners[f.id] / N, N)
     for (const f of ranked) {
       if (picks.length >= MAX_ROSTER) break
-      const p = priceOf(f, owners[f.id] / N, N)
+      const p = priceNow(f)
       if (spend + p > BUDGET) continue
       picks.push({ id: f.id, price: p }); spend += p; owners[f.id]++
     }
-    const penalty = Math.max(0, MAX_ROSTER - picks.length) * DRAFT_PENALTY
-    const points = ARCHIVE ? picks.reduce((s, p) => s + PTS[p.id], 0) - penalty : 0
-    rosters.push({ arch, picks, spend, points, penalty })
+    // min-spend floor: swap the cheapest pick up until >= floor (or stuck)
+    if (opts.minSpend) {
+      let guard = 30
+      while (spend < BUDGET * MIN_SPEND_PCT && guard-- > 0) {
+        const out = picks.reduce((a, b) => (a.price <= b.price ? a : b))
+        const after = spend - out.price
+        const cand = films
+          .filter((f) => !picks.some((p) => p.id === f.id))
+          .map((f) => ({ f, p: priceNow(f) }))
+          .filter((x) => x.p > out.price && after + x.p <= BUDGET)
+          .sort((a, b) => b.p - a.p)[0]
+        if (!cand) break
+        owners[out.id]--; owners[cand.f.id]++
+        picks.splice(picks.indexOf(out), 1, { id: cand.f.id, price: cand.p })
+        spend = picks.reduce((s, x) => s + x.price, 0)
+      }
+    }
+    rosters.push({ arch, picks, spend })
+  }
+  // score (archive)
+  if (opts.ptsMap) {
+    for (const ro of rosters) {
+      const penalty = Math.max(0, MAX_ROSTER - ro.picks.length) * DRAFT_PENALTY
+      let pts = ro.picks.reduce((s, p) => s + opts.ptsMap[p.id], 0)
+      if (opts.marquee && ro.picks.length) {
+        // marquee = the roster film with the highest pre-release estimate
+        const mq = ro.picks.map((p) => films.find((f) => f.id === p.id)).sort((a, b) => b.est_m - a.est_m)[0]
+        pts += (MARQUEE_MULT - 1) * opts.ptsMap[mq.id]
+      }
+      ro.points = Math.round(pts - penalty)
+    }
   }
   return { owners, rosters }
 }
 
-// ── aggregate over RUNS ────────────────────────────────────────────────────
-const ownTotal = {}; films.forEach((f) => { ownTotal[f.id] = 0 })
-const pricePaid = {}; films.forEach((f) => { pricePaid[f.id] = [] })
-let spendSum = 0, filledSum = 0, fullRosters = 0
-const byArch = {}
-let winsByArch = {}
-
-for (let r = 0; r < RUNS; r++) {
-  const { owners, rosters } = runOnce()
-  for (const f of films) ownTotal[f.id] += owners[f.id]
-  let best = null
-  for (const ro of rosters) {
-    spendSum += ro.spend; filledSum += ro.picks.length
-    if (ro.picks.length === MAX_ROSTER) fullRosters++
-    for (const p of ro.picks) pricePaid[p.id].push(p.price)
-    const a = byArch[ro.arch] || (byArch[ro.arch] = { n: 0, spend: 0, filled: 0, points: 0 })
-    a.n++; a.spend += ro.spend; a.filled += ro.picks.length; a.points += ro.points
-    if (ARCHIVE && (!best || ro.points > best.points)) best = ro
+// ── aggregate one ruleset over RUNS ──────────────────────────────────────
+function evaluate (label, opts) {
+  const ownTotal = {}; films.forEach((f) => { ownTotal[f.id] = 0 })
+  const pricePaid = {}; films.forEach((f) => { pricePaid[f.id] = [] })
+  let spendSum = 0, filledSum = 0, full = 0
+  const byArch = {}, wins = {}
+  for (let r = 0; r < RUNS; r++) {
+    const { owners, rosters } = runOnce(opts)
+    for (const f of films) ownTotal[f.id] += owners[f.id]
+    let best = null
+    for (const ro of rosters) {
+      spendSum += ro.spend; filledSum += ro.picks.length
+      if (ro.picks.length === MAX_ROSTER) full++
+      for (const p of ro.picks) pricePaid[p.id].push(p.price)
+      const a = byArch[ro.arch] || (byArch[ro.arch] = { n: 0, spend: 0, filled: 0, points: 0 })
+      a.n++; a.spend += ro.spend; a.filled += ro.picks.length; a.points += (ro.points || 0)
+      if (opts.ptsMap && (!best || ro.points > best.points)) best = ro
+    }
+    if (best) wins[best.arch] = (wins[best.arch] || 0) + 1
   }
-  if (best) winsByArch[best.arch] = (winsByArch[best.arch] || 0) + 1
+  const tot = N * RUNS
+  return {
+    label, ownTotal, pricePaid, tot,
+    avgSpend: spendSum / tot, avgFilled: filledSum / tot, fullPct: full / tot,
+    byArch: Object.fromEntries(Object.entries(byArch).map(([k, a]) => [k, { spend: a.spend / a.n, filled: a.filled / a.n, points: a.points / a.n }])),
+    wins: Object.fromEntries(Object.entries(wins).map(([k, w]) => [k, w / RUNS])),
+  }
 }
 
-const totalAgentRuns = N * RUNS
 const money = (n) => `$${n.toFixed(0)}M`
-const rows = films.map((f) => {
-  const ownRate = ownTotal[f.id] / totalAgentRuns
-  const pp = pricePaid[f.id]
-  const avgPaid = pp.length ? pp.reduce((s, x) => s + x, 0) / pp.length : 0
-  return { f, ownRate, avgPaid, pts: PTS[f.id] || 0 }
-}).sort((a, b) => b.ownRate - a.ownRate)
 
-console.log(`\nMOCK DRAFT · ${N} agents · phase ${phase}${ARCHIVE ? ' (ARCHIVE backtest — scored on real box office)' : ' (LIVE slate)'} · budget ${money(BUDGET)} · ${films.length} films · ${RUNS} runs\n`)
-
-console.log('MOST WANTED')
-for (const { f, ownRate, avgPaid, pts } of rows.slice(0, 15)) {
-  const drift = f.base_price ? Math.round((avgPaid / f.base_price - 1) * 100) : 0
-  const dTag = drift > 3 ? ` (+${drift}% crowd)` : drift < -3 ? ` (${drift}% vs base)` : ''
-  console.log(`  ${(ownRate * 100).toFixed(0).padStart(3)}%  ${f.title.slice(0, 32).padEnd(33)} base ${money(f.base_price).padStart(6)} · paid ${money(avgPaid).padStart(6)}${dTag}${ARCHIVE ? ` · SCORED ${String(pts).padStart(4)}pts` : ` · RT ${f.rt ?? '-'} · est ${f.est_m ?? '-'}`}`)
+// ── LIVE mode: just what they'd pick ─────────────────────────────────────
+if (!ARCHIVE) {
+  const e = evaluate('LIVE', { minSpend: false })
+  const rows = films.map((f) => {
+    const pp = e.pricePaid[f.id]
+    return { f, ownRate: e.ownTotal[f.id] / e.tot, avgPaid: pp.length ? pp.reduce((s, x) => s + x, 0) / pp.length : 0 }
+  }).sort((a, b) => b.ownRate - a.ownRate)
+  console.log(`\nMOCK DRAFT · ${N} agents · phase ${phase} (LIVE) · budget ${money(BUDGET)} · ${films.length} films · ${RUNS} runs\n`)
+  console.log('MOST WANTED')
+  for (const { f, ownRate, avgPaid } of rows.slice(0, 15)) {
+    console.log(`  ${(ownRate * 100).toFixed(0).padStart(3)}%  ${f.title.slice(0, 34).padEnd(35)} base ${money(f.base_price).padStart(6)} · paid ${money(avgPaid).padStart(6)} · RT ${f.rt ?? '-'} · est ${f.est_m ?? '-'}`)
+  }
+  console.log(`\n  avg spend ${money(e.avgSpend)}/${money(BUDGET)} · avg ${e.avgFilled.toFixed(2)}/6 slots · ${(e.fullPct * 100).toFixed(0)}% fill all 6`)
+  process.exit(0)
 }
 
-if (ARCHIVE) {
-  console.log('\nWHERE THE POINTS WERE  (every archive film, best value first)')
-  const byValue = [...films].map((f) => ({ f, pts: PTS[f.id], ppp: PTS[f.id] / Math.max(1, f.base_price) }))
-    .sort((a, b) => b.ppp - a.ppp)
-  for (const { f, pts, ppp } of byValue.slice(0, 12)) {
-    console.log(`  ${String(pts).padStart(4)}pts  ${money(f.base_price).padStart(6)}  ${ppp.toFixed(1).padStart(5)} pts/$M  ${f.title}`)
-  }
-  // cheap vs expensive: does a bargain roster actually win?
-  const sorted = [...films].sort((a, b) => a.base_price - b.base_price)
-  const cheapCut = sorted[Math.floor(sorted.length / 3)].base_price
-  const dearCut = sorted[Math.floor(sorted.length * 2 / 3)].base_price
-  const bucket = (lo, hi) => {
-    const fs = films.filter((f) => f.base_price >= lo && f.base_price < hi)
-    const p = fs.map((f) => PTS[f.id])
-    return { n: fs.length, avg: p.reduce((s, x) => s + x, 0) / (p.length || 1), avgPpp: p.reduce((s, x, i) => s + x / fs[i].base_price, 0) / (p.length || 1) }
-  }
-  const lo = bucket(0, cheapCut), mid = bucket(cheapCut, dearCut), hi = bucket(dearCut, Infinity)
-  console.log(`\nPOINTS BY PRICE TIER`)
-  console.log(`  cheap  (<${money(cheapCut)})   ${lo.n} films · avg ${lo.avg.toFixed(0)}pts · ${lo.avgPpp.toFixed(1)} pts per $M`)
-  console.log(`  mid    (${money(cheapCut)}-${money(dearCut)}) ${mid.n} films · avg ${mid.avg.toFixed(0)}pts · ${mid.avgPpp.toFixed(1)} pts per $M`)
-  console.log(`  dear   (>${money(dearCut)})   ${hi.n} films · avg ${hi.avg.toFixed(0)}pts · ${hi.avgPpp.toFixed(1)} pts per $M`)
+// ── ARCHIVE mode: current rules vs proposed ──────────────────────────────
+console.log(`\nARCHIVE BACKTEST · ${N} agents · ${films.length} settled films · budget ${money(BUDGET)} · ${RUNS} runs`)
+console.log(`PROPOSED = min-spend ${MIN_SPEND_PCT * 100}% (rest forfeit) · opening ${RATIO_W_NEW * 100}/${100 - RATIO_W_NEW * 100} ratio/scale · flop <${FLOP_R * 100}% est = ${FLOP_PTS}pts · marquee x${MARQUEE_MULT}\n`)
 
-  console.log(`\nWHICH STRATEGY WON  (${RUNS} drafts, highest-scoring roster each time)`)
-  for (const [name, w] of Object.entries(winsByArch).sort((a, b) => b[1] - a[1])) {
-    console.log(`  ${((w / RUNS) * 100).toFixed(0).padStart(3)}%  ${name}`)
+const cur = evaluate('CURRENT', { ptsMap: PTS_CUR, minSpend: false, marquee: false })
+const nw = evaluate('PROPOSED', { ptsMap: PTS_NEW, minSpend: true, marquee: true })
+
+for (const e of [cur, nw]) {
+  console.log(`── ${e.label} ${'─'.repeat(46 - e.label.length)}`)
+  console.log(`   avg spend ${money(e.avgSpend)}/${money(BUDGET)} · avg ${e.avgFilled.toFixed(2)}/6 slots · ${(e.fullPct * 100).toFixed(0)}% fill all 6`)
+  const arch = Object.entries(e.byArch).sort((a, b) => b[1].points - a[1].points)
+  for (const [name, a] of arch) {
+    console.log(`   ${name.padEnd(32)} ${money(a.spend).padStart(6)} · ${a.filled.toFixed(1)} films · ${a.points.toFixed(0).padStart(5)} pts   win ${((e.wins[name] || 0) * 100).toFixed(0)}%`)
   }
+  const pts = arch.map(([, a]) => a.points)
+  console.log(`   spread best/worst archetype: ${(Math.max(...pts) / Math.max(1, Math.min(...pts))).toFixed(1)}x\n`)
 }
 
-console.log('\nHEALTH')
-console.log(`  avg roster spend     ${money(spendSum / totalAgentRuns)} of ${money(BUDGET)} (${((spendSum / totalAgentRuns / BUDGET) * 100).toFixed(0)}%)`)
-console.log(`  avg slots filled     ${(filledSum / totalAgentRuns).toFixed(2)} / ${MAX_ROSTER}`)
-console.log(`  agents filling all 6 ${((fullRosters / totalAgentRuns) * 100).toFixed(0)}%`)
-
-console.log('\nBY ARCHETYPE')
-for (const [name, a] of Object.entries(byArch)) {
-  console.log(`  ${name.padEnd(32)} spend ${money(a.spend / a.n).padStart(6)} · ${(a.filled / a.n).toFixed(1)} films${ARCHIVE ? ` · ${(a.points / a.n).toFixed(0).padStart(5)} pts avg` : ''}`)
+// cheap vs dear efficiency under each ruleset
+const sorted = [...films].sort((a, b) => a.base_price - b.base_price)
+const cut1 = sorted[Math.floor(sorted.length / 3)].base_price
+const cut2 = sorted[Math.floor(sorted.length * 2 / 3)].base_price
+const tier = (ptsMap, lo, hi) => {
+  const fs = films.filter((f) => f.base_price >= lo && f.base_price < hi)
+  const ppp = fs.map((f) => ptsMap[f.id] / f.base_price)
+  return (ppp.reduce((s, x) => s + x, 0) / (ppp.length || 1))
 }
+console.log('POINTS PER $M BY PRICE TIER')
+console.log(`                 cheap(<${money(cut1)})  mid(${money(cut1)}-${money(cut2)})  dear(>${money(cut2)})`)
+console.log(`   CURRENT rules     ${tier(PTS_CUR, 0, cut1).toFixed(1).padStart(5)}        ${tier(PTS_CUR, cut1, cut2).toFixed(1).padStart(5)}        ${tier(PTS_CUR, cut2, Infinity).toFixed(1).padStart(5)}`)
+console.log(`   PROPOSED rules    ${tier(PTS_NEW, 0, cut1).toFixed(1).padStart(5)}        ${tier(PTS_NEW, cut1, cut2).toFixed(1).padStart(5)}        ${tier(PTS_NEW, cut2, Infinity).toFixed(1).padStart(5)}`)
 console.log()
