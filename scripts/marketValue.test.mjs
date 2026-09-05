@@ -1,7 +1,7 @@
 // Minimal regression test for the shared valuation formula.
 // Run: node scripts/marketValue.test.mjs   (exits non-zero on failure)
 import { calcMarketValue, calcIPOprice } from '../src/lib/marketValue.js'
-import { calcOpeningPts } from '../src/lib/scoring.js'
+import { calcOpeningPts, calcWeeklyPts, calcLegsBonus } from '../src/lib/scoring.js'
 
 let failed = 0
 const eq = (name, got, exp) => {
@@ -20,13 +20,23 @@ eq('IPO est 175', calcIPOprice(175), 130)
 eq('IPO est null', calcIPOprice(null), null)
 eq('IPO est 0', calcIPOprice(0), 3)
 
-// calcOpeningPts — dampened by sqrt(actual) instead of actual, so relative
-// performance matters more than raw dollar size
-eq('PTS Spider-Man (met+ estimate, huge $)', calcOpeningPts({ estM: 175, rt: null }, 360.09), 380)
-eq('PTS The Invite (nearly 3x estimate, tiny $)', calcOpeningPts({ estM: 2, rt: null }, 5.93), 49)
+// calcOpeningPts — 70% forecast-beat + 30% sqrt-damped scale. Design intent:
+// a great cheap call scores roughly the same as a huge on-target film.
+eq('PTS Spider-Man (2.1x est, $360M)', calcOpeningPts({ estM: 175, rt: null }, 360.09), 301)
+eq('PTS The Invite (3x est, $6M) ~= Spider-Man', calcOpeningPts({ estM: 2, rt: null }, 5.93), 284)
 eq('PTS no result', calcOpeningPts({ estM: 10, rt: null }, null), 0)
-eq('PTS Early Bird +10%', calcOpeningPts({ estM: 10, rt: null }, 12, true), Math.round(Math.round(Math.sqrt(12) * 10 * 1.15) * 1.1))
-eq('PTS Analyst +60 flat', calcOpeningPts({ estM: 10, rt: null }, 10, false, true), Math.round(Math.sqrt(10) * 10 * 1) + 60)
+eq('PTS Analyst chip +60 flat', calcOpeningPts({ estM: 10, rt: null }, 10, false, true),
+  calcOpeningPts({ estM: 10, rt: null }, 10) + 60)
+eq('PTS RT<50 penalty is small', // ~10% down, not 15%
+  calcOpeningPts({ estM: 10, rt: 30 }, 10), Math.round(calcOpeningPts({ estM: 10, rt: null }, 10) * 0.90))
+
+// calcWeeklyPts — legs = post-opening multiplier x 60, capped at 2.5x
+eq('LEGS held ~1x its opening', calcWeeklyPts({ 2: 10, 3: 6, 4: 3 }, 20), 57)
+eq('LEGS front-loaded (0.3x)', calcWeeklyPts({ 2: 4, 3: 1.5, 4: 0.5 }, 20), 18)
+eq('LEGS no opening -> 0', calcWeeklyPts({ 2: 5 }, 0), 0)
+eq('LEGS cap at 2.5x', calcWeeklyPts({ 2: 40, 3: 30, 4: 20, 5: 15 }, 20), 150)
+eq('HOLD bonus: <30% wk2 drop', calcLegsBonus(20, 15), 25)
+eq('HOLD bonus: big drop -> 0', calcLegsBonus(20, 8), 0)
 
 // calcMarketValue — locked against the Task 3 backfill numbers
 eq('MV Spider-Man', calcMarketValue({ basePrice: 59, estM: 175, rt: null }, 360.09, { 2: 144.25, 3: 70.71, 4: 39, 5: 22.51 }), 113)

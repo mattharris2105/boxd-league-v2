@@ -914,7 +914,7 @@ function PlayerProfilePage({player,reviews=[],onOpenFilm,films,rosters,results,w
           const actual=results[film.id],gc=GENRE_COL[film.genre]||T.textDim
           const eb=isEarlyBird(h),aa=analystActive(player.id,film.id)
           let op=calcOpeningPts(film,actual,eb,aa)
-          const wp=Math.round(calcWeeklyPts(weeklyG[film.id]||{})),lb=calcLegsBonus(actual,weeklyG[film.id]?.[2])
+          const wp=Math.round(calcWeeklyPts(weeklyG[film.id]||{},actual)),lb=calcLegsBonus(actual,weeklyG[film.id]?.[2])
           const filmTotal=op+wp+lb
           const pnl_=h.active?(actual!=null?actual-h.bought_price:0):(h.sold_price||0)-h.bought_price
           return(
@@ -1074,7 +1074,7 @@ function ScoreBreakdownModal({film,holding,results,weeklyGrosses,allChips,isEarl
   const ebBonus=(eb&&actual!=null&&actual/film.estM>=1.1)?Math.round(baseOpen*0.1):0
   const analystBon=analystWin?60:0
   const openPts=baseOpen+ebBonus+analystBon
-  const wkPts=Math.round(calcWeeklyPts(weeks))
+  const wkPts=Math.round(calcWeeklyPts(weeks,actual))
   const lb=calcLegsBonus(actual,weeks[2])
   const total=openPts+wkPts+lb
   const Row=({label,value,color,sub})=>(
@@ -1109,8 +1109,8 @@ function ScoreBreakdownModal({film,holding,results,weeklyGrosses,allChips,isEarl
               <Row label="Base opening pts" value={`+${baseOpen}`} sub={`$${actual}M actual · ${film.estM?(actual/film.estM).toFixed(2)+'×':''} performance`}/>
               {eb&&ebBonus>0&&<Row label="🐦 Early Bird +10%" value={`+${ebBonus}`} color={T.green} sub="Bought 4+ weeks early and film beat estimate"/>}
               {analystWin&&<Row label="🎯 Analyst bonus" value="+60" color={T.blue} sub="Predicted opening within 10%"/>}
-              {wkPts>0&&<Row label="📅 Weekly grosses" value={`+${wkPts}`} color={T.blue} sub="W1–3: 1pt/$1M · W4+: 1.1pts/$1M"/>}
-              {lb>0&&<Row label="🦵 Legs (W2 drop <30%)" value="+25" color={T.green} sub="Strong hold — word of mouth is working"/>}
+              {wkPts>0&&<Row label="📅 Legs" value={`+${wkPts}`} color={T.blue} sub={`Earned ${(actual?((Object.entries(weeks).filter(([w])=>+w>=2).reduce((s,[,g])=>s+Number(g),0))/actual):0).toFixed(1)}x its opening after debut — 60pts per 1x, capped at 2.5x`}/>}
+              {lb>0&&<Row label="🦵 Strong hold bonus" value="+25" color={T.green} sub="Week-2 drop under 30% — word of mouth is working"/>}
             </div>
             <div style={{marginTop:'20px',background:T.surfaceUp,borderRadius:'14px',padding:'20px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
               <div style={S.label}>Total Points</div>
@@ -2361,7 +2361,7 @@ function AppInner(){
       const film=films.find(f=>f.id===h.film_id);if(!film)return
       const actual=results[film.id];if(actual==null)return
       let op=calcOpeningPts(film,actual,isEarlyBird(h),analystOn(pid,film.id))
-      t+=op+Math.round(calcWeeklyPts(weeklyG[film.id]||{}))+calcLegsBonus(actual,weeklyG[film.id]?.[2])
+      t+=op+Math.round(calcWeeklyPts(weeklyG[film.id]||{},actual))+calcLegsBonus(actual,weeklyG[film.id]?.[2])
     })
     return t
   }
@@ -2963,7 +2963,7 @@ function AppInner(){
               <span style={{fontSize:'20px'}}>👋</span>
               <div style={{fontSize:'15px',fontWeight:700,color:T.gold}}>Welcome to BOXD</div>
             </div>
-            <div style={{fontSize:'13px',color:T.text,lineHeight:1.6}}>Pick up to <strong>{MAX_ROSTER} films</strong> this phase. You have <strong style={{color:T.gold}}>${myBudget}M</strong> to spend. Films pay out when results land Monday — opening points + weekly grosses + bonuses. <span style={{color:T.textSub}}>Tap any card to start.</span></div>
+            <div style={{fontSize:'13px',color:T.text,lineHeight:1.6}}>Fill all <strong>{MAX_ROSTER} roster slots</strong> this phase (empty slots cost you points). You have <strong style={{color:T.gold}}>${myBudget}M</strong> to spend. Films pay out when results land Monday — opening points + legs + bonuses. <span style={{color:T.textSub}}>Tap any card to start.</span></div>
           </div>
         )}
 
@@ -3100,7 +3100,7 @@ function AppInner(){
         const actual=results[film.id]
         const eb=isEarlyBird(h)
         let op=actual!=null?calcOpeningPts(film,actual,eb,analystOn(profile.id,film.id)):0
-        const wp=Math.round(calcWeeklyPts(weeklyG[film.id]||{}))
+        const wp=Math.round(calcWeeklyPts(weeklyG[film.id]||{},actual))
         const lb=calcLegsBonus(actual,weeklyG[film.id]?.[2])
         const total=op+wp+lb
         return(
@@ -3286,40 +3286,34 @@ function AppInner(){
 
         <Group title="📊 Scoring — How Points Get Earned">
           <Section id="opening" icon="🎯" color={T.green} title="Opening weekend points" summary="The biggest scoring event for each film.">
-            When real opening weekend numbers come in Monday, you score points based on:
+            When real opening weekend numbers come in Monday, opening points are:
             <br/><br/>
-            <Highlight>actual_gross × performance multiplier × RT bonus</Highlight>
+            <Highlight>70% × how much you beat the forecast  +  30% × how big the hit was</Highlight>
             <br/><br/>
-            <Highlight>Performance multiplier:</Highlight>
-            <br/>• 2.0× if film hits ≥200% of estimate (massive overperformer)
-            <br/>• 1.6× at 150%+
-            <br/>• 1.35× at 130%+
-            <br/>• 1.15× at 110%+
-            <br/>• 1.00× at 95-110% (on-target)
-            <br/>• 0.85× at 80-95%
-            <br/>• 0.65× at 60-80%
-            <br/>• 0.45× at &lt;60% (flop)
+            The forecast part is the driver: it rewards spotting a film that outperforms its estimate, whether it's a $3M indie or a $300M tentpole. The size part is a smaller kicker so landing a genuine blockbuster still counts for something — but a $300M film that merely met expectations won't beat a $6M film that tripled its forecast.
             <br/><br/>
-            <Highlight>RT bonus:</Highlight> ≥90% = +25%, ≥75% = +10%, &lt;50% = −15%.
+            <Highlight>Performance multiplier (actual ÷ estimate, capped at 3×):</Highlight>
+            <br/>• 2.0× at ≥200% of estimate · 1.6× at 150%+ · 1.35× at 130%+ · 1.15× at 110%+
+            <br/>• 1.00× at 95-110% (on target) · 0.85× at 80-95% · 0.65× at 60-80% · 0.45× at &lt;60%
             <br/><br/>
-            Example: $80M actual on a $40M estimate (2.0×) with 95% RT = 80 × 2.0 × 1.25 = <Highlight color={T.gold}>200pts</Highlight>.
+            <Highlight>RT modifier (a bonus, not a driver):</Highlight> ≥90% +15% · 80-89% +10% · 70-79% +5% · 60-69% none · 50-59% −5% · &lt;50% −10%.
           </Section>
-          <Section id="weekly" icon="📅" color={T.blue} title="Weekly grosses & legs" summary="Films keep paying out for multiple weeks.">
-            Each week of theatrical run adds points:
-            <br/>• Weeks 1-3: <Highlight>1pt per $1M</Highlight> gross
-            <br/>• Week 4+: <Highlight color={T.green}>1.1pts per $1M</Highlight> (rewarding longevity)
+          <Section id="weekly" icon="📅" color={T.blue} title="Legs" summary="Films that hold keep paying out.">
+            After opening weekend, you score on how well the film <Highlight>holds</Highlight> — the multiplier on its opening it earns in later weeks, not the raw dollars.
             <br/><br/>
-            <Highlight color={T.green}>🦵 Legs bonus</Highlight>: if a film's Week 2 drop is under 30% (strong word-of-mouth), you get a flat <Highlight color={T.green}>+25pt bonus</Highlight>.
+            <Highlight>60 points for every 1× of its opening the film earns after debut</Highlight>, capped at 2.5×. A leggy word-of-mouth hit earns 1.5-2× its opening in later weeks (90-120pts); a front-loaded blockbuster earns ~0.4× (~25pts).
             <br/><br/>
-            This is why "small films with great reviews" can sometimes outscore blockbusters — they hold their audience week after week.
+            <Highlight color={T.green}>🦵 Strong hold bonus</Highlight>: a flat <Highlight color={T.green}>+25pts</Highlight> if the Week 2 drop is under 30%.
+            <br/><br/>
+            This is why a small film with real word of mouth can outscore a blockbuster that dropped 60% in week two.
           </Section>
           <Section id="bonuses" icon="🏆" color={T.gold} title="All the bonuses" summary="Every modifier in the scoring engine.">
-            On top of opening + weekly + legs, you can earn these:
+            On top of opening points + legs, you can earn these:
             <br/>• 🐦 <Highlight color={T.green}>Early Bird +10%</Highlight> on opening pts if you bought {EARLY_BIRD_WEEKS}+ weeks before release AND the film beats estimate by 10%+. One Early Bird per phase — earliest qualifying pick gets it.
             <br/>• 🎯 <Highlight color={T.blue}>Analyst +60pts</Highlight> flat if you used your Analyst chip and your opening prediction was within 10%
           </Section>
           <Section id="reading" icon="🔍" color={T.gold} title="Reading the score breakdown" summary="Tap any of your scored films for the full math.">
-            Open <Highlight>Roster</Highlight>, tap any scored film. The <Highlight>Score Breakdown</Highlight> modal shows every line: base opening, EB bonus, RT effect, weekly grosses, legs, all chip bonuses, total.
+            Open <Highlight>Roster</Highlight>, tap any scored film. The <Highlight>Score Breakdown</Highlight> modal shows every line: base opening, EB bonus, RT effect, legs, hold bonus, all chip bonuses, total.
             <br/><br/>
             If a film didn't score what you expected, this is where you find out why. Often it's a chip you forgot to activate, or a film that scored fine on opening but flopped on legs.
           </Section>
@@ -3699,7 +3693,7 @@ function AppInner(){
     return(
       <div style={{animation:'fadeUp .2s ease'}}>
         <div style={S.pageTitle}>Results</div>
-        <div style={{fontSize:'11px',color:T.textSub,marginBottom:'14px',lineHeight:1.6}}>Opening weekends land Monday (auto-ingest or commissioner entry) · points = opening vs estimate, then weekly grosses and legs bonuses stack on top.</div>
+        <div style={{fontSize:'11px',color:T.textSub,marginBottom:'14px',lineHeight:1.6}}>Opening weekends land Monday (auto-ingest or commissioner entry) · points = opening vs estimate, then legs and the strong-hold bonus stack on top.</div>
         <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>{resulted.length} films scored · most recent first</div>
         {resulted.length===0?<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No results yet.</div>:resulted.map(f=>{
           const actual=results[f.id]

@@ -25,7 +25,10 @@ function calcMarketValue (film, actualM, weeklyGrosses = {}) {
   // Opening performance multiplier
   const perf = r >= 2 ? 2 : r >= 1.5 ? 1.6 : r >= 1.3 ? 1.35 : r >= 1.1 ? 1.15 : r >= 0.95 ? 1 : r >= 0.8 ? 0.85 : r >= 0.6 ? 0.65 : r >= 0.4 ? 0.45 : 0.25
   // Critics multiplier
-  const rt = film.rt != null ? (film.rt >= 90 ? 1.15 : film.rt >= 75 ? 1.08 : film.rt < 50 ? 0.9 : 1) : 1
+  // Six RT bands, aligned with src/lib/scoring.js but gentler — a film's
+  // resale value shouldn't swing as much as its points. ~1.13x max swing.
+  const rt = film.rt == null ? 1
+    : film.rt >= 90 ? 1.08 : film.rt >= 80 ? 1.05 : film.rt >= 70 ? 1.03 : film.rt >= 60 ? 1.00 : film.rt >= 50 ? 0.97 : 0.95
 
   // ── LEGS: week-on-week hold vs an expected drop ──────────────────────────
   //   Wk2: standard -55% · better → up to +30% · worse → down to -15%

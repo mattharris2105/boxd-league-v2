@@ -39,41 +39,18 @@ const OLD_PTS = (est, actual, rt, r) => {
   const rtm = rt != null ? (rt >= 90 ? 1.25 : rt >= 75 ? 1.1 : rt < 50 ? 0.85 : 1) : 1
   return Math.round(actual * perf * rtm)
 }
-
-const rtMult = (rt) => rt != null ? (rt >= 90 ? 1.25 : rt >= 75 ? 1.1 : rt < 50 ? 0.85 : 1) : 1
-const perfMult = (r) => r >= 2 ? 2 : r >= 1.5 ? 1.6 : r >= 1.3 ? 1.35 : r >= 1.1 ? 1.15 : r >= 0.95 ? 1 : r >= 0.8 ? 0.85 : r >= 0.6 ? 0.65 : 0.45
-
-// endpoint A — pure %-vs-forecast: no dollar-size term, ratio capped at 3x
-const PURE_PCT_PTS = (est, actual, rt) => Math.round(70 * Math.min(3, actual / est) * rtMult(rt))
-
-// MIDDLE A — 70% forecasting, 30% scale. Ratio term drives it; the shipped
-// sqrt term is folded in at 30% weight as a "landing a real hit still counts".
-const MID_A_PTS = (est, actual, rt) => {
-  const ratioPart = 130 * Math.min(3, actual / est) * rtMult(rt)
-  const scalePart = Math.sqrt(actual) * 10 * perfMult(actual / est) * rtMult(rt)
-  return Math.round(0.7 * ratioPart + 0.3 * scalePart)
-}
-
-// MIDDLE B — pure % structure, but a gentle log10 size multiplier (~1.1x for a
-// $2M film, ~1.8x for a $400M one) and a softer 3.5x ratio cap so genuine
-// surprises aren't clipped as hard.
-const MID_B_PTS = (est, actual, rt) =>
-  Math.round(60 * Math.min(3.5, actual / est) * rtMult(rt) * (1 + Math.log10(Math.max(1, actual)) / 3))
+const OLD_WEEKLY = (weekly) => Object.entries(weekly).reduce((s, [wk, gr]) => s + Number(gr) * (Number(wk) >= 4 ? 1.1 : 1), 0)
 
 function buildPool (ipoFn, mode) {
   return settled.map((f) => {
     const price = ipoFn(f.est_m)
     const actual = resMap[f.id]
     const weekly = wgMap[f.id] || {}
-    const ratioModes = { purepct: PURE_PCT_PTS, mida: MID_A_PTS, midb: MID_B_PTS }
-    const openPts = mode === 'live' ? calcOpeningPts({ estM: f.est_m, rt: f.rt }, actual)
-      : mode === 'old' ? OLD_PTS(f.est_m, actual, f.rt, actual / f.est_m)
-      : ratioModes[mode](f.est_m, actual, f.rt)
-    // dollar-based weekly/legs kept only for the $-anchored modes
-    const dollarAnchored = mode === 'live' || mode === 'old'
-    const wkPts = dollarAnchored ? Math.round(calcWeeklyPts(weekly)) : 0
-    const legs = dollarAnchored ? calcLegsBonus(actual, weekly[2]) : 0
-    return { ...f, price, actual, roi: actual / f.est_m, score: openPts + wkPts + legs }
+    const r = actual / f.est_m
+    const openPts = mode === 'live' ? calcOpeningPts({ estM: f.est_m, rt: f.rt }, actual) : OLD_PTS(f.est_m, actual, f.rt, r)
+    const wkPts = mode === 'live' ? calcWeeklyPts(weekly, actual) : Math.round(OLD_WEEKLY(weekly))
+    const legs = calcLegsBonus(actual, weekly[2])
+    return { ...f, price, actual, roi: r, score: openPts + wkPts + legs }
   })
 }
 
@@ -125,8 +102,5 @@ function runRuleset (label, ipoFn, mode) {
   console.log('  top single-film scores: ' + top.map((f) => `${f.title} ${f.score}pts (${f.roi.toFixed(1)}x est, $${f.actual}M)`).join(' · '))
 }
 
-if (process.argv.includes('--old')) runRuleset('OLD RULES (pre-rebalance)', OLD_IPO, 'old')
-runRuleset('LIVE (shipped: sqrt-damped $)', calcIPOprice, 'live')
-runRuleset('MIDDLE A (70% forecast ratio + 30% scale)', calcIPOprice, 'mida')
-runRuleset('MIDDLE B (ratio-driven + gentle log10 size nudge)', calcIPOprice, 'midb')
-runRuleset('PURE % (ratio only, no $ size)', calcIPOprice, 'purepct')
+if (process.argv.includes('--old')) runRuleset('OLD RULES (original, pre-rebalance)', OLD_IPO, 'old')
+runRuleset('LIVE (current production: 70% forecast-beat / 30% scale, legs on ratios)', calcIPOprice, 'live')
