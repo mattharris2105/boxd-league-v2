@@ -29,3 +29,9 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           TMDB_TOKEN: ${{ secrets.TMDB_TOKEN }}
         run: node scripts/slate-scan.mjs --weeks "${{ github.event.inputs.weeks || '16' }}"
+      - name: Research opening estimates (no-op if ANTHROPIC_API_KEY unset)
+        env:
+          SUPABASE_URL: https://yxluqkfanhzktinayvex.supabase.co
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: node scripts/enrich-suggestions.mjs

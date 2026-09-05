@@ -15,9 +15,14 @@ How new films get into BOXD each week, and how you sign off on their prices.
    right poster to each new film. Without it films come in with no poster and
    you set it later in the Films tab. `SUPABASE_SERVICE_KEY` is already there.
 
-3. *(Optional)* To have the opening-weekend projections researched for you
-   instead of doing it by hand: in Claude Code run `/schedule`, weekly, prompt
-   `Follow agents/weekly-slate.md for the boxd-league-v2 repo`.
+3. *(Optional)* To have the opening-weekend estimates researched automatically,
+   add an **`ANTHROPIC_API_KEY`** secret (GitHub → Settings → Secrets → Actions).
+   The weekly Action then runs `scripts/enrich-suggestions.mjs` right after the
+   scan: it asks Claude (with web search) for a projection per new film and
+   writes it into the suggestion's `est_m`. Every row still stays `pending` —
+   you approve them in the app exactly as before, the numbers just arrive
+   pre-filled. Without the secret this step is skipped and you enter estimates
+   by hand.
 
 ---
 
@@ -87,7 +92,9 @@ film, approve it then edit `base_price` directly in the **Films** tab.
 The estimate itself is your judgement. The tracking links on each card
 (Boxoffice Pro / Deadline / The Numbers searches) are a starting point — box
 office numbers for unreleased films are soft, which is the whole reason this is
-an approval step and not an automatic import.
+an approval step and not an automatic import. If the auto-research step is on,
+a pre-filled estimate is tagged `[auto track]` or `[auto gauge]` in the notes —
+treat it as a first draft, not a fact.
 
 ---
 
