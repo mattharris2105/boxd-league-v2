@@ -5,11 +5,14 @@
 // If you change the formula here, that's the only place it needs to change.
 
 // IPO / base price from a pre-release opening-weekend estimate ($M).
-// ~$3 at est $2M, ~$7 at $5, ~$15 at $15, ~$30 at $50, ~$59 at $175.
+// Steepened (was exponent 0.78, ceiling 75) so blockbusters eat a real share
+// of the budget instead of ~40% of it — simulation showed the old curve let
+// a single roster hold 3 tentpoles at once with room to spare. Now:
+// ~$3 at est $2M, ~$4 at $5, ~$16 at $15, ~$36 at $50, ~$110 at $175.
 function calcIPOprice (est) {
   if (est == null || isNaN(est)) return null
   if (est <= 0) return 3
-  return Math.max(3, Math.min(75, Math.round(1.05 * Math.pow(est, 0.78))))
+  return Math.max(3, Math.min(130, Math.round(1.05 * Math.pow(est, 0.94))))
 }
 
 // Market value after results land.

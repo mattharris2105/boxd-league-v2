@@ -36,7 +36,11 @@ const GENRE_COL = {
 const COMMISSIONER_EMAIL = 'mattharris2105@gmail.com'
 const EARLY_BIRD_WEEKS   = 4
 const MAX_ROSTER         = 6
-const DRAFT_MIN          = 4
+// A full roster is now the requirement, not just 4/6 — simulation showed a
+// partial roster (buy the one blockbuster you can afford, stop) was still
+// competitive even with steeper pricing, so the shortfall has to bite for
+// every empty slot up to the full cap, not just down to a soft floor.
+const DRAFT_MIN          = MAX_ROSTER
 const DRAFT_PENALTY      = 5
 const PHASE_BUDGETS      = {1:150,2:180,3:150}
 const PHASE_NAMES        = {0:'Historical (Season opener)',1:'Autumn (Sep–Nov)',2:'Awards & Holiday (Dec–Jan)',3:'Spring (Feb+)'}

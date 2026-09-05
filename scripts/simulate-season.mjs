@@ -1,13 +1,16 @@
 // Mock season trial run — drafts several strategies against the ALREADY-
-// SETTLED archive (real historical box office, real prices) and scores them
-// with the exact same formulas the live app uses, to sanity-check whether
-// the budget/pricing/scoring economy is balanced. Read-only: makes no writes
-// to Supabase, touches no real league.
+// SETTLED archive (real historical box office) using the LIVE production
+// formulas (src/lib/marketValue.js + src/lib/scoring.js) and the real draft
+// rules (DRAFT_MIN/DRAFT_PENALTY as a soft shortfall penalty, exactly how the
+// app enforces it — not a hard budget gate), to sanity-check the economy.
+// Read-only: makes no writes to Supabase, touches no real league.
 //
-//   node scripts/simulate-season.mjs
+//   node scripts/simulate-season.mjs           # current live rules
+//   node scripts/simulate-season.mjs --old     # also show the pre-rebalance rules for comparison
 import { readFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { calcIPOprice } from '../src/lib/marketValue.js'
 import { calcOpeningPts, calcLegsBonus, calcWeeklyPts } from '../src/lib/scoring.js'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -16,84 +19,83 @@ for (const l of readFileSync(resolve(root, '.env.local'), 'utf8').split('\n')) {
 const U = env.SUPABASE_URL, KEY = env.SUPABASE_SERVICE_KEY
 const H = { apikey: KEY, Authorization: `Bearer ${KEY}` }
 
-// live-game constants (src/App.js)
-const BUDGET = 150       // PHASE_BUDGETS[1]
-const MAX_ROSTER = 6
+const BUDGET = 150, MAX_ROSTER = 6, DRAFT_MIN = 6, DRAFT_PENALTY = 5 // mirrors src/App.js
 
 const g = async (path) => (await fetch(`${U}/rest/v1/${path}`, { headers: H })).json()
 const [films, results, wg] = await Promise.all([
-  g('films?select=id,title,phase,base_price,est_m,rt&phase=eq.0'),
+  g('films?select=id,title,phase,est_m,rt&phase=eq.0'),
   g('results?select=film_id,actual_m'),
   g('weekly_grosses?select=film_id,week_num,gross_m'),
 ])
 const resMap = Object.fromEntries(results.map((r) => [r.film_id, r.actual_m]))
 const wgMap = {}
 wg.forEach((w) => { (wgMap[w.film_id] = wgMap[w.film_id] || {})[w.week_num] = w.gross_m })
+const settled = films.filter((f) => f.est_m != null && resMap[f.id] != null)
 
-// the tradeable pool: settled archive films with a real price and a real result
-const pool = films
-  .filter((f) => f.base_price != null && f.est_m != null && resMap[f.id] != null)
-  .map((f) => {
+// pre-rebalance formulas, kept only for the --old comparison
+const OLD_IPO = (est) => Math.max(3, Math.min(75, Math.round(1.05 * Math.pow(est, 0.78))))
+const OLD_PTS = (est, actual, rt, r) => {
+  const perf = r >= 2 ? 2 : r >= 1.5 ? 1.6 : r >= 1.3 ? 1.35 : r >= 1.1 ? 1.15 : r >= 0.95 ? 1 : r >= 0.8 ? 0.85 : r >= 0.6 ? 0.65 : 0.45
+  const rtm = rt != null ? (rt >= 90 ? 1.25 : rt >= 75 ? 1.1 : rt < 50 ? 0.85 : 1) : 1
+  return Math.round(actual * perf * rtm)
+}
+
+function buildPool (ipoFn, useLiveScoring) {
+  return settled.map((f) => {
+    const price = ipoFn(f.est_m)
     const actual = resMap[f.id]
     const weekly = wgMap[f.id] || {}
-    const openPts = calcOpeningPts({ estM: f.est_m, rt: f.rt }, actual)
+    const openPts = useLiveScoring ? calcOpeningPts({ estM: f.est_m, rt: f.rt }, actual) : OLD_PTS(f.est_m, actual, f.rt, actual / f.est_m)
     const wkPts = Math.round(calcWeeklyPts(weekly))
     const legs = calcLegsBonus(actual, weekly[2])
-    return { ...f, actual, score: openPts + wkPts + legs, openPts, wkPts, legs, roi: actual / f.est_m }
+    return { ...f, price, actual, roi: actual / f.est_m, score: openPts + wkPts + legs }
   })
+}
 
-console.log(`Pool: ${pool.length} settled films, prices $${Math.min(...pool.map((f) => f.base_price))}M-$${Math.max(...pool.map((f) => f.base_price))}M, budget $${BUDGET}M, roster cap ${MAX_ROSTER}\n`)
-
-// greedy knapsack-style draft under budget + roster-cap constraints
+// real app mechanic: greedy under budget, THEN a flat shortfall penalty if
+// the roster ends up under DRAFT_MIN — a soft cost, not a hard block, exactly
+// as draftShortfall/DRAFT_PENALTY work live.
 function draft (sorted) {
-  const roster = []
-  let spend = 0
+  const roster = []; let spend = 0
   for (const f of sorted) {
     if (roster.length >= MAX_ROSTER) break
-    if (spend + f.base_price > BUDGET) continue
-    roster.push(f); spend += f.base_price
+    if (spend + f.price > BUDGET) continue
+    roster.push(f); spend += f.price
   }
-  return { roster, spend, total: roster.reduce((s, f) => s + f.score, 0) }
+  const penalty = Math.max(0, DRAFT_MIN - roster.length) * DRAFT_PENALTY
+  const total = roster.reduce((s, f) => s + f.score, 0) - penalty
+  return { roster, spend, total, penalty }
 }
 
-const strategies = {
-  'Blockbuster Chaser (priciest first)': [...pool].sort((a, b) => b.base_price - a.base_price),
-  'Value Hunter (cheapest first, max diversification)': [...pool].sort((a, b) => a.base_price - b.base_price),
-  'Sleeper Spotter (best RT per $ spent)': [...pool].filter((f) => f.rt != null).sort((a, b) => (b.rt / b.base_price) - (a.rt / a.base_price)),
-  'Random Basket (control)': [...pool].sort(() => Math.random() - 0.5),
-  'Perfect Hindsight (actual best scorers)': [...pool].sort((a, b) => (b.score / b.base_price) - (a.score / a.base_price)),
+function strategySorts (pool) {
+  return {
+    'Blockbuster Chaser': [...pool].sort((a, b) => b.price - a.price),
+    'Value Hunter (cheap, diversified)': [...pool].sort((a, b) => a.price - b.price),
+    'Sleeper Spotter (RT per $)': [...pool].filter((f) => f.rt != null).sort((a, b) => (b.rt / b.price) - (a.rt / a.price)),
+    'Random control': [...pool].sort(() => Math.random() - 0.5),
+    'Perfect Hindsight (best score/$)': [...pool].sort((a, b) => (b.score / b.price) - (a.score / a.price)),
+  }
 }
 
-const outcomes = []
-for (const [name, sorted] of Object.entries(strategies)) {
-  const { roster, spend, total } = draft(sorted)
-  outcomes.push({ name, roster, spend, total })
-  console.log(`── ${name} ──`)
-  console.log(`   spend $${spend}M/$${BUDGET}M · ${roster.length}/${MAX_ROSTER} films · TOTAL ${total}pts`)
-  roster.forEach((f) => console.log(`   ${String(f.score).padStart(4)}pts  $${f.base_price}M -> $${f.actual}M (${f.roi.toFixed(2)}x)  ${f.title}`))
-  console.log()
-}
-
-// ── insights ──────────────────────────────────────────────────────────────
-console.log('═══ INSIGHTS ═══')
-outcomes.sort((a, b) => b.total - a.total)
-console.log(`Spread: best ${outcomes[0].name} (${outcomes[0].total}pts) vs worst ${outcomes[outcomes.length - 1].name} (${outcomes[outcomes.length - 1].total}pts) — ${outcomes[0].total - outcomes[outcomes.length - 1].total}pt gap`)
-
-const cheapWins = pool.filter((f) => f.base_price <= 5 && f.score >= 80).sort((a, b) => b.score - a.score)
-console.log(`\nCheap films (<=$5M) that scored 80+pts anyway (the "sleeper" pattern the howto text promises): ${cheapWins.length}`)
-cheapWins.slice(0, 5).forEach((f) => console.log(`   $${f.base_price}M -> ${f.score}pts  RT ${f.rt ?? '?'}%  ${f.title}`))
-
-const expensiveFlops = pool.filter((f) => f.base_price >= 20 && f.roi < 0.8).sort((a, b) => a.roi - b.roi)
-console.log(`\nExpensive films (>=$20M) that missed estimate badly (roi<0.8x): ${expensiveFlops.length}`)
-expensiveFlops.slice(0, 5).forEach((f) => console.log(`   $${f.base_price}M est, ${(f.roi * 100).toFixed(0)}% of estimate, ${f.score}pts  ${f.title}`))
-
-const avgPtsPerDollar = pool.map((f) => f.score / f.base_price)
-const corr = (() => {
-  const xs = pool.map((f) => f.base_price), ys = pool.map((f) => f.score)
+function runRuleset (label, ipoFn, useLiveScoring) {
+  const pool = buildPool(ipoFn, useLiveScoring)
+  console.log(`\n███ ${label} ███  prices $${Math.min(...pool.map((f) => f.price))}-$${Math.max(...pool.map((f) => f.price))}M · budget $${BUDGET}M · ${MAX_ROSTER} films required (shortfall costs ${DRAFT_PENALTY}pt/missing film)`)
+  const rows = []
+  for (const [name, sorted] of Object.entries(strategySorts(pool))) {
+    const { roster, spend, total, penalty } = draft(sorted)
+    rows.push({ name, total })
+    console.log(`  ${name.padEnd(34)} $${String(spend).padStart(3)}M spent · ${roster.length}/${MAX_ROSTER} films${penalty ? ` (-${penalty} shortfall)` : ''} · ${total}pts   [top: ${roster[0]?.title} $${roster[0]?.price}M -> ${roster[0]?.score}pts]`)
+  }
+  const best = Math.max(...rows.map((r) => r.total)), worst = Math.min(...rows.map((r) => r.total))
+  console.log(`  spread: best/worst = ${(best / Math.max(1, worst)).toFixed(1)}x`)
+  const xs = pool.map((f) => f.price), ys = pool.map((f) => f.score)
   const mx = xs.reduce((a, b) => a + b, 0) / xs.length, my = ys.reduce((a, b) => a + b, 0) / ys.length
   const cov = xs.reduce((s, x, i) => s + (x - mx) * (ys[i] - my), 0)
   const sx = Math.sqrt(xs.reduce((s, x) => s + (x - mx) ** 2, 0)), sy = Math.sqrt(ys.reduce((s, y) => s + (y - my) ** 2, 0))
-  return cov / (sx * sy)
-})()
-console.log(`\nCorrelation between IPO price and points scored: ${corr.toFixed(2)} (1.0 = price fully predicts score, 0 = no relationship, negative = cheap films outscore expensive ones)`)
-console.log(`Avg points-per-dollar-spent across the whole pool: ${(avgPtsPerDollar.reduce((a, b) => a + b, 0) / avgPtsPerDollar.length).toFixed(1)}`)
+  console.log(`  price/score correlation: ${(cov / (sx * sy)).toFixed(2)}`)
+  const cheapPool = pool.filter((f) => f.price <= 5)
+  console.log(`  cheap films (<=$5M) scoring 80+pts: ${cheapPool.filter((f) => f.score >= 80).length}/${cheapPool.length}`)
+}
+
+if (process.argv.includes('--old')) runRuleset('OLD RULES (pre-rebalance, for comparison)', OLD_IPO, false)
+runRuleset('LIVE RULES (current production)', calcIPOprice, true)

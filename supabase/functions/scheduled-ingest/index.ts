@@ -71,7 +71,7 @@ serve(async () => {
           .from('league_config').select('current_phase').eq('league_id', cfg.league_id).maybeSingle()
 
         const ph = cfgFull?.current_phase ?? 1
-        const DRAFT_MIN = 4
+        const DRAFT_MIN = 6 // keep in sync with DRAFT_MIN in src/App.js (now = MAX_ROSTER)
 
         const players = (members ?? []).map(m => {
           const picks = rosters?.filter(r => r.player_id === m.user_id).length ?? 0
