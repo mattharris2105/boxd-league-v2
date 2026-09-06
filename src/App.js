@@ -1926,7 +1926,6 @@ function AppInner(){
   const[marketingEvents,setMarketingEvents]=useState([])
   const[bookingClicks,setBookingClicks]=useState([])
   const[showtimesFilm,setShowtimesFilm]=useState(null)
-  const[sealedBids,setSealedBids]=useState([])
   const[league,setLeague]=useState(null)
   const[myLeagues,setMyLeagues]=useState([])
   const[publicLeagues,setPublicLeagues]=useState([])
@@ -2106,7 +2105,7 @@ function AppInner(){
     const{data,error}=await supabase.from('leagues').insert({name:newLeagueName.trim(),commissioner_id:session.user.id,invite_code:code}).select().single()
     if(error) return notify(error.message,T.red)
     await supabase.from('league_members').insert({league_id:data.id,user_id:session.user.id,role:'commissioner'})
-    await supabase.from('league_config').insert({league_id:data.id,current_week:1,current_phase:1,currency:'$',tx_fee:5,phase_window_active:false,draft_window_open:false,sealed_bid_window_open:false})
+    await supabase.from('league_config').insert({league_id:data.id,current_week:1,current_phase:1,currency:'$',tx_fee:5,phase_window_active:false,draft_window_open:false})
     notify(`✅ League created! Code: ${code}`,T.green);setNewLeagueName('');loadLeagues();enterLeague(data)
   }
   const joinLeague=async()=>{
@@ -2199,7 +2198,7 @@ function AppInner(){
       tmdbId:f.tmdb_id||null,releaseDate:f.release_date||null,
     })))
     applySeasonConfig(cf)
-    setCfg(cf||{current_week:1,current_phase:1,currency:'$',tx_fee:5,phase_window_active:false,phase_window_opened_at:null,draft_window_open:false,draft_deadline:null,sealed_bid_window_open:false,sealed_bid_deadline:null})
+    setCfg(cf||{current_week:1,current_phase:1,currency:'$',tx_fee:5,phase_window_active:false,phase_window_opened_at:null,draft_window_open:false,draft_deadline:null})
     setStandingsSnapshot(cf?.standings_snapshot||{})
     // PERF: drop loading state once films are ready, then fetch remainder non-blocking
     setDataLoading(false)
@@ -2541,9 +2540,6 @@ function AppInner(){
   const myBudget=budgetLeft(profile.id)
   const myPicks=allPicks.filter(p=>p.user_id===profile.id)
   const hasEverBought=rosters.some(r=>r.player_id===profile.id)
-  const sealedWindowOpen=cfg.sealed_bid_window_open||false
-  const sealedWindowDeadline=cfg.sealed_bid_deadline||null
-  const myPendingBid=sealedBids.find(b=>b.player_id===profile?.id&&b.status==='pending')
   const draftWindowOpen=cfg.draft_window_open||false
   const draftDeadline=cfg.draft_deadline||null
   const myDraftPicks=myRoster.length
@@ -4595,16 +4591,6 @@ function AppInner(){
               loadData(league?.id);notify(`Draft ${newState?'opened':'closed'}`,newState?T.green:T.red)
             }} color={draftWindowOpen?T.red:T.orange} textColor="#fff" size="sm">{draftWindowOpen?'Close Draft':'Open Draft'}</Btn>
           </div>
-          <div style={{...S.card,marginBottom:'12px'}}>
-            <div style={{...S.label,marginBottom:'8px',color:T.blue}}>Sealed-bid Window</div>
-            <div style={{fontSize:'12px',color:T.textSub,marginBottom:'12px'}}>For high-demand films · highest blind bid wins.</div>
-            <Btn onClick={async()=>{
-              const newState=!sealedWindowOpen
-              const dl=newState?new Date(Date.now()+48*3600000).toISOString():null
-              await updateLeagueConfig({sealed_bid_window_open:newState,sealed_bid_deadline:dl})
-              loadData(league?.id);notify(`Sealed bid ${newState?'opened':'closed'}`,newState?T.green:T.red)
-            }} color={sealedWindowOpen?T.red:T.blue} textColor="#fff" size="sm">{sealedWindowOpen?'Close':'Open'} Bid Window</Btn>
-          </div>
         </>}
 
         {tab==='films'&&<>
@@ -5242,37 +5228,6 @@ function AppInner(){
       })}
     </div>
   )
-
-  // ── SEALED BID PAGE ──────────────────────────────────────────────────────
-  const SealedBidPage=()=>{
-    const[bidFilm,setBidFilm]=useState('')
-    const[bidAmt,setBidAmt]=useState('')
-    const submit=async()=>{
-      if(!bidFilm||!bidAmt)return notify('Select film + amount',T.red)
-      const{error}=await supabase.from('sealed_bids').insert({player_id:profile.id,film_id:bidFilm,bid_amount:Number(bidAmt),league_id:league?.id,phase:ph,status:'pending'})
-      if(error)return notify(error.message,T.red)
-      notify('🔒 Bid sealed',T.blue);setBidFilm('');setBidAmt('')
-    }
-    const upcoming=films.filter(f=>f.phase===ph&&results[f.id]==null)
-    return(
-      <div style={{animation:'fadeUp .2s ease'}}>
-        <div style={S.pageTitle}>🔒 Sealed Bid Window</div>
-        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px'}}>Blind auction · highest bid wins · {sealedWindowDeadline?`closes ${new Date(sealedWindowDeadline).toLocaleString()}`:''}</div>
-        {myPendingBid?<div style={{...S.card,marginBottom:'14px',background:`${T.blue}14`,border:`1px solid ${T.blue}44`}}>
-          <div style={{fontSize:'13px',color:T.blue,marginBottom:'4px'}}>🔒 Your bid is in</div>
-          <div style={{fontSize:'12px',color:T.textSub}}>{films.find(f=>f.id===myPendingBid.film_id)?.title} · ${myPendingBid.bid_amount}M</div>
-        </div>:<div style={{...S.card,marginBottom:'14px'}}>
-          <div style={{...S.label,marginBottom:'10px'}}>Submit a sealed bid</div>
-          <select value={bidFilm} onChange={e=>setBidFilm(e.target.value)} style={{...S.inp,marginBottom:'10px'}}>
-            <option value="">Pick a film…</option>
-            {upcoming.map(f=><option key={f.id} value={f.id}>{f.title}</option>)}
-          </select>
-          <input type="number" value={bidAmt} onChange={e=>setBidAmt(e.target.value)} placeholder="Bid amount in $M" style={{...S.inp,marginBottom:'10px'}}/>
-          <Btn onClick={submit} color={T.blue} textColor="#fff" full>Submit Sealed Bid</Btn>
-        </div>}
-      </div>
-    )
-  }
 
   // ── PROFILE EDIT MODAL ───────────────────────────────────────────────────
   const ProfileEditModal=()=>{
