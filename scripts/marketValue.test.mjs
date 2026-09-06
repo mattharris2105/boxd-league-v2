@@ -20,10 +20,12 @@ eq('IPO est 175', calcIPOprice(175), 104)
 eq('IPO est null', calcIPOprice(null), null)
 eq('IPO est 0', calcIPOprice(0), 7)
 
-// calcOpeningPts — 50/50 forecast-beat + sqrt-damped scale, with a flat -40
-// flop penalty when a film opens below 60% of its estimate.
+// calcOpeningPts — 50/50 forecast-beat + sqrt-damped scale, flat -40 flop
+// penalty below 60% of estimate, and an estimate-scaled cap on the ratio part
+// (~2.7x for a $2M film, 4x for an $18M+ one).
 eq('PTS Spider-Man (2.1x est, $360M)', calcOpeningPts({ estM: 175, rt: null }, 360.09), 324)
-eq('PTS The Invite (3x est, $6M)', calcOpeningPts({ estM: 2, rt: null }, 5.93), 217)
+eq('PTS The Invite ($2M est → cap ~2.7x)', calcOpeningPts({ estM: 2, rt: null }, 5.93), 198)
+eq('PTS Backrooms ($20M est, 4.1x → cap 4x)', calcOpeningPts({ estM: 20, rt: null }, 81), 350)
 eq('PTS no result', calcOpeningPts({ estM: 10, rt: null }, null), 0)
 eq('PTS flop (<60% of est) = -40 flat', calcOpeningPts({ estM: 100, rt: null }, 50), -40)
 eq('PTS soft miss (65% of est) is NOT a flop', calcOpeningPts({ estM: 100, rt: null }, 65), 68)

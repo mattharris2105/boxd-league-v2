@@ -1151,6 +1151,49 @@ function ScoreBreakdownModal({film,holding,results,weeklyGrosses,isEarlyBird,isM
   )
 }
 
+// ── INTERACTIVE SCORE SANDBOX (How to Play) ──────────────────────────────────
+// Plug in numbers, see the points. Uses the real scoring functions.
+function ScoreSandbox(){
+  const[est,setEst]=useState(10)
+  const[open,setOpen]=useState(22)
+  const[d2,setD2]=useState(45)
+  const[d3,setD3]=useState(40)
+  const wk2=Math.max(0,open*(1-d2/100)),wk3=Math.max(0,wk2*(1-d3/100))
+  const r=est>0?open/est:0
+  const flopped=r>0&&r<0.6
+  const opening=est>0?calcOpeningPts({estM:est,rt:null},open):0
+  const legs=flopped?0:Math.round(calcWeeklyPts({2:wk2,3:wk3},open))
+  const total=flopped?-40:opening+legs
+  const Slider=({label,val,set,min,max,step,unit})=>(
+    <div style={{marginBottom:'12px'}}>
+      <div style={{display:'flex',justifyContent:'space-between',fontSize:'11px',color:T.textSub,marginBottom:'4px'}}>
+        <span>{label}</span><span style={{fontFamily:T.mono,color:T.text,fontWeight:700}}>{unit==='$'?`$${val}M`:`${val}${unit}`}</span>
+      </div>
+      <input type="range" min={min} max={max} step={step} value={val} onChange={e=>set(Number(e.target.value))} style={{width:'100%',accentColor:T.gold}}/>
+    </div>
+  )
+  return(
+    <div style={{...S.card,margin:'6px 0 16px',border:`1px solid ${T.gold}44`}}>
+      <div style={{fontSize:'12px',fontWeight:700,color:T.gold,marginBottom:'2px'}}>🎛️ Try it</div>
+      <div style={{fontSize:'11px',color:T.textSub,marginBottom:'12px'}}>Drag the sliders. This runs the exact scoring the game uses.</div>
+      <Slider label="Estimated opening" val={est} set={setEst} min={1} max={200} step={1} unit="$"/>
+      <Slider label="Actual opening" val={open} set={setOpen} min={1} max={400} step={1} unit="$"/>
+      <Slider label="Weekend 2 drop" val={d2} set={setD2} min={5} max={80} step={1} unit="%"/>
+      <Slider label="Weekend 3 drop" val={d3} set={setD3} min={5} max={80} step={1} unit="%"/>
+      <div style={{display:'flex',gap:'10px',marginTop:'10px',flexWrap:'wrap',alignItems:'flex-end'}}>
+        <div><div style={S.label}>Ratio</div><div style={{fontSize:'15px',fontWeight:700,color:r>=1?T.green:T.red,fontFamily:T.mono}}>{r.toFixed(2)}×</div></div>
+        {flopped
+          ?<div><div style={S.label}>Result</div><div style={{fontSize:'15px',fontWeight:700,color:T.red}}>💥 Flop</div></div>
+          :<>
+            <div><div style={S.label}>Opening pts</div><div style={{fontSize:'15px',fontWeight:700,color:T.gold,fontFamily:T.mono}}>+{opening}</div></div>
+            <div><div style={S.label}>Legs pts</div><div style={{fontSize:'15px',fontWeight:700,color:T.blue,fontFamily:T.mono}}>+{legs}</div></div>
+          </>}
+        <div style={{marginLeft:'auto'}}><div style={S.label}>Total</div><div style={{fontSize:'26px',fontWeight:900,color:flopped?T.red:T.gold,fontFamily:T.mono}}>{total}</div></div>
+      </div>
+    </div>
+  )
+}
+
 function ReviewThread({thread,players,onAdd}){
   const[open,setOpen]=useState(false)
   const[txt,setTxt]=useState('')
@@ -3269,16 +3312,17 @@ function AppInner(){
             <br/><br/>
             <Highlight>50% × how much you beat the forecast  +  50% × how big the hit was</Highlight>
             <br/><br/>
-            Both halves matter equally. Beating the forecast still rewards spotting an underrated film — but a genuine blockbuster is no longer a trap, because raw scale now carries the same weight. A $6M film that triples its forecast and a $200M film that opens on target land in the same ballpark.
+            Both halves matter equally. Beating the forecast still rewards spotting an underrated film — but a genuine blockbuster is no longer a trap, because raw scale now carries the same weight. A $6M film that beats its forecast big and a $200M film that opens on target land in the same ballpark.
             <br/><br/>
             <Highlight color={T.red}>💥 Flop penalty:</Highlight> a film that opens <Highlight color={T.red}>below 60% of its estimate</Highlight> scores a flat <Highlight color={T.red}>−40</Highlight> — no legs, no bonuses. Six cheap films means six ways to lose points, not six free lottery tickets.
             <br/><br/>
-            <Highlight>Performance multiplier (actual ÷ estimate, capped at 3×):</Highlight>
-            <br/>• 2.0× at ≥200% of estimate · 1.6× at 150%+ · 1.35× at 130%+ · 1.15× at 110%+
-            <br/>• 1.00× at 95-110% (on target) · 0.85× at 80-95% · 0.65× at 60-80% · then the flop penalty below 60%
+            <Highlight>How far "beating the forecast" can count</Highlight> scales with the film's size, so a lucky multiple on a tiny film can't run away, but a real breakout does show:
+            <br/>• ~$2M estimate → capped at <Highlight>2.7×</Highlight> · ~$8M → 3.2× · <Highlight>$18M+ → 4×</Highlight>
+            <br/>So a $2M film doing $8M (4×) is scored as 2.7×; a $20M film doing $82M (4×) gets the full 4×.
             <br/><br/>
             <Highlight>RT modifier (a bonus, not a driver):</Highlight> ≥90% +15% · 80-89% +10% · 70-79% +5% · 60-69% none · 50-59% −5% · &lt;50% −10%.
           </Section>
+          {!guideSearch.trim()&&<ScoreSandbox/>}
           <Section id="weekly" icon="🦵" color={T.blue} title="Legs" summary="How well the film holds week to week.">
             After opening weekend, you score on how well the film <Highlight>holds</Highlight>. Every weekend has a "typical" drop for a film that age — beat it and you earn points; drop harder and that weekend is worth nothing (a hard fall is already punished by the opening score).
             <br/><br/>
@@ -5649,7 +5693,7 @@ function AppInner(){
         const STEPS=[
           {type:'card',icon:'🎬',title:'Welcome to BOXD',body:'You are about to draft 2026 films like stocks. Their value moves on real box office numbers. The player who reads the market best wins. Takes 60 seconds to learn.'},
           {type:'card',icon:'💰',title:`You have ${cur}${budget}M to invest`,body:`Every film has an IPO price set by its expected opening weekend. You must fill all ${MAX_ROSTER} roster slots and deploy at least ${MIN_SPEND_PCT*100}% of your budget — leaving cash idle or slots empty costs points. Only ${BANK_CAP_PCT*100}% of anything unspent carries to the next phase.`},
-          {type:'card',icon:'📈',title:'How you score',body:'Every film has an estimated opening. When the real number lands, two things earn points, counting equally: how far the film beat that estimate, and how big the opening was in raw dollars. So a small film that triples its forecast and a huge film that opens on target score about the same. Open below 60% of the estimate and it\'s a flat −40. Then "legs" pay out for weeks after: each weekend the film drops LESS than a typical film that age, it earns a bit more.'},
+          {type:'card',icon:'📈',title:'How you score',body:'Every film has an estimated opening. When the real number lands, two things earn points, counting equally: how far the film beat that estimate, and how big the opening was in raw dollars. Open below 60% of the estimate and it\'s a flat −40. Then "legs" pay out for weeks after — each weekend the film drops less than a typical film that age, it earns a bit more. The How to Play page has a slider you can drag to see all of this live.'},
           {type:'card',icon:'⭐',title:'Your marquee pick',body:`Each phase you nominate one roster film as your marquee — your best bet. It scores ×${MARQUEE_MULT}. Set it on the Roster page; it locks once your first film of the phase scores.`},
           {type:'card',icon:'🎯',title:'The whole game in one line',body:'Buy films you think the market is underrating, back one hard as your marquee, deploy your budget, and watch the box office prove you right. Ready to make your first pick?'},
           {type:'action',icon:'🗺️',title:'Take the tour',body:'Let me show you around — a quick walk through each screen so you know where everything is. Takes 30 seconds.'},

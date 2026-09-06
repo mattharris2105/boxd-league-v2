@@ -86,11 +86,11 @@ function priceOf (f, ownersPct, totalPlayers) {
 // Live rules: 50/50 opening blend, flop -40, week-over-week legs. The 4
 // variants differ only in how a runaway overperformance is rewarded.
 const BREAKOUT_R = 2.5, BREAKOUT_FLOOR = 15, BREAKOUT_BONUS = 40
-const scaledCap = (e) => e < 5 ? 2.5 : e < 15 ? 3.25 : 4
+const scaledCap = (e) => Math.max(2.5, Math.min(4, 2.5 + e / 12)) // LIVE — smoothed estimate-scaled cap
 const VARIANTS = {
-  'A · current (ratio cap 3.0x)':      { cap: () => 3, breakout: false },
-  'B · estimate-scaled cap':           { cap: scaledCap, breakout: false },
-  'C · breakout bonus (+40)':          { cap: () => 3, breakout: true },
+  'A · flat cap 3.0x (pre-Oct 2026)':  { cap: () => 3, breakout: false },
+  'B · estimate-scaled cap (LIVE)':    { cap: scaledCap, breakout: false },
+  'C · flat cap + breakout bonus':     { cap: () => 3, breakout: true },
   'D · scaled cap + breakout bonus':   { cap: scaledCap, breakout: true },
 }
 function openPts (f, actual, v) {

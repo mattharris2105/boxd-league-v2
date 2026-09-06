@@ -35,16 +35,24 @@ function perfMult (r) {
 const FLOP_RATIO = 0.6
 const FLOP_PENALTY = -40
 
+// How far over its estimate a film's forecast-beat is allowed to count, scaled
+// to the film's size: a tiny film (est ~$2M) caps at ~2.7x so a lucky multiple
+// can't run away; a real $18M+ release caps at 4x so a genuine breakout
+// (Backrooms-style) actually shows in the score. Continuous, no cliffs.
+function ratioCap (estM) {
+  return Math.max(2.5, Math.min(4, 2.5 + estM / 12))
+}
+
 function calcOpeningPts (film, actualM, isEB = false, isAnalyst = false) {
   if (actualM == null || !film.estM) return 0
   const r = actualM / film.estM
-  // Flop: opened below 60% of estimate — a straight loss, no legs credit, no
-  // chip bonuses. Backing six cheap films now means six ways to lose points.
+  // Flop: opened below 60% of estimate — a straight loss, no legs credit,
+  // no bonuses. Backing six cheap films means six ways to lose points.
   if (r < FLOP_RATIO) return FLOP_PENALTY
   const rt = rtMult(film.rt)
-  // 50% forecast-beat (ratio, capped at 3x so a micro-film can't run away),
-  // 50% raw scale (sqrt-damped so a 180x gross gap is only a ~13x points gap)
-  const ratioPart = 130 * Math.min(3, r) * rt
+  // 50% forecast-beat (ratio, capped by ratioCap so a micro-film can't run
+  // away), 50% raw scale (sqrt-damped so a 180x gross gap is a ~13x points gap)
+  const ratioPart = 130 * Math.min(ratioCap(film.estM), r) * rt
   const scalePart = Math.sqrt(actualM) * 10 * perfMult(r) * rt
   let pts = Math.round(0.5 * ratioPart + 0.5 * scalePart)
   if (isEB && r >= 1.1) pts = Math.round(pts * 1.1)
