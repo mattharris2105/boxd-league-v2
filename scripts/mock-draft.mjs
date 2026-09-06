@@ -83,25 +83,34 @@ function priceOf (f, ownersPct, totalPlayers) {
 }
 
 // ── scoring (archive only) ────────────────────────────────────────────────
-function openPts (f, actual, ratioW) {
+// Live rules: 50/50 opening blend, flop -40, week-over-week legs. The 4
+// variants differ only in how a runaway overperformance is rewarded.
+const BREAKOUT_R = 2.5, BREAKOUT_FLOOR = 15, BREAKOUT_BONUS = 40
+const scaledCap = (e) => e < 5 ? 2.5 : e < 15 ? 3.25 : 4
+const VARIANTS = {
+  'A · current (ratio cap 3.0x)':      { cap: () => 3, breakout: false },
+  'B · estimate-scaled cap':           { cap: scaledCap, breakout: false },
+  'C · breakout bonus (+40)':          { cap: () => 3, breakout: true },
+  'D · scaled cap + breakout bonus':   { cap: scaledCap, breakout: true },
+}
+function openPts (f, actual, v) {
   const r = actual / f.est_m
   const rt = rtMult(f.rt)
-  const ratioPart = 130 * Math.min(3, r) * rt
+  const ratioPart = 130 * Math.min(v.cap(f.est_m), r) * rt
   const scalePart = Math.sqrt(actual) * 10 * perfMult(r) * rt
-  return Math.round(ratioW * ratioPart + (1 - ratioW) * scalePart)
+  let pts = Math.round(RATIO_W_NEW * ratioPart + (1 - RATIO_W_NEW) * scalePart)
+  if (v.breakout && r >= BREAKOUT_R && actual >= BREAKOUT_FLOOR) pts += BREAKOUT_BONUS
+  return pts
 }
-// legsFn lets the two rulesets differ ONLY in how legs are scored.
-function filmPoints (f, { ratioW, flop, legsFn }) {
+function filmPoints (f, v) {
   const actual = resMap[f.id]
   if (actual == null) return 0
-  if (flop && actual / f.est_m < FLOP_R) return FLOP_PTS
-  const wk = wgMap[f.id] || {}
-  return openPts(f, actual, ratioW) + legsFn(wk, actual)
+  if (actual / f.est_m < FLOP_R) return FLOP_PTS
+  return openPts(f, actual, v) + calcWeeklyPts(wgMap[f.id] || {}, actual)
 }
-// CURRENT = what's live now (50/50 opening, flop, cumulative-multiple legs).
-// PROPOSED = same, but legs scored on week-over-week hold vs a standard decay.
-const PTS_CUR = ARCHIVE ? Object.fromEntries(films.map((f) => [f.id, filmPoints(f, { ratioW: RATIO_W_NEW, flop: true, legsFn: calcWeeklyPtsCumulative })])) : {}
-const PTS_NEW = ARCHIVE ? Object.fromEntries(films.map((f) => [f.id, filmPoints(f, { ratioW: RATIO_W_NEW, flop: true, legsFn: calcWeeklyPts })])) : {}
+const PTSMAPS = ARCHIVE
+  ? Object.fromEntries(Object.entries(VARIANTS).map(([k, v]) => [k, Object.fromEntries(films.map((f) => [f.id, filmPoints(f, v)]))]))
+  : {}
 
 // ── agent archetypes ─────────────────────────────────────────────────────
 const rand = (a) => a[Math.floor(Math.random() * a.length)]
@@ -227,36 +236,46 @@ if (!ARCHIVE) {
   process.exit(0)
 }
 
-// ── ARCHIVE mode: current rules vs proposed ──────────────────────────────
+// ── ARCHIVE mode: 4 breakout-reward variants ────────────────────────────
 console.log(`\nARCHIVE BACKTEST · ${N} agents · ${films.length} settled films · budget ${money(BUDGET)} · ${RUNS} runs`)
-console.log(`Both rulesets: 50/50 opening · flop <60% = -40 · min-spend 80% · marquee x1.5.`)
-console.log(`Only difference: legs = post-opening cumulative multiple  (CURRENT)  vs  week-over-week hold vs standard decay  (PROPOSED)\n`)
+console.log(`All variants: 50/50 opening · flop <60% = -40 · week-over-week legs · min-spend 80% · marquee x1.5.`)
+console.log(`They differ only in how a runaway overperformance is rewarded.\n`)
 
-const cur = evaluate('CURRENT (cumulative legs)', { ptsMap: PTS_CUR, minSpend: true, marquee: true })
-const nw = evaluate('PROPOSED (week-over-week legs)', { ptsMap: PTS_NEW, minSpend: true, marquee: true })
+const evals = Object.fromEntries(Object.keys(VARIANTS).map((k) => [k, evaluate(k, { ptsMap: PTSMAPS[k], minSpend: true, marquee: true })]))
 
-for (const e of [cur, nw]) {
-  console.log(`── ${e.label} ${'─'.repeat(46 - e.label.length)}`)
-  console.log(`   avg spend ${money(e.avgSpend)}/${money(BUDGET)} · avg ${e.avgFilled.toFixed(2)}/6 slots · ${(e.fullPct * 100).toFixed(0)}% fill all 6`)
-  const arch = Object.entries(e.byArch).sort((a, b) => b[1].points - a[1].points)
-  for (const [name, a] of arch) {
-    console.log(`   ${name.padEnd(32)} ${money(a.spend).padStart(6)} · ${a.filled.toFixed(1)} films · ${a.points.toFixed(0).padStart(5)} pts   win ${((e.wins[name] || 0) * 100).toFixed(0)}%`)
-  }
-  const pts = arch.map(([, a]) => a.points)
-  console.log(`   spread best/worst archetype: ${(Math.max(...pts) / Math.max(1, Math.min(...pts))).toFixed(1)}x\n`)
-}
-
-// cheap vs dear efficiency under each ruleset
+// price tiers
 const sorted = [...films].sort((a, b) => a.base_price - b.base_price)
 const cut1 = sorted[Math.floor(sorted.length / 3)].base_price
 const cut2 = sorted[Math.floor(sorted.length * 2 / 3)].base_price
-const tier = (ptsMap, lo, hi) => {
+const tierPPP = (m, lo, hi) => {
   const fs = films.filter((f) => f.base_price >= lo && f.base_price < hi)
-  const ppp = fs.map((f) => ptsMap[f.id] / f.base_price)
-  return (ppp.reduce((s, x) => s + x, 0) / (ppp.length || 1))
+  return fs.reduce((s, f) => s + m[f.id] / f.base_price, 0) / (fs.length || 1)
 }
-console.log('POINTS PER $M BY PRICE TIER')
-console.log(`                 cheap(<${money(cut1)})  mid(${money(cut1)}-${money(cut2)})  dear(>${money(cut2)})`)
-console.log(`   CURRENT rules     ${tier(PTS_CUR, 0, cut1).toFixed(1).padStart(5)}        ${tier(PTS_CUR, cut1, cut2).toFixed(1).padStart(5)}        ${tier(PTS_CUR, cut2, Infinity).toFixed(1).padStart(5)}`)
-console.log(`   PROPOSED rules    ${tier(PTS_NEW, 0, cut1).toFixed(1).padStart(5)}        ${tier(PTS_NEW, cut1, cut2).toFixed(1).padStart(5)}        ${tier(PTS_NEW, cut2, Infinity).toFixed(1).padStart(5)}`)
+
+// how a handful of real runaway hits move across the variants
+const WATCH = ['Backrooms', 'Obsession', 'The Invite', 'Buddy', 'Spider-Man: Brand New Day', 'Toy Story 5', 'The Odyssey', 'Scary Movie']
+console.log('RUNAWAY HITS — score under each variant  (r = actual / estimate)')
+console.log('  film'.padEnd(30) + ' base   est   actual   r     A     B     C     D')
+for (const name of WATCH) {
+  const f = films.find((x) => x.title === name)
+  if (!f) continue
+  const a = resMap[f.id], r = a / f.est_m
+  const row = Object.keys(VARIANTS).map((k) => String(PTSMAPS[k][f.id]).padStart(5)).join(' ')
+  console.log(`  ${f.title.slice(0, 28).padEnd(28)} ${money(f.base_price).padStart(5)} ${String(f.est_m).padStart(5)} ${money(a).padStart(7)} ${r.toFixed(1).padStart(4)}x ${row}`)
+}
+
+console.log('\nSTRATEGY SPREAD + WHO WINS')
+for (const [k, e] of Object.entries(evals)) {
+  const arch = Object.entries(e.byArch).sort((x, y) => y[1].points - x[1].points)
+  const top = arch[0], bot = arch[arch.length - 1]
+  const spread = (top[1].points / Math.max(1, bot[1].points)).toFixed(1)
+  const winner = Object.entries(e.wins).sort((x, y) => y[1] - x[1])[0]
+  console.log(`  ${k.padEnd(34)} spread ${spread}x · top ${top[0]} (${top[1].points.toFixed(0)}pts) · wins most: ${winner[0]} ${(winner[1] * 100).toFixed(0)}%`)
+}
+
+console.log('\nPOINTS PER $M BY PRICE TIER')
+console.log(`  ${''.padEnd(34)} cheap(<${money(cut1)})  mid  dear(>${money(cut2)})`)
+for (const k of Object.keys(VARIANTS)) {
+  console.log(`  ${k.padEnd(34)} ${tierPPP(PTSMAPS[k], 0, cut1).toFixed(1).padStart(6)}   ${tierPPP(PTSMAPS[k], cut1, cut2).toFixed(1).padStart(4)}   ${tierPPP(PTSMAPS[k], cut2, Infinity).toFixed(1).padStart(4)}`)
+}
 console.log()
