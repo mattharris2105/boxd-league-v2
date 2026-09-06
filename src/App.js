@@ -2631,7 +2631,7 @@ function AppInner(){
         </div>}
         {leaguePage==='create'&&<div style={{animation:'fadeUp .2s ease'}}>
           <div style={{...S.label,marginBottom:'8px'}}>League Name</div>
-          <input value={newLeagueName} onChange={e=>setNewLeagueName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&createLeague()} placeholder="e.g. The Box Office Boyz" style={{...S.inp,marginBottom:'12px',fontSize:'15px',padding:'14px 16px'}}/>
+          <input value={newLeagueName} onChange={e=>setNewLeagueName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&createLeague()} placeholder="e.g. The Cinephile Curators" style={{...S.inp,marginBottom:'12px',fontSize:'15px',padding:'14px 16px'}}/>
           <Btn onClick={createLeague} color={T.gold} full size="lg">Create League</Btn>
         </div>}
         {leaguePage==='join'&&<div style={{animation:'fadeUp .2s ease'}}>
