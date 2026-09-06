@@ -781,7 +781,7 @@ function InviteLanding({code,onLogin}){
                 <div style={{fontSize:'26px',fontWeight:800,color:T.text,marginBottom:'6px'}}>{lgData.name}</div>
                 <div style={{fontSize:'12px',color:T.textSub,marginBottom:'20px'}}>Pick films · Score pts · Beat your league</div>
                 <div style={{display:'flex',gap:'16px',justifyContent:'center',marginBottom:'20px'}}>
-                  {[['5','Phases'],['6','Films/Phase'],['4','Chips']].map(([n,l])=>(
+                  {[['3','Phases'],['6','Films/Phase'],['1','Marquee/Phase']].map(([n,l])=>(
                     <div key={l} style={{textAlign:'center'}}>
                       <div style={{fontSize:'22px',fontWeight:900,color:T.gold,fontFamily:T.mono}}>{n}</div>
                       <div style={{fontSize:'10px',color:T.textSub,marginTop:'2px'}}>{l}</div>
@@ -918,8 +918,6 @@ function CreateProfile({session,onCreated,notify}){
 function PlayerProfilePage({player,reviews=[],onOpenFilm,films,rosters,results,weeklyG,allChips,oscarPreds,allPicks,calcPoints,calcPhasePoints,budgetLeft,cur,isEarlyBird,analystActive,curPhase_ref,onBack}){
   const[activePhase,setActivePhase]=useState(null)
   const totalPts=calcPoints(player.id)
-  const chip=allChips.find(c=>c.player_id===player.id)
-  const oscar=oscarPreds.find(o=>o.player_id===player.id)
   const pc=player.color||T.gold
   const allHoldings=rosters.filter(r=>r.player_id===player.id&&films.find(f=>f.id===r.film_id))
   const activeNow=allHoldings.filter(r=>r.active)
@@ -1092,17 +1090,14 @@ function PlayerProfilePage({player,reviews=[],onOpenFilm,films,rosters,results,w
 }
 
 // ── SCORE BREAKDOWN MODAL ──────────────────────────────────────────────────────
-function ScoreBreakdownModal({film,holding,results,weeklyGrosses,allChips,isEarlyBird,isMarquee,onClose}){
-  const actual=results[film.id],weeks=weeklyGrosses[film.id]||{},pid=holding.player_id
-  const chip=allChips.find(c=>c.player_id===pid)
-  const analystWin=chip?.analyst_film_id===film.id&&chip?.analyst_result==='win'
+function ScoreBreakdownModal({film,holding,results,weeklyGrosses,isEarlyBird,isMarquee,onClose}){
+  const actual=results[film.id],weeks=weeklyGrosses[film.id]||{}
   const eb=isEarlyBird(holding)
   const gc=GENRE_COL[film.genre]||T.textSub
   const flopped=actual!=null&&isFlop(film,actual)
   const baseOpen=actual!=null&&!flopped?calcOpeningPts(film,actual,false,false):0
   const ebBonus=(!flopped&&eb&&actual!=null&&actual/film.estM>=1.1)?Math.round(baseOpen*0.1):0
-  const analystBon=(!flopped&&analystWin)?60:0
-  const openPts=baseOpen+ebBonus+analystBon
+  const openPts=baseOpen+ebBonus
   const wkPts=flopped?0:Math.round(calcWeeklyPts(weeks,actual))
   const lb=flopped?0:calcLegsBonus(actual,weeks[2])
   const preMarquee=flopped?-40:openPts+wkPts+lb
@@ -1142,7 +1137,6 @@ function ScoreBreakdownModal({film,holding,results,weeklyGrosses,allChips,isEarl
                 :<>
                   <Row label="Base opening pts" value={`+${baseOpen}`} sub={`$${actual}M actual · ${film.estM?(actual/film.estM).toFixed(2)+'×':''} performance · 50% beat-the-forecast + 50% scale`}/>
                   {eb&&ebBonus>0&&<Row label="🐦 Early Bird +10%" value={`+${ebBonus}`} color={T.green} sub="Bought 4+ weeks early and film beat estimate"/>}
-                  {analystWin&&<Row label="🎯 Analyst bonus" value="+60" color={T.blue} sub="Predicted opening within 10%"/>}
                   {wkPts>0&&<Row label="📅 Legs" value={`+${wkPts}`} color={T.blue} sub={`Earned ${(actual?((Object.entries(weeks).filter(([w])=>+w>=2).reduce((s,[,g])=>s+Number(g),0))/actual):0).toFixed(1)}x its opening after debut — 60pts per 1x, capped at 2.5x`}/>}
                   {lb>0&&<Row label="🦵 Strong hold bonus" value="+25" color={T.green} sub="Week-2 drop under 30% — word of mouth is working"/>}
                 </>}
@@ -1688,57 +1682,6 @@ function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEven
   )
 }
 
-function TradeModal({profile,players,rosters,films,filmVal,curPhase,onClose,notify,onDone,league}){
-  const[target,setTarget]=useState('')
-  const[myFilm,setMyFilm]=useState('')
-  const[theirFilm,setTheirFilm]=useState('')
-  const ph=curPhase()
-  const myR=rosters.filter(r=>r.player_id===profile.id&&r.phase===ph&&r.active&&films.find(f=>f.id===r.film_id))
-  const theirR=rosters.filter(r=>r.player_id===target&&r.phase===ph&&r.active&&films.find(f=>f.id===r.film_id))
-  const mf=films.find(f=>f.id===myFilm),tf=films.find(f=>f.id===theirFilm)
-  const propose=async()=>{
-    if(!target||!myFilm||!theirFilm) return notify('Fill all fields',T.red)
-    const{data,error}=await supabase.from('trades').insert({proposer_id:profile.id,receiver_id:target,proposer_film_id:myFilm,receiver_film_id:theirFilm,status:'pending',phase:ph,league_id:league?.id}).select().single()
-    if(error) return notify(error.message,T.red)
-    await logActivity(profile.id,'trade_proposed',{player_name:profile.name,my_film:mf?.title,their_film:tf?.title},league?.id)
-    notify('Trade proposal sent!',T.blue);onDone()
-  }
-  return(
-    <div style={{position:'fixed',inset:0,background:'#000000CC',display:'flex',alignItems:'flex-end',justifyContent:'center',zIndex:700}} onClick={onClose}>
-      <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:'20px 20px 0 0',padding:'24px',width:'100%',maxWidth:'480px',maxHeight:'85vh',overflowY:'auto',paddingBottom:'calc(24px + env(safe-area-inset-bottom))',animation:'slideUp .25s ease'}} onClick={e=>e.stopPropagation()}>
-        <div style={{width:'36px',height:'4px',background:T.border,borderRadius:'2px',margin:'0 auto 20px'}}/>
-        <div style={{fontSize:'20px',fontWeight:700,color:T.blue,marginBottom:'6px'}}>🔄 Propose Trade</div>
-        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'20px'}}>Phase {ph} films only · swaps are instant on acceptance</div>
-        <div style={{marginBottom:'14px'}}><div style={{...S.label,marginBottom:'6px'}}>Trade with</div>
-          <select value={target} onChange={e=>{setTarget(e.target.value);setTheirFilm('')}} style={S.inp}>
-            <option value="">Select player…</option>
-            {players.filter(p=>p.id!==profile.id).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-        </div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px',marginBottom:'16px'}}>
-          <div><div style={{...S.label,marginBottom:'6px'}}>You give</div>
-            <select value={myFilm} onChange={e=>setMyFilm(e.target.value)} style={{...S.inp,fontSize:'12px'}}>
-              <option value="">Your film…</option>
-              {myR.map(r=>{const f=films.find(fl=>fl.id===r.film_id);return f?<option key={f.id} value={f.id}>{f.title}</option>:null})}
-            </select>
-          </div>
-          <div><div style={{...S.label,marginBottom:'6px'}}>You get</div>
-            <select value={theirFilm} onChange={e=>setTheirFilm(e.target.value)} disabled={!target} style={{...S.inp,fontSize:'12px',opacity:target?1:0.4}}>
-              <option value="">Their film…</option>
-              {theirR.map(r=>{const f=films.find(fl=>fl.id===r.film_id);return f?<option key={f.id} value={f.id}>{f.title}</option>:null})}
-            </select>
-          </div>
-        </div>
-        {mf&&tf&&<div style={{background:T.surfaceUp,borderRadius:'12px',padding:'14px',marginBottom:'16px',display:'flex',alignItems:'center',gap:'16px'}}><FilmPoster film={mf} width={44} height={66} radius={6}/><div style={{flex:1,textAlign:'center',color:T.textSub,fontSize:'22px'}}>⇄</div><FilmPoster film={tf} width={44} height={66} radius={6}/></div>}
-        <div style={{display:'flex',gap:'10px'}}>
-          <Btn onClick={onClose} variant="outline" color={T.textSub} sx={{flex:1}} size="lg">Cancel</Btn>
-          <Btn onClick={propose} color={T.blue} textColor="#fff" sx={{flex:2}} size="lg">Send Proposal</Btn>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 
 function ShowtimesModal({film,onClose,onBookingClick,supabaseUrl,anonKey}){
   const[state,setState]=useState('idle')
@@ -1970,12 +1913,10 @@ function AppInner(){
   const[feedItems,setFeedItems]=useState([])
   const[notif,setNotif]=useState(null)
   const[trailerFilm,setTrailerFilm]=useState(null)
-  const[chipModal,setChipModal]=useState(null)
   const[scoreModal,setScoreModal]=useState(null)
   const[filmDetail,setFilmDetail]=useState(null)
   const[profilePlayer,setProfilePlayer]=useState(null)
   const[prevPage,setPrevPage]=useState('league')
-  const[tradeModal,setTradeModal]=useState(false)
   const[addFilm,setAddFilm]=useState(false)
   const[newFilm,setNewFilm]=useState({title:'',dist:'',genre:'Action',franchise:'',basePrice:20,estM:30,rt:'',week:1,phase:1,sleeper:false,starActor:'',trailer:'',affiliateUrl:'',tmdbId:''})
   const[suggestions,setSuggestions]=useState([])
@@ -2124,7 +2065,6 @@ function AppInner(){
     if(!session) return
     const ch=supabase.channel('rt')
       .on('postgres_changes',{event:'INSERT',schema:'public',table:'activity_feed'},()=>loadFeed(league?.id))
-      .on('postgres_changes',{event:'*',schema:'public',table:'trades'},()=>loadTrades(league?.id))
       .on('postgres_changes',{event:'*',schema:'public',table:'film_picks'},()=>loadPicks())
       .subscribe()
     return()=>supabase.removeChannel(ch)
@@ -2350,8 +2290,6 @@ function AppInner(){
       const phaseScores=[...players].map(p=>({p,pts:calcPhasePoints(p.id,completedPhase)})).sort((a,b)=>b.pts-a.pts)
       const phaseWinner=phaseScores[0]
       const mvpHolding=rosters.filter(r=>r.phase===completedPhase&&results[r.film_id]!=null).map(r=>({r,film:films.find(f=>f.id===r.film_id),pts:calcOpeningPts(films.find(f=>f.id===r.film_id)||{},results[r.film_id]||0)})).sort((a,b)=>b.pts-a.pts)[0]
-      const chipWin=allChips.find(c=>c.short_result==='win'||c.analyst_result==='win')
-      const chipWinner=chipWin?players.find(p=>p.id===chipWin.player_id):null
       for(const p of players) await bankBudget(p.id,completedPhase)
       const nextPhase=completedPhase+1
       const ok=await updateLeagueConfig({
@@ -2364,7 +2302,7 @@ function AppInner(){
       if(!ok)throw new Error('Could not write league config — check Data Health')
       await logActivity(session.user.id,'phase_advance',{from_phase:completedPhase,to_phase:nextPhase,league:league?.name},league?.id)
       await sendNotification('phase_advance',{league_id:league?.id,from_phase:completedPhase,to_phase:nextPhase,players:players.map(p=>({id:p.id}))})
-      setPhaseCeremony({phase:completedPhase,scores:phaseScores,winner:phaseWinner,mvp:mvpHolding,chipWinner,chipWin})
+      setPhaseCeremony({phase:completedPhase,scores:phaseScores,winner:phaseWinner,mvp:mvpHolding})
       if(phaseWinner?.pts>0)triggerConfetti()
       loadData(league?.id)
     }catch(e){notify(`Phase transition failed: ${e.message}`,T.red)}
@@ -2403,7 +2341,7 @@ function AppInner(){
     const earliest=qualifying.reduce((a,b)=>(a.acquired_week||a.bought_week||99)<(b.acquired_week||b.bought_week||99)?a:b)
     return earliest.id===h.id
   }
-  const analystOn=(pid,fid)=>{const c=allChips.find(c=>c.player_id===pid);return c?.analyst_film_id===fid&&c?.analyst_result==='win'}
+  const analystOn=()=>false // chips feature removed
   const marqueeFor=(pid,ph)=>marquees.find(m=>m.player_id===pid&&m.phase===ph)?.film_id||null
   // Points a single roster holding scored, flop + marquee applied.
   const holdingPoints=(pid,ph,h)=>{
@@ -2536,53 +2474,8 @@ function AppInner(){
     loadData(league?.id)
   }
 
-  const acceptTrade=async(trade)=>{
-    const myH=rosters.find(r=>r.player_id===trade.receiver_id&&r.film_id===trade.receiver_film_id&&r.active)
-    const theirH=rosters.find(r=>r.player_id===trade.proposer_id&&r.film_id===trade.proposer_film_id&&r.active)
-    if(!myH||!theirH)return notify('One of the films is no longer available',T.red)
-    await supabase.from('rosters').update({active:false,sold_price:0,sold_week:cfg.current_week}).eq('id',myH.id)
-    await supabase.from('rosters').update({active:false,sold_price:0,sold_week:cfg.current_week}).eq('id',theirH.id)
-    await supabase.from('rosters').insert({player_id:trade.receiver_id,film_id:trade.proposer_film_id,bought_price:theirH.bought_price,bought_week:cfg.current_week,acquired_week:theirH.acquired_week,phase:trade.phase,active:true,league_id:league?.id})
-    await supabase.from('rosters').insert({player_id:trade.proposer_id,film_id:trade.receiver_film_id,bought_price:myH.bought_price,bought_week:cfg.current_week,acquired_week:myH.acquired_week,phase:trade.phase,active:true,league_id:league?.id})
-    await supabase.from('trades').update({status:'accepted',resolved_at:new Date().toISOString()}).eq('id',trade.id)
-    await logActivity(profile.id,'trade_accepted',{film_given:films.find(f=>f.id===trade.receiver_film_id)?.title,film_received:films.find(f=>f.id===trade.proposer_film_id)?.title},league?.id)
-    notify('Trade complete — rosters swapped!',T.green);loadData(league?.id)
-  }
-  const rejectTrade=async(trade)=>{await supabase.from('trades').update({status:'rejected',resolved_at:new Date().toISOString()}).eq('id',trade.id);notify('Trade rejected',T.red);loadTrades()}
-  const cancelTrade=async(trade)=>{await supabase.from('trades').update({status:'cancelled',resolved_at:new Date().toISOString()}).eq('id',trade.id);notify('Trade cancelled',T.gold);loadTrades()}
 
-  const activateRecut=async()=>{
-    if(chips?.recut_used)return notify('Recut already used',T.red)
-    if(!await confirmModal('Activate THE RECUT? Your roster clears — zero fees.',{danger:true,confirmLabel:'Activate RECUT'}))return
-    for(const h of rosters.filter(r=>r.player_id===profile.id&&r.active))
-      await supabase.from('rosters').update({active:false,sold_price:filmVal(films.find(f=>f.id===h.film_id)||{})??(films.find(f=>f.id===h.film_id)?.basePrice??0),sold_week:cfg.current_week}).eq('id',h.id)
-    if(chips)await supabase.from('chips').update({recut_used:true}).eq('player_id',profile.id).eq('league_id',league?.id)
-    else await supabase.from('chips').insert({player_id:profile.id,recut_used:true,league_id:league?.id})
-    await logActivity(profile.id,'chip_recut',{player_name:profile.name},league?.id)
-    notify('🎬 RECUT activated',T.purple);triggerConfetti();setChipModal(null);loadData(league?.id)
-  }
-  const resolveChips=async(filmId,actualM)=>{
-    const film=films.find(f=>f.id===filmId);if(!film)return
-    for(const c of allChips){
-      if(c.analyst_film_id===filmId&&!c.analyst_result){const within=c.analyst_prediction&&Math.abs(actualM-c.analyst_prediction)/c.analyst_prediction<=0.1;await supabase.from('chips').update({analyst_result:within?'win':'lose'}).eq('player_id',c.player_id)}
-    }
-  }
-  const activateAnalyst=async(filmId,pred)=>{
-    if(chips?.analyst_film_id)return notify('Analyst already used',T.red)
-    if(allChips.find(c=>c.analyst_film_id===filmId))return notify('Film already Analysed',T.red)
-    if(!rosters.find(r=>r.player_id===profile.id&&r.film_id===filmId&&r.active))return notify('You must own this film',T.red)
-    if(chips)await supabase.from('chips').update({analyst_film_id:filmId,analyst_phase:curPhase(),analyst_prediction:pred}).eq('player_id',profile.id).eq('league_id',league?.id)
-    else await supabase.from('chips').insert({player_id:profile.id,analyst_film_id:filmId,analyst_phase:curPhase(),analyst_prediction:pred,league_id:league?.id})
-    const ft=films.find(f=>f.id===filmId)?.title
-    await logActivity(profile.id,'chip_analyst',{film_title:ft,prediction:pred,player_name:profile.name},league?.id)
-    notify(`🎯 ANALYST on ${ft}`,T.blue);triggerConfetti();setChipModal(null);loadData(league?.id)
-  }
-  const submitOscarPick=async(filmId)=>{
-    if(myOscar)return notify('Already submitted',T.red)
-    await supabase.from('oscar_predictions').insert({player_id:profile.id,best_picture_film_id:filmId,league_id:league?.id})
-    await logActivity(profile.id,'oscar',{film_title:films.find(f=>f.id===filmId)?.title,player_name:profile.name},league?.id)
-    notify(`🏆 Locked — ${films.find(f=>f.id===filmId)?.title}`,T.gold);loadData(league?.id)
-  }
+  const resolveChips=async()=>{} // chips feature removed
   const embedFilmId=(()=>{const q=new URLSearchParams(window.location.search);return q.get('embed')||null})()
   if(embedFilmId)return <EmbedWidget filmId={embedFilmId}/>
 
@@ -2650,12 +2543,8 @@ function AppInner(){
   const phaseFilms=films.filter(f=>f.phase===ph)
   const myRoster=rosters.filter(r=>r.player_id===profile.id&&r.phase===ph&&r.active&&films.find(f=>f.id===r.film_id))
   const myBudget=budgetLeft(profile.id)
-  const pendingForMe=trades.filter(t=>t.receiver_id===profile.id&&t.status==='pending')
   const myPicks=allPicks.filter(p=>p.user_id===profile.id)
   const hasEverBought=rosters.some(r=>r.player_id===profile.id)
-  const recutUsed=chips?.recut_used||false
-  const shortUsed=!!chips?.short_film_id
-  const analystUsed=!!chips?.analyst_film_id
   const sealedWindowOpen=cfg.sealed_bid_window_open||false
   const sealedWindowDeadline=cfg.sealed_bid_deadline||null
   const myPendingBid=sealedBids.find(b=>b.player_id===profile?.id&&b.status==='pending')
@@ -2676,7 +2565,6 @@ function AppInner(){
   const ALL_PAGES=[
     {id:'market',icon:'🎬',label:'Market'},
     {id:'roster',icon:'📁',label:'Roster'},
-    {id:'chips',icon:'⚡',label:'Chips'},
     {id:'league',icon:'🥇',label:'League'},
     {id:'community',icon:'👥',label:'Community'},
     {id:'feed',icon:'📡',label:'Feed'},
@@ -2684,9 +2572,8 @@ function AppInner(){
     ...(polls.length>0?[{id:'polls',icon:'🗳',label:'Polls'}]:[]),
     {id:'intent',icon:'👁️',label:'Watchlist'},
     {id:'reviews',icon:'⭐',label:'Reviews'},
-    {id:'oscar',icon:'🏆',label:'Oscars'},
     {id:'results',icon:'📋',label:'Results'},
-    {id:'archive',icon:'🏛️',label:'Archive'},{id:'howto',icon:'❓',label:'How to Play'},{id:'legal',icon:'📜',label:'Legal'},
+    {id:'archive',icon:'🏛️',label:'Archive'},{id:'howto',icon:'❓',label:'How to Play'},
     ...(hasPicks&&films.length>0?[{id:'slate',icon:'🗺',label:'Slate Map'}]:[]),
     ...(hasResults?[{id:'report',icon:'📰',label:'Match Report'}]:[]),
     ...(hasPicks?[{id:'intelligence',icon:'📡',label:'Intelligence'}]:[]),
@@ -2821,12 +2708,12 @@ function AppInner(){
     const nq=q.trim().toLowerCase()
     const PAGES=[
       {id:'market',icon:'🎬',label:'Market'},{id:'roster',icon:'🎞',label:'My Roster'},
-      {id:'league',icon:'🏆',label:'Standings'},{id:'chips',icon:'⚡',label:'Chips'},
+      {id:'league',icon:'🏆',label:'Standings'},
       {id:'intent',icon:'👁️',label:'Watchlist'},{id:'reviews',icon:'⭐',label:'Reviews'},
-      {id:'oscar',icon:'🏅',label:'Oscars'},{id:'results',icon:'📋',label:'Results'},
+      {id:'results',icon:'📋',label:'Results'},
       {id:'community',icon:'👥',label:'Community'},{id:'feed',icon:'📰',label:'League Feed'},
       {id:'slate',icon:'🗺',label:'Slate Map'},{id:'intelligence',icon:'📡',label:'Intelligence'},
-      {id:'archive',icon:'🏛️',label:'Archive'},{id:'howto',icon:'❓',label:'How to Play'},{id:'legal',icon:'📜',label:'Legal'},
+      {id:'archive',icon:'🏛️',label:'Archive'},{id:'howto',icon:'❓',label:'How to Play'},
       ...(isCommissioner?[{id:'distributor',icon:'📈',label:'Distributor Insights'},{id:'commissioner',icon:'⚙️',label:'Commissioner'},{id:'warroom',icon:'⚡',label:'War Room'}]:[]),
     ]
     const rank=(text)=>{const t=text.toLowerCase();return t.startsWith(nq)?0:t.includes(nq)?1:2}
@@ -3382,13 +3269,6 @@ function AppInner(){
             <br/><br/>
             Once a film has results, it's <Highlight>locked</Highlight> — you can't sell after the fact. The points are yours either way.
           </Section>
-          <Section id="trades" icon="🔄" color={T.blue} title="Trading with other players" summary="Swap films straight up, no money involved.">
-            Propose a trade from the <Highlight>Trades</Highlight> page: pick one of your films, pick one of theirs, send proposal. They accept or reject.
-            <br/><br/>
-            Trades are <Highlight>1-for-1 swaps</Highlight>, no cash. The film carries its original buy price + week into the new owner's roster, so Early Bird tags transfer.
-            <br/><br/>
-            Trades are only available within the <Highlight>same phase</Highlight> — you can't trade Summer films for Awards Season ones.
-          </Section>
         </Group>
 
         <Group title="📊 Scoring — How Points Get Earned">
@@ -3427,40 +3307,15 @@ function AppInner(){
             On top of opening points + legs, you can earn these:
             <br/>• ⭐ <Highlight color={T.gold}>Marquee ×{MARQUEE_MULT}</Highlight> on one roster film's total per phase (see above)
             <br/>• 🐦 <Highlight color={T.green}>Early Bird +10%</Highlight> on opening pts if you bought {EARLY_BIRD_WEEKS}+ weeks before release AND the film beats estimate by 10%+. One Early Bird per phase — earliest qualifying pick gets it.
-            <br/>• 🎯 <Highlight color={T.blue}>Analyst +60pts</Highlight> flat if you used your Analyst chip and your opening prediction was within 10%
           </Section>
           <Section id="reading" icon="🔍" color={T.gold} title="Reading the score breakdown" summary="Tap any of your scored films for the full math.">
-            Open <Highlight>Roster</Highlight>, tap any scored film. The <Highlight>Score Breakdown</Highlight> modal shows every line: base opening, EB bonus, RT effect, legs, hold bonus, all chip bonuses, total.
+            Open <Highlight>Roster</Highlight>, tap any scored film. The <Highlight>Score Breakdown</Highlight> modal shows every line: base opening, Early Bird bonus, RT effect, legs, hold bonus, marquee, total.
             <br/><br/>
-            If a film didn't score what you expected, this is where you find out why. Often it's a chip you forgot to activate, or a film that scored fine on opening but flopped on legs.
-          </Section>
-        </Group>
-
-        <Group title="⚡ Chips — Your 2 One-Time Power Moves">
-          <Section id="recut" icon="🎬" color={T.purple} title="THE RECUT" summary="Nuke your roster, zero fees. Save for catastrophe.">
-            Clears your entire active roster — every film sold at current market value with <Highlight color={T.green}>zero transaction fees</Highlight>.
-            <br/><br/>
-            Use it when your roster is full of films you no longer believe in, or when you want to reset completely before going into a new stretch of releases.
-            <br/><br/>
-            <Highlight color={T.red}>One-time use across the entire season.</Highlight> Don't waste it on a single bad pick.
-          </Section>
-          <Section id="analyst" icon="🎯" color={T.blue} title="ANALYST" summary="Predict opening number. Within 10% = +60pts.">
-            Pick a film you <Highlight>own</Highlight>, then commit to a specific opening number ($M). If the actual opening lands within 10% of your prediction, you get a flat <Highlight color={T.blue}>+60pts bonus</Highlight> on top of normal scoring.
-            <br/><br/>
-            Miss by more than 10%, nothing happens — no penalty, but the chip is spent.
-            <br/><br/>
-            Best used on films you've researched obsessively — sequels with predictable patterns, films with strong pre-sales data.
+            If a film didn't score what you expected, this is where you find out why — usually a soft opening, or a film that opened fine but had no legs.
           </Section>
         </Group>
 
         <Group title="🎮 Side Games & Tools">
-          <Section id="oscar" icon="🏆" color={T.gold} title="Oscar Best Picture pick" summary="One pick all season. Purely for fun.">
-            From the Oscars page, pick one film as your Best Picture prediction. Lock it in once and see how it plays out at season end.
-            <br/><br/>
-            <Highlight>No points awarded</Highlight> — this is a social call. Bragging rights only.
-            <br/><br/>
-            <Highlight>One pick per player, no changes</Highlight>. Choose carefully.
-          </Section>
           <Section id="watchlist" icon="👁" color={T.blue} title="Watchlist" summary="Track films without committing budget.">
             Hit the 👁 button on any film to add it to your watchlist. Other players see your watchlist count, which contributes to that film's <Highlight color={T.red}>Heat</Highlight> driver.
             <br/><br/>
@@ -3511,7 +3366,7 @@ function AppInner(){
             The Commissioner Panel has 5 tabs: Phase, Windows, Films, Bulk Import, Advanced.
           </Section>
           <Section id="warroom" icon="⚡" color={T.red} title="War Room — manual results entry" summary="Batch-enter weekend numbers.">
-            If the auto-ingest doesn't pull a film (indies often miss), War Room lets you paste in 3 weeks of grosses at once per film. Saves all at once, recalculates film_values, resolves any open Short/Analyst chips.
+            If the auto-ingest doesn't pull a film (indies often miss), War Room lets you paste in 3 weeks of grosses at once per film. Saves all at once and recalculates film values.
           </Section>
           <Section id="slate-import" icon="📋" color={T.gold} title="Slate Manager — bulk film & gross import" summary="One CSV imports everything.">
             The Bulk Import tab takes <Highlight>one wide-format CSV</Highlight> with all your film metadata AND weekly grosses across columns. See the Export → Edit → Import flow described on the page itself.
@@ -3522,13 +3377,13 @@ function AppInner(){
             When you click <Highlight>Advance Phase</Highlight>:
             <br/>• All players' unspent phase budget gets banked into the next phase
             <br/>• Phase scoring is locked (films already resulted keep their points)
-            <br/>• A phase ceremony pops showing the winner, MVP film, and chip wins
+            <br/>• A phase ceremony pops showing the winner and the MVP film
             <br/>• The new phase starts with closed free-trade window — open it manually when ready
           </Section>
         </Group>
 
         <div style={{marginTop:'24px',padding:'14px 16px',background:T.surfaceUp,borderRadius:'10px',fontSize:'12px',color:T.textSub,lineHeight:1.6}}>
-          💡 <strong style={{color:T.gold}}>Lost?</strong> Tap into the Feed page to see what other players are doing. The chip activations, trades, and forecasts all flow through there — it's the easiest way to learn by watching.
+          💡 <strong style={{color:T.gold}}>Lost?</strong> Tap into the Feed page to see what other players are doing — every buy, sell and forecast flows through there. It's the easiest way to learn by watching.
         </div>
       </div>
     )
@@ -3608,13 +3463,7 @@ function AppInner(){
           const pay=item.payload||{}
           if(item.type==='buy'){label=`bought ${pay.film_title} for $${pay.price}M`;col=T.gold}
           else if(item.type==='sell'){label=`dropped ${pay.film_title} for $${pay.proceeds}M`;col=T.red}
-          else if(item.type==='trade_proposed'){label=`proposed trade: ${pay.my_film} ⇄ ${pay.their_film}`;col=T.blue}
-          else if(item.type==='trade_accepted'){label=`traded ${pay.film_given} for ${pay.film_received}`;col=T.green}
-          else if(item.type==='chip_recut'){label='activated 🎬 THE RECUT';col=T.purple}
-          else if(item.type==='chip_short'){label=`📉 shorted ${pay.film_title}`;col=T.red}
-          else if(item.type==='chip_analyst'){label=`🎯 Analyst on ${pay.film_title} · $${pay.prediction}M`;col=T.blue}
           else if(item.type==='auteur'){label=`🎭 declared Auteur: ${pay.actor} (${pay.film_count} films)`;col=T.orange}
-          else if(item.type==='oscar'){label=`🏆 Oscar pick: ${pay.film_title}`;col=T.gold}
           else if(item.type==='forecast'){label=`📊 forecast ${pay.film_title} at $${pay.predicted_m}M`;col=T.blue}
           else if(item.type==='phase_advance'){label=`⚡ advanced to Phase ${pay.to_phase}`;col=T.gold}
           else label=item.type
@@ -3671,104 +3520,6 @@ function AppInner(){
     )
   }
 
-
-  // ── CHIPS PAGE ───────────────────────────────────────────────────────────
-  const ChipsPage=()=>{
-    const ChipCard=({icon,name,desc,used,color,onClick,status})=>(
-      <div style={{...S.card,marginBottom:'10px',border:`1px solid ${used?T.border:color+'66'}`,opacity:used?0.5:1}}>
-        <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
-          <div style={{width:'52px',height:'52px',borderRadius:'12px',background:`${color}22`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'24px',flexShrink:0}}>{icon}</div>
-          <div style={{flex:1}}>
-            <div style={{fontSize:'15px',fontWeight:700,color:used?T.textSub:color}}>{name} {used&&<span style={{color:T.textDim,fontSize:'11px',marginLeft:'4px'}}>USED</span>}</div>
-            <div style={{fontSize:'12px',color:T.textSub,marginTop:'2px',lineHeight:1.4}}>{desc}</div>
-            {status&&<div style={{fontSize:'11px',color,marginTop:'4px',fontWeight:600}}>{status}</div>}
-          </div>
-          {!used&&onClick&&<Btn onClick={onClick} color={color} textColor="#fff" size="sm">Use</Btn>}
-        </div>
-      </div>
-    )
-    const analystStatus=chips?.analyst_film_id?(()=>{const f=films.find(fl=>fl.id===chips.analyst_film_id);return `🎯 ${f?.title||'?'} · ${chips.analyst_result||'pending'}`})():null
-    return(
-      <div style={{animation:'fadeUp .2s ease'}}>
-        <div style={S.pageTitle}>Your Chips</div>
-        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Each chip is one-time use across the whole season.</div>
-        <ChipCard icon="🎬" name="THE RECUT" color={T.purple} used={recutUsed} onClick={activateRecut} desc="Clear your entire roster with zero transaction fees. Use it when things go wrong — no fees, clean slate."/>
-        <ChipCard icon="🎯" name="ANALYST" color={T.blue} used={analystUsed} status={analystStatus} onClick={()=>setChipModal('analyst')} desc="Pick a film you own and commit to a specific opening number ($M). Within 10% of actual = +60pts on top of normal scoring."/>
-      </div>
-    )
-  }
-
-  // ── TRADES PAGE ──────────────────────────────────────────────────────────
-  const TradesPage=()=>{
-    const myProposed=trades.filter(t=>t.proposer_id===profile.id)
-    return(
-      <div style={{animation:'fadeUp .2s ease'}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'14px'}}>
-          <div style={S.pageTitle}>Trades</div>
-          <Btn onClick={()=>setTradeModal(true)} color={T.blue} textColor="#fff" size="sm">+ Propose</Btn>
-        </div>
-        {pendingForMe.length>0&&<><div style={{...S.label,marginBottom:'10px',color:T.gold}}>Pending for you ({pendingForMe.length})</div>{pendingForMe.map(t=>{
-          const proposer=players.find(p=>p.id===t.proposer_id)
-          const myFilm=films.find(f=>f.id===t.receiver_film_id)
-          const theirFilm=films.find(f=>f.id===t.proposer_film_id)
-          return(
-            <div key={t.id} style={{...S.card,marginBottom:'10px',border:`1px solid ${T.gold}44`}}>
-              <div style={{fontSize:'13px',color:T.textSub,marginBottom:'10px'}}><span style={{color:proposer?.color||T.gold,fontWeight:700}}>{proposer?.name}</span> wants to trade</div>
-              <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'12px'}}>
-                <div style={{textAlign:'center',flex:1}}>{theirFilm&&<><FilmPoster film={theirFilm} width={48} height={72} radius={6}/><div style={{fontSize:'10px',marginTop:'5px',color:T.green}}>YOU GET</div></>}</div>
-                <div style={{fontSize:'22px',color:T.textSub}}>⇄</div>
-                <div style={{textAlign:'center',flex:1}}>{myFilm&&<><FilmPoster film={myFilm} width={48} height={72} radius={6}/><div style={{fontSize:'10px',marginTop:'5px',color:T.red}}>YOU GIVE</div></>}</div>
-              </div>
-              <div style={{display:'flex',gap:'8px'}}>
-                <Btn onClick={()=>acceptTrade(t)} color={T.green} textColor="#0D0A08" sx={{flex:1}}>Accept</Btn>
-                <Btn onClick={()=>rejectTrade(t)} variant="outline" color={T.red} sx={{flex:1}}>Reject</Btn>
-              </div>
-            </div>
-          )
-        })}<Divider/></>}
-        {myProposed.length>0&&<><div style={{...S.label,marginBottom:'10px'}}>Your proposals</div>{myProposed.map(t=>{
-          const receiver=players.find(p=>p.id===t.receiver_id)
-          const myFilm=films.find(f=>f.id===t.proposer_film_id)
-          const theirFilm=films.find(f=>f.id===t.receiver_film_id)
-          const statusCol={pending:T.gold,accepted:T.green,rejected:T.red,cancelled:T.textSub}[t.status]
-          return(
-            <div key={t.id} style={{...S.card,marginBottom:'10px'}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}}>
-                <div style={{fontSize:'13px',color:T.textSub}}>To <span style={{color:receiver?.color||T.gold,fontWeight:700}}>{receiver?.name}</span></div>
-                <Pill color={statusCol}>{t.status}</Pill>
-              </div>
-              <div style={{fontSize:'12px',color:T.textSub}}>You offered <strong>{myFilm?.title}</strong> for <strong>{theirFilm?.title}</strong></div>
-              {t.status==='pending'&&<Btn onClick={()=>cancelTrade(t)} variant="outline" color={T.red} size="sm" sx={{marginTop:'10px'}}>Cancel</Btn>}
-            </div>
-          )
-        })}</>}
-        {pendingForMe.length===0&&myProposed.length===0&&<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No active trades.</div>}
-      </div>
-    )
-  }
-
-  // ── OSCAR PAGE ───────────────────────────────────────────────────────────
-  const OscarPage=()=>{
-    const eligible=films.filter(f=>['Drama','Awards','Animation'].includes(f.genre)||f.phase>=3)
-    return(
-      <div style={{animation:'fadeUp .2s ease'}}>
-        <div style={S.pageTitle}>🏆 Oscar Pick</div>
-        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Pick the eventual Best Picture winner. Purely for bragging rights — no points impact.</div>
-        {myOscar?(()=>{const pick=films.find(f=>f.id===myOscar.best_picture_film_id);return(
-          <div style={{...S.card,padding:'24px',textAlign:'center',background:`linear-gradient(135deg,${T.gold}14,${T.surface})`,border:`1px solid ${T.gold}66`}}>
-            {pick&&<><FilmPoster film={pick} width={120} height={180} radius={10}/><div style={{fontSize:'18px',fontWeight:700,marginTop:'12px',marginBottom:'4px'}}>{pick.title}</div><div style={{fontSize:'12px',color:T.textSub,marginBottom:'10px'}}>{pick.dist}</div></>}
-            <Pill color={myOscar.correct==null?T.gold:myOscar.correct?T.green:T.red}>{myOscar.correct==null?'Locked ✓':myOscar.correct?'✓ Correct':'✗ Wrong'}</Pill>
-          </div>
-        )})():<>{eligible.map(f=>(
-          <div key={f.id} className="hoverable" onClick={async()=>{if(await confirmModal(`Lock in ${f.title} as your Best Picture pick? You can't change it later.`))submitOscarPick(f.id)}} style={{...S.card,marginBottom:'8px',cursor:'pointer',display:'flex',gap:'12px',alignItems:'center'}}>
-            <FilmPoster film={f} width={42} height={63} radius={6}/>
-            <div style={{flex:1}}><div style={{fontSize:'13px',fontWeight:600}}>{f.title}</div><div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>{f.dist} · {f.genre}{f.rt!=null?` · RT ${f.rt}%`:''}</div></div>
-            <div style={{color:T.gold,fontSize:'18px'}}>›</div>
-          </div>
-        ))}</>}
-      </div>
-    )
-  }
 
   // ── RESULTS PAGE ─────────────────────────────────────────────────────────
   const ArchivePage=()=>{
@@ -5610,6 +5361,7 @@ function AppInner(){
             <Btn onClick={()=>setProfileEditOpen(false)} variant="outline" color={T.textSub} sx={{flex:1}}>Cancel</Btn>
             <Btn onClick={save} color={T.gold} sx={{flex:2}}>Save</Btn>
           </div>
+          <button onClick={()=>{setProfileEditOpen(false);navigate('legal')}} style={{background:'none',border:'none',color:T.textDim,cursor:'pointer',fontFamily:T.mono,fontSize:'11px',width:'100%',marginTop:'14px',padding:'6px'}}>Privacy &amp; Terms</button>
         </div>
       </div>
     )
@@ -5662,12 +5414,6 @@ function AppInner(){
       let label='',col=T.textSub,icon='•'
       if(item.type==='buy'){label=`bought ${pay.film_title}`;col=T.gold;icon='🟢'}
       else if(item.type==='sell'){label=`dropped ${pay.film_title}`;col=T.red;icon='🔴'}
-      else if(item.type==='trade_proposed'){label=`proposed a trade`;col=T.blue;icon='🔄'}
-      else if(item.type==='trade_accepted'){label=`traded ${pay.film_given} → ${pay.film_received}`;col=T.green;icon='🤝'}
-      else if(item.type==='chip_recut'){label='used THE RECUT';col=T.purple;icon='🎬'}
-      else if(item.type==='chip_short'){label=`shorted ${pay.film_title}`;col=T.red;icon='📉'}
-      else if(item.type==='chip_analyst'){label=`Analyst: ${pay.film_title}`;col=T.blue;icon='🎯'}
-      else if(item.type==='oscar'){label=`Oscar pick: ${pay.film_title}`;col=T.gold;icon='🏆'}
       else if(item.type==='forecast'){label=`forecast ${pay.film_title}`;col=T.blue;icon='📊'}
       else if(item.type==='screening'){label=`hosting ${pay.film_title||'a screening'}`;col=T.orange;icon='🎟️'}
       else if(item.type==='phase_advance'){label=`Phase ${pay.to_phase} opened`;col=T.gold;icon='⚡'}
@@ -5707,7 +5453,6 @@ function AppInner(){
     switch(page){
       case 'market':return <MarketPage/>
       case 'roster':return <RosterPage/>
-      case 'chips':return <ChipsPage/>
       case 'league':return <LeaguePage/>
       case 'community':return <CommunityPage/>
       case 'feed':return <FeedPage/>
@@ -5716,7 +5461,6 @@ function AppInner(){
       case 'polls':return <PollsPage/>
       case 'intent':return <IntentPage/>
       case 'reviews':return <ReviewsPage/>
-      case 'oscar':return <OscarPage/>
       case 'results':return <ResultsPage/>
       case 'howto':return <HowToPlayPage/>
       case 'legal':return <LegalPage/>
@@ -5780,14 +5524,11 @@ function AppInner(){
           </div>
           <div style={{padding:'0 12px'}}>
             {[
-              {id:'chips',icon:'⚡',label:'Chips'},
               {id:'intent',icon:'👁️',label:'Watchlist'},
               {id:'reviews',icon:'⭐',label:'Reviews'},
-              {id:'oscar',icon:'🏆',label:'Oscars'},
               {id:'results',icon:'📋',label:'Results'},
               {id:'archive',icon:'🏛️',label:'Archive'},
               {id:'howto',icon:'❓',label:'How to Play'},
-              {id:'legal',icon:'📜',label:'Legal'},
               ...(hasPicks&&films.length>0?[{id:'slate',icon:'🗺',label:'Slate Map'}]:[]),
               ...(hasResults?[{id:'report',icon:'📰',label:'Match Report'}]:[]),
               ...(hasPicks?[{id:'intelligence',icon:'📡',label:'Intelligence'}]:[]),
@@ -5931,7 +5672,7 @@ function AppInner(){
 
       {filmDetail&&<FilmDetailModal film={filmDetail} profile={profile} players={players} results={results} allPicks={allPicks} marketingEvents={marketingEvents} news={news} rosters={rosters} filmValues={filmValues} weeklyG={weeklyG} reviews={reviews} reviewComments={reviewComments} onAddReviewComment={addReviewComment} bookingClicks={bookingClicks} onSaveReview={saveReview} onDeleteReview={deleteReview} currentWeek={cfg.current_week} phase={ph} onTogglePick={togglePick} onBookingClick={trackBookingClick} onShowtimes={(f)=>{setShowtimesFilm(f);setFilmDetail(null)}} onClose={()=>setFilmDetail(null)} league={league} isAdmin={isAdmin} onBuy={buyFilm} onSell={sellFilm} onLiveVal={filmVal}/>}
       {showtimesFilm&&<ShowtimesModal film={showtimesFilm} onClose={()=>setShowtimesFilm(null)} onBookingClick={trackBookingClick} supabaseUrl={SUPABASE_URL} anonKey={SUPABASE_ANON_KEY}/>}
-      {scoreModal&&<ScoreBreakdownModal film={scoreModal.film} holding={scoreModal.holding} results={results} weeklyGrosses={weeklyG} allChips={allChips} isEarlyBird={isEarlyBird} isMarquee={marqueeFor(scoreModal.holding.player_id,scoreModal.holding.phase)===scoreModal.film.id} onClose={()=>setScoreModal(null)}/>}
+      {scoreModal&&<ScoreBreakdownModal film={scoreModal.film} holding={scoreModal.holding} results={results} weeklyGrosses={weeklyG} isEarlyBird={isEarlyBird} isMarquee={marqueeFor(scoreModal.holding.player_id,scoreModal.holding.phase)===scoreModal.film.id} onClose={()=>setScoreModal(null)}/>}
       {profileEditOpen&&<ProfileEditModal/>}
       {confirmState&&(
         <div style={{position:'fixed',inset:0,background:'#000000DD',zIndex:1100,display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}} onClick={()=>{confirmState.resolve(false);setConfirmState(null)}}>
@@ -6016,27 +5757,6 @@ function AppInner(){
         )
       })()}
       {newSignalOpen&&<NewSignalModal/>}
-
-      {/* ANALYST CHIP MODAL */}
-      {chipModal==='analyst'&&(
-        <div style={{position:'fixed',inset:0,background:'#000000CC',display:'flex',alignItems:'center',justifyContent:'center',zIndex:700,padding:'20px'}} onClick={()=>setChipModal(null)}>
-          <div style={{background:T.surface,border:`1px solid ${T.blue}44`,borderRadius:'16px',padding:'24px',width:'100%',maxWidth:'400px',maxHeight:'80vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
-            <div style={{fontSize:'18px',fontWeight:700,color:T.blue,marginBottom:'6px'}}>🎯 ANALYST</div>
-            <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>Pick a film you own + predict its opening weekend. Within 10% of actual = +60pts.</div>
-            {myRoster.map(h=>{
-              const f=films.find(fl=>fl.id===h.film_id);if(!f)return null
-              return(
-                <div key={h.id} onClick={()=>{const pred=prompt(`Predict opening for ${f.title} ($M)`);if(pred&&!isNaN(Number(pred)))activateAnalyst(f.id,Number(pred))}} className="hoverable" style={{...S.card,marginBottom:'6px',cursor:'pointer',display:'flex',gap:'10px',alignItems:'center'}}>
-                  <FilmPoster film={f} width={36} height={54} radius={5}/>
-                  <div style={{flex:1}}><div style={{fontSize:'12px',fontWeight:600}}>{f.title}</div><div style={{fontSize:'10px',color:T.textSub}}>{f.estM?`est $${f.estM}M`:'—'}</div></div>
-                  <div style={{color:T.blue,fontSize:'16px'}}>›</div>
-                </div>
-              )
-            })}
-            <Btn onClick={()=>setChipModal(null)} variant="outline" color={T.textSub} full sx={{marginTop:'10px'}}>Cancel</Btn>
-          </div>
-        </div>
-      )}
 
       {/* ADD FILM MODAL */}
       {addFilm&&(
