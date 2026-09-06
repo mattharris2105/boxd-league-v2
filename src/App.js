@@ -5665,7 +5665,10 @@ function AppInner(){
                 <div style={{fontSize:'10px',color:T.textDim}}>Edit profile</div>
               </div>
             </div>
-            <button onClick={leaveLeague} style={{background:'none',border:'none',color:T.textDim,cursor:'pointer',fontFamily:T.mono,fontSize:'11px',marginTop:'10px'}}>Leave league</button>
+            <div style={{display:'flex',gap:'14px',marginTop:'10px'}}>
+              <button onClick={()=>{setLeague(null);loadLeagues()}} style={{background:'none',border:'none',color:T.textSub,cursor:'pointer',fontFamily:T.mono,fontSize:'11px',padding:0}}>Switch / join league</button>
+              <button onClick={leaveLeague} style={{background:'none',border:'none',color:T.textDim,cursor:'pointer',fontFamily:T.mono,fontSize:'11px',padding:0}}>Leave league</button>
+            </div>
           </div>
         </div>
       )}
@@ -5763,7 +5766,8 @@ function AppInner(){
                 </button>
               ))}
             </div>
-            <Btn onClick={()=>{setProfileEditOpen(true);setMoreOpen(false)}} variant="outline" color={T.textSub} full sx={{marginTop:'16px'}}>Edit Profile</Btn>
+            <Btn onClick={()=>{setLeague(null);loadLeagues();setMoreOpen(false)}} variant="outline" color={T.gold} full sx={{marginTop:'16px'}}>Switch / join another league</Btn>
+            <Btn onClick={()=>{setProfileEditOpen(true);setMoreOpen(false)}} variant="outline" color={T.textSub} full sx={{marginTop:'10px'}}>Edit Profile</Btn>
             <button onClick={leaveLeague} style={{background:'none',border:'none',color:T.textDim,cursor:'pointer',fontFamily:T.mono,fontSize:'11px',width:'100%',marginTop:'10px',padding:'8px'}}>Leave league</button>
           </div>
         </div>
