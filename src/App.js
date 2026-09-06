@@ -519,9 +519,14 @@ async function logActivity(uid,type,payload,leagueId){
 
 async function sendNotification(type,payload){
   try{
+    // Must send the logged-in user's token — the function rejects anon-key
+    // calls and checks the caller is the league commissioner.
+    const{data:{session}}=await supabase.auth.getSession()
+    const token=session?.access_token
+    if(!token)return
     await fetch(`${SUPABASE_URL}/functions/v1/send-notification`,{
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':`Bearer ${SUPABASE_ANON_KEY}`},
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
       body:JSON.stringify({type,payload})
     })
   }catch{}
@@ -763,7 +768,8 @@ function InviteLanding({code,onLogin}){
   const[lgData,setLgData]=useState(null)
   const[loading,setLoading]=useState(true)
   useEffect(()=>{
-    supabase.from('leagues').select('*').eq('invite_code',code).maybeSingle().then(({data})=>{setLgData(data);setLoading(false)})
+    // invite codes aren't directly selectable any more — preview via RPC
+    supabase.rpc('boxd_league_preview',{p_code:code}).then(({data})=>{setLgData(Array.isArray(data)?data[0]:data);setLoading(false)})
   },[code])
   return(
     <div style={{minHeight:'100vh',background:T.bg,color:T.text,fontFamily:T.mono,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'24px'}}>
@@ -999,7 +1005,7 @@ function PlayerProfilePage({player,reviews=[],onOpenFilm,films,rosters,results,w
                   <div><div style={{fontSize:'9px',color:T.textDim,letterSpacing:'1px'}}>MOST EXCITED FOR</div><div style={{fontSize:'11px',fontWeight:700,color:T.gold}}>{ff.title}</div></div>
                 </div>
               )})()}
-              {player.letterboxd_url&&<a href={player.letterboxd_url} target="_blank" rel="noopener noreferrer" style={{fontSize:'11px',color:T.green,textDecoration:'none',fontWeight:700,background:T.surfaceUp,borderRadius:'10px',padding:'10px 12px'}}>📗 Letterboxd ↗</a>}
+              {/^https:\/\/(www\.)?letterboxd\.com\//.test(player.letterboxd_url||'')&&<a href={player.letterboxd_url} target="_blank" rel="noopener noreferrer" style={{fontSize:'11px',color:T.green,textDecoration:'none',fontWeight:700,background:T.surfaceUp,borderRadius:'10px',padding:'10px 12px'}}>📗 Letterboxd ↗</a>}
             </div>
           </div>
         )}
@@ -2245,11 +2251,11 @@ function AppInner(){
   const joinLeague=async()=>{
     const code=inviteCode.trim().toUpperCase()
     if(!code) return notify('Enter an invite code',T.red)
-    const{data:lg,error}=await supabase.from('leagues').select('*').eq('invite_code',code).maybeSingle()
-    if(error||!lg) return notify('Invalid invite code',T.red)
-    const{error:e2}=await supabase.from('league_members').insert({league_id:lg.id,user_id:session.user.id,role:'player'})
-    if(e2&&!e2.message?.includes('duplicate')) return notify(e2.message,T.red)
-    notify(`Joined ${lg.name}!`,T.green);setInviteCode('');loadLeagues();enterLeague(lg)
+    // join via RPC — invite codes are no longer directly queryable
+    const{data:lgId,error}=await supabase.rpc('boxd_join_league',{p_code:code})
+    if(error||!lgId) return notify(error?.message||'Invalid invite code',T.red)
+    const{data:lg}=await supabase.from('leagues').select('*').eq('id',lgId).maybeSingle()
+    notify(`Joined ${lg?.name||'league'}!`,T.green);setInviteCode('');loadLeagues();if(lg)enterLeague(lg)
   }
   const loadPublicLeagues=async()=>{
     const{data}=await supabase.from('leagues').select('*').eq('is_public',true).order('member_count',{ascending:false}).limit(30)
@@ -5394,7 +5400,11 @@ function AppInner(){
       setNewPw('');notify('✓ Password set — you can now log in with email + password',T.green)
     }
     const save=async()=>{
-      await supabase.from('profiles').update({name:name.trim(),bio:bio.trim(),color:col,avatar_url:avatarUrl.trim()||null,favourite_film_id:favFilm||null,letterboxd_url:letterboxd.trim()||null}).eq('id',profile.id)
+      const lb=letterboxd.trim()
+      if(lb&&!/^https:\/\/(www\.)?letterboxd\.com\/[A-Za-z0-9_-]+\/?$/.test(lb))return notify('Letterboxd link must look like https://letterboxd.com/yourname',T.red)
+      const av=avatarUrl.trim()
+      if(av&&!/^https:\/\//i.test(av))return notify('Photo URL must start with https://',T.red)
+      await supabase.from('profiles').update({name:name.trim(),bio:bio.trim(),color:col,avatar_url:av||null,favourite_film_id:favFilm||null,letterboxd_url:lb||null}).eq('id',profile.id)
       loadProfile();notify('Profile updated',T.green);setProfileEditOpen(false)
     }
     return(

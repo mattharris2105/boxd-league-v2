@@ -19,10 +19,20 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+// Shared secret required in the X-Cron-Secret header. Set it with:
+//   supabase secrets set CRON_SECRET=$(openssl rand -hex 24)
+// and add "X-Cron-Secret":"<value>" to the pg_cron http_post headers.
+// NOTE: this function is superseded by the GitHub Actions ingest pipeline.
+// If you're not actively using it, undeploy it instead:
+//   supabase functions delete scheduled-ingest
+const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? ''
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
-serve(async () => {
+serve(async (req) => {
   const headers = { 'Content-Type': 'application/json' }
+  if (!CRON_SECRET || req.headers.get('x-cron-secret') !== CRON_SECRET) {
+    return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403, headers })
+  }
   const log: string[] = []
 
   try {
