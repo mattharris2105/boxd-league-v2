@@ -7,10 +7,28 @@ to do in the Supabase dashboard before sharing the app with anyone.
 
 Do these in sequence. Test the app after each.
 
-### 1. Run the RLS migration
+### 1. Run BOTH RLS migrations, in order
 
-`supabase/migrations/20260907_security_rls.sql` — paste the whole file into the
-Supabase **SQL editor** and run it once.
+The database already had RLS "enabled" on most tables, but every table also
+carried a pre-existing `{public}`-role policy that allowed **anyone, including
+logged-out visitors**, to read (and usually write). Two files fix it:
+
+1. `supabase/migrations/20260907_security_rls.sql` — adds scoped policies +
+   the join RPCs + the member-count trigger.
+2. `supabase/migrations/20260907b_lockdown_public_policies.sql` — **drops every
+   `{public}` policy** so the scoped ones are the only thing left, enables RLS
+   on the two tables that had it off (`showtimes_cache`, `sabotages`), and adds
+   a "logged-in only" fallback to secondary tables.
+
+Paste each into the Supabase **SQL editor** and run. Then run the check below
+and confirm it returns **zero rows**:
+
+```sql
+select tablename, policyname, roles::text, cmd
+from pg_policies
+where schemaname = 'public'
+  and (roles::text like '%anon%' or roles::text = '{public}');
+```
 
 - It puts row-level security on every table: logged-out requests get nothing,
   players can only write their own rows, shared game state (results, films,
