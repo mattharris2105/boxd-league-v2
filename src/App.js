@@ -4644,14 +4644,9 @@ function AppInner(){
     const tab=commishTab,setTab=setCommishTab
     const TabBtn=({id,label})=><button onClick={()=>setTab(id)} style={{...S.btn,background:'none',border:'none',padding:'8px 14px',fontSize:'12px',fontWeight:tab===id?700:400,color:tab===id?T.gold:T.textSub,borderBottom:`2px solid ${tab===id?T.gold:'transparent'}`,borderRadius:0,textTransform:'none',letterSpacing:0}}>{label}</button>
     const runIngest=async()=>{
-      if(!await confirmModal('Run box office ingest now?'))return
-      try{
-        const res=await fetch(`${SUPABASE_URL}/functions/v1/ingest-results`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${SUPABASE_ANON_KEY}`}})
-        const data=await res.json()
-        setIngestLog(data)
-        notify(`✓ Ingested ${data.matched||0} films`,T.green)
-        loadData(league?.id)
-      }catch(e){notify(`Ingest failed: ${e.message}`,T.red)}
+      // The old in-app ingest edge function is gone. Box office now ingests
+      // via the "Weekly box-office ingest" GitHub Action.
+      await confirmModal('Box office ingests automatically every Monday. To run it now, open the repo Actions tab and trigger "Weekly box-office ingest" manually. Results appear here once it finishes.',{confirmLabel:'Got it'})
     }
     return(
       <div style={{animation:'fadeUp .2s ease'}}>
@@ -4715,8 +4710,8 @@ function AppInner(){
           {/* Ingest */}
           <div style={{...S.card,marginBottom:'12px',border:`1px solid ${T.green}33`}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}}>
-              <div><div style={{fontSize:'14px',fontWeight:700,color:T.green}}>📊 Box Office Ingest</div><div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>Pulls from The Numbers · runs auto Monday 23:00 UTC</div></div>
-              <Btn onClick={runIngest} color={T.green} textColor="#0D0A08" size="sm">🎬 Run Now</Btn>
+              <div><div style={{fontSize:'14px',fontWeight:700,color:T.green}}>📊 Box Office Ingest</div><div style={{fontSize:'11px',color:T.textSub,marginTop:'2px'}}>Auto every Monday via GitHub Actions · pulls from The Numbers</div></div>
+              <Btn onClick={runIngest} variant="outline" color={T.green} size="sm">How to run now</Btn>
             </div>
             {ingestLog&&<div style={{fontSize:'11px',color:T.textSub,fontFamily:T.mono,background:T.surfaceUp,padding:'10px',borderRadius:'8px'}}>{JSON.stringify(ingestLog,null,2)}</div>}
           </div>
