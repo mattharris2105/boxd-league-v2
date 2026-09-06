@@ -5994,8 +5994,10 @@ function AppInner(){
         const last=tourStep===TOUR.length-1
         const end=()=>{localStorage.setItem('boxd_onboard_done','1');setTourStep(-1);setPage('market')}
         return(
-          <div style={{position:'fixed',inset:0,background:'#000000CC',zIndex:1000,display:'flex',alignItems:'flex-end',justifyContent:'center',padding:'0 0 100px',pointerEvents:'none'}}>
-            <div style={{background:T.surface,border:`1px solid ${T.gold}44`,borderRadius:'18px',padding:'20px',maxWidth:'360px',width:'calc(100% - 32px)',boxShadow:'0 12px 48px #000000',pointerEvents:'auto'}}>
+          <div style={{position:'fixed',inset:0,zIndex:1000,display:'flex',alignItems:'flex-end',justifyContent:'center',padding:'0 0 100px',pointerEvents:'none'}}>
+            {/* Keep the page itself visible during the tour — only a soft gradient behind the card so it reads over busy content */}
+            <div style={{position:'absolute',left:0,right:0,bottom:0,height:'260px',background:'linear-gradient(to top, rgba(0,0,0,0.5), rgba(0,0,0,0.18) 55%, transparent)',pointerEvents:'none'}}/>
+            <div style={{position:'relative',background:T.surface,border:`1px solid ${T.gold}66`,borderRadius:'18px',padding:'20px',maxWidth:'360px',width:'calc(100% - 32px)',boxShadow:'0 16px 50px rgba(0,0,0,0.55), 0 0 0 1px rgba(0,0,0,0.25)',pointerEvents:'auto'}}>
               <div style={{display:'flex',gap:'10px',alignItems:'center',marginBottom:'10px'}}>
                 <span style={{fontSize:'24px'}}>{t.icon}</span>
                 <div style={{fontSize:'16px',fontWeight:800,color:T.gold}}>{t.title}</div>
