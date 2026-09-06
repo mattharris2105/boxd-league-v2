@@ -1194,6 +1194,97 @@ function ScoreSandbox(){
   )
 }
 
+// ── INTERACTIVE ROSTER SANDBOX (How to Play) ────────────────────────────────
+// Tap films to fill a mock roster; watch the fill + deploy penalties react.
+const SANDBOX_FILMS=[
+  {t:'Tentpole sequel',p:95},{t:'Awards drama',p:77},{t:'Franchise reboot',p:53},
+  {t:'Animated family pic',p:39},{t:'Star-vehicle thriller',p:27},{t:'Genre horror',p:21},
+  {t:'Prestige indie',p:14},{t:'Festival sleeper',p:9},{t:'Doc / limited run',p:7},{t:'Micro-budget curio',p:7},
+]
+function RosterSandbox(){
+  const BUDGET=150,MIN=0.80,CAP=30,PEN=5,MAX=6
+  const[sel,setSel]=useState([0,3,5,6,7,8])
+  const toggle=(i)=>setSel(s=>s.includes(i)?s.filter(x=>x!==i):s.length>=MAX?s:[...s,i])
+  const spend=sel.reduce((a,i)=>a+SANDBOX_FILMS[i].p,0)
+  const floor=MIN*BUDGET
+  const slotPen=Math.max(0,MAX-sel.length)*PEN
+  const deployShort=Math.max(0,floor-spend)
+  const deployPen=Math.min(CAP,Math.round(deployShort/2))
+  const penalty=slotPen+deployPen
+  return(
+    <div style={{...S.card,margin:'6px 0 16px',border:`1px solid ${T.gold}44`}}>
+      <div style={{fontSize:'12px',fontWeight:700,color:T.gold,marginBottom:'2px'}}>🎛️ Build a mock roster</div>
+      <div style={{fontSize:'11px',color:T.textSub,marginBottom:'12px'}}>Tap up to {MAX} films. Budget ${BUDGET}M · you must deploy ${floor}M (80%).</div>
+      <div style={{display:'flex',flexWrap:'wrap',gap:'6px',marginBottom:'12px'}}>
+        {SANDBOX_FILMS.map((f,i)=>{
+          const on=sel.includes(i)
+          return(
+            <button key={i} onClick={()=>toggle(i)} style={{background:on?`${T.gold}22`:T.surfaceUp,border:`1px solid ${on?T.gold:T.border}`,borderRadius:'8px',padding:'6px 9px',cursor:'pointer',color:on?T.text:T.textSub,fontSize:'11px',fontFamily:T.mono}}>
+              {on?'✓ ':''}{f.t} <strong style={{color:on?T.gold:T.textDim}}>${f.p}M</strong>
+            </button>
+          )
+        })}
+      </div>
+      <div style={{display:'flex',gap:'14px',flexWrap:'wrap',alignItems:'flex-end'}}>
+        <div><div style={S.label}>Filled</div><div style={{fontSize:'15px',fontWeight:700,color:sel.length===MAX?T.green:T.orange,fontFamily:T.mono}}>{sel.length}/{MAX}</div></div>
+        <div><div style={S.label}>Spent</div><div style={{fontSize:'15px',fontWeight:700,color:spend>BUDGET?T.red:spend>=floor?T.green:T.orange,fontFamily:T.mono}}>${spend}M</div></div>
+        <div><div style={S.label}>Empty-slot pen.</div><div style={{fontSize:'15px',fontWeight:700,color:slotPen?T.red:T.textDim,fontFamily:T.mono}}>{slotPen?`−${slotPen}`:'0'}</div></div>
+        <div><div style={S.label}>Under-deploy pen.</div><div style={{fontSize:'15px',fontWeight:700,color:deployPen?T.red:T.textDim,fontFamily:T.mono}}>{deployPen?`−${deployPen}`:'0'}</div></div>
+        <div style={{marginLeft:'auto'}}><div style={S.label}>Penalty at lock</div><div style={{fontSize:'24px',fontWeight:900,color:penalty?T.red:T.green,fontFamily:T.mono}}>{penalty?`−${penalty}`:'0'}</div></div>
+      </div>
+      {spend>BUDGET&&<div style={{fontSize:'11px',color:T.red,marginTop:'8px'}}>Over budget by ${spend-BUDGET}M — you couldn't actually buy this roster.</div>}
+    </div>
+  )
+}
+
+// Horizontal band strip with its own slider — the active band lights up.
+function BandStrip({label,bands,min,max,init,unit='%'}){
+  const[v,setV]=useState(init)
+  const active=bands.reduce((acc,b,i)=>v>=b.from?i:acc,0)
+  return(
+    <div style={{...S.card,margin:'6px 0 16px',border:`1px solid ${T.gold}44`}}>
+      <div style={{display:'flex',justifyContent:'space-between',fontSize:'11px',color:T.textSub,marginBottom:'6px'}}>
+        <span>🎛️ {label}</span><span style={{fontFamily:T.mono,color:T.text,fontWeight:700}}>{v}{unit}</span>
+      </div>
+      <input type="range" min={min} max={max} value={v} onChange={e=>setV(Number(e.target.value))} style={{width:'100%',accentColor:T.gold,marginBottom:'8px'}}/>
+      <div style={{display:'flex',gap:'3px',flexWrap:'wrap'}}>
+        {bands.map((b,i)=>(
+          <div key={i} style={{flex:'1 1 56px',minWidth:'54px',textAlign:'center',padding:'6px 3px',borderRadius:'6px',fontSize:'10px',lineHeight:1.25,
+            background:i===active?`${T.gold}26`:T.surfaceUp,border:`1px solid ${i===active?T.gold:T.border}`,color:i===active?T.text:T.textSub}}>
+            <div style={{fontFamily:T.mono,fontWeight:700,color:i===active?T.gold:T.textDim}}>{b.tag}</div>
+            <div>{b.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Compact visual of the season shape.
+function SeasonFlow(){
+  const box=(n,name,bud)=>(
+    <div style={{flex:1,minWidth:'92px',background:T.surfaceUp,border:`1px solid ${T.border}`,borderRadius:'10px',padding:'10px 8px',textAlign:'center'}}>
+      <div style={{fontFamily:T.mono,fontSize:'10px',color:T.textDim}}>PHASE {n}</div>
+      <div style={{fontSize:'12px',fontWeight:700,color:T.text,margin:'2px 0'}}>{name}</div>
+      <div style={{fontFamily:T.mono,fontSize:'12px',color:T.gold}}>${bud}M</div>
+    </div>
+  )
+  return(
+    <div style={{...S.card,margin:'6px 0 16px'}}>
+      <div style={{display:'flex',alignItems:'stretch',gap:'6px'}}>
+        {box(1,'Autumn',150)}
+        <div style={{alignSelf:'center',color:T.textDim,fontSize:'11px'}}>→</div>
+        {box(2,'Awards & Holiday',180)}
+        <div style={{alignSelf:'center',color:T.textDim,fontSize:'11px'}}>→</div>
+        {box(3,'Spring',150)}
+      </div>
+      <div style={{fontSize:'10px',color:T.textSub,marginTop:'8px',lineHeight:1.5}}>
+        Fresh budget each phase · unspent carries forward but only up to <strong>20%</strong> · your rosters lock and keep scoring as later weeks land · results every <strong style={{color:T.green}}>Monday</strong>.
+      </div>
+    </div>
+  )
+}
+
 function ReviewThread({thread,players,onAdd}){
   const[open,setOpen]=useState(false)
   const[txt,setTxt]=useState('')
@@ -2002,7 +2093,7 @@ function AppInner(){
   })
   const[onboardStep,setOnboardStep]=useState(0)
   const[tourStep,setTourStep]=useState(-1) // -1 = not touring
-  const TOUR_PAGES=['market','roster','league','intent','community','market']
+  const TOUR_PAGES=['market','roster','league','intent','community','howto','market']
   useEffect(()=>{
     if(tourStep>=0&&tourStep<TOUR_PAGES.length)setPage(TOUR_PAGES[tourStep])
   },[tourStep])
@@ -3263,6 +3354,7 @@ function AppInner(){
             <br/><br/>
             At the start of each phase there's an optional <Highlight color={T.green}>free-trade window</Highlight> (72hrs) where you can sell films for zero fees. Use it to clean up before going into the new slate.
           </Section>
+          {!guideSearch.trim()&&<SeasonFlow/>}
           <Section id="firstmove" icon="🎯" color={T.gold} title="Your first move" summary="What to do in the first hour.">
             1. Open <Highlight>Market</Highlight>. Scroll the films available in your current phase.
             <br/>2. Tap any film to see its details, including price drivers and a Buzz Index.
@@ -3282,6 +3374,10 @@ function AppInner(){
             <br/><br/>
             Tap any film and open the <Highlight>Info</Highlight> tab to see exactly which driver is pushing the price up or down right now.
           </Section>
+          {!guideSearch.trim()&&<BandStrip label="Weeks until the film releases" min={0} max={7} init={6} unit=" wk" bands={[
+            {from:0,tag:'+10%',label:'release wk'},{from:1,tag:'+7%',label:'1 wk'},{from:2,tag:'+3%',label:'2 wks'},
+            {from:3,tag:'fair',label:'3 wks'},{from:4,tag:'−5%',label:'4 wks'},{from:5,tag:'−10%',label:'5 wks'},{from:6,tag:'−15%',label:'6+ wks'},
+          ]}/>}
           <Section id="buying" icon="🛒" color={T.blue} title="Buying a film" summary="Spend wisely. Conviction shows in price.">
             Cost comes out of your phase budget. Three rules:
             <br/>• <Highlight color={T.red}>Exactly {MAX_ROSTER} films per phase</Highlight> — it's a full roster or nothing. Each slot still empty when the draft window closes costs you <Highlight color={T.red}>{DRAFT_PENALTY}pts</Highlight>, so a half-filled roster is −{(DRAFT_MIN-3)*DRAFT_PENALTY}pts before a single result lands.
@@ -3294,6 +3390,7 @@ function AppInner(){
             <br/><br/>
             <Highlight>Pricing IS the conviction layer.</Highlight> Buying a film 6 weeks out means you pay 15% less than someone who buys at release week.
           </Section>
+          {!guideSearch.trim()&&<RosterSandbox/>}
           <Section id="selling" icon="📉" color={T.red} title="Selling a film" summary="When and why to drop a film from your roster.">
             Click <Highlight>Sell</Highlight> on any active film. You get current market value minus a <Highlight color={T.red}>$5M transaction fee</Highlight> (zero fee during phase free-trade windows).
             <br/><br/>
@@ -3320,8 +3417,12 @@ function AppInner(){
             <br/>• ~$2M estimate → capped at <Highlight>2.7×</Highlight> · ~$8M → 3.2× · <Highlight>$18M+ → 4×</Highlight>
             <br/>So a $2M film doing $8M (4×) is scored as 2.7×; a $20M film doing $82M (4×) gets the full 4×.
             <br/><br/>
-            <Highlight>RT modifier (a bonus, not a driver):</Highlight> ≥90% +15% · 80-89% +10% · 70-79% +5% · 60-69% none · 50-59% −5% · &lt;50% −10%.
+            <Highlight>RT modifier</Highlight> — a bonus, not a driver. It nudges the opening score up or down:
           </Section>
+          {!guideSearch.trim()&&<BandStrip label="Rotten Tomatoes score" min={20} max={100} init={78} unit="%" bands={[
+            {from:0,tag:'−10%',label:'under 50'},{from:50,tag:'−5%',label:'50–59'},{from:60,tag:'flat',label:'60–69'},
+            {from:70,tag:'+5%',label:'70–79'},{from:80,tag:'+10%',label:'80–89'},{from:90,tag:'+15%',label:'90+'},
+          ]}/>}
           {!guideSearch.trim()&&<ScoreSandbox/>}
           <Section id="weekly" icon="🦵" color={T.blue} title="Legs" summary="How well the film holds week to week.">
             After opening weekend, you score on how well the film <Highlight>holds</Highlight>. Every weekend has a "typical" drop for a film that age — beat it and you earn points; drop harder and that weekend is worth nothing (a hard fall is already punished by the opening score).
@@ -5702,6 +5803,7 @@ function AppInner(){
         const last=onboardStep===STEPS.length-1
         const finish=()=>{localStorage.setItem('boxd_onboard_done','1');setOnboardOpen(false);setPage('market')}
         const startTour=()=>{setOnboardOpen(false);setTourStep(0)}
+        const openGuide=()=>{localStorage.setItem('boxd_onboard_done','1');setOnboardOpen(false);setPage('howto')}
         return(
           <div style={{position:'fixed',inset:0,background:'#000000EE',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}}>
             <div style={{background:T.surface,border:`1px solid ${T.gold}33`,borderRadius:'20px',padding:'32px 24px',maxWidth:'380px',width:'100%',textAlign:'center'}}>
@@ -5717,6 +5819,7 @@ function AppInner(){
                   ?<><Btn onClick={finish} variant="outline" color={T.textSub} sx={{flex:1}}>Skip</Btn><Btn onClick={startTour} color={T.gold} sx={{flex:2}}>Take the tour →</Btn></>
                   :<Btn onClick={()=>setOnboardStep(s=>s+1)} color={T.gold} sx={{flex:2}}>Next</Btn>}
               </div>
+              <button onClick={openGuide} style={{background:'none',border:'none',color:T.textDim,cursor:'pointer',fontFamily:T.mono,fontSize:'11px',marginTop:'14px',padding:'4px'}}>Skip all this — take me to the full How to Play guide</button>
             </div>
           </div>
         )
@@ -5728,11 +5831,13 @@ function AppInner(){
           {page:'league',icon:'🏆',title:'Standings',body:'Where you rank against your league. Points come from how your films perform versus their estimates. The gap to the player above you is shown so you always know the chase.'},
           {page:'intent',icon:'👁️',title:'Watchlist',body:'Films you\'re tracking but haven\'t bought. Great for keeping an eye on prices before you commit. Your watchlist also feeds the buzz data.'},
           {page:'community',icon:'👥',title:'Community',body:'The social hub — reviews, comments, screenings you can join, and the league buzz feed. React, discuss, and organise cinema trips with your league.'},
+          {page:'howto',icon:'📖',title:'The full guide',body:'Every rule, with sliders you can drag to see scoring, pricing and the roster penalties live. It\'s here whenever you want it — under How to Play in the menu.'},
           {page:'market',icon:'✅',title:'You\'re all set!',body:'That\'s the tour. Head to the Market, find a film you believe in, and make your first pick. Good luck — may the box office be in your favour.'},
         ]
         const t=TOUR[tourStep]
         const last=tourStep===TOUR.length-1
         const end=()=>{localStorage.setItem('boxd_onboard_done','1');setTourStep(-1);setPage('market')}
+        const toGuide=()=>{localStorage.setItem('boxd_onboard_done','1');setTourStep(-1);setPage('howto')}
         return(
           <div style={{position:'fixed',inset:0,zIndex:1000,display:'flex',alignItems:'flex-end',justifyContent:'center',padding:'0 0 100px',pointerEvents:'none'}}>
             {/* Keep the page itself visible during the tour — only a soft gradient behind the card so it reads over busy content */}
@@ -5751,6 +5856,7 @@ function AppInner(){
                 {!last&&<Btn onClick={()=>setTourStep(s=>s+1)} color={T.gold} sx={{flex:2}}>Next ({tourStep+1}/{TOUR.length})</Btn>}
                 {last&&<Btn onClick={end} color={T.green} textColor="#0D0A08" sx={{flex:2}}>Start playing →</Btn>}
               </div>
+              {t.page!=='howto'&&<button onClick={toGuide} style={{background:'none',border:'none',color:T.textDim,cursor:'pointer',fontFamily:T.mono,fontSize:'11px',marginTop:'10px',padding:'2px',width:'100%'}}>Open the full How to Play guide</button>}
             </div>
           </div>
         )
