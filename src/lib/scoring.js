@@ -12,7 +12,10 @@
 //     blockbuster is no longer a trap
 //   - a FLOP (opens below 60% of its estimate) is a flat -40: cheap lottery
 //     tickets now carry real downside, not just upside-or-zero
-//   - weekly points reward LEGS (post-opening multiplier), not raw weekly $
+//   - LEGS points score week-over-week hold: each weekend 2..6 is compared to a
+//     standard decay for a film that age, and the film earns points for
+//     dropping LESS than standard. Budget-neutral (a -38% hold is a -38% hold
+//     at any opening size) and you know most of it one week after release.
 //   - Rotten Tomatoes is a light ±15% / -10% modifier, a bonus not a driver
 
 // RT multiplier — six bands, gentle. 60 is RT's own Fresh line, so it's the
@@ -49,23 +52,36 @@ function calcOpeningPts (film, actualM, isEB = false, isAnalyst = false) {
   return pts
 }
 
-// Legs points — the post-opening multiplier (how many extra opening-weekends'
-// worth of box office the film earned after its debut), not raw weekly $.
-// A leggy word-of-mouth hit earns 1.5-2.5x its opening in later weeks; a
-// front-loaded blockbuster earns ~0.3-0.5x.
-//   weekMap: { 2: $M, 3: $M, ... }   openingM: opening weekend gross ($M)
+// Legs points — week-over-week hold vs a standard decay.
+// For each weekend 2..6 we compare the film's real drop from the previous
+// weekend to a "standard" drop for a film that age. Hold better than standard
+// and that weekend earns points; drop harder and it earns nothing (legs are
+// upside-only — a hard fall is already punished by the opening score).
+// The later weekends carry less weight (less signal, less data). Everything is
+// scaled down for a film that barely opened, so a $0.3M -> $0.25M "great hold"
+// can't be farmed.
+//   weekMap: { 2: $M, 3: $M, ... 6: $M }   openingM: opening weekend gross ($M)
+const LEGS_STD  = { 2: -0.50, 3: -0.42, 4: -0.36, 5: -0.34, 6: -0.34 } // typical drop
+const LEGS_SENS = { 2: 230,   3: 130,   4: 100,   5: 70,    6: 70 }    // pts per 1.0 of "held better"
+const LEGS_CAP  = { 2: 45,    3: 26,    4: 18,    5: 11,    6: 11 }    // max pts that weekend (~111 total)
+const LEGS_FULL_OPEN = 8 // $M — at/above this the opening-size scaler is 1.0
+
 function calcWeeklyPts (weekMap, openingM) {
   if (!openingM || openingM <= 0) return 0
-  let post = 0
-  for (let w = 2; w <= 6; w++) { const v = Number(weekMap?.[w]); if (v > 0) post += v }
-  if (post <= 0) return 0
-  return Math.round(60 * Math.min(2.5, post / openingM))
-}
-
-// Flat +25 if the week-2 drop from opening is under 30% (strong word of mouth).
-// Already ratio-based — unchanged.
-function calcLegsBonus (actualM, week2Gross) {
-  return (actualM != null && week2Gross != null && (actualM - week2Gross) / actualM < 0.3) ? 25 : 0
+  let pts = 0, any = false
+  for (let w = 2; w <= 6; w++) {
+    const cur = Number(weekMap && weekMap[w])
+    const prev = w === 2 ? openingM : Number(weekMap && weekMap[w - 1])
+    if (!(cur > 0) || !(prev > 0)) continue
+    any = true
+    const drop = (cur - prev) / prev            // negative = fell
+    const delta = drop - LEGS_STD[w]            // positive = held better than standard
+    if (delta <= 0) continue                    // worse than standard → 0 for this weekend
+    pts += Math.min(LEGS_CAP[w], Math.round(delta * LEGS_SENS[w]))
+  }
+  if (!any) return 0
+  const scale = Math.min(1, openingM / LEGS_FULL_OPEN)
+  return Math.round(pts * scale)
 }
 
 // True when a film opened below 60% of its estimate. A flop scores a flat -40
@@ -74,4 +90,14 @@ function isFlop (film, actualM) {
   return actualM != null && !!film.estM && actualM / film.estM < FLOP_RATIO
 }
 
-module.exports = { calcOpeningPts, calcLegsBonus, calcWeeklyPts, rtMult, perfMult, isFlop, FLOP_PENALTY }
+// Pre-Oct-2026 legs formula (post-opening cumulative multiple). Kept only so
+// scripts/mock-draft.mjs can show the current-vs-proposed comparison.
+function calcWeeklyPtsCumulative (weekMap, openingM) {
+  if (!openingM || openingM <= 0) return 0
+  let post = 0
+  for (let w = 2; w <= 6; w++) { const v = Number(weekMap && weekMap[w]); if (v > 0) post += v }
+  if (post <= 0) return 0
+  return Math.round(60 * Math.min(2.5, post / openingM))
+}
+
+module.exports = { calcOpeningPts, calcWeeklyPts, calcWeeklyPtsCumulative, rtMult, perfMult, isFlop, FLOP_PENALTY }

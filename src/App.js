@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabase'
 import { calcMarketValue, calcIPOprice } from './lib/marketValue'
-import { calcOpeningPts, calcLegsBonus, calcWeeklyPts, isFlop } from './lib/scoring'
+import { calcOpeningPts, calcWeeklyPts, isFlop } from './lib/scoring'
 
 const SUPABASE_URL = 'https://yxluqkfanhzktinayvex.supabase.co'
 // The client in ./supabase already holds a valid anon key. Reuse it so
@@ -940,8 +940,8 @@ function PlayerProfilePage({player,reviews=[],onOpenFilm,films,rosters,results,w
           const actual=results[film.id],gc=GENRE_COL[film.genre]||T.textDim
           const eb=isEarlyBird(h),aa=analystActive(player.id,film.id)
           let op=calcOpeningPts(film,actual,eb,aa)
-          const wp=Math.round(calcWeeklyPts(weeklyG[film.id]||{},actual)),lb=calcLegsBonus(actual,weeklyG[film.id]?.[2])
-          const filmTotal=op+wp+lb
+          const wp=Math.round(calcWeeklyPts(weeklyG[film.id]||{},actual))
+          const filmTotal=op+wp
           const pnl_=h.active?(actual!=null?actual-h.bought_price:0):(h.sold_price||0)-h.bought_price
           return(
             <div key={h.id} style={{...S.card,marginBottom:'10px'}}>
@@ -959,8 +959,7 @@ function PlayerProfilePage({player,reviews=[],onOpenFilm,films,rosters,results,w
                   {actual!=null&&<div style={{marginTop:'10px',background:T.surfaceUp,borderRadius:'9px',padding:'10px 12px'}}>
                     <div style={{display:'flex',gap:'12px',flexWrap:'wrap',alignItems:'flex-end'}}>
                       <div><div style={S.label}>Opening</div><div style={{fontSize:'13px',fontWeight:600,color:T.gold,marginTop:'2px'}}>+{op}</div></div>
-                      {wp>0&&<div><div style={S.label}>Weekly</div><div style={{fontSize:'13px',fontWeight:600,color:T.blue,marginTop:'2px'}}>+{wp}</div></div>}
-                      {lb>0&&<div><div style={S.label}>Legs 🦵</div><div style={{fontSize:'13px',fontWeight:600,color:T.green,marginTop:'2px'}}>+25</div></div>}
+                      {wp>0&&<div><div style={S.label}>Legs 🦵</div><div style={{fontSize:'13px',fontWeight:600,color:T.blue,marginTop:'2px'}}>+{wp}</div></div>}
                       <div style={{marginLeft:'auto'}}><div style={S.label}>Total</div><div style={{fontSize:'22px',fontWeight:900,color:T.gold,marginTop:'2px'}}>{filmTotal}pts</div></div>
                     </div>
                   </div>}
@@ -1099,8 +1098,7 @@ function ScoreBreakdownModal({film,holding,results,weeklyGrosses,isEarlyBird,isM
   const ebBonus=(!flopped&&eb&&actual!=null&&actual/film.estM>=1.1)?Math.round(baseOpen*0.1):0
   const openPts=baseOpen+ebBonus
   const wkPts=flopped?0:Math.round(calcWeeklyPts(weeks,actual))
-  const lb=flopped?0:calcLegsBonus(actual,weeks[2])
-  const preMarquee=flopped?-40:openPts+wkPts+lb
+  const preMarquee=flopped?-40:openPts+wkPts
   const marqueeBonus=isMarquee?Math.round(preMarquee*1.5)-preMarquee:0
   const total=preMarquee+marqueeBonus
   const Row=({label,value,color,sub})=>(
@@ -1133,12 +1131,11 @@ function ScoreBreakdownModal({film,holding,results,weeklyGrosses,isEarlyBird,isM
             <div style={S.label}>Points Breakdown</div>
             <div style={{marginTop:'8px'}}>
               {flopped
-                ?<Row label="💥 Flop" value="−40" color={T.red} sub={`Opened at ${(actual/film.estM*100).toFixed(0)}% of its $${film.estM}M estimate — below the 60% line, so a flat loss. No legs or chip bonuses.`}/>
+                ?<Row label="💥 Flop" value="−40" color={T.red} sub={`Opened at ${(actual/film.estM*100).toFixed(0)}% of its $${film.estM}M estimate — below the 60% line, so a flat loss. No legs, no bonuses.`}/>
                 :<>
                   <Row label="Base opening pts" value={`+${baseOpen}`} sub={`$${actual}M actual · ${film.estM?(actual/film.estM).toFixed(2)+'×':''} performance · 50% beat-the-forecast + 50% scale`}/>
                   {eb&&ebBonus>0&&<Row label="🐦 Early Bird +10%" value={`+${ebBonus}`} color={T.green} sub="Bought 4+ weeks early and film beat estimate"/>}
-                  {wkPts>0&&<Row label="📅 Legs" value={`+${wkPts}`} color={T.blue} sub={`Earned ${(actual?((Object.entries(weeks).filter(([w])=>+w>=2).reduce((s,[,g])=>s+Number(g),0))/actual):0).toFixed(1)}x its opening after debut — 60pts per 1x, capped at 2.5x`}/>}
-                  {lb>0&&<Row label="🦵 Strong hold bonus" value="+25" color={T.green} sub="Week-2 drop under 30% — word of mouth is working"/>}
+                  {wkPts>0&&<Row label="🦵 Legs" value={`+${wkPts}`} color={T.blue} sub="Held better than a typical film week-to-week after opening"/>}
                 </>}
               {isMarquee&&<Row label="⭐ Marquee ×1.5" value={`${marqueeBonus>=0?'+':''}${marqueeBonus}`} color={T.gold} sub="Your nominated best bet for this phase"/>}
             </div>
@@ -2351,7 +2348,6 @@ function AppInner(){
     if(isFlop(film,actual)) sub=-40
     else sub=calcOpeningPts(film,actual,isEarlyBird(h),analystOn(pid,film.id))
       +Math.round(calcWeeklyPts(weeklyG[film.id]||{},actual))
-      +calcLegsBonus(actual,weeklyG[film.id]?.[2])
     if(marqueeFor(pid,ph)===film.id) sub=Math.round(sub*MARQUEE_MULT)
     return sub
   }
@@ -3287,14 +3283,18 @@ function AppInner(){
             <br/><br/>
             <Highlight>RT modifier (a bonus, not a driver):</Highlight> ≥90% +15% · 80-89% +10% · 70-79% +5% · 60-69% none · 50-59% −5% · &lt;50% −10%.
           </Section>
-          <Section id="weekly" icon="📅" color={T.blue} title="Legs" summary="Films that hold keep paying out.">
-            After opening weekend, you score on how well the film <Highlight>holds</Highlight> — the multiplier on its opening it earns in later weeks, not the raw dollars.
+          <Section id="weekly" icon="🦵" color={T.blue} title="Legs" summary="How well the film holds week to week.">
+            After opening weekend, you score on how well the film <Highlight>holds</Highlight>. Every weekend has a "typical" drop for a film that age — beat it and you earn points; drop harder and that weekend is worth nothing (a hard fall is already punished by the opening score).
             <br/><br/>
-            <Highlight>60 points for every 1× of its opening the film earns after debut</Highlight>, capped at 2.5×. A leggy word-of-mouth hit earns 1.5-2× its opening in later weeks (90-120pts); a front-loaded blockbuster earns ~0.4× (~25pts).
+            <Highlight>Typical drop by weekend</Highlight> — and the most that weekend can be worth:
+            <br/>• Opening → wknd 2: −50% · up to <Highlight color={T.green}>+45</Highlight>
+            <br/>• Wknd 2 → 3: −42% · up to +26
+            <br/>• Wknd 3 → 4: −36% · up to +18
+            <br/>• Wknd 4 → 5 and 5 → 6: −34% · up to +11 each
             <br/><br/>
-            <Highlight color={T.green}>🦵 Strong hold bonus</Highlight>: a flat <Highlight color={T.green}>+25pts</Highlight> if the Week 2 drop is under 30%.
+            The further under the typical drop you land, the more that weekend scores. Later weekends are worth less. Everything is <Highlight>scaled down for films that barely opened</Highlight> (under ~$8M), so a $0.3M → $0.25M "great hold" can't be farmed.
             <br/><br/>
-            This is why a small film with real word of mouth can outscore a blockbuster that dropped 60% in week two.
+            This is why a small film with real word of mouth can outscore a blockbuster that dropped 60% in its second weekend.
           </Section>
           <Section id="marquee" icon="⭐" color={T.gold} title="Your marquee pick" summary="Nominate your best bet — it scores ×1.5.">
             Once per phase you pick <Highlight>one film on your roster</Highlight> as your marquee — the one you're most confident in. Its <Highlight color={T.gold}>total points are multiplied by {MARQUEE_MULT}×</Highlight> (opening + legs + bonuses, or the −40 if it flops — so back it with conviction).
@@ -3309,7 +3309,7 @@ function AppInner(){
             <br/>• 🐦 <Highlight color={T.green}>Early Bird +10%</Highlight> on opening pts if you bought {EARLY_BIRD_WEEKS}+ weeks before release AND the film beats estimate by 10%+. One Early Bird per phase — earliest qualifying pick gets it.
           </Section>
           <Section id="reading" icon="🔍" color={T.gold} title="Reading the score breakdown" summary="Tap any of your scored films for the full math.">
-            Open <Highlight>Roster</Highlight>, tap any scored film. The <Highlight>Score Breakdown</Highlight> modal shows every line: base opening, Early Bird bonus, RT effect, legs, hold bonus, marquee, total.
+            Open <Highlight>Roster</Highlight>, tap any scored film. The <Highlight>Score Breakdown</Highlight> modal shows every line: base opening, Early Bird bonus, RT effect, legs, marquee, total.
             <br/><br/>
             If a film didn't score what you expected, this is where you find out why — usually a soft opening, or a film that opened fine but had no legs.
           </Section>
@@ -3561,7 +3561,7 @@ function AppInner(){
     return(
       <div style={{animation:'fadeUp .2s ease'}}>
         <div style={S.pageTitle}>Results</div>
-        <div style={{fontSize:'11px',color:T.textSub,marginBottom:'14px',lineHeight:1.6}}>Opening weekends land Monday (auto-ingest or commissioner entry) · points = opening vs estimate, then legs and the strong-hold bonus stack on top.</div>
+        <div style={{fontSize:'11px',color:T.textSub,marginBottom:'14px',lineHeight:1.6}}>Opening weekends land Monday (auto-ingest or commissioner entry) · points = opening vs estimate, then legs (week-to-week hold) stack on top.</div>
         <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>{resulted.length} films scored · most recent first</div>
         {resulted.length===0?<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No results yet.</div>:resulted.map(f=>{
           const actual=results[f.id]
@@ -5694,7 +5694,7 @@ function AppInner(){
         const STEPS=[
           {type:'card',icon:'🎬',title:'Welcome to BOXD',body:'You are about to draft 2026 films like stocks. Their value moves on real box office numbers. The player who reads the market best wins. Takes 60 seconds to learn.'},
           {type:'card',icon:'💰',title:`You have ${cur}${budget}M to invest`,body:`Every film has an IPO price set by its expected opening weekend. You must fill all ${MAX_ROSTER} roster slots and deploy at least ${MIN_SPEND_PCT*100}% of your budget — leaving cash idle or slots empty costs points. Only ${BANK_CAP_PCT*100}% of anything unspent carries to the next phase.`},
-          {type:'card',icon:'📈',title:'How you score',body:'Every film has an estimated opening. When the real number lands, two things earn points, counting equally: how far the film beat that estimate, and how big the opening was in raw dollars. So a small film that triples its forecast and a huge film that opens on target score about the same. Open below 60% of the estimate and it\'s a flat −40. Films that then hold well week to week earn more on top.'},
+          {type:'card',icon:'📈',title:'How you score',body:'Every film has an estimated opening. When the real number lands, two things earn points, counting equally: how far the film beat that estimate, and how big the opening was in raw dollars. So a small film that triples its forecast and a huge film that opens on target score about the same. Open below 60% of the estimate and it\'s a flat −40. Then "legs" pay out for weeks after: each weekend the film drops LESS than a typical film that age, it earns a bit more.'},
           {type:'card',icon:'⭐',title:'Your marquee pick',body:`Each phase you nominate one roster film as your marquee — your best bet. It scores ×${MARQUEE_MULT}. Set it on the Roster page; it locks once your first film of the phase scores.`},
           {type:'card',icon:'🎯',title:'The whole game in one line',body:'Buy films you think the market is underrating, back one hard as your marquee, deploy your budget, and watch the box office prove you right. Ready to make your first pick?'},
           {type:'action',icon:'🗺️',title:'Take the tour',body:'Let me show you around — a quick walk through each screen so you know where everything is. Takes 30 seconds.'},

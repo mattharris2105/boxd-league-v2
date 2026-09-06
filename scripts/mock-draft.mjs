@@ -15,7 +15,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { calcLegsBonus, calcWeeklyPts, rtMult, perfMult } from '../src/lib/scoring.js'
+import { calcWeeklyPts, calcWeeklyPtsCumulative, rtMult, perfMult } from '../src/lib/scoring.js'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const args = process.argv.slice(2)
@@ -90,15 +90,18 @@ function openPts (f, actual, ratioW) {
   const scalePart = Math.sqrt(actual) * 10 * perfMult(r) * rt
   return Math.round(ratioW * ratioPart + (1 - ratioW) * scalePart)
 }
-function filmPoints (f, { ratioW, flop }) {
+// legsFn lets the two rulesets differ ONLY in how legs are scored.
+function filmPoints (f, { ratioW, flop, legsFn }) {
   const actual = resMap[f.id]
   if (actual == null) return 0
   if (flop && actual / f.est_m < FLOP_R) return FLOP_PTS
   const wk = wgMap[f.id] || {}
-  return openPts(f, actual, ratioW) + calcWeeklyPts(wk, actual) + calcLegsBonus(actual, wk[2])
+  return openPts(f, actual, ratioW) + legsFn(wk, actual)
 }
-const PTS_CUR = ARCHIVE ? Object.fromEntries(films.map((f) => [f.id, filmPoints(f, { ratioW: 0.70, flop: false })])) : {}
-const PTS_NEW = ARCHIVE ? Object.fromEntries(films.map((f) => [f.id, filmPoints(f, { ratioW: RATIO_W_NEW, flop: true })])) : {}
+// CURRENT = what's live now (50/50 opening, flop, cumulative-multiple legs).
+// PROPOSED = same, but legs scored on week-over-week hold vs a standard decay.
+const PTS_CUR = ARCHIVE ? Object.fromEntries(films.map((f) => [f.id, filmPoints(f, { ratioW: RATIO_W_NEW, flop: true, legsFn: calcWeeklyPtsCumulative })])) : {}
+const PTS_NEW = ARCHIVE ? Object.fromEntries(films.map((f) => [f.id, filmPoints(f, { ratioW: RATIO_W_NEW, flop: true, legsFn: calcWeeklyPts })])) : {}
 
 // ── agent archetypes ─────────────────────────────────────────────────────
 const rand = (a) => a[Math.floor(Math.random() * a.length)]
@@ -226,10 +229,11 @@ if (!ARCHIVE) {
 
 // ── ARCHIVE mode: current rules vs proposed ──────────────────────────────
 console.log(`\nARCHIVE BACKTEST · ${N} agents · ${films.length} settled films · budget ${money(BUDGET)} · ${RUNS} runs`)
-console.log(`PROPOSED = min-spend ${MIN_SPEND_PCT * 100}% (rest forfeit) · opening ${RATIO_W_NEW * 100}/${100 - RATIO_W_NEW * 100} ratio/scale · flop <${FLOP_R * 100}% est = ${FLOP_PTS}pts · marquee x${MARQUEE_MULT}\n`)
+console.log(`Both rulesets: 50/50 opening · flop <60% = -40 · min-spend 80% · marquee x1.5.`)
+console.log(`Only difference: legs = post-opening cumulative multiple  (CURRENT)  vs  week-over-week hold vs standard decay  (PROPOSED)\n`)
 
-const cur = evaluate('CURRENT', { ptsMap: PTS_CUR, minSpend: false, marquee: false })
-const nw = evaluate('PROPOSED', { ptsMap: PTS_NEW, minSpend: true, marquee: true })
+const cur = evaluate('CURRENT (cumulative legs)', { ptsMap: PTS_CUR, minSpend: true, marquee: true })
+const nw = evaluate('PROPOSED (week-over-week legs)', { ptsMap: PTS_NEW, minSpend: true, marquee: true })
 
 for (const e of [cur, nw]) {
   console.log(`── ${e.label} ${'─'.repeat(46 - e.label.length)}`)

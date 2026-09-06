@@ -1,7 +1,7 @@
 // Minimal regression test for the shared valuation formula.
 // Run: node scripts/marketValue.test.mjs   (exits non-zero on failure)
 import { calcMarketValue, calcIPOprice } from '../src/lib/marketValue.js'
-import { calcOpeningPts, calcWeeklyPts, calcLegsBonus } from '../src/lib/scoring.js'
+import { calcOpeningPts, calcWeeklyPts } from '../src/lib/scoring.js'
 
 let failed = 0
 const eq = (name, got, exp) => {
@@ -32,13 +32,15 @@ eq('PTS Analyst chip +60 flat', calcOpeningPts({ estM: 10, rt: null }, 10, false
 eq('PTS RT<50 penalty is small', // ~10% down, not 15%
   calcOpeningPts({ estM: 10, rt: 30 }, 10), Math.round(calcOpeningPts({ estM: 10, rt: null }, 10) * 0.90))
 
-// calcWeeklyPts — legs = post-opening multiplier x 60, capped at 2.5x
-eq('LEGS held ~1x its opening', calcWeeklyPts({ 2: 10, 3: 6, 4: 3 }, 20), 57)
-eq('LEGS front-loaded (0.3x)', calcWeeklyPts({ 2: 4, 3: 1.5, 4: 0.5 }, 20), 18)
+// calcWeeklyPts — legs = week-over-week hold vs a standard decay, upside only,
+// scaled down for films that barely opened.
+eq('LEGS typical drops -> ~0', calcWeeklyPts({ 2: 10, 3: 6, 4: 3 }, 20), 3)
+eq('LEGS front-loaded (-80% wk2) -> 0', calcWeeklyPts({ 2: 4, 3: 1.5, 4: 0.5 }, 20), 0)
 eq('LEGS no opening -> 0', calcWeeklyPts({ 2: 5 }, 0), 0)
-eq('LEGS cap at 2.5x', calcWeeklyPts({ 2: 40, 3: 30, 4: 20, 5: 15 }, 20), 150)
-eq('HOLD bonus: <30% wk2 drop', calcLegsBonus(20, 15), 25)
-eq('HOLD bonus: big drop -> 0', calcLegsBonus(20, 8), 0)
+eq('LEGS strong hold ($20M open)', calcWeeklyPts({ 2: 16, 3: 13, 4: 11, 5: 9 }, 20), 100)
+// same hold %, but a $4M opener is scaled to half
+eq('LEGS same hold, $20M opener', calcWeeklyPts({ 2: 17, 3: 14 }, 20), 71)
+eq('LEGS same hold, $4M opener is muted', calcWeeklyPts({ 2: 3.4, 3: 2.8 }, 4), 36)
 
 // calcMarketValue — locked against the Task 3 backfill numbers
 eq('MV Spider-Man', calcMarketValue({ basePrice: 59, estM: 175, rt: null }, 360.09, { 2: 144.25, 3: 70.71, 4: 39, 5: 22.51 }), 113)

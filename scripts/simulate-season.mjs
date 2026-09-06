@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { calcIPOprice } from '../src/lib/marketValue.js'
-import { calcOpeningPts, calcLegsBonus, calcWeeklyPts } from '../src/lib/scoring.js'
+import { calcOpeningPts, calcWeeklyPts } from '../src/lib/scoring.js'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const env = {}
@@ -59,8 +59,7 @@ function buildPool (ipoFn, mode) {
       : mode === 'v3' ? V3_OPEN(f.est_m, actual, f.rt)
       : calcOpeningPts({ estM: f.est_m, rt: f.rt }, actual)
     const wkPts = mode === 'old' ? Math.round(OLD_WEEKLY(weekly)) : calcWeeklyPts(weekly, actual)
-    const legs = calcLegsBonus(actual, weekly[2])
-    return { ...f, price, actual, roi: r, score: openPts + wkPts + legs }
+    return { ...f, price, actual, roi: r, score: openPts + wkPts }
   })
 }
 
