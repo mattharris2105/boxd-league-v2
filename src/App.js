@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabase'
 import { calcMarketValue, calcIPOprice } from './lib/marketValue'
 import { calcOpeningPts, calcWeeklyPts, isFlop } from './lib/scoring'
+import { HOWTO_INTRO, HOWTO_FOOTER, HOWTO_GROUPS, ONBOARD_CARDS, TOUR_STOPS, WELCOME_CARD } from './content/guide'
 
 const SUPABASE_URL = 'https://yxluqkfanhzktinayvex.supabase.co'
 // The client in ./supabase already holds a valid anon key. Reuse it so
@@ -1291,6 +1292,52 @@ function SeasonFlow(){
   )
 }
 
+// ── GUIDE COPY RENDERER — turns the plain strings in src/content/guide.js into
+// styled JSX. Markup: **accent** ++green++ !!red!! %%orange%% ~~dim~~, blank
+// line = paragraph, leading • = bullet, {{token}} = filled below.
+const GUIDE_COL={gold:T.gold,blue:T.blue,green:T.green,red:T.red,orange:T.orange,purple:T.purple}
+function fillGuideTokens(str,extra={}){
+  const map={
+    phase1:PHASE_NAMES[1],phase2:PHASE_NAMES[2],phase3:PHASE_NAMES[3],
+    maxRoster:MAX_ROSTER,minSpendPct:MIN_SPEND_PCT*100,bankCapPct:BANK_CAP_PCT*100,
+    marqueeMult:MARQUEE_MULT,draftPenalty:DRAFT_PENALTY,
+    halfRosterPenalty:(DRAFT_MIN-3)*DRAFT_PENALTY,underspendCap:UNDERSPEND_PEN_CAP,
+    earlyBirdWeeks:EARLY_BIRD_WEEKS,cur:'$',
+    phaseBudgets:Object.entries(PHASE_BUDGETS).map(([p,b])=>`P${p} = $${b}M`).join(' · '),
+    ...extra,
+  }
+  return String(str).replace(/\{\{(\w+)\}\}/g,(_,k)=>map[k]!=null?String(map[k]):`{{${k}}}`)
+}
+function parseGuideInline(text,accent){
+  const rules=[[/\*\*(.+?)\*\*/,accent],[/\+\+(.+?)\+\+/,T.green],[/!!(.+?)!!/,T.red],[/%%(.+?)%%/,T.orange],[/~~(.+?)~~/,T.textDim]]
+  const out=[];let rest=text,k=0
+  while(rest){
+    let best=null
+    for(const[re,col]of rules){const m=rest.match(re);if(m&&(!best||m.index<best.m.index))best={m,col}}
+    if(!best){out.push(rest);break}
+    if(best.m.index>0)out.push(rest.slice(0,best.m.index))
+    out.push(<strong key={k++} style={{color:best.col}}>{best.m[1]}</strong>)
+    rest=rest.slice(best.m.index+best.m[0].length)
+  }
+  return out
+}
+function GuideBody({body,color,extra}){
+  const accent=GUIDE_COL[color]||T.gold
+  const paras=fillGuideTokens(body,extra).split(/\n\n+/)
+  return paras.map((para,pi)=>(
+    <div key={pi} style={{marginBottom:pi<paras.length-1?'12px':0}}>
+      {para.split('\n').map((ln,li)=>{
+        const bullet=/^•\s/.test(ln)
+        return(
+          <div key={li} style={bullet?{paddingLeft:'14px',textIndent:'-14px'}:undefined}>
+            {bullet?'• ':null}{parseGuideInline(bullet?ln.replace(/^•\s/,''):ln,accent)}
+          </div>
+        )
+      })}
+    </div>
+  ))
+}
+
 function ReviewThread({thread,players,onAdd}){
   const[open,setOpen]=useState(false)
   const[txt,setTxt]=useState('')
@@ -2099,7 +2146,7 @@ function AppInner(){
   })
   const[onboardStep,setOnboardStep]=useState(0)
   const[tourStep,setTourStep]=useState(-1) // -1 = not touring
-  const TOUR_PAGES=['market','roster','league','intent','community','howto','market']
+  const TOUR_PAGES=TOUR_STOPS.map(s=>s.page)
   useEffect(()=>{
     if(tourStep>=0&&tourStep<TOUR_PAGES.length)setPage(TOUR_PAGES[tourStep])
   },[tourStep])
@@ -3070,7 +3117,7 @@ function AppInner(){
               <span style={{fontSize:'20px'}}>👋</span>
               <div style={{fontSize:'15px',fontWeight:700,color:T.gold}}>Welcome to BOXD</div>
             </div>
-            <div style={{fontSize:'13px',color:T.text,lineHeight:1.6}}>Fill all <strong>{MAX_ROSTER} roster slots</strong> and deploy <strong>{MIN_SPEND_PCT*100}%+</strong> of your <strong style={{color:T.gold}}>${myBudget}M</strong> — empty slots and idle cash both cost points. Name one <strong style={{color:T.gold}}>⭐ marquee</strong> film (×{MARQUEE_MULT} points) on the Roster page. Films pay out Monday: opening + legs + bonuses, or −40 if they open below 60% of estimate. <span style={{color:T.textSub}}>Tap any card to start.</span></div>
+            <div style={{fontSize:'13px',color:T.text,lineHeight:1.6}}><GuideBody body={WELCOME_CARD} color="gold" extra={{myBudget:myBudget}}/></div>
           </div>
         )}
 
@@ -3298,239 +3345,62 @@ function AppInner(){
       </div>
     )
   }
+
+  // ── HOW TO PLAY — content lives in src/content/guide.js ──────────────────
   const HowToPlayPage=()=>{
     const[openSection,setOpenSection]=useState('basics')
     const[guideSearch,setGuideSearch]=useState('')
-
-    const Section=({id,icon,title,summary,color=T.gold,children})=>{
-      const isOpen=openSection===id
-      if(guideSearch.trim()){
-        const hay=`${title} ${summary} ${typeof children==='string'?children:''}`.toLowerCase()
-        if(!hay.includes(guideSearch.toLowerCase().trim()))return null
-      }
-      return(
-        <div style={{...S.card,marginBottom:'8px',padding:0,overflow:'hidden',border:`1px solid ${isOpen?color+'66':T.border}`}}>
-          <div onClick={()=>setOpenSection(isOpen?null:id)} style={{padding:'14px 16px',cursor:'pointer',display:'flex',alignItems:'center',gap:'12px'}}>
-            <div style={{fontSize:'20px',flexShrink:0}}>{icon}</div>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:'14px',fontWeight:700,color:isOpen?color:T.text}}>{title}</div>
-              <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px',lineHeight:1.4}}>{summary}</div>
-            </div>
-            <div style={{color:T.textDim,fontSize:'18px',transition:'transform .2s',transform:isOpen?'rotate(90deg)':'none'}}>›</div>
-          </div>
-          {isOpen&&<div style={{padding:'0 16px 16px',animation:'fadeUp .15s ease',borderTop:`1px solid ${T.border}`}}>
-            <div style={{paddingTop:'14px',fontSize:'13px',color:T.text,lineHeight:1.7}}>{children}</div>
-          </div>}
-        </div>
-      )
+    const q=guideSearch.trim().toLowerCase()
+    const WIDGET_AFTER={
+      phases:<SeasonFlow/>,
+      market:<BandStrip label="Weeks until the film releases" min={0} max={7} init={6} unit=" wk" bands={[
+        {from:0,tag:'+10%',label:'release wk'},{from:1,tag:'+7%',label:'1 wk'},{from:2,tag:'+3%',label:'2 wks'},
+        {from:3,tag:'fair',label:'3 wks'},{from:4,tag:'−5%',label:'4 wks'},{from:5,tag:'−10%',label:'5 wks'},{from:6,tag:'−15%',label:'6+ wks'},
+      ]}/>,
+      buying:<RosterSandbox/>,
+      opening:<><BandStrip label="Rotten Tomatoes score" min={20} max={100} init={78} unit="%" bands={[
+        {from:0,tag:'−10%',label:'under 50'},{from:50,tag:'−5%',label:'50–59'},{from:60,tag:'flat',label:'60–69'},
+        {from:70,tag:'+5%',label:'70–79'},{from:80,tag:'+10%',label:'80–89'},{from:90,tag:'+15%',label:'90+'},
+      ]}/><ScoreSandbox/></>,
     }
-
-    const Group=({title,children})=>(
-      <>
-        <div style={{...S.label,marginTop:'18px',marginBottom:'10px',color:T.textSub}}>{title}</div>
-        {children}
-      </>
-    )
-
-    const Highlight=({color=T.gold,children})=><strong style={{color}}>{children}</strong>
-
     return(
       <div style={{animation:'fadeUp .2s ease',maxWidth:'720px'}}>
         <div style={S.pageTitle}>📖 Player Handguide</div>
-        <div style={{fontSize:'13px',color:T.textSub,marginBottom:'16px',lineHeight:1.6}}>
-          Every system in BOXD explained. Tap a section to expand. Use search to jump straight to a topic.
-        </div>
+        <div style={{fontSize:'13px',color:T.textSub,marginBottom:'16px',lineHeight:1.6}}><GuideBody body={HOWTO_INTRO} color="gold"/></div>
         <input value={guideSearch} onChange={e=>setGuideSearch(e.target.value)} placeholder="🔍 Search the guide…" style={{...S.inp,marginBottom:'16px',fontSize:'13px'}}/>
-
-        <Group title="🎯 Start Here">
-          <Section id="basics" icon="🎬" color={T.gold} title="What is BOXD?" summary="The core game in 30 seconds.">
-            BOXD is fantasy box office. You build a roster of films you think will outperform their estimates, and you score points when real-world weekend grosses come in.
-            <br/><br/>
-            The season runs in <Highlight>3 phases</Highlight> ({PHASE_NAMES[1]}, {PHASE_NAMES[2]}, {PHASE_NAMES[3]}), plus a <Highlight>Historical</Highlight> archive of films that already released. Each phase you get a fresh budget, must fill all <Highlight>{MAX_ROSTER} roster slots</Highlight>, and must deploy at least <Highlight>{MIN_SPEND_PCT*100}%</Highlight> of that budget — falling short of either costs points. You also name one <Highlight color={T.gold}>⭐ marquee</Highlight> film per phase that scores ×{MARQUEE_MULT}.
-            <br/><br/>
-            Results land <Highlight color={T.green}>every Monday</Highlight>. Beat the estimate and score big; open below 60% of it and take a flat −40. Highest total points at season end wins.
-          </Section>
-          <Section id="phases" icon="📅" color={T.gold} title="Phases & the season clock" summary="How time moves and when budgets reset.">
-            The season has 3 playable phases. The commissioner advances phases manually. When a phase ends:
-            <br/>• Unspent budget is <Highlight color={T.green}>banked</Highlight> into next phase — but only up to <Highlight>{BANK_CAP_PCT*100}% of the phase budget</Highlight>. Anything above that is forfeited, so sitting on a war chest doesn't work.
-            <br/>• Your roster from that phase stays locked in (films keep scoring as their weeks land)
-            <br/>• You get a new roster slot allowance for the new phase
-            <br/><br/>
-            <Highlight>Phase budgets:</Highlight> {Object.entries(PHASE_BUDGETS).map(([p,b])=>`P${p} = $${b}M`).join(' · ')}.
-            <br/><br/>
-            At the start of each phase there's an optional <Highlight color={T.green}>free-trade window</Highlight> (72hrs) where you can sell films for zero fees. Use it to clean up before going into the new slate.
-          </Section>
-          {!guideSearch.trim()&&<SeasonFlow/>}
-          <Section id="firstmove" icon="🎯" color={T.gold} title="Your first move" summary="What to do in the first hour.">
-            1. Open <Highlight>Market</Highlight>. Scroll the films available in your current phase.
-            <br/>2. Tap any film to see its details, including price drivers and a Buzz Index.
-            <br/>3. Add films to your <Highlight color={T.blue}>watchlist</Highlight> by tapping the 👁 button — no commitment, just tracking.
-            <br/>4. When you've spotted 3-5 you believe in, <Highlight color={T.gold}>buy</Highlight> them. Buy early — films are cheapest 6+ weeks out.
-            <br/>5. Check the <Highlight>Roster</Highlight> page to see your portfolio. As results land Mondays, the score breakdown for each film shows up here.
-          </Section>
-        </Group>
-
-        <Group title="💰 Buying & Selling">
-          <Section id="market" icon="🎬" color={T.blue} title="The Market" summary="How prices work, and why they move.">
-            Every film has a base price (its IPO). The actual price you pay is the IPO multiplied by 4 live drivers:
-            <br/>• <Highlight>Ownership</Highlight> — popular films cost more (up to +30%); a film few people own is never discounted for it
-            <br/>• <Highlight>Time to release</Highlight> — 6+ weeks out = −15%, graduates to +10% at release week
-            <br/>• <Highlight>RT Score</Highlight> — better critics = higher price (≥90% = +15%)
-            <br/>• <Highlight>Watchlist Heat</Highlight> — how many players added it this week
-            <br/><br/>
-            Tap any film and open the <Highlight>Info</Highlight> tab to see exactly which driver is pushing the price up or down right now.
-          </Section>
-          {!guideSearch.trim()&&<BandStrip label="Weeks until the film releases" min={0} max={7} init={6} unit=" wk" bands={[
-            {from:0,tag:'+10%',label:'release wk'},{from:1,tag:'+7%',label:'1 wk'},{from:2,tag:'+3%',label:'2 wks'},
-            {from:3,tag:'fair',label:'3 wks'},{from:4,tag:'−5%',label:'4 wks'},{from:5,tag:'−10%',label:'5 wks'},{from:6,tag:'−15%',label:'6+ wks'},
-          ]}/>}
-          <Section id="buying" icon="🛒" color={T.blue} title="Buying a film" summary="Spend wisely. Conviction shows in price.">
-            Cost comes out of your phase budget. Three rules:
-            <br/>• <Highlight color={T.red}>Exactly {MAX_ROSTER} films per phase</Highlight> — it's a full roster or nothing. Each slot still empty when the draft window closes costs you <Highlight color={T.red}>{DRAFT_PENALTY}pts</Highlight>, so a half-filled roster is −{(DRAFT_MIN-3)*DRAFT_PENALTY}pts before a single result lands.
-            <br/>• <Highlight color={T.red}>Deploy at least {MIN_SPEND_PCT*100}% of your budget</Highlight> — being short of that line at draft close costs <Highlight color={T.red}>1pt per {cur}2M</Highlight> you're under (capped at {UNDERSPEND_PEN_CAP}). Six bargains that leave half your budget idle isn't a free ride.
-            <br/>• You can only buy films from <Highlight>your current phase</Highlight>
-            <br/><br/>
-            Buying <Highlight color={T.green}>early</Highlight> ({EARLY_BIRD_WEEKS}+ weeks before release) earns you the 🐦 <Highlight color={T.green}>Early Bird</Highlight> tag — +10% on opening points if the film beats estimate by 10%+.
-            <br/><br/>
-            <Highlight color={T.red}>Only one Early Bird per phase.</Highlight> If you qualify on multiple films, the earliest acquired one gets the tag. Buy first, buy cheap, and pick the right film.
-            <br/><br/>
-            <Highlight>Pricing IS the conviction layer.</Highlight> Buying a film 6 weeks out means you pay 15% less than someone who buys at release week.
-          </Section>
-          {!guideSearch.trim()&&<RosterSandbox/>}
-          <Section id="selling" icon="📉" color={T.red} title="Selling a film" summary="When and why to drop a film from your roster.">
-            Click <Highlight>Sell</Highlight> on any active film. You get current market value minus a <Highlight color={T.red}>$5M transaction fee</Highlight> (zero fee during phase free-trade windows).
-            <br/><br/>
-            Common reasons to sell:
-            <br/>• <Highlight>Bad news landed</Highlight> — RT crashed, controversy, weak tracking
-            <br/>• <Highlight>You overbought</Highlight> — your full roster needs trimming
-            <br/>• <Highlight>Phase ending</Highlight> — drop dead weight to bank more for next phase
-            <br/><br/>
-            Once a film has results, it's <Highlight>locked</Highlight> — you can't sell after the fact. The points are yours either way.
-          </Section>
-        </Group>
-
-        <Group title="📊 Scoring — How Points Get Earned">
-          <Section id="opening" icon="🎯" color={T.green} title="Opening weekend points" summary="The biggest scoring event for each film.">
-            When real opening weekend numbers come in Monday, opening points are:
-            <br/><br/>
-            <Highlight>50% × how much you beat the forecast  +  50% × how big the hit was</Highlight>
-            <br/><br/>
-            Both halves matter equally. Beating the forecast still rewards spotting an underrated film — but a genuine blockbuster is no longer a trap, because raw scale now carries the same weight. A $6M film that beats its forecast big and a $200M film that opens on target land in the same ballpark.
-            <br/><br/>
-            <Highlight color={T.red}>💥 Flop penalty:</Highlight> a film that opens <Highlight color={T.red}>below 60% of its estimate</Highlight> scores a flat <Highlight color={T.red}>−40</Highlight> — no legs, no bonuses. Six cheap films means six ways to lose points, not six free lottery tickets.
-            <br/><br/>
-            <Highlight>How far "beating the forecast" can count</Highlight> scales with the film's size, so a lucky multiple on a tiny film can't run away, but a real breakout does show:
-            <br/>• ~$2M estimate → capped at <Highlight>2.7×</Highlight> · ~$8M → 3.2× · <Highlight>$18M+ → 4×</Highlight>
-            <br/>So a $2M film doing $8M (4×) is scored as 2.7×; a $20M film doing $82M (4×) gets the full 4×.
-            <br/><br/>
-            <Highlight>RT modifier</Highlight> — a bonus, not a driver. It nudges the opening score up or down:
-          </Section>
-          {!guideSearch.trim()&&<BandStrip label="Rotten Tomatoes score" min={20} max={100} init={78} unit="%" bands={[
-            {from:0,tag:'−10%',label:'under 50'},{from:50,tag:'−5%',label:'50–59'},{from:60,tag:'flat',label:'60–69'},
-            {from:70,tag:'+5%',label:'70–79'},{from:80,tag:'+10%',label:'80–89'},{from:90,tag:'+15%',label:'90+'},
-          ]}/>}
-          {!guideSearch.trim()&&<ScoreSandbox/>}
-          <Section id="weekly" icon="🦵" color={T.blue} title="Legs" summary="How well the film holds week to week.">
-            After opening weekend, you score on how well the film <Highlight>holds</Highlight>. Every weekend has a "typical" drop for a film that age — beat it and you earn points; drop harder and that weekend is worth nothing (a hard fall is already punished by the opening score).
-            <br/><br/>
-            <Highlight>Typical drop by weekend</Highlight> — and the most that weekend can be worth:
-            <br/>• Opening → wknd 2: −50% · up to <Highlight color={T.green}>+45</Highlight>
-            <br/>• Wknd 2 → 3: −42% · up to +26
-            <br/>• Wknd 3 → 4: −36% · up to +18
-            <br/>• Wknd 4 → 5 and 5 → 6: −34% · up to +11 each
-            <br/><br/>
-            The further under the typical drop you land, the more that weekend scores. Later weekends are worth less. Everything is <Highlight>scaled down for films that barely opened</Highlight> (under ~$8M), so a $0.3M → $0.25M "great hold" can't be farmed.
-            <br/><br/>
-            This is why a small film with real word of mouth can outscore a blockbuster that dropped 60% in its second weekend.
-          </Section>
-          <Section id="marquee" icon="⭐" color={T.gold} title="Your marquee pick" summary="Nominate your best bet — it scores ×1.5.">
-            Once per phase you pick <Highlight>one film on your roster</Highlight> as your marquee — the one you're most confident in. Its <Highlight color={T.gold}>total points are multiplied by {MARQUEE_MULT}×</Highlight> (opening + legs + bonuses, or the −40 if it flops — so back it with conviction).
-            <br/><br/>
-            Set it from the <Highlight>Roster</Highlight> page: tap the ☆ on a film. You can switch it any time <Highlight>until your first film of that phase scores</Highlight>, then it locks. No marquee set by then = no ×1.5 that phase.
-            <br/><br/>
-            It rewards reading one film really well, and it's a reason to own a film big enough to be worth 1.5×-ing.
-          </Section>
-          <Section id="bonuses" icon="🏆" color={T.gold} title="All the bonuses" summary="Every modifier in the scoring engine.">
-            On top of opening points + legs, you can earn these:
-            <br/>• ⭐ <Highlight color={T.gold}>Marquee ×{MARQUEE_MULT}</Highlight> on one roster film's total per phase (see above)
-            <br/>• 🐦 <Highlight color={T.green}>Early Bird +10%</Highlight> on opening pts if you bought {EARLY_BIRD_WEEKS}+ weeks before release AND the film beats estimate by 10%+. One Early Bird per phase — earliest qualifying pick gets it.
-          </Section>
-          <Section id="reading" icon="🔍" color={T.gold} title="Reading the score breakdown" summary="Tap any of your scored films for the full math.">
-            Open <Highlight>Roster</Highlight>, tap any scored film. The <Highlight>Score Breakdown</Highlight> modal shows every line: base opening, Early Bird bonus, RT effect, legs, marquee, total.
-            <br/><br/>
-            If a film didn't score what you expected, this is where you find out why — usually a soft opening, or a film that opened fine but had no legs.
-          </Section>
-        </Group>
-
-        <Group title="🎮 Side Games & Tools">
-          <Section id="watchlist" icon="👁" color={T.blue} title="Watchlist" summary="Track films without committing budget.">
-            Hit the 👁 button on any film to add it to your watchlist. Other players see your watchlist count, which contributes to that film's <Highlight color={T.red}>Heat</Highlight> driver.
-            <br/><br/>
-            Use the <Highlight>Community → Most Anticipated</Highlight> tab to see which films the whole league is watching — a strong signal of where prices are heading.
-          </Section>
-          <Section id="polls" icon="🗳" color={T.blue} title="Quick Polls" summary="Commissioner-posted opinion checks.">
-            Anyone can vote on polls posted by the commissioner. Live tally bars show how the league is split. Social only — no points awarded.
-          </Section>
-          <Section id="motw" icon="🎬" color={T.gold} title="Movie of the Week" summary="Commissioner spotlight + bull/bear case.">
-            Each week, the commissioner can pin a Movie of the Week to the top of Market — a contentious film with a clear bull case AND bear case. Pure information, no scoring impact.
-          </Section>
-        </Group>
-
-        <Group title="📡 Reading the Charts">
-          <Section id="buzz" icon="⚡" color={T.orange} title="The Buzz Index" summary="A single 0-100 score for film heat.">
-            Composite of 3 inputs:
-            <br/>• <Highlight>40%</Highlight> Watchlist heat (recent picks in last 14d)
-            <br/>• <Highlight>30%</Highlight> Ownership (how many players hold it)
-            <br/>• <Highlight>30%</Highlight> Time pressure (closeness to release)
-            <br/><br/>
-            <Highlight color={T.red}>70+</Highlight> = red hot. Price will already be high. Buy early or skip.
-            <br/><Highlight color={T.orange}>50-69</Highlight> = warming up. Still a decent entry.
-            <br/><Highlight color={T.gold}>30-49</Highlight> = neutral. Most films sit here.
-            <br/><Highlight color={T.textDim}>&lt;30</Highlight> = cold. Either a sleeper or rightly ignored.
-          </Section>
-          <Section id="pulse" icon="📊" color={T.green} title="The Pulse" summary="Daily snapshot of market activity.">
-            At the top of Market once you've bought your first film, The Pulse shows:
-            <br/>• <Highlight>Movers (48h)</Highlight> — films whose price has changed most from news signals
-            <br/>• <Highlight>Opening This Week</Highlight> — your immediate scoring opportunities
-            <br/>• <Highlight>Heating Up</Highlight> — highest Buzz Index films right now
-            <br/><br/>
-            Treat it as your "what should I look at right now" briefing.
-          </Section>
-          <Section id="weekend-live" icon="🔴" color={T.red} title="Weekend Live" summary="Fri 5pm to Sun 11pm — live tracking mode.">
-            From Friday evening to Sunday night, the Pulse swaps to <Highlight color={T.red}>Weekend Live</Highlight>: a red-pulse indicator showing the films opening that weekend plus your projected score.
-            <br/><br/>
-            Don't expect minute-by-minute updates — opening estimates only land Saturday afternoon for matinées, full weekend numbers Monday morning. But the mode reminds you the game is alive.
-          </Section>
-        </Group>
-
-        <Group title="⚙️ Commissioner (Matt only)">
-          <Section id="commish-basics" icon="⚙️" color={T.gold} title="What a commissioner does" summary="The week-to-week ops job.">
-            Each week:
-            <br/>• <Highlight>Monday</Highlight>: Run the box office ingest (or paste results manually via War Room)
-            <br/>• <Highlight>Mid-week</Highlight>: Publish 1-2 news signals to keep prices moving
-            <br/>• <Highlight>End of phase</Highlight>: Run "Advance Phase" — banks budgets, opens free-trade window
-            <br/><br/>
-            The Commissioner Panel has 5 tabs: Phase, Windows, Films, Bulk Import, Advanced.
-          </Section>
-          <Section id="warroom" icon="⚡" color={T.red} title="War Room — manual results entry" summary="Batch-enter weekend numbers.">
-            If the auto-ingest doesn't pull a film (indies often miss), War Room lets you paste in 3 weeks of grosses at once per film. Saves all at once and recalculates film values.
-          </Section>
-          <Section id="slate-import" icon="📋" color={T.gold} title="Slate Manager — bulk film & gross import" summary="One CSV imports everything.">
-            The Bulk Import tab takes <Highlight>one wide-format CSV</Highlight> with all your film metadata AND weekly grosses across columns. See the Export → Edit → Import flow described on the page itself.
-            <br/><br/>
-            Use this to spin up a new league fast, or to backfill historical grosses for older films.
-          </Section>
-          <Section id="advance" icon="🚀" color={T.purple} title="Advancing a phase" summary="Locks scoring, banks budgets, resets rosters.">
-            When you click <Highlight>Advance Phase</Highlight>:
-            <br/>• All players' unspent phase budget gets banked into the next phase
-            <br/>• Phase scoring is locked (films already resulted keep their points)
-            <br/>• A phase ceremony pops showing the winner and the MVP film
-            <br/>• The new phase starts with closed free-trade window — open it manually when ready
-          </Section>
-        </Group>
-
+        {HOWTO_GROUPS.map(group=>{
+          const secs=group.sections.filter(sec=>!q||`${sec.title} ${sec.summary} ${fillGuideTokens(sec.body)}`.toLowerCase().includes(q))
+          if(!secs.length)return null
+          return(
+            <div key={group.title}>
+              <div style={{...S.label,marginTop:'18px',marginBottom:'10px',color:T.textSub}}>{group.title}</div>
+              {secs.map(sec=>{
+                const isOpen=openSection===sec.id
+                const accent=GUIDE_COL[sec.color]||T.gold
+                return(
+                  <div key={sec.id}>
+                    <div style={{...S.card,marginBottom:'8px',padding:0,overflow:'hidden',border:`1px solid ${isOpen?accent+'66':T.border}`}}>
+                      <div onClick={()=>setOpenSection(isOpen?null:sec.id)} style={{padding:'14px 16px',cursor:'pointer',display:'flex',alignItems:'center',gap:'12px'}}>
+                        <div style={{fontSize:'20px',flexShrink:0}}>{sec.icon}</div>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:'14px',fontWeight:700,color:isOpen?accent:T.text}}>{sec.title}</div>
+                          <div style={{fontSize:'11px',color:T.textSub,marginTop:'2px',lineHeight:1.4}}>{sec.summary}</div>
+                        </div>
+                        <div style={{color:T.textDim,fontSize:'18px',transition:'transform .2s',transform:isOpen?'rotate(90deg)':'none'}}>›</div>
+                      </div>
+                      {isOpen&&<div style={{padding:'0 16px 16px',animation:'fadeUp .15s ease',borderTop:`1px solid ${T.border}`}}>
+                        <div style={{paddingTop:'14px',fontSize:'13px',color:T.text,lineHeight:1.7}}><GuideBody body={sec.body} color={sec.color}/></div>
+                      </div>}
+                    </div>
+                    {!q&&WIDGET_AFTER[sec.id]}
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })}
         <div style={{marginTop:'24px',padding:'14px 16px',background:T.surfaceUp,borderRadius:'10px',fontSize:'12px',color:T.textSub,lineHeight:1.6}}>
-          💡 <strong style={{color:T.gold}}>Lost?</strong> Tap into the Feed page to see what other players are doing — every buy, sell and forecast flows through there. It's the easiest way to learn by watching.
+          <GuideBody body={HOWTO_FOOTER} color="gold"/>
         </div>
       </div>
     )
@@ -5801,12 +5671,8 @@ function AppInner(){
           .sort((a,b)=>{const ae=a.estM!=null?1:0,be=b.estM!=null?1:0;return be-ae||filmVal(a)-filmVal(b)})[0]
         const iOwnSomething=rosters.some(r=>r.player_id===profile.id&&r.active)
         const STEPS=[
-          {type:'card',icon:'🎬',title:'Welcome to BOXD',body:'You are about to draft 2026 films like stocks. Their value moves on real box office numbers. The player who reads the market best wins. Takes 60 seconds to learn.'},
-          {type:'card',icon:'💰',title:`You have ${cur}${budget}M to invest`,body:`Every film has an IPO price set by its expected opening weekend. You must fill all ${MAX_ROSTER} roster slots and deploy at least ${MIN_SPEND_PCT*100}% of your budget — leaving cash idle or slots empty costs points. Only ${BANK_CAP_PCT*100}% of anything unspent carries to the next phase.`},
-          {type:'card',icon:'📈',title:'How you score',body:'Every film has an estimated opening. When the real number lands, two things earn points, counting equally: how far the film beat that estimate, and how big the opening was in raw dollars. Open below 60% of the estimate and it\'s a flat −40. Then "legs" pay out for weeks after — each weekend the film drops less than a typical film that age, it earns a bit more. The How to Play page has a slider you can drag to see all of this live.'},
-          {type:'card',icon:'⭐',title:'Your marquee pick',body:`Each phase you nominate one roster film as your marquee — your best bet. It scores ×${MARQUEE_MULT}. Set it on the Roster page; it locks once your first film of the phase scores.`},
-          {type:'card',icon:'🎯',title:'The whole game in one line',body:'Buy films you think the market is underrating, back one hard as your marquee, deploy your budget, and watch the box office prove you right. Ready to make your first pick?'},
-          {type:'action',icon:'🗺️',title:'Take the tour',body:'Let me show you around — a quick walk through each screen so you know where everything is. Takes 30 seconds.'},
+          ...ONBOARD_CARDS.map(c=>({...c,body:fillGuideTokens(c.body,{budget}),title:fillGuideTokens(c.title,{budget})})),
+          {icon:'🗺️',title:'Take the tour',body:'Let me show you around — a quick walk through each screen so you know where everything is. Takes 30 seconds.'},
         ]
         const step=STEPS[onboardStep]
         const last=onboardStep===STEPS.length-1
@@ -5834,15 +5700,7 @@ function AppInner(){
         )
       })()}
       {tourStep>=0&&(()=>{
-        const TOUR=[
-          {page:'market',icon:'🎬',title:'The Market',body:'This is your trading floor. Every film has a live price. Tap any film to see its details, watchlist it, or buy. Prices rise as release nears and as more players buy in.'},
-          {page:'roster',icon:'🎞️',title:'Your Roster',body:'Films you own live here — what you paid, what they\'re worth, and your points. Tap the ☆ on your best bet to make it your ⭐ marquee (×1.5 points for the phase). Sell anytime, minus the fee outside trading windows.'},
-          {page:'league',icon:'🏆',title:'Standings',body:'Where you rank against your league. Points come from how your films perform versus their estimates. The gap to the player above you is shown so you always know the chase.'},
-          {page:'intent',icon:'👁️',title:'Watchlist',body:'Films you\'re tracking but haven\'t bought. Great for keeping an eye on prices before you commit. Your watchlist also feeds the buzz data.'},
-          {page:'community',icon:'👥',title:'Community',body:'The social hub — reviews, comments, screenings you can join, and the league buzz feed. React, discuss, and organise cinema trips with your league.'},
-          {page:'howto',icon:'📖',title:'The full guide',body:'Every rule, with sliders you can drag to see scoring, pricing and the roster penalties live. It\'s here whenever you want it — under How to Play in the menu.'},
-          {page:'market',icon:'✅',title:'You\'re all set!',body:'That\'s the tour. Head to the Market, find a film you believe in, and make your first pick. Good luck — may the box office be in your favour.'},
-        ]
+        const TOUR=TOUR_STOPS.map(s=>({...s,body:fillGuideTokens(s.body)}))
         const t=TOUR[tourStep]
         const last=tourStep===TOUR.length-1
         const end=()=>{localStorage.setItem('boxd_onboard_done','1');setTourStep(-1);setPage('market')}
