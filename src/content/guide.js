@@ -13,10 +13,9 @@
 //   {{token}}             -> auto-filled number/name (see TOKENS in src/App.js)
 //                            leave these as-is unless you know the value
 //
-// You can add / remove / reorder sections. Keep each section's `id` unique
-// (it's used for the search + the little interactive widgets that attach to
-// `basics`-style ids). `color` is one of:
-//   gold · blue · green · red · orange · purple
+// You can add / remove / reorder sections. Keep each section id unique
+// (it drives the search and the interactive widgets). color is one of:
+//   gold, blue, green, red, orange, purple
 // ============================================================================
 
 export const HOWTO_INTRO =
