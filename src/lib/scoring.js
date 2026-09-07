@@ -31,7 +31,6 @@ function perfMult (r) {
 // Opening-weekend points.
 //   film: { estM, rt }
 //   actualM: opening weekend gross ($M), or null -> 0
-//   isEB / isAnalyst: Early Bird (+10% if the film also beat estimate) / Analyst chip (+60 flat)
 const FLOP_RATIO = 0.6
 const FLOP_PENALTY = -40
 
@@ -43,21 +42,17 @@ function ratioCap (estM) {
   return Math.max(2.5, Math.min(4, 2.5 + estM / 12))
 }
 
-function calcOpeningPts (film, actualM, isEB = false, isAnalyst = false) {
+function calcOpeningPts (film, actualM) {
   if (actualM == null || !film.estM) return 0
   const r = actualM / film.estM
-  // Flop: opened below 60% of estimate — a straight loss, no legs credit,
-  // no bonuses. Backing six cheap films means six ways to lose points.
+  // Flop: opened below 60% of estimate — a straight loss, no legs credit.
   if (r < FLOP_RATIO) return FLOP_PENALTY
   const rt = rtMult(film.rt)
   // 50% forecast-beat (ratio, capped by ratioCap so a micro-film can't run
   // away), 50% raw scale (sqrt-damped so a 180x gross gap is a ~13x points gap)
   const ratioPart = 130 * Math.min(ratioCap(film.estM), r) * rt
   const scalePart = Math.sqrt(actualM) * 10 * perfMult(r) * rt
-  let pts = Math.round(0.5 * ratioPart + 0.5 * scalePart)
-  if (isEB && r >= 1.1) pts = Math.round(pts * 1.1)
-  if (isAnalyst) pts += 60
-  return pts
+  return Math.round(0.5 * ratioPart + 0.5 * scalePart)
 }
 
 // Legs points — week-over-week hold vs a standard decay.

@@ -29,8 +29,6 @@ eq('PTS Backrooms ($20M est, 4.1x → cap 4x)', calcOpeningPts({ estM: 20, rt: n
 eq('PTS no result', calcOpeningPts({ estM: 10, rt: null }, null), 0)
 eq('PTS flop (<60% of est) = -40 flat', calcOpeningPts({ estM: 100, rt: null }, 50), -40)
 eq('PTS soft miss (65% of est) is NOT a flop', calcOpeningPts({ estM: 100, rt: null }, 65), 68)
-eq('PTS Analyst chip +60 flat', calcOpeningPts({ estM: 10, rt: null }, 10, false, true),
-  calcOpeningPts({ estM: 10, rt: null }, 10) + 60)
 eq('PTS RT<50 penalty is small', // ~10% down, not 15%
   calcOpeningPts({ estM: 10, rt: 30 }, 10), Math.round(calcOpeningPts({ estM: 10, rt: null }, 10) * 0.90))
 

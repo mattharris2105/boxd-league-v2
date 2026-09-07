@@ -35,8 +35,8 @@ const GENRE_COL = {
 }
 
 const COMMISSIONER_EMAIL = 'mattharris2105@gmail.com'
-const EARLY_BIRD_WEEKS   = 4
 const MAX_ROSTER         = 6
+const SELL_FEE_PCT       = 0.10  // sale fee outside a free-trade window: 10% of market value
 // A full roster is now the requirement, not just 4/6 — simulation showed a
 // partial roster (buy the one blockbuster you can afford, stop) was still
 // competitive even with steeper pricing, so the shortfall has to bite for
@@ -55,7 +55,7 @@ const UNDERSPEND_PEN_CAP = 30
 // scores.
 const MARQUEE_MULT       = 1.5
 const PHASE_BUDGETS      = {1:150,2:180,3:150}
-const PHASE_NAMES        = {0:'Historical (Season opener)',1:'Autumn (Sep–Nov)',2:'Awards & Holiday (Dec–Jan)',3:'Spring (Feb+)'}
+const PHASE_NAMES        = {0:'Historical (Season opener)',1:'Autumn (Sep-Nov)',2:'Awards & Holiday (Dec-Jan)',3:'Spring (Feb onwards)'}
 const ALL_PHASES         = [1,2,3]
 const HISTORICAL_PHASE   = 0
 // Season anchor + phase boundaries. Defaults match the 2026-09-07 reset, but the
@@ -128,7 +128,7 @@ const MARKETING_EVENT_TYPES = [
 
 const BOTTOM_TABS = [
   {id:'market',icon:'🎬',label:'Market'},
-  {id:'roster',icon:'📁',label:'Roster'},
+  {id:'roster',icon:'📁',label:'Slate'},
   {id:'community',icon:'👥',label:'Community'},
   {id:'league',icon:'🥇',label:'League'},
   {id:'feed',icon:'📡',label:'Feed'},
@@ -679,7 +679,7 @@ function DistributorPortal({code}){
   })()},[code])
 
   if(state==='loading')return <PortalShell><div style={{textAlign:'center',padding:'60px',color:T.textSub}}>Loading…</div></PortalShell>
-  if(state==='denied')return <PortalShell><div style={{textAlign:'center',padding:'60px'}}><div style={{fontSize:'40px',marginBottom:'12px'}}>🔒</div><div style={{fontSize:'16px',color:T.text,fontWeight:700}}>Invalid or expired access code</div><div style={{fontSize:'12px',color:T.textSub,marginTop:'8px'}}>Contact the league commissioner for a valid link.</div></div></PortalShell>
+  if(state==='denied')return <PortalShell><div style={{textAlign:'center',padding:'60px'}}><div style={{fontSize:'40px',marginBottom:'12px'}}>🔒</div><div style={{fontSize:'16px',color:T.text,fontWeight:700}}>Invalid or expired access code</div><div style={{fontSize:'12px',color:T.textSub,marginTop:'8px'}}>Contact the league host for a valid link.</div></div></PortalShell>
 
   const totalWatchers=picks.length
   const totalBookings=bookings.length
@@ -820,8 +820,8 @@ function AccessDenied({onBack}){
   return(
     <div style={{textAlign:'center',padding:'60px 24px',animation:'fadeUp .2s ease'}}>
       <div style={{fontSize:'48px',marginBottom:'16px'}}>🔒</div>
-      <div style={{fontSize:'18px',fontWeight:800,color:T.text,marginBottom:'8px'}}>Commissioner only</div>
-      <div style={{fontSize:'13px',color:T.textSub,marginBottom:'24px',maxWidth:'320px',marginLeft:'auto',marginRight:'auto',lineHeight:1.6}}>This area is for the league commissioner — managing films, results, and league settings. If you think you should have access, ask your commissioner.</div>
+      <div style={{fontSize:'18px',fontWeight:800,color:T.text,marginBottom:'8px'}}>Host only</div>
+      <div style={{fontSize:'13px',color:T.textSub,marginBottom:'24px',maxWidth:'320px',marginLeft:'auto',marginRight:'auto',lineHeight:1.6}}>This area is for the league host — managing films, results, and league settings. If you think you should have access, ask your host.</div>
       <Btn onClick={onBack} color={T.gold}>Back to Market</Btn>
     </div>
   )
@@ -1096,14 +1096,11 @@ function PlayerProfilePage({player,reviews=[],onOpenFilm,films,rosters,results,w
 }
 
 // ── SCORE BREAKDOWN MODAL ──────────────────────────────────────────────────────
-function ScoreBreakdownModal({film,holding,results,weeklyGrosses,isEarlyBird,isMarquee,onClose}){
+function ScoreBreakdownModal({film,holding,results,weeklyGrosses,isMarquee,onClose}){
   const actual=results[film.id],weeks=weeklyGrosses[film.id]||{}
-  const eb=isEarlyBird(holding)
   const gc=GENRE_COL[film.genre]||T.textSub
   const flopped=actual!=null&&isFlop(film,actual)
-  const baseOpen=actual!=null&&!flopped?calcOpeningPts(film,actual,false,false):0
-  const ebBonus=(!flopped&&eb&&actual!=null&&actual/film.estM>=1.1)?Math.round(baseOpen*0.1):0
-  const openPts=baseOpen+ebBonus
+  const openPts=actual!=null&&!flopped?calcOpeningPts(film,actual):0
   const wkPts=flopped?0:Math.round(calcWeeklyPts(weeks,actual))
   const preMarquee=flopped?-40:openPts+wkPts
   const marqueeBonus=isMarquee?Math.round(preMarquee*1.5)-preMarquee:0
@@ -1140,8 +1137,7 @@ function ScoreBreakdownModal({film,holding,results,weeklyGrosses,isEarlyBird,isM
               {flopped
                 ?<Row label="💥 Flop" value="−40" color={T.red} sub={`Opened at ${(actual/film.estM*100).toFixed(0)}% of its $${film.estM}M estimate — below the 60% line, so a flat loss. No legs, no bonuses.`}/>
                 :<>
-                  <Row label="Base opening pts" value={`+${baseOpen}`} sub={`$${actual}M actual · ${film.estM?(actual/film.estM).toFixed(2)+'×':''} performance · 50% beat-the-forecast + 50% scale`}/>
-                  {eb&&ebBonus>0&&<Row label="🐦 Early Bird +10%" value={`+${ebBonus}`} color={T.green} sub="Bought 4+ weeks early and film beat estimate"/>}
+                  <Row label="Opening pts" value={`+${openPts}`} sub={`$${actual}M actual · ${film.estM?(actual/film.estM).toFixed(2)+'×':''} vs estimate · 50% beat-the-forecast + 50% scale`}/>
                   {wkPts>0&&<Row label="🦵 Legs" value={`+${wkPts}`} color={T.blue} sub="Held better than a typical film week-to-week after opening"/>}
                 </>}
               {isMarquee&&<Row label="⭐ Marquee ×1.5" value={`${marqueeBonus>=0?'+':''}${marqueeBonus}`} color={T.gold} sub="Your nominated best bet for this phase"/>}
@@ -1220,7 +1216,7 @@ function RosterSandbox(){
   const penalty=slotPen+deployPen
   return(
     <div style={{...S.card,margin:'6px 0 16px',border:`1px solid ${T.gold}44`}}>
-      <div style={{fontSize:'12px',fontWeight:700,color:T.gold,marginBottom:'2px'}}>🎛️ Build a mock roster</div>
+      <div style={{fontSize:'12px',fontWeight:700,color:T.gold,marginBottom:'2px'}}>🎛️ Build a mock slate</div>
       <div style={{fontSize:'11px',color:T.textSub,marginBottom:'12px'}}>Tap up to {MAX} films. Budget ${BUDGET}M · you must deploy ${floor}M (80%).</div>
       <div style={{display:'flex',flexWrap:'wrap',gap:'6px',marginBottom:'12px'}}>
         {SANDBOX_FILMS.map((f,i)=>{
@@ -1286,7 +1282,7 @@ function SeasonFlow(){
         {box(3,'Spring',150)}
       </div>
       <div style={{fontSize:'10px',color:T.textSub,marginTop:'8px',lineHeight:1.5}}>
-        Fresh budget each phase · unspent carries forward but only up to <strong>20%</strong> · your rosters lock and keep scoring as later weeks land · results every <strong style={{color:T.green}}>Monday</strong>.
+        Fresh budget each phase · unspent carries forward but only up to <strong>20%</strong> · your slates lock and keep scoring as later weeks land · results every <strong style={{color:T.green}}>Monday</strong>.
       </div>
     </div>
   )
@@ -1302,7 +1298,7 @@ function fillGuideTokens(str,extra={}){
     maxRoster:MAX_ROSTER,minSpendPct:MIN_SPEND_PCT*100,bankCapPct:BANK_CAP_PCT*100,
     marqueeMult:MARQUEE_MULT,draftPenalty:DRAFT_PENALTY,
     halfRosterPenalty:(DRAFT_MIN-3)*DRAFT_PENALTY,underspendCap:UNDERSPEND_PEN_CAP,
-    earlyBirdWeeks:EARLY_BIRD_WEEKS,cur:'$',
+    sellFeePct:SELL_FEE_PCT*100,cur:'$',
     phaseBudgets:Object.entries(PHASE_BUDGETS).map(([p,b])=>`P${p} = $${b}M`).join(' · '),
     ...extra,
   }
@@ -2507,24 +2503,8 @@ function AppInner(){
     // UNRELEASED FILMS: base price × live demand drivers
     return Math.round(bp*calcDemandMult(film,rosters,curPhase(),players.length,cfg.current_week,allPicks))
   }
-  const isEarlyBird=(h)=>{
-    const f=films.find(fl=>fl.id===h.film_id)
-    if(!f)return false
-    // Must have bought 4+ weeks before release
-    const qualifies=f.week-(h.acquired_week||h.bought_week||0)>=EARLY_BIRD_WEEKS
-    if(!qualifies)return false
-    // Only 1 Early Bird tag allowed per phase — earliest acquired holding wins
-    const phaseHoldings=rosters.filter(r=>r.player_id===h.player_id&&r.phase===h.phase&&films.find(fl=>fl.id===r.film_id))
-    const qualifying=phaseHoldings.filter(r=>{
-      const rf=films.find(fl=>fl.id===r.film_id)
-      return rf&&rf.week-(r.acquired_week||r.bought_week||0)>=EARLY_BIRD_WEEKS
-    })
-    if(qualifying.length===0)return false
-    // The earliest-acquired qualifying film gets the tag
-    const earliest=qualifying.reduce((a,b)=>(a.acquired_week||a.bought_week||99)<(b.acquired_week||b.bought_week||99)?a:b)
-    return earliest.id===h.id
-  }
-  const analystOn=()=>false // chips feature removed
+  const isEarlyBird=()=>false // Early Bird feature removed
+  const analystOn=()=>false   // chips feature removed
   const marqueeFor=(pid,ph)=>marquees.find(m=>m.player_id===pid&&m.phase===ph)?.film_id||null
   // Points a single roster holding scored, flop + marquee applied.
   const holdingPoints=(pid,ph,h)=>{
@@ -2532,7 +2512,7 @@ function AppInner(){
     const actual=results[film.id];if(actual==null)return 0
     let sub
     if(isFlop(film,actual)) sub=-40
-    else sub=calcOpeningPts(film,actual,isEarlyBird(h),analystOn(pid,film.id))
+    else sub=calcOpeningPts(film,actual)
       +Math.round(calcWeeklyPts(weeklyG[film.id]||{},actual))
     if(marqueeFor(pid,ph)===film.id) sub=Math.round(sub*MARQUEE_MULT)
     return sub
@@ -2614,8 +2594,8 @@ function AppInner(){
     const ph=curPhase()
     if(film.phase!==ph){haptic.warn();return notify(`Film is Phase ${film.phase} — you are in Phase ${ph}`,T.red)}
     if(film.basePrice==null&&film.phase!==curPhase()){haptic.warn();return notify('Film pricing not yet revealed — wait for the slate to open',T.red)}
-    if(rosters.find(r=>r.player_id===profile.id&&r.film_id===film.id&&r.active)){haptic.warn();return notify('Already in your roster',T.red)}
-    if(rosters.filter(r=>r.player_id===profile.id&&r.phase===ph&&r.active&&films.find(f=>f.id===r.film_id)).length>=MAX_ROSTER){haptic.warn();return notify(`Phase roster full (${MAX_ROSTER} max)`,T.red)}
+    if(rosters.find(r=>r.player_id===profile.id&&r.film_id===film.id&&r.active)){haptic.warn();return notify('Already in your slate',T.red)}
+    if(rosters.filter(r=>r.player_id===profile.id&&r.phase===ph&&r.active&&films.find(f=>f.id===r.film_id)).length>=MAX_ROSTER){haptic.warn();return notify(`Slate full (${MAX_ROSTER} max)`,T.red)}
     const price=filmVal(film),left=budgetLeft(profile.id)
     if(price==null){haptic.warn();return notify('Film pricing not yet revealed',T.red)}
     if(price>left){haptic.warn();return notify(`Not enough budget — need $${price}M, have $${left}M`,T.red)}
@@ -2629,7 +2609,7 @@ function AppInner(){
   const sellFilm=async(film)=>{
     const h=rosters.find(r=>r.player_id===profile.id&&r.film_id===film.id&&r.active);if(!h)return
     const val=filmVal(film)??film.basePrice??0
-    const win=isWindow(),fee=win?0:cfg.tx_fee,proceeds=Math.max(0,val-fee)
+    const win=isWindow(),fee=win?0:Math.round(val*SELL_FEE_PCT),proceeds=Math.max(0,val-fee)
     await supabase.from('rosters').update({active:false,sold_price:proceeds,sold_week:cfg.current_week}).eq('id',h.id)
     await supabase.from('transactions').insert([{player_id:profile.id,film_id:film.id,type:'sell',price:proceeds,week:cfg.current_week},...(fee>0?[{player_id:profile.id,film_id:film.id,type:'fee',price:fee,week:cfg.current_week}]:[])])
     await logActivity(profile.id,'sell',{film_id:film.id,film_title:film.title,proceeds,player_name:profile.name},league?.id)
@@ -2680,7 +2660,7 @@ function AppInner(){
           {myLeagues.map(lg=>(
             <div key={lg.id} className="hoverable" onClick={()=>enterLeague(lg)} style={{...S.card,display:'flex',alignItems:'center',gap:'14px',marginBottom:'8px',cursor:'pointer',border:`1px solid ${T.borderUp}`}}>
               <div style={{width:'44px',height:'44px',borderRadius:'12px',background:`${T.gold}22`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'20px',flexShrink:0}}>🎬</div>
-              <div style={{flex:1}}><div style={{fontSize:'15px',fontWeight:700,color:T.text}}>{lg.name}</div><div style={{fontSize:'12px',color:T.textSub,marginTop:'2px'}}>{lg.myRole==='commissioner'?'⚙️ Commissioner':'🎮 Player'} · Code: {lg.invite_code}</div></div>
+              <div style={{flex:1}}><div style={{fontSize:'15px',fontWeight:700,color:T.text}}>{lg.name}</div><div style={{fontSize:'12px',color:T.textSub,marginTop:'2px'}}>{lg.myRole==='commissioner'?'⚙️ Host':'🎮 Player'} · Code: {lg.invite_code}</div></div>
               <div style={{color:T.gold,fontSize:'20px'}}>›</div>
             </div>
           ))}
@@ -2743,7 +2723,7 @@ function AppInner(){
 
   const ALL_PAGES=[
     {id:'market',icon:'🎬',label:'Market'},
-    {id:'roster',icon:'📁',label:'Roster'},
+    {id:'roster',icon:'📁',label:'Slate'},
     {id:'league',icon:'🥇',label:'League'},
     {id:'community',icon:'👥',label:'Community'},
     {id:'feed',icon:'📡',label:'Feed'},
@@ -2886,14 +2866,14 @@ function AppInner(){
     const[q,setQ]=useState('')
     const nq=q.trim().toLowerCase()
     const PAGES=[
-      {id:'market',icon:'🎬',label:'Market'},{id:'roster',icon:'🎞',label:'My Roster'},
+      {id:'market',icon:'🎬',label:'Market'},{id:'roster',icon:'🎞',label:'My Slate'},
       {id:'league',icon:'🏆',label:'Standings'},
       {id:'intent',icon:'👁️',label:'Watchlist'},{id:'reviews',icon:'⭐',label:'Reviews'},
       {id:'results',icon:'📋',label:'Results'},
       {id:'community',icon:'👥',label:'Community'},{id:'feed',icon:'📰',label:'League Feed'},
       {id:'slate',icon:'🗺',label:'Slate Map'},{id:'intelligence',icon:'📡',label:'Intelligence'},
       {id:'archive',icon:'🏛️',label:'Archive'},{id:'howto',icon:'❓',label:'How to Play'},
-      ...(isCommissioner?[{id:'distributor',icon:'📈',label:'Distributor Insights'},{id:'commissioner',icon:'⚙️',label:'Commissioner'},{id:'warroom',icon:'⚡',label:'War Room'}]:[]),
+      ...(isCommissioner?[{id:'distributor',icon:'📈',label:'Distributor Insights'},{id:'commissioner',icon:'⚙️',label:'Host'},{id:'warroom',icon:'⚡',label:'War Room'}]:[]),
     ]
     const rank=(text)=>{const t=text.toLowerCase();return t.startsWith(nq)?0:t.includes(nq)?1:2}
     const filmHits=nq?films.filter(f=>`${f.title} ${f.dist} ${f.starActor||''}`.toLowerCase().includes(nq)).sort((a,b)=>rank(a.title)-rank(b.title)).slice(0,6):[]
@@ -3246,7 +3226,7 @@ function AppInner(){
   const RosterPage=()=>(
     <div style={{animation:'fadeUp .2s ease'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'14px'}}>
-        <div style={S.pageTitle}>Your Roster</div>
+        <div style={S.pageTitle}>Your Slate</div>
         <div style={{fontSize:'12px',color:T.textSub}}>{myRoster.length}/{MAX_ROSTER} · {cur}{myBudget}M left</div>
       </div>
       {myRoster.length>0&&(()=>{
@@ -3578,7 +3558,7 @@ function AppInner(){
     return(
       <div style={{animation:'fadeUp .2s ease'}}>
         <div style={S.pageTitle}>Results</div>
-        <div style={{fontSize:'11px',color:T.textSub,marginBottom:'14px',lineHeight:1.6}}>Opening weekends land Monday (auto-ingest or commissioner entry) · points = opening vs estimate, then legs (week-to-week hold) stack on top.</div>
+        <div style={{fontSize:'11px',color:T.textSub,marginBottom:'14px',lineHeight:1.6}}>Opening weekends land Monday · points = opening vs estimate, then legs (week-to-week hold) stack on top.</div>
         <div style={{fontSize:'12px',color:T.textSub,marginBottom:'16px'}}>{resulted.length} films scored · most recent first</div>
         {resulted.length===0?<div style={{...S.card,textAlign:'center',padding:'40px',color:T.textSub}}>No results yet.</div>:resulted.map(f=>{
           const actual=results[f.id]
@@ -3766,6 +3746,7 @@ function AppInner(){
     return(
       <div style={{animation:'fadeUp .2s ease'}}>
         <div style={S.pageTitle}>Community</div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px',lineHeight:1.6}}>The trailers are still running. Open any film, comment or drop a review to start the conversation.</div>
         <div style={{display:'flex',gap:'4px',borderBottom:`1px solid ${T.border}`,marginBottom:'14px',overflowX:'auto'}}>
           <TabBtn id="buzz" label="💬 Buzz"/>
           <TabBtn id="screenings" label="🎟 Screenings"/>
@@ -3866,7 +3847,7 @@ function AppInner(){
     return(
       <div style={{animation:'fadeUp .2s ease'}}>
         <div style={S.pageTitle}>🎬 Movie of the Week</div>
-        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px'}}>Commissioner's spotlight pick with bull/bear case</div>
+        <div style={{fontSize:'12px',color:T.textSub,marginBottom:'14px'}}>Host's spotlight pick with bull/bear case</div>
         {pinnedFilm&&pinned.week_num===cfg.current_week&&(
           <div style={{...S.card,marginBottom:'14px',padding:'18px',background:`linear-gradient(135deg,${T.gold}14,${T.surface})`,border:`1px solid ${T.gold}44`}}>
             <div style={{display:'flex',gap:'14px',marginBottom:'14px'}}>
@@ -4520,7 +4501,7 @@ function AppInner(){
     }
     return(
       <div style={{animation:'fadeUp .2s ease'}}>
-        <div style={S.pageTitle}>⚙️ Commissioner Panel</div>
+        <div style={S.pageTitle}>⚙️ Host Panel</div>
         <div style={{display:'flex',gap:'2px',borderBottom:`1px solid ${T.border}`,marginBottom:'14px',overflowX:'auto'}}>
           <TabBtn id="phase" label="Phase"/><TabBtn id="windows" label="Windows"/><TabBtn id="films" label="Films"/><TabBtn id="suggestions" label={`Suggestions${suggestions.length?` · ${suggestions.length}`:''}`}/><TabBtn id="bulk" label="Bulk Import"/><TabBtn id="advanced" label="Advanced"/>
         </div>
@@ -5482,7 +5463,7 @@ function AppInner(){
           <div style={{padding:'0 12px'}}>
             {[
               {id:'market',icon:'🎬',label:'Market'},
-              {id:'roster',icon:'📁',label:'Roster'},
+              {id:'roster',icon:'📁',label:'Slate'},
               {id:'league',icon:'🥇',label:'League'},
               {id:'community',icon:'👥',label:'Community'},
               ...(hasNews?[{id:'signals',icon:'⚡',label:'Signals'}]:[]),
