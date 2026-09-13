@@ -5025,7 +5025,18 @@ function AppInner(){
             <div style={{...S.label,marginBottom:'8px',color:T.red}}>League Settings</div>
             <div style={{fontSize:'12px',color:T.textSub,marginBottom:'10px'}}>Invite code: <strong style={{color:T.gold}}>{league?.invite_code}</strong></div>
             <div style={{fontSize:'11px',color:T.textDim,marginBottom:'12px'}}>Share: boxd-league-v2.vercel.app/join/{league?.invite_code}</div>
-            <Btn onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/join/${league?.invite_code}`);notify('Invite link copied',T.green)}} variant="outline" color={T.green} size="sm">Copy Invite Link</Btn>
+            <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
+              <Btn onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/join/${league?.invite_code}`);notify('Invite link copied',T.green)}} variant="outline" color={T.green} size="sm">Copy Invite Link</Btn>
+              <Btn onClick={async()=>{
+                const url=`${window.location.origin}/join/${league?.invite_code}`
+                const text='Join my BOXD league — draft 2026 films like stocks and score on real box office 🎬'
+                if(navigator.share){
+                  try{await navigator.share({title:'BOXD',text,url})}catch{}
+                }else{
+                  window.open(`https://wa.me/?text=${encodeURIComponent(text+' '+url)}`,'_blank')
+                }
+              }} variant="outline" color={T.gold} size="sm">📤 Share via WhatsApp / etc.</Btn>
+            </div>
             <div style={{marginTop:'14px',paddingTop:'14px',borderTop:`1px solid ${T.border}`}}>
               <div onClick={async()=>{
                 const makePublic=!league?.is_public
