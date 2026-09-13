@@ -66,7 +66,16 @@ const TODAY = new Date().toISOString().slice(0, 10)
 const films = await sb('films?select=id,title,alt_titles,release_date,rt,phase')
 if (!Array.isArray(films)) { console.error(films); process.exit(1) }
 
-const targets = films.filter((f) => f.release_date && f.release_date <= TODAY && (REFRESH || f.rt == null))
+// The Tomatometer moves fast in the first few weeks as review counts climb —
+// The Odyssey went 94 -> 99 as more reviews came in. Without --refresh we'd
+// only ever fill nulls and then never look at a film's score again, so the
+// scheduled (non-refresh) run also re-checks anything released in the last
+// RECENT_WINDOW_DAYS, on top of filling nulls. Older, settled scores are left
+// alone to avoid re-scraping the whole archive every week.
+const RECENT_WINDOW_DAYS = 21
+const daysSinceRelease = (d) => (Date.now() - new Date(d).getTime()) / 86400000
+const targets = films.filter((f) => f.release_date && f.release_date <= TODAY &&
+  (REFRESH || f.rt == null || daysSinceRelease(f.release_date) <= RECENT_WINDOW_DAYS))
 console.log(`${COMMIT ? '*** COMMIT ***' : '[DRY RUN]'}  ${targets.length} released films to look up`)
 
 const log = { id: randomUUID(), run_at: new Date().toISOString(), source: 'rottentomatoes', films_checked: targets.length, films_updated: 0, conflicts: [], errors: [], status: 'success' }
