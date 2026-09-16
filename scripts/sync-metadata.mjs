@@ -47,13 +47,18 @@ async function tmdbSearch (title, yr) {
   return (j.results || [])[0] || null
 }
 
-const films = await sb('films?select=id,title,release_date,tmdb_id')
+const films = await sb('films?select=id,title,release_date,tmdb_id,tmdb_locked')
 if (!Array.isArray(films)) { console.error(films); process.exit(1) }
 
 const log = { id: randomUUID(), run_at: new Date().toISOString(), source: 'tmdb', films_checked: 0, films_updated: 0, conflicts: [], errors: [], status: 'success' }
-let checked = 0, updated = 0
+let checked = 0, updated = 0, skippedLocked = 0
 
 for (const f of films) {
+  // A host-confirmed poster is locked from the Films editor — never touch it
+  // again automatically, refresh or not. Fixed a real bug where --refresh
+  // clobbered a manually-corrected tmdb_id with a fresh (possibly wrong)
+  // title-search match.
+  if (f.tmdb_locked) { skippedLocked++; continue }
   if (!REFRESH && f.tmdb_id != null) continue
   checked++
   try {
@@ -72,6 +77,6 @@ for (const f of films) {
 log.films_checked = checked
 log.films_updated = updated
 if (log.errors.length) log.status = updated ? 'partial' : 'failed'
-console.log(`\n${COMMIT ? 'COMMIT' : 'DRY RUN'} · ${checked} checked · ${updated} tmdb_id set · ${log.conflicts.length} no-match · ${log.errors.length} errors`)
+console.log(`\n${COMMIT ? 'COMMIT' : 'DRY RUN'} · ${checked} checked · ${updated} tmdb_id set · ${log.conflicts.length} no-match · ${log.errors.length} errors · ${skippedLocked} locked (skipped)`)
 if (COMMIT) await fetch(`${U}/rest/v1/sync_log`, { method: 'POST', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify(log) })
 if (log.status === 'failed') process.exitCode = 1

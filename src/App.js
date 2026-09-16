@@ -2380,7 +2380,7 @@ function AppInner(){
       phase:f.phase,week:f.week,basePrice:f.base_price,
       estM:f.est_m,rt:f.rt,sleeper:f.sleeper,
       trailer:f.trailer||'',affiliateUrl:f.affiliate_url||'',
-      tmdbId:f.tmdb_id||null,releaseDate:f.release_date||null,
+      tmdbId:f.tmdb_id||null,tmdbLocked:f.tmdb_locked||false,releaseDate:f.release_date||null,
     })))
     applySeasonConfig(cf)
     setCfg(cf||{current_week:1,current_phase:1,currency:'$',tx_fee:5,phase_window_active:false,phase_window_opened_at:null,draft_window_open:false,draft_deadline:null})
@@ -4287,7 +4287,7 @@ function AppInner(){
       base_price:film.basePrice??'',est_m:film.estM??'',
       rt:film.rt??'',star_actor:film.starActor??'',
       trailer:film.trailer??'',week:film.week,phase:film.phase,
-      tmdb_id:film.tmdbId??'',
+      tmdb_id:film.tmdbId??'',tmdb_locked:film.tmdbLocked||false,
       actual_m:results[film.id]??'',
       week2:weeklyG[film.id]?.[2]??'',week3:weeklyG[film.id]?.[3]??'',
       week4:weeklyG[film.id]?.[4]??'',week5:weeklyG[film.id]?.[5]??'',week6:weeklyG[film.id]?.[6]??'',
@@ -4345,12 +4345,21 @@ function AppInner(){
             </div>
             <div><div style={{...S.label,marginBottom:'4px'}}>Trailer URL (youtube embed)</div><input value={vals.trailer} onChange={e=>set('trailer',e.target.value)} placeholder="https://www.youtube.com/embed/..." style={{...inp,width:'100%',boxSizing:'border-box'}}/></div>
             {/* Poster / TMDB id — the poster is looked up from this id; a wrong or
-                missing id is why a film shows the wrong poster. */}
+                missing id is why a film shows the wrong poster. Setting it here
+                auto-locks it — sync-metadata.mjs skips locked films even on a
+                --refresh run, so a manual fix can't get clobbered by the next
+                automated sync. */}
             <div style={{...S.label,marginBottom:'4px',marginTop:'6px'}}>Poster (TMDB id)</div>
             <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
-              <input value={vals.tmdb_id} onChange={e=>set('tmdb_id',e.target.value.replace(/[^0-9]/g,''))} placeholder="e.g. 12345 — blank = search by title" style={{...inp,flex:1,marginBottom:0}}/>
+              <input value={vals.tmdb_id} onChange={e=>set('tmdb_id',e.target.value.replace(/[^0-9]/g,''))} onBlur={()=>vals.tmdb_id&&set('tmdb_locked',true)} placeholder="e.g. 12345 — blank = search by title" style={{...inp,flex:1,marginBottom:0}}/>
               <button onClick={findPoster} disabled={tmdbBusy||!TMDB_TOKEN} style={{background:`${T.blue}18`,border:`1px solid ${T.blue}44`,borderRadius:'6px',color:T.blue,fontSize:'10px',fontWeight:700,padding:'6px 10px',cursor:'pointer',whiteSpace:'nowrap',opacity:tmdbBusy||!TMDB_TOKEN?0.5:1}}>{tmdbBusy?'…':'🔍 Find'}</button>
             </div>
+            {vals.tmdb_id&&(
+              <label style={{display:'flex',alignItems:'center',gap:'6px',marginTop:'6px',fontSize:'10px',color:T.textSub,cursor:'pointer'}}>
+                <input type="checkbox" checked={!!vals.tmdb_locked} onChange={e=>set('tmdb_locked',e.target.checked)}/>
+                🔒 Lock this poster — automated syncs won't overwrite it{vals.tmdb_locked?'':' (currently unlocked — a future sync could change it)'}
+              </label>
+            )}
             {vals.tmdb_id&&TMDB_TOKEN&&(
               <div style={{marginTop:'6px',fontSize:'10px',color:T.textSub}}>
                 Current: <a href={`https://www.themoviedb.org/movie/${vals.tmdb_id}`} target="_blank" rel="noreferrer" style={{color:T.blue}}>themoviedb.org/movie/{vals.tmdb_id}</a>
@@ -4361,7 +4370,7 @@ function AppInner(){
               <div style={{marginTop:'8px',display:'flex',gap:'6px',overflowX:'auto',paddingBottom:'4px'}}>
                 {tmdbCands.length===0&&<div style={{fontSize:'10px',color:T.textDim}}>No matches — try editing the title above and searching again.</div>}
                 {tmdbCands.map(c=>(
-                  <button key={c.id} onClick={()=>{set('tmdb_id',String(c.id));setTmdbCands(null)}} style={{flexShrink:0,width:'72px',background:String(c.id)===String(vals.tmdb_id)?`${T.gold}22`:T.surfaceUp,border:`1px solid ${String(c.id)===String(vals.tmdb_id)?T.gold:T.border}`,borderRadius:'8px',padding:'4px',cursor:'pointer',color:T.text}}>
+                  <button key={c.id} onClick={()=>{setVals(prev=>({...prev,tmdb_id:String(c.id),tmdb_locked:true}));setTmdbCands(null)}} style={{flexShrink:0,width:'72px',background:String(c.id)===String(vals.tmdb_id)?`${T.gold}22`:T.surfaceUp,border:`1px solid ${String(c.id)===String(vals.tmdb_id)?T.gold:T.border}`,borderRadius:'8px',padding:'4px',cursor:'pointer',color:T.text}}>
                     {c.poster
                       ?<img src={c.poster} alt={c.title} style={{width:'100%',borderRadius:'4px',display:'block'}}/>
                       :<div style={{width:'100%',aspectRatio:'2/3',borderRadius:'4px',background:T.border,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'8px',color:T.textDim}}>no poster</div>}
@@ -4395,6 +4404,7 @@ function AppInner(){
                   star_actor:vals.star_actor.trim()||null,
                   trailer:vals.trailer.trim()||null,
                   tmdb_id:vals.tmdb_id!==''&&vals.tmdb_id!=null?Number(vals.tmdb_id):null,
+                  tmdb_locked:vals.tmdb_id!==''&&vals.tmdb_id!=null?!!vals.tmdb_locked:false,
                   actual_m:vals.actual_m!==''?vals.actual_m:null,
                   week2:vals.week2!==''?vals.week2:null,week3:vals.week3!==''?vals.week3:null,
                   week4:vals.week4!==''?vals.week4:null,week5:vals.week5!==''?vals.week5:null,week6:vals.week6!==''?vals.week6:null,
