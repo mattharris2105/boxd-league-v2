@@ -777,7 +777,8 @@ function InviteLanding({code,onLogin}){
       <div style={{width:'100%',maxWidth:'440px'}}>
         <div style={{textAlign:'center',marginBottom:'32px'}}>
           <div style={{fontSize:'52px',fontWeight:900,color:T.gold,letterSpacing:'-2px',lineHeight:1,marginBottom:'6px'}}>BOXD</div>
-          <div style={{fontSize:'11px',color:T.textDim,letterSpacing:'3px'}}>FANTASY BOX OFFICE</div>
+          <div style={{fontSize:'11px',color:T.textDim,letterSpacing:'3px',marginBottom:'4px'}}>FANTASY BOX OFFICE</div>
+          <div style={{fontSize:'10px',color:T.textDim,opacity:0.6,letterSpacing:'0.5px'}}>the rushes land every Monday</div>
         </div>
         {loading?<div style={{textAlign:'center',color:T.textSub}}>Loading…</div>:(
           lgData?(
@@ -860,7 +861,8 @@ function Login(){
     <div style={{minHeight:'100vh',background:T.bg,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:T.mono,padding:'20px'}}>
       <div style={{width:'100%',maxWidth:'340px'}}>
         <div style={{fontSize:'56px',fontWeight:900,color:T.gold,letterSpacing:'-3px',marginBottom:'6px',lineHeight:1}}>BOXD</div>
-        <div style={{fontSize:'11px',color:T.textDim,letterSpacing:'3px',marginBottom:'40px'}}>FANTASY BOX OFFICE</div>
+        <div style={{fontSize:'11px',color:T.textDim,letterSpacing:'3px',marginBottom:'4px'}}>FANTASY BOX OFFICE</div>
+        <div style={{fontSize:'10px',color:T.textDim,opacity:0.6,letterSpacing:'0.5px',marginBottom:'40px'}}>the rushes land every Monday</div>
         {sent?(
           <div style={{textAlign:'center'}}>
             <div style={{fontSize:'16px',color:T.text,marginBottom:'8px'}}>Check your email ✉️</div>
