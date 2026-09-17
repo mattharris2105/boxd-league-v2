@@ -6,7 +6,7 @@
 
   USAGE (what you give a distributor):
     <div id="boxd-widget" data-film="FILM_ID"></div>
-    <script src="https://boxd-league-v2.vercel.app/boxd-widget.js"></script>
+    <script src="https://boxdfantasy.com/boxd-widget.js"></script>
 
   This file IS that script. Host it at /boxd-widget.js in your public folder.
   It reads only public, aggregated counts — no personal data leaves BOXD.
@@ -89,7 +89,7 @@
 
       // CTA
       var cta=el('a','display:block;background:'+GOLD+';color:'+BG+';text-decoration:none;text-align:center;font-size:13px;font-weight:700;padding:11px;border-radius:10px;', 'See full forecast on BOXD →');
-      cta.href='https://boxd-league-v2.vercel.app';
+      cta.href='https://boxdfantasy.com';
       cta.target='_blank';
       container.appendChild(cta);
 

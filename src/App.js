@@ -618,7 +618,7 @@ function PriceSparkline({film,rosters,filmValues,width=60,height=20}){
 }
 
 // ── EMBED WIDGET — compact anticipation badge for distributor/cinema sites ──
-// Usage: <iframe src="https://boxd-league-v2.vercel.app/?embed=FILM_ID" .../>
+// Usage: <iframe src="https://boxdfantasy.com/?embed=FILM_ID" .../>
 function EmbedWidget({filmId}){
   const[data,setData]=useState(null)
   useEffect(()=>{(async()=>{
@@ -646,7 +646,7 @@ function EmbedWidget({filmId}){
       {data.forecast!=null&&<div><div style={{fontSize:'20px',fontWeight:800,color:'#4A9EF5'}}>${data.forecast}M</div><div style={{fontSize:'9px',color:'#8A7A6E'}}>FORECAST</div></div>}
       {data.rt!=null&&<div><div style={{fontSize:'20px',fontWeight:800,color:data.rt>=60?'#3DD68C':'#F04F5A'}}>{data.rt}%</div><div style={{fontSize:'9px',color:'#8A7A6E'}}>CRITICS</div></div>}
     </div>
-    <a href="https://boxd-league-v2.vercel.app" target="_blank" rel="noopener noreferrer" style={{display:'block',marginTop:'12px',fontSize:'10px',color:'#46392E',textDecoration:'none'}}>Powered by BOXD ↗</a>
+    <a href="https://boxdfantasy.com" target="_blank" rel="noopener noreferrer" style={{display:'block',marginTop:'12px',fontSize:'10px',color:'#46392E',textDecoration:'none'}}>Powered by BOXD ↗</a>
   </>)
 }
 
@@ -835,7 +835,7 @@ function Login(){
   const[sent,setSent]=useState(false)
   const[busy,setBusy]=useState(false)
   const[err,setErr]=useState('')
-  const REDIRECT=typeof window!=='undefined'?window.location.origin:'https://boxd-league-v2.vercel.app'
+  const REDIRECT=typeof window!=='undefined'?window.location.origin:'https://boxdfantasy.com'
 
   const passwordAuth=async e=>{
     e.preventDefault();setBusy(true);setErr('')
@@ -5037,7 +5037,7 @@ function AppInner(){
           <div style={{...S.card,marginBottom:'12px'}}>
             <div style={{...S.label,marginBottom:'8px',color:T.red}}>League Settings</div>
             <div style={{fontSize:'12px',color:T.textSub,marginBottom:'10px'}}>Invite code: <strong style={{color:T.gold}}>{league?.invite_code}</strong></div>
-            <div style={{fontSize:'11px',color:T.textDim,marginBottom:'12px'}}>Share: boxd-league-v2.vercel.app/join/{league?.invite_code}</div>
+            <div style={{fontSize:'11px',color:T.textDim,marginBottom:'12px'}}>Share: boxdfantasy.com/join/{league?.invite_code}</div>
             <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
               <Btn onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/join/${league?.invite_code}`);notify('Invite link copied',T.green)}} variant="outline" color={T.green} size="sm">Copy Invite Link</Btn>
               <Btn onClick={async()=>{
