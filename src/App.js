@@ -2122,6 +2122,7 @@ function AppInner(){
   const[leaguePage,setLeaguePage]=useState('lobby')
   const[inviteCode,setInviteCode]=useState('')
   const[newLeagueName,setNewLeagueName]=useState('')
+  const[newLeagueImage,setNewLeagueImage]=useState('')
   const[ingestLog,setIngestLog]=useState(null)
   const[phaseTransitioning,setPhaseTransitioning]=useState(false)
   const[phaseCeremony,setPhaseCeremony]=useState(null)
@@ -2291,14 +2292,16 @@ function AppInner(){
   const enterLeague=async(lg)=>{setLeague(lg);const{error}=await supabase.from('profiles').update({active_league_id:lg.id}).eq('id',session.user.id);if(error)notify(`Couldn't switch league: ${error.message}`,T.red);loadData(lg.id);loadFeed(lg.id);loadTrades(lg.id)}
   const createLeague=async()=>{
     if(!newLeagueName.trim()) return notify('Enter a league name',T.red)
+    const img=newLeagueImage.trim()
+    if(img&&!/^https:\/\//i.test(img))return notify('Image URL must start with https://',T.red)
     const code='BOXD-'+Math.random().toString(36).substring(2,6).toUpperCase()
-    const{data,error}=await supabase.from('leagues').insert({name:newLeagueName.trim(),commissioner_id:session.user.id,invite_code:code}).select().single()
+    const{data,error}=await supabase.from('leagues').insert({name:newLeagueName.trim(),commissioner_id:session.user.id,invite_code:code,image_url:img||null}).select().single()
     if(error) return notify(error.message,T.red)
     const{error:memErr}=await supabase.from('league_members').insert({league_id:data.id,user_id:session.user.id,role:'commissioner'})
     if(memErr)return notify(`League created but membership failed — contact support: ${memErr.message}`,T.red)
     const{error:cfgErr}=await supabase.from('league_config').insert({league_id:data.id,current_week:1,current_phase:1,currency:'$',tx_fee:5,phase_window_active:false,draft_window_open:false})
     if(cfgErr)return notify(`League created but config failed — contact support: ${cfgErr.message}`,T.red)
-    notify(`✅ League created! Code: ${code}`,T.green);setNewLeagueName('');loadLeagues();enterLeague(data)
+    notify(`✅ League created! Code: ${code}`,T.green);setNewLeagueName('');setNewLeagueImage('');loadLeagues();enterLeague(data)
   }
   const joinLeague=async()=>{
     const code=inviteCode.trim().toUpperCase()
@@ -2678,7 +2681,9 @@ function AppInner(){
           <div style={{...S.label,marginBottom:'12px'}}>Your Leagues</div>
           {myLeagues.map(lg=>(
             <div key={lg.id} className="hoverable" onClick={()=>enterLeague(lg)} style={{...S.card,display:'flex',alignItems:'center',gap:'14px',marginBottom:'8px',cursor:'pointer',border:`1px solid ${T.borderUp}`}}>
-              <div style={{width:'44px',height:'44px',borderRadius:'12px',background:`${T.gold}22`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'20px',flexShrink:0}}>🎬</div>
+              {lg.image_url
+                ?<img src={lg.image_url} alt="" style={{width:'44px',height:'44px',borderRadius:'12px',objectFit:'cover',flexShrink:0}} onError={e=>{e.target.style.display='none'}}/>
+                :<div style={{width:'44px',height:'44px',borderRadius:'12px',background:`${T.gold}22`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'20px',flexShrink:0}}>🎬</div>}
               <div style={{flex:1}}><div style={{fontSize:'15px',fontWeight:700,color:T.text}}>{lg.name}</div><div style={{fontSize:'12px',color:T.textSub,marginTop:'2px'}}>{lg.myRole==='commissioner'?'⚙️ Host':'🎮 Player'} · Code: {lg.invite_code}</div></div>
               <div style={{color:T.gold,fontSize:'20px'}}>›</div>
             </div>
@@ -2694,7 +2699,9 @@ function AppInner(){
           {publicLeagues.length===0&&<div style={{...S.card,textAlign:'center',padding:'30px',color:T.textSub,fontSize:'13px'}}>No public leagues to show yet.</div>}
           {publicLeagues.map(lg=>(
             <div key={lg.id} className="hoverable" style={{...S.card,display:'flex',alignItems:'center',gap:'12px',marginBottom:'8px'}}>
-              <div style={{width:'40px',height:'40px',borderRadius:'10px',background:`${T.green}22`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'18px',flexShrink:0}}>🌍</div>
+              {lg.image_url
+                ?<img src={lg.image_url} alt="" style={{width:'40px',height:'40px',borderRadius:'10px',objectFit:'cover',flexShrink:0}} onError={e=>{e.target.style.display='none'}}/>
+                :<div style={{width:'40px',height:'40px',borderRadius:'10px',background:`${T.green}22`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'18px',flexShrink:0}}>🌍</div>}
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:'14px',fontWeight:700,color:T.text}}>{lg.name}</div>
                 <div style={{fontSize:'11px',color:T.textSub}}>{lg.member_count||0} members{lg.description?` · ${lg.description}`:''}</div>
@@ -2706,6 +2713,8 @@ function AppInner(){
         {leaguePage==='create'&&<div style={{animation:'fadeUp .2s ease'}}>
           <div style={{...S.label,marginBottom:'8px'}}>League Name</div>
           <input value={newLeagueName} onChange={e=>setNewLeagueName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&createLeague()} placeholder="e.g. The Cinephile Curators" style={{...S.inp,marginBottom:'12px',fontSize:'15px',padding:'14px 16px'}}/>
+          <div style={{...S.label,marginBottom:'8px'}}>League Image (optional)</div>
+          <input value={newLeagueImage} onChange={e=>setNewLeagueImage(e.target.value)} onKeyDown={e=>e.key==='Enter'&&createLeague()} placeholder="https://... — shown on your league card" style={{...S.inp,marginBottom:'12px',fontSize:'13px',padding:'14px 16px'}}/>
           <Btn onClick={createLeague} color={T.gold} full size="lg">Create League</Btn>
         </div>}
         {leaguePage==='join'&&<div style={{animation:'fadeUp .2s ease'}}>
@@ -4530,6 +4539,18 @@ function AppInner(){
 
   const CommissionerPage=()=>{
     const tab=commishTab,setTab=setCommishTab
+    const[leagueImgEdit,setLeagueImgEdit]=useState(league?.image_url||'')
+    const[leagueImgBusy,setLeagueImgBusy]=useState(false)
+    const saveLeagueImage=async()=>{
+      const img=leagueImgEdit.trim()
+      if(img&&!/^https:\/\//i.test(img))return notify('Image URL must start with https://',T.red)
+      setLeagueImgBusy(true)
+      const{error}=await supabase.from('leagues').update({image_url:img||null}).eq('id',league.id)
+      setLeagueImgBusy(false)
+      if(error)return notify(`Save failed: ${error.message}`,T.red)
+      setLeague({...league,image_url:img||null})
+      notify(img?'🖼 League image updated':'League image removed',T.green)
+    }
     const TabBtn=({id,label})=><button onClick={()=>setTab(id)} style={{...S.btn,background:'none',border:'none',padding:'8px 14px',fontSize:'12px',fontWeight:tab===id?700:400,color:tab===id?T.gold:T.textSub,borderBottom:`2px solid ${tab===id?T.gold:'transparent'}`,borderRadius:0,textTransform:'none',letterSpacing:0}}>{label}</button>
     const runIngest=async()=>{
       // The old in-app ingest edge function is gone. Box office now ingests
@@ -5110,6 +5131,16 @@ function AppInner(){
                   <div style={{fontSize:'10px',color:T.textSub,marginTop:'1px'}}>{league?.is_public?'Listed in Discover — anyone can join':'Invite-only · tap to make public'}</div>
                 </div>
                 <span style={{fontSize:'11px',color:league?.is_public?T.green:T.gold,fontWeight:700}}>{league?.is_public?'✓ PUBLIC':'Make public'}</span>
+              </div>
+            </div>
+            <div style={{marginTop:'14px',paddingTop:'14px',borderTop:`1px solid ${T.border}`}}>
+              <div style={{...S.label,marginBottom:'8px'}}>League Image</div>
+              <div style={{display:'flex',gap:'10px',alignItems:'center'}}>
+                {league?.image_url
+                  ?<img src={league.image_url} alt="" style={{width:'44px',height:'44px',borderRadius:'10px',objectFit:'cover',flexShrink:0}} onError={e=>{e.target.style.display='none'}}/>
+                  :<div style={{width:'44px',height:'44px',borderRadius:'10px',background:`${T.gold}22`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'18px',flexShrink:0}}>🎬</div>}
+                <input value={leagueImgEdit} onChange={e=>setLeagueImgEdit(e.target.value)} onKeyDown={e=>e.key==='Enter'&&saveLeagueImage()} placeholder="https://... — shown on your league card" style={{...S.inp,flex:1,fontSize:'12px'}}/>
+                <Btn onClick={saveLeagueImage} disabled={leagueImgBusy} color={T.gold} size="sm">Save</Btn>
               </div>
             </div>
           </div>
