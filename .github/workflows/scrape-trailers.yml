@@ -1,0 +1,29 @@
+name: Backfill trailers (TMDB)
+
+on:
+  schedule:
+    - cron: '0 8 * * 1,4'   # Mon & Thu 08:00 UTC, alongside sync-metadata
+  workflow_dispatch:
+    inputs:
+      refresh:
+        description: 'Re-fetch even for films that already have a trailer'
+        type: boolean
+        default: false
+
+jobs:
+  trailers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Scrape trailers
+        env:
+          SUPABASE_URL: https://yxluqkfanhzktinayvex.supabase.co
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          TMDB_TOKEN: ${{ secrets.TMDB_TOKEN }}
+        run: |
+          ARGS="--commit"
+          if [ "${{ github.event.inputs.refresh }}" = "true" ]; then ARGS="$ARGS --refresh"; fi
+          node scripts/scrape-trailers.mjs $ARGS
