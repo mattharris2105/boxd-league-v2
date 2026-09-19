@@ -1567,18 +1567,20 @@ function FilmDetailModal({film,profile,players,results,allPicks=[],marketingEven
   const postWithGif=async()=>{
     if(profile?.is_banned)return notify('You are unable to post in this league',T.red)
     if(!text.trim()&&!gifUrl)return
-    await supabase.from('film_comments').insert({user_id:profile.id,film_id:film.id,comment:text.trim(),gif_url:gifUrl||null,league_id:league?.id})
+    const{error}=await supabase.from('film_comments').insert({user_id:profile.id,film_id:film.id,comment:text.trim(),gif_url:gifUrl||null,league_id:league?.id})
+    if(error)return notify(`Post failed: ${error.message}`,T.red)
     setText('');setGifUrl('');loadComments()
   }
   const postReply=async(parentId,body,gif)=>{
     if(!body.trim()&&!gif)return
-    await supabase.from('film_comments').insert({user_id:profile.id,film_id:film.id,comment:body.trim(),parent_id:parentId,gif_url:gif||null,league_id:league?.id})
+    const{error}=await supabase.from('film_comments').insert({user_id:profile.id,film_id:film.id,comment:body.trim(),parent_id:parentId,gif_url:gif||null,league_id:league?.id})
+    if(error)return notify(`Reply failed: ${error.message}`,T.red)
     loadComments()
   }
   const toggleCommentLike=async(commentId)=>{
     const mine=commentLikes.find(l=>l.comment_id===commentId&&l.user_id===profile.id)
-    if(mine)await supabase.from('comment_likes').delete().eq('id',mine.id)
-    else await supabase.from('comment_likes').insert({comment_id:commentId,user_id:profile.id})
+    const{error}=mine?await supabase.from('comment_likes').delete().eq('id',mine.id):await supabase.from('comment_likes').insert({comment_id:commentId,user_id:profile.id})
+    if(error)return notify(`Failed: ${error.message}`,T.red)
     loadCommentLikes()
   }
   const TabBtn=({id,label})=><button onClick={()=>setTab(id)} style={{...S.btn,background:'none',border:'none',fontSize:'13px',fontWeight:tab===id?700:400,color:tab===id?T.gold:T.textSub,padding:'10px 16px',borderBottom:`2px solid ${tab===id?T.gold:'transparent'}`,borderRadius:0,textTransform:'none',letterSpacing:0}}>{label}</button>
@@ -2021,20 +2023,22 @@ function AppInner(){
   }
   const toggleAttend=async(screeningId)=>{
     const mine=attendees.find(a=>a.screening_id===screeningId&&a.user_id===profile.id)
-    if(mine)await supabase.from('screening_attendees').delete().eq('id',mine.id)
-    else await supabase.from('screening_attendees').insert({screening_id:screeningId,user_id:profile.id})
+    const{error}=mine?await supabase.from('screening_attendees').delete().eq('id',mine.id):await supabase.from('screening_attendees').insert({screening_id:screeningId,user_id:profile.id})
+    if(error)return notify(`Failed: ${error.message}`,T.red)
     loadScreenings()
   }
   const cancelScreening=async(id)=>{
     if(!await confirmModal('Cancel this screening?',{danger:true}))return
-    await supabase.from('screenings').delete().eq('id',id)
+    const{error}=await supabase.from('screenings').delete().eq('id',id)
+    if(error)return notify(`Cancel failed: ${error.message}`,T.red)
     loadScreenings();notify('Screening cancelled',T.textSub)
   }
   const[reviewComments,setReviewComments]=useState([])
   const loadReviewComments=async()=>{const{data}=await supabase.from('review_comments').select('*').order('created_at',{ascending:true});if(data)setReviewComments(data)}
   const addReviewComment=async(reviewId,body)=>{
     if(!profile||!body.trim())return
-    await supabase.from('review_comments').insert({review_id:reviewId,user_id:profile.id,body:body.trim()})
+    const{error}=await supabase.from('review_comments').insert({review_id:reviewId,user_id:profile.id,body:body.trim()})
+    if(error)return notify(`Reply failed: ${error.message}`,T.red)
     loadReviewComments()
   }
   const[searchOpen,setSearchOpen]=useState(false)
@@ -2042,14 +2046,15 @@ function AppInner(){
     if(!profile)return notify('Create a profile first',T.red)
     if(profile.is_banned)return notify('You are unable to post in this league',T.red)
     const existing=reviews.find(r=>r.user_id===profile.id&&r.film_id===filmId)
-    if(existing)await supabase.from('film_reviews').update({rating,body:body||null,updated_at:new Date().toISOString()}).eq('id',existing.id)
-    else await supabase.from('film_reviews').insert({league_id:league?.id,user_id:profile.id,film_id:filmId,rating,body:body||null})
+    const{error}=existing?await supabase.from('film_reviews').update({rating,body:body||null,updated_at:new Date().toISOString()}).eq('id',existing.id):await supabase.from('film_reviews').insert({league_id:league?.id,user_id:profile.id,film_id:filmId,rating,body:body||null})
+    if(error)return notify(`Save failed: ${error.message}`,T.red)
     const{data}=await supabase.from('film_reviews').select('*').eq('league_id',league?.id).order('updated_at',{ascending:false})
     if(data)setReviews(data)
     notify(existing?'✏️ Review updated':'⭐ Review posted',T.gold)
   }
   const deleteReview=async(reviewId)=>{
-    await supabase.from('film_reviews').delete().eq('id',reviewId)
+    const{error}=await supabase.from('film_reviews').delete().eq('id',reviewId)
+    if(error)return notify(`Delete failed: ${error.message}`,T.red)
     setReviews(reviews.filter(r=>r.id!==reviewId))
     notify('Review removed',T.textSub)
   }
@@ -2283,14 +2288,16 @@ function AppInner(){
   const loadProfile=async()=>{const{data}=await supabase.from('profiles').select('*').eq('id',session.user.id).maybeSingle();if(data){setProfile(data);if(data.active_league_id)loadLeagueById(data.active_league_id)}}
   const loadLeagues=async()=>{const{data}=await supabase.from('league_members').select('league_id,role,leagues(*)').eq('user_id',session.user.id);if(data)setMyLeagues(data.map(m=>({...m.leagues,myRole:m.role})))}
   const loadLeagueById=async(leagueId)=>{const{data}=await supabase.from('leagues').select('*').eq('id',leagueId).maybeSingle();if(data){setLeague(data);loadData(leagueId);loadFeed(leagueId);loadTrades(leagueId)}}
-  const enterLeague=async(lg)=>{setLeague(lg);await supabase.from('profiles').update({active_league_id:lg.id}).eq('id',session.user.id);loadData(lg.id);loadFeed(lg.id);loadTrades(lg.id)}
+  const enterLeague=async(lg)=>{setLeague(lg);const{error}=await supabase.from('profiles').update({active_league_id:lg.id}).eq('id',session.user.id);if(error)notify(`Couldn't switch league: ${error.message}`,T.red);loadData(lg.id);loadFeed(lg.id);loadTrades(lg.id)}
   const createLeague=async()=>{
     if(!newLeagueName.trim()) return notify('Enter a league name',T.red)
     const code='BOXD-'+Math.random().toString(36).substring(2,6).toUpperCase()
     const{data,error}=await supabase.from('leagues').insert({name:newLeagueName.trim(),commissioner_id:session.user.id,invite_code:code}).select().single()
     if(error) return notify(error.message,T.red)
-    await supabase.from('league_members').insert({league_id:data.id,user_id:session.user.id,role:'commissioner'})
-    await supabase.from('league_config').insert({league_id:data.id,current_week:1,current_phase:1,currency:'$',tx_fee:5,phase_window_active:false,draft_window_open:false})
+    const{error:memErr}=await supabase.from('league_members').insert({league_id:data.id,user_id:session.user.id,role:'commissioner'})
+    if(memErr)return notify(`League created but membership failed — contact support: ${memErr.message}`,T.red)
+    const{error:cfgErr}=await supabase.from('league_config').insert({league_id:data.id,current_week:1,current_phase:1,currency:'$',tx_fee:5,phase_window_active:false,draft_window_open:false})
+    if(cfgErr)return notify(`League created but config failed — contact support: ${cfgErr.message}`,T.red)
     notify(`✅ League created! Code: ${code}`,T.green);setNewLeagueName('');loadLeagues();enterLeague(data)
   }
   const joinLeague=async()=>{
@@ -2309,13 +2316,15 @@ function AppInner(){
   const joinPublicLeague=async(lg)=>{
     const{error}=await supabase.from('league_members').insert({league_id:lg.id,user_id:session.user.id,role:'player'})
     if(error&&!error.message?.includes('duplicate'))return notify(error.message,T.red)
-    await supabase.from('leagues').update({member_count:(lg.member_count||0)+1}).eq('id',lg.id)
+    const{error:cntErr}=await supabase.from('leagues').update({member_count:(lg.member_count||0)+1}).eq('id',lg.id)
+    if(cntErr)console.error('member_count update failed:',cntErr.message) // cosmetic counter only, don't block the join
     notify(`Joined ${lg.name}!`,T.green);loadLeagues();enterLeague(lg)
   }
   const leaveLeague=async()=>{
     if(!league)return;
     if(!await confirmModal(`Leave ${league.name}?`,{danger:true})) return
-    await supabase.from('league_members').delete().eq('league_id',league.id).eq('user_id',session.user.id)
+    const{error}=await supabase.from('league_members').delete().eq('league_id',league.id).eq('user_id',session.user.id)
+    if(error)return notify(`Couldn't leave: ${error.message}`,T.red)
     await supabase.from('profiles').update({active_league_id:null}).eq('id',session.user.id)
     setLeague(null);loadLeagues()
   }
@@ -2357,8 +2366,8 @@ function AppInner(){
 
   const togglePick=async(filmId,isPicked)=>{
     if(!profile) return notify('Sign in to pick films',T.red)
-    if(isPicked)await supabase.from('film_picks').delete().eq('user_id',profile.id).eq('film_id',filmId)
-    else await supabase.from('film_picks').insert({user_id:profile.id,film_id:filmId})
+    const{error}=isPicked?await supabase.from('film_picks').delete().eq('user_id',profile.id).eq('film_id',filmId):await supabase.from('film_picks').insert({user_id:profile.id,film_id:filmId})
+    if(error)return notify(`Failed: ${error.message}`,T.red)
     loadPicks()
   }
   const trackBookingClick=async(filmId,chain)=>{await supabase.from('booking_clicks').insert({user_id:profile?.id,film_id:filmId,chain});loadBookingClicks()}
@@ -2459,8 +2468,8 @@ function AppInner(){
     const bankCap=BANK_CAP_PCT*(PHASE_BUDGETS[ph]||0)
     const banked=Math.max(0,Math.min(alloc-spent,bankCap))
     const ex=phaseBudgets.find(pb=>pb.player_id===pid&&pb.phase===ph)
-    if(ex)await supabase.from('phase_budgets').update({budget_allocated:alloc,budget_spent:spent,budget_banked:banked}).eq('id',ex.id)
-    else await supabase.from('phase_budgets').insert({player_id:pid,phase:ph,budget_allocated:alloc,budget_spent:spent,budget_banked:banked,league_id:league?.id})
+    const{error}=ex?await supabase.from('phase_budgets').update({budget_allocated:alloc,budget_spent:spent,budget_banked:banked}).eq('id',ex.id):await supabase.from('phase_budgets').insert({player_id:pid,phase:ph,budget_allocated:alloc,budget_spent:spent,budget_banked:banked,league_id:league?.id})
+    return error
   }
 
   const advancePhase=async()=>{
@@ -2471,7 +2480,9 @@ function AppInner(){
       const phaseScores=[...players].map(p=>({p,pts:calcPhasePoints(p.id,completedPhase)})).sort((a,b)=>b.pts-a.pts)
       const phaseWinner=phaseScores[0]
       const mvpHolding=rosters.filter(r=>r.phase===completedPhase&&results[r.film_id]!=null).map(r=>({r,film:films.find(f=>f.id===r.film_id),pts:calcOpeningPts(films.find(f=>f.id===r.film_id)||{},results[r.film_id]||0)})).sort((a,b)=>b.pts-a.pts)[0]
-      for(const p of players) await bankBudget(p.id,completedPhase)
+      const bankFailures=[]
+      for(const p of players){const err=await bankBudget(p.id,completedPhase);if(err)bankFailures.push(`${p.name}: ${err.message}`)}
+      if(bankFailures.length)throw new Error(`Budget banking failed for: ${bankFailures.join('; ')} — phase NOT advanced, fix and retry`)
       const nextPhase=completedPhase+1
       const ok=await updateLeagueConfig({
         current_phase:nextPhase,
@@ -2603,7 +2614,8 @@ function AppInner(){
     if(price>left){haptic.warn();return notify(`Not enough budget — need $${price}M, have $${left}M`,T.red)}
     const{error}=await supabase.from('rosters').insert({player_id:profile.id,film_id:film.id,bought_price:price,bought_week:cfg.current_week,acquired_week:cfg.current_week,phase:ph,active:true,league_id:league?.id})
     if(error){haptic.warn();return notify(error.message,T.red)}
-    await supabase.from('transactions').insert({player_id:profile.id,film_id:film.id,type:'buy',price,week:cfg.current_week,league_id:league?.id})
+    const{error:txErr}=await supabase.from('transactions').insert({player_id:profile.id,film_id:film.id,type:'buy',price,week:cfg.current_week,league_id:league?.id})
+    if(txErr)console.error('buy transaction log failed (roster is still correct):',txErr.message)
     await logActivity(profile.id,'buy',{film_id:film.id,film_title:film.title,price,player_name:profile.name},league?.id)
     haptic.success()
     notify(`✨ Acquired ${film.title} · $${price}M`,T.green);loadData(league?.id)
@@ -2614,7 +2626,8 @@ function AppInner(){
     const win=isWindow(),fee=win?0:Math.round(val*SELL_FEE_PCT),proceeds=Math.max(0,val-fee)
     const{error}=await supabase.from('rosters').update({active:false,sold_price:proceeds,sold_week:cfg.current_week}).eq('id',h.id)
     if(error){haptic.warn();return notify(`Sell failed: ${error.message}`,T.red)}
-    await supabase.from('transactions').insert([{player_id:profile.id,film_id:film.id,type:'sell',price:proceeds,week:cfg.current_week},...(fee>0?[{player_id:profile.id,film_id:film.id,type:'fee',price:fee,week:cfg.current_week}]:[])])
+    const{error:txErr}=await supabase.from('transactions').insert([{player_id:profile.id,film_id:film.id,type:'sell',price:proceeds,week:cfg.current_week},...(fee>0?[{player_id:profile.id,film_id:film.id,type:'fee',price:fee,week:cfg.current_week}]:[])])
+    if(txErr)console.error('sell transaction log failed (roster is still correct):',txErr.message)
     await logActivity(profile.id,'sell',{film_id:film.id,film_title:film.title,proceeds,player_name:profile.name},league?.id)
     haptic.tap()
     notify(`Dropped ${film.title} · $${proceeds}M${win?' (free)':''}`,T.gold);loadData(league?.id)
@@ -3449,11 +3462,10 @@ function AppInner(){
   const FeedPage=()=>{
     const toggleFeedReaction=async(feedId,emoji)=>{
       const existing=feedReactions[feedId]?.[emoji]||[]
-      if(existing.includes(profile.id)){
-        await supabase.from('reactions').delete().eq('target_type','feed').eq('target_id',feedId).eq('user_id',profile.id).eq('emoji',emoji)
-      }else{
-        await supabase.from('reactions').insert({user_id:profile.id,target_type:'feed',target_id:feedId,emoji})
-      }
+      const{error}=existing.includes(profile.id)
+        ?await supabase.from('reactions').delete().eq('target_type','feed').eq('target_id',feedId).eq('user_id',profile.id).eq('emoji',emoji)
+        :await supabase.from('reactions').insert({user_id:profile.id,target_type:'feed',target_id:feedId,emoji})
+      if(error)return notify(`Failed: ${error.message}`,T.red)
       loadFeed(league?.id)
     }
     return(
@@ -3635,8 +3647,8 @@ function AppInner(){
     const submit=async()=>{
       if(!picks.p1||!picks.p2||!picks.p3)return notify('Pick 3 films',T.red)
       const data={player_id:profile.id,league_id:league?.id,week_num:wkN,pick_1:picks.p1,pick_2:picks.p2,pick_3:picks.p3}
-      if(myForecast)await supabase.from('friday_forecasts').update(data).eq('id',myForecast.id)
-      else await supabase.from('friday_forecasts').insert(data)
+      const{error}=myForecast?await supabase.from('friday_forecasts').update(data).eq('id',myForecast.id):await supabase.from('friday_forecasts').insert(data)
+      if(error)return notify(`Save failed: ${error.message}`,T.red)
       notify('🎯 Weekend forecast locked',T.gold);loadFridayForecasts(league?.id)
     }
     useEffect(()=>{if(myForecast)setPicks({p1:myForecast.pick_1||'',p2:myForecast.pick_2||'',p3:myForecast.pick_3||''})},[myForecast?.id])
@@ -3893,11 +3905,10 @@ function AppInner(){
     const[selFilm,setSelFilm]=useState('')
     const vote=async(pollId,opt)=>{
       const existing=pollVotes.find(v=>v.poll_id===pollId&&v.player_id===profile.id)
-      if(existing){
-        await supabase.from('poll_votes').update({vote:opt}).eq('id',existing.id)
-      }else{
-        await supabase.from('poll_votes').insert({poll_id:pollId,player_id:profile.id,league_id:league?.id,vote:opt})
-      }
+      const{error}=existing
+        ?await supabase.from('poll_votes').update({vote:opt}).eq('id',existing.id)
+        :await supabase.from('poll_votes').insert({poll_id:pollId,player_id:profile.id,league_id:league?.id,vote:opt})
+      if(error)return notify(`Vote failed: ${error.message}`,T.red)
       notify(`Voted: ${opt}`,T.blue);loadPolls(league?.id)
     }
     const submit=async()=>{
@@ -3971,8 +3982,9 @@ function AppInner(){
     const toggleBan=async(p)=>{
       if(!await confirmModal(`${p.is_banned?'Unban':'Ban'} ${p.name}? ${p.is_banned?'They can post again.':'They will no longer be able to post reviews, comments, or screenings.'}`,{danger:!p.is_banned}))return
       setBusy(true)
-      await supabase.from('profiles').update({is_banned:!p.is_banned}).eq('id',p.id)
+      const{error}=await supabase.from('profiles').update({is_banned:!p.is_banned}).eq('id',p.id)
       setBusy(false)
+      if(error)return notify(`Failed: ${error.message}`,T.red)
       notify(p.is_banned?`${p.name} unbanned`:`${p.name} banned`,p.is_banned?T.green:T.red)
       loadData(league?.id)
     }
@@ -4029,7 +4041,7 @@ function AppInner(){
             <span style={{flex:1,fontWeight:600}}>{c.distributor}</span>
             <code style={{background:T.surfaceUp,padding:'2px 8px',borderRadius:'5px',color:T.gold,fontSize:'11px'}}>{c.access_code}</code>
             <button onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/?distributor=${c.access_code}`);notify('Portal link copied',T.green)}} style={{background:'none',border:'none',color:T.blue,cursor:'pointer',fontSize:'11px'}}>📋</button>
-            <button onClick={async()=>{await supabase.from('distributor_access').delete().eq('id',c.id);setCodes(codes.filter(x=>x.id!==c.id))}} style={{background:'none',border:'none',color:T.textDim,cursor:'pointer',fontSize:'11px'}}>✕</button>
+            <button onClick={async()=>{const{error}=await supabase.from('distributor_access').delete().eq('id',c.id);if(error)return notify(`Delete failed: ${error.message}`,T.red);setCodes(codes.filter(x=>x.id!==c.id))}} style={{background:'none',border:'none',color:T.textDim,cursor:'pointer',fontSize:'11px'}}>✕</button>
           </div>
         ))}
         {codes.length===0&&<div style={{fontSize:'11px',color:T.textDim}}>No access codes yet.</div>}
@@ -4678,8 +4690,11 @@ function AppInner(){
                       <div style={{flex:1,fontSize:'10px',color:T.blue,lineHeight:1.5}}>Suggest estimates for {fillable.length} film{fillable.length!==1?'s':''} from comparable resulted titles. You can fine-tune any of them afterwards.</div>
                       <Btn onClick={async()=>{
                         if(!await confirmModal(`Auto-fill estimates for ${fillable.length} film${fillable.length!==1?'s':''}? You can edit them individually afterwards.`))return
-                        for(const{f,sug} of fillable)await supabase.from('films').update({est_m:sug.est}).eq('id',f.id)
-                        notify(`✓ Filled ${fillable.length} estimate${fillable.length!==1?'s':''}`,T.green);loadData(league?.id)
+                        const failed=[]
+                        for(const{f,sug} of fillable){const{error}=await supabase.from('films').update({est_m:sug.est}).eq('id',f.id);if(error)failed.push(f.title)}
+                        if(failed.length)notify(`Filled ${fillable.length-failed.length}/${fillable.length} — failed: ${failed.join(', ')}`,T.red)
+                        else notify(`✓ Filled ${fillable.length} estimate${fillable.length!==1?'s':''}`,T.green)
+                        loadData(league?.id)
                       }} color={T.blue} textColor="#fff" size="sm">Fill all</Btn>
                     </div>
                   )
@@ -4694,8 +4709,11 @@ function AppInner(){
                       <div style={{flex:1,fontSize:'10px',color:T.gold,lineHeight:1.5}}>{mismatched.length} film{mismatched.length!==1?'s':''} have an IPO price that doesn't match their current estimate. Recalculate to sync them.</div>
                       <Btn onClick={async()=>{
                         if(!await confirmModal(`Recalculate IPO prices for ${mismatched.length} film${mismatched.length!==1?'s':''} from their estimates?`))return
-                        for(const f of mismatched)await supabase.from('films').update({base_price:calcIPO(f.estM)}).eq('id',f.id)
-                        notify(`✓ Recalculated ${mismatched.length} IPO price${mismatched.length!==1?'s':''}`,T.green);loadData(league?.id)
+                        const failed=[]
+                        for(const f of mismatched){const{error}=await supabase.from('films').update({base_price:calcIPO(f.estM)}).eq('id',f.id);if(error)failed.push(f.title)}
+                        if(failed.length)notify(`Recalculated ${mismatched.length-failed.length}/${mismatched.length} — failed: ${failed.join(', ')}`,T.red)
+                        else notify(`✓ Recalculated ${mismatched.length} IPO price${mismatched.length!==1?'s':''}`,T.green)
+                        loadData(league?.id)
                       }} color={T.gold} size="sm">Recalc IPOs</Btn>
                     </div>
                   )
@@ -4718,8 +4736,11 @@ function AppInner(){
                     <div style={{flex:1,fontSize:'10px',color:T.red,lineHeight:1.5}}>Future-phase films have visible prices — players could forward-plan. Lock them back to TBC?</div>
                     <Btn onClick={async()=>{
                       if(!await confirmModal(`Set base_price to NULL for ${priceLeaks.length} future-phase film${priceLeaks.length!==1?'s':''}?`,{danger:true}))return
-                      for(const f of priceLeaks)await supabase.from('films').update({base_price:null}).eq('id',f.id)
-                      notify(`🔒 ${priceLeaks.length} prices locked`,T.green);loadData(league?.id)
+                      const failed=[]
+                      for(const f of priceLeaks){const{error}=await supabase.from('films').update({base_price:null}).eq('id',f.id);if(error)failed.push(f.title)}
+                      if(failed.length)notify(`Locked ${priceLeaks.length-failed.length}/${priceLeaks.length} — failed: ${failed.join(', ')}`,T.red)
+                      else notify(`🔒 ${priceLeaks.length} prices locked`,T.green)
+                      loadData(league?.id)
                     }} color={T.red} textColor="#fff" size="sm">Lock all</Btn>
                   </div>
                 )}
@@ -4751,7 +4772,8 @@ function AppInner(){
                     await supabase.from('results').delete().eq('film_id',f.id)
                     await supabase.from('weekly_grosses').delete().eq('film_id',f.id)
                     await supabase.from('film_values').delete().eq('film_id',f.id)
-                    await supabase.from('films').delete().eq('id',f.id)
+                    const{error}=await supabase.from('films').delete().eq('id',f.id)
+                    if(error)return notify(`Delete failed: ${error.message}`,T.red)
                     notify(`🗑 ${f.title} deleted`,T.red);loadData(league?.id)
                   }}
                 />
@@ -5042,7 +5064,8 @@ function AppInner(){
                       await supabase.from('results').delete().eq('film_id',f.id)
                       await supabase.from('weekly_grosses').delete().eq('film_id',f.id)
                       await supabase.from('film_values').delete().eq('film_id',f.id)
-                      await supabase.from('films').delete().eq('id',f.id)
+                      const{error}=await supabase.from('films').delete().eq('id',f.id)
+                      if(error)return notify(`Delete failed: ${error.message}`,T.red)
                       notify(`🗑 ${f.title} deleted`,T.red);loadData(league?.id)
                     }}
                   />
@@ -5076,7 +5099,8 @@ function AppInner(){
             <div style={{marginTop:'14px',paddingTop:'14px',borderTop:`1px solid ${T.border}`}}>
               <div onClick={async()=>{
                 const makePublic=!league?.is_public
-                await supabase.from('leagues').update({is_public:makePublic}).eq('id',league.id)
+                const{error}=await supabase.from('leagues').update({is_public:makePublic}).eq('id',league.id)
+                if(error)return notify(`Failed: ${error.message}`,T.red)
                 setLeague({...league,is_public:makePublic})
                 notify(makePublic?'🌍 League is now public — anyone can discover and join':'🔒 League is now private',T.green)
               }} style={{display:'flex',alignItems:'center',gap:'10px',cursor:'pointer',background:T.surfaceUp,borderRadius:'10px',padding:'12px',border:`1px solid ${league?.is_public?T.green+'44':T.border}`}}>
@@ -5302,7 +5326,8 @@ function AppInner(){
       if(lb&&!/^https:\/\/(www\.)?letterboxd\.com\/[A-Za-z0-9_-]+\/?$/.test(lb))return notify('Letterboxd link must look like https://letterboxd.com/yourname',T.red)
       const av=avatarUrl.trim()
       if(av&&!/^https:\/\//i.test(av))return notify('Photo URL must start with https://',T.red)
-      await supabase.from('profiles').update({name:name.trim(),bio:bio.trim(),color:col,avatar_url:av||null,favourite_film_id:favFilm||null,letterboxd_url:lb||null}).eq('id',profile.id)
+      const{error}=await supabase.from('profiles').update({name:name.trim(),bio:bio.trim(),color:col,avatar_url:av||null,favourite_film_id:favFilm||null,letterboxd_url:lb||null}).eq('id',profile.id)
+      if(error)return notify(`Save failed: ${error.message}`,T.red)
       loadProfile();notify('Profile updated',T.green);setProfileEditOpen(false)
     }
     return(
@@ -5384,7 +5409,8 @@ function AppInner(){
     const[sent,setSent]=useState('positive')
     const submit=async()=>{
       if(!head.trim())return notify('Need a headline',T.red)
-      await supabase.from('news_signals').insert({league_id:league?.id,film_id:selFilm||null,signal_type:type,headline:head.trim(),detail:det.trim()||null,sentiment:sent,price_impact:null,created_by:profile.id})
+      const{error}=await supabase.from('news_signals').insert({league_id:league?.id,film_id:selFilm||null,signal_type:type,headline:head.trim(),detail:det.trim()||null,sentiment:sent,price_impact:null,created_by:profile.id})
+      if(error)return notify(`Publish failed: ${error.message}`,T.red)
       notify('📡 Signal published',T.red);loadNews(league?.id);setNewSignalOpen(false)
     }
     return(
