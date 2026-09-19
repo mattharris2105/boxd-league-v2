@@ -5565,9 +5565,12 @@ function AppInner(){
       {/* DESKTOP SIDEBAR */}
       {!isMobile&&sidebarOpen&&(
         <div style={{width:'240px',background:T.surface,borderRight:`1px solid ${T.border}`,padding:'20px 0',position:'sticky',top:0,height:'100vh',overflowY:'auto',flexShrink:0,zIndex:10}}>
-          <div style={{padding:'0 20px 20px',borderBottom:`1px solid ${T.border}`,marginBottom:'14px'}}>
-            <div style={{fontSize:'24px',fontWeight:900,color:T.gold,letterSpacing:'-1px',lineHeight:1}}>BOXD</div>
-            <div style={{fontSize:'10px',color:T.textDim,letterSpacing:'2px',marginTop:'4px'}}>{league?.name}</div>
+          <div style={{padding:'0 20px 20px',borderBottom:`1px solid ${T.border}`,marginBottom:'14px',display:'flex',alignItems:'center',gap:'10px'}}>
+            {league?.image_url&&<img src={league.image_url} alt="" style={{width:'36px',height:'36px',borderRadius:'8px',objectFit:'cover',flexShrink:0}} onError={e=>{e.target.style.display='none'}}/>}
+            <div style={{minWidth:0}}>
+              <div style={{fontSize:'24px',fontWeight:900,color:T.gold,letterSpacing:'-1px',lineHeight:1}}>BOXD</div>
+              <div style={{fontSize:'10px',color:T.textDim,letterSpacing:'2px',marginTop:'4px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{league?.name}</div>
+            </div>
           </div>
           <div style={{padding:'0 12px'}}>
             {[
@@ -5717,6 +5720,12 @@ function AppInner(){
         <div style={{position:'fixed',inset:0,background:'#000000CC',zIndex:200,display:'flex',alignItems:'flex-end'}} onClick={()=>setMoreOpen(false)}>
           <div style={{background:T.surface,width:'100%',maxHeight:'80vh',overflowY:'auto',borderRadius:'20px 20px 0 0',padding:'20px',paddingBottom:'calc(20px + env(safe-area-inset-bottom))',animation:'slideUp .25s ease'}} onClick={e=>e.stopPropagation()}>
             <div style={{width:'36px',height:'4px',background:T.border,borderRadius:'2px',margin:'0 auto 16px'}}/>
+            <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'16px',paddingBottom:'16px',borderBottom:`1px solid ${T.border}`}}>
+              {league?.image_url
+                ?<img src={league.image_url} alt="" style={{width:'40px',height:'40px',borderRadius:'10px',objectFit:'cover',flexShrink:0}} onError={e=>{e.target.style.display='none'}}/>
+                :<div style={{width:'40px',height:'40px',borderRadius:'10px',background:`${T.gold}22`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'18px',flexShrink:0}}>🎬</div>}
+              <div style={{fontSize:'14px',fontWeight:700,color:T.text,minWidth:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{league?.name}</div>
+            </div>
             <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'8px'}}>
               {ALL_PAGES.filter(p=>!BOTTOM_TABS.find(t=>t.id===p.id)).map(p=>(
                 <button key={p.id} onClick={()=>navigate(p.id)} style={{background:T.surfaceUp,border:`1px solid ${page===p.id?T.gold+'66':T.border}`,borderRadius:'10px',padding:'14px 6px',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:'4px',color:page===p.id?T.gold:T.textSub,fontFamily:T.mono,fontSize:'11px'}}>
