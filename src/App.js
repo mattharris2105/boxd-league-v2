@@ -2265,11 +2265,16 @@ function AppInner(){
     let{data,error}=await supabase.from('league_config').update(patch).eq('league_id',league?.id).select()
     if(error){notify(`Config error: ${error.message}`,T.red);return false}
     if(!data||data.length===0){
-      // Nothing matched on league_id — the row's league_id is probably null/wrong.
-      // Find the actual config row and update it by its primary key instead,
-      // stamping the correct league_id on the way through.
+      // Nothing matched on league_id. Either this league genuinely has no
+      // config row yet (multi-league is real now — a brand new league has
+      // none until this runs), or an orphaned row exists with a null
+      // league_id from some earlier bug. Only recover the orphaned case —
+      // never grab another league's real config row (rows[0] used to be
+      // used as a blind fallback here, which would silently steal and
+      // reassign a DIFFERENT league's config the moment a second league
+      // existed with no config row of its own).
       const{data:rows}=await supabase.from('league_config').select('*')
-      const target=(rows||[]).find(r=>r.league_id===league?.id)||(rows||[])[0]
+      const target=(rows||[]).find(r=>r.league_id===league?.id)||(rows||[]).find(r=>r.league_id==null)
       if(!target){
         const{error:insErr}=await supabase.from('league_config').insert({league_id:league?.id,current_week:1,current_phase:1,...patch})
         if(insErr){notify(`Config error: ${insErr.message}`,T.red);return false}
