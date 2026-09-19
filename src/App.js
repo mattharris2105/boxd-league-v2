@@ -4615,7 +4615,10 @@ function AppInner(){
           {(()=>{
             const cur=films.filter(f=>f.phase===ph)
             const pendingResults=films.filter(f=>f.week<cfg.current_week&&results[f.id]==null)
-            const missingRT=cur.filter(f=>f.rt==null&&results[f.id]==null)
+            // A film with no result yet correctly has no RT — that's not a
+            // problem. Only flag films that HAVE released but still have no
+            // score (the scraper's title match failed, or it's obscure).
+            const missingRT=cur.filter(f=>f.rt==null&&results[f.id]!=null)
             const missingEst=cur.filter(f=>f.estM==null)
             const missingTrailer=cur.filter(f=>!f.trailer)
             const unpriced=cur.filter(f=>f.basePrice==null)
