@@ -2626,16 +2626,18 @@ function AppInner(){
     const ph=curPhase()
     if(marqueeLocked(ph))return notify('Marquee is locked — a film already scored this phase',T.red)
     const ex=marquees.find(m=>m.player_id===profile.id&&m.phase===ph)
+    let error
     if(ex?.film_id===film.id){
-      await supabase.from('marquee_picks').delete().eq('id',ex.id)
-      notify(`${film.title} is no longer your marquee`,T.textSub)
+      ;({error}=await supabase.from('marquee_picks').delete().eq('id',ex.id))
+      if(!error)notify(`${film.title} is no longer your marquee`,T.textSub)
     }else if(ex){
-      await supabase.from('marquee_picks').update({film_id:film.id,updated_at:new Date().toISOString()}).eq('id',ex.id)
-      notify(`⭐ Marquee → ${film.title} (×${MARQUEE_MULT} points)`,T.gold)
+      ;({error}=await supabase.from('marquee_picks').update({film_id:film.id,updated_at:new Date().toISOString()}).eq('id',ex.id))
+      if(!error)notify(`⭐ Marquee → ${film.title} (×${MARQUEE_MULT} points)`,T.gold)
     }else{
-      await supabase.from('marquee_picks').insert({league_id:league?.id,player_id:profile.id,phase:ph,film_id:film.id})
-      notify(`⭐ Marquee → ${film.title} (×${MARQUEE_MULT} points)`,T.gold)
+      ;({error}=await supabase.from('marquee_picks').insert({league_id:league?.id,player_id:profile.id,phase:ph,film_id:film.id}))
+      if(!error)notify(`⭐ Marquee → ${film.title} (×${MARQUEE_MULT} points)`,T.gold)
     }
+    if(error){haptic.warn();return notify(`Marquee update failed: ${error.message}`,T.red)}
     loadData(league?.id)
   }
 
@@ -4449,8 +4451,15 @@ function AppInner(){
           })
           if(error)throw error
         }
-        await supabase.from('film_suggestions').update({status:'approved',est_m:estN,reviewed_at:new Date().toISOString(),reviewed_by:profile?.name||profile?.id||null}).eq('id',s.id)
-        notify(`✓ ${s.kind==='estimate'?'Estimate set for':'Added'} ${s.title}`,T.green)
+        const{error:statusErr}=await supabase.from('film_suggestions').update({status:'approved',est_m:estN,reviewed_at:new Date().toISOString(),reviewed_by:profile?.name||profile?.id||null}).eq('id',s.id)
+        if(statusErr){
+          // The film itself is already saved — only the suggestion's status
+          // failed to update. Warn so the host doesn't re-approve it and
+          // create a duplicate film when it reappears in the queue.
+          notify(`✓ ${s.title} added, but the suggestion is stuck pending — don't re-approve it: ${statusErr.message}`,T.orange)
+        }else{
+          notify(`✓ ${s.kind==='estimate'?'Estimate set for':'Added'} ${s.title}`,T.green)
+        }
         onDone()
       }catch(e){notify(e.message||'Failed',T.red)}
       setBusy(false)
@@ -4458,7 +4467,9 @@ function AppInner(){
     const dismiss=async()=>{
       if(!await confirmModal(`Dismiss "${s.title}"? It'll drop off the list now and come back once in ~4 weeks if it's still upcoming — in case tracking firms up.`))return
       setBusy(true)
-      await supabase.from('film_suggestions').update({status:'dismissed',reviewed_at:new Date().toISOString(),reviewed_by:profile?.name||profile?.id||null}).eq('id',s.id)
+      const{error}=await supabase.from('film_suggestions').update({status:'dismissed',reviewed_at:new Date().toISOString(),reviewed_by:profile?.name||profile?.id||null}).eq('id',s.id)
+      setBusy(false)
+      if(error){notify(`Dismiss failed: ${error.message}`,T.red);return}
       notify(`Dismissed ${s.title}`,T.textSub);onDone()
     }
     return(
@@ -5108,22 +5119,27 @@ function AppInner(){
       const ref=warEntriesRef.current
       const toSave=Object.entries(ref).filter(([_,v])=>v&&Object.values(v).some(x=>x!==''&&x!=null))
       if(toSave.length===0)return notify('Nothing to save',T.red)
-      let savedCount=0
+      const failed=[]
       for(const[filmId,v] of toSave){
+        const film=films.find(f=>f.id===filmId)
+        const title=film?.title||filmId
+        let ok=true
         if(v.actual&&!isNaN(Number(v.actual))){
-          await dbUpsert('results','film_id',filmId,{actual_m:Number(v.actual)})
-          const film=films.find(f=>f.id===filmId)
-          if(film){await dbUpsert('film_values','film_id',filmId,{current_value:calcMarketValue(film,Number(v.actual),weeklyG[filmId]||{})});resolveChips(filmId,Number(v.actual))}
-          savedCount++
+          const r1=await dbUpsert('results','film_id',filmId,{actual_m:Number(v.actual)})
+          if(r1?.error){ok=false}
+          else if(film){await dbUpsert('film_values','film_id',filmId,{current_value:calcMarketValue(film,Number(v.actual),weeklyG[filmId]||{})});resolveChips(filmId,Number(v.actual))}
         }
-        for(const w of [2,3,4,5,6]){const wv=v[`week${w}`];if(wv&&!isNaN(Number(wv)))await dbUpsertWeekly(filmId,w,Number(wv))}
+        for(const w of [2,3,4,5,6]){const wv=v[`week${w}`];if(wv&&!isNaN(Number(wv))){const rw=await dbUpsertWeekly(filmId,w,Number(wv));if(rw?.error)ok=false}}
         const filmEdits={}
         if(v.est_m!==undefined&&v.est_m!==''&&!isNaN(Number(v.est_m)))filmEdits.est_m=Number(v.est_m)
         if(v.rt!==undefined&&v.rt!==''&&!isNaN(Number(v.rt)))filmEdits.rt=Number(v.rt)
         if(v.base_price!==undefined&&v.base_price!=='')filmEdits.base_price=Number(v.base_price)||null
-        if(Object.keys(filmEdits).length)await supabase.from('films').update(filmEdits).eq('id',filmId)
+        if(Object.keys(filmEdits).length){const{error}=await supabase.from('films').update(filmEdits).eq('id',filmId);if(error)ok=false}
+        if(!ok)failed.push(title)
       }
-      notify(`✓ Saved ${toSave.length} film${toSave.length!==1?'s':''}`,T.green)
+      const savedCount=toSave.length-failed.length
+      if(failed.length===0)notify(`✓ Saved ${savedCount} film${savedCount!==1?'s':''}`,T.green)
+      else notify(`Saved ${savedCount}/${toSave.length} — failed: ${failed.join(', ')}`,T.red)
       warEntriesRef.current={};loadData(league?.id)
     }
 
