@@ -2612,7 +2612,8 @@ function AppInner(){
     const h=rosters.find(r=>r.player_id===profile.id&&r.film_id===film.id&&r.active);if(!h)return
     const val=filmVal(film)??film.basePrice??0
     const win=isWindow(),fee=win?0:Math.round(val*SELL_FEE_PCT),proceeds=Math.max(0,val-fee)
-    await supabase.from('rosters').update({active:false,sold_price:proceeds,sold_week:cfg.current_week}).eq('id',h.id)
+    const{error}=await supabase.from('rosters').update({active:false,sold_price:proceeds,sold_week:cfg.current_week}).eq('id',h.id)
+    if(error){haptic.warn();return notify(`Sell failed: ${error.message}`,T.red)}
     await supabase.from('transactions').insert([{player_id:profile.id,film_id:film.id,type:'sell',price:proceeds,week:cfg.current_week},...(fee>0?[{player_id:profile.id,film_id:film.id,type:'fee',price:fee,week:cfg.current_week}]:[])])
     await logActivity(profile.id,'sell',{film_id:film.id,film_title:film.title,proceeds,player_name:profile.name},league?.id)
     haptic.tap()
