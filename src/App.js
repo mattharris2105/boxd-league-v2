@@ -5634,6 +5634,7 @@ function AppInner(){
       <div style={{flex:1,minWidth:0,position:'relative',zIndex:1,paddingBottom:isMobile?'80px':'20px'}}>
         {/* TOP BAR */}
         <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:'18px 20px',paddingTop:'calc(18px + env(safe-area-inset-top))',display:'flex',alignItems:'center',gap:'14px',position:'sticky',top:0,zIndex:50,backdropFilter:'blur(10px)'}}>
+          {isMobile&&league?.image_url&&<img src={league.image_url} alt={league.name} onClick={()=>setMoreOpen(true)} style={{width:'40px',height:'40px',borderRadius:'10px',objectFit:'cover',flexShrink:0,cursor:'pointer'}} onError={e=>{e.target.style.display='none'}}/>}
           {isMobile&&<div style={{display:'flex',flexDirection:'column',lineHeight:1}}>
             <div style={{fontSize:'26px',fontWeight:900,color:T.gold,letterSpacing:'-1px'}}>BOXD</div>
             <div style={{fontSize:'11px',color:T.gold,letterSpacing:'1.5px',marginTop:'4px'}}>RUSHES</div>
