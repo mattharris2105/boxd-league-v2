@@ -4718,7 +4718,8 @@ function AppInner(){
               {films.map(f=>(
                 <FilmEditorRow key={f.id} film={f} results={results} weeklyG={weeklyG}
                   onSave={async(updates)=>{
-                    await supabase.from('films').update(updates).eq('id',f.id)
+                    const{error}=await supabase.from('films').update(updates).eq('id',f.id)
+                    if(error){notify(`✗ Save failed: ${error.message}`,T.red);return}
                     if(updates.actual_m!=null){
                       await dbUpsert('results','film_id',f.id,{actual_m:Number(updates.actual_m)})
                       await resolveChips(f.id,Number(updates.actual_m))
@@ -5005,7 +5006,8 @@ function AppInner(){
                 {films.slice(0,200).map(f=>(
                   <FilmEditorRow key={f.id} film={f} results={results} weeklyG={weeklyG}
                     onSave={async(updates)=>{
-                      await supabase.from('films').update(updates).eq('id',f.id)
+                      const{error}=await supabase.from('films').update(updates).eq('id',f.id)
+                      if(error){notify(`✗ Save failed: ${error.message}`,T.red);return}
                       if(updates.actual_m!=null){
                         await dbUpsert('results','film_id',f.id,{actual_m:Number(updates.actual_m)})
                         await resolveChips(f.id,Number(updates.actual_m))
