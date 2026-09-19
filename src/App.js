@@ -4718,7 +4718,10 @@ function AppInner(){
               {films.map(f=>(
                 <FilmEditorRow key={f.id} film={f} results={results} weeklyG={weeklyG}
                   onSave={async(updates)=>{
-                    const{error}=await supabase.from('films').update(updates).eq('id',f.id)
+                    // actual_m/weekN live on results/weekly_grosses, not films —
+                    // strip them before patching films or PostgREST 400s.
+                    const{actual_m,week2,week3,week4,week5,week6,...filmFields}=updates
+                    const{error}=await supabase.from('films').update(filmFields).eq('id',f.id)
                     if(error){notify(`✗ Save failed: ${error.message}`,T.red);return}
                     if(updates.actual_m!=null){
                       await dbUpsert('results','film_id',f.id,{actual_m:Number(updates.actual_m)})
@@ -5006,7 +5009,10 @@ function AppInner(){
                 {films.slice(0,200).map(f=>(
                   <FilmEditorRow key={f.id} film={f} results={results} weeklyG={weeklyG}
                     onSave={async(updates)=>{
-                      const{error}=await supabase.from('films').update(updates).eq('id',f.id)
+                      // actual_m/weekN live on results/weekly_grosses, not films —
+                      // strip them before patching films or PostgREST 400s.
+                      const{actual_m,week2,week3,week4,week5,week6,...filmFields}=updates
+                      const{error}=await supabase.from('films').update(filmFields).eq('id',f.id)
                       if(error){notify(`✗ Save failed: ${error.message}`,T.red);return}
                       if(updates.actual_m!=null){
                         await dbUpsert('results','film_id',f.id,{actual_m:Number(updates.actual_m)})
